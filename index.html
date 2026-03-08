@@ -597,106 +597,7 @@
   .sm-inspo-info span{font-size:.75rem;color:var(--accent);font-weight:700}
   </style>
 
-  <script>
-  const SM_PRODUCTS=[
-    {title:'Chaise en Chêne',desc:'Chaise artisanale en chêne massif de Ksar Hellal. Structure solide, finition soignée, disponible en plusieurs teintes.',emoji:'🪑',base:850,w:{min:40,max:60,val:45},d:{min:38,max:55,val:42},h:{min:80,max:100,val:88},locked:['Chêne massif','Assemblage tenon-mortaise','Vernis naturel'],gal:['🪑','🪑','🪑','🪑']},
-    {title:'Table à Manger',desc:'Grande table en chêne massif pour 6 à 8 personnes. Plateau épais 4cm, pieds carrés robustes, idéale pour les grandes familles.',emoji:'🍽',base:2800,w:{min:140,max:220,val:180},d:{min:80,max:110,val:90},h:{min:72,max:80,val:75},locked:['Chêne massif 4cm','Pieds carrés','Huile naturelle'],gal:['🍽','🍽','🍽','🍽']},
-    {title:'Canapé Cadre Chêne',desc:'Cadre de canapé en chêne avec accoudoirs sculptés à la main. Structure premium, coussins non inclus.',emoji:'🛋',base:3200,w:{min:160,max:240,val:200},d:{min:85,max:100,val:90},h:{min:75,max:90,val:82},locked:['Chêne massif','Pieds tournés','Vernis satiné'],gal:['🛋','🛋','🛋','🛋']},
-    {title:'Armoire en Chêne',desc:"Armoire en chêne massif avec portes battantes. Intérieur configurable, quincaillerie laiton. Garantie 15 ans structure.",emoji:'🚪',base:4500,w:{min:100,max:200,val:150},d:{min:50,max:70,val:60},h:{min:180,max:230,val:200},locked:['Chêne massif','Quincaillerie laiton','Fond contreplaqué'],gal:['🚪','🚪','🚪','🚪']},
-    {title:'Table Basse',desc:"Table basse en chêne au plateau légèrement bombé. Pieds en épingle acier noir. Design scandinave-tunisien unique.",emoji:'☕',base:1200,w:{min:80,max:130,val:100},d:{min:50,max:80,val:60},h:{min:38,max:50,val:42},locked:['Chêne massif','Pieds acier noir','Finition huile'],gal:['☕','☕','☕','☕']},
-    {title:'Coiffeuse avec Miroir',desc:"Coiffeuse en chêne avec miroir intégré et tiroirs. Finition dorée sur les poignées. Élégance vintage tunisienne.",emoji:'🪞',base:1800,w:{min:80,max:120,val:100},d:{min:40,max:55,val:45},h:{min:140,max:180,val:160},locked:['Chêne massif','Miroir 5mm','Poignées laiton'],gal:['🪞','🪞','🪞','🪞']}
-  ];
-  let smCurrent=0,smColor='#D4A853';
-
-  function selectSMProduct(idx,btn){
-    smCurrent=idx;
-    document.querySelectorAll('.sm-tab').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    const p=SM_PRODUCTS[idx];
-    document.getElementById('sm-title').textContent=p.title;
-    document.getElementById('sm-desc').textContent=p.desc;
-    const em=document.getElementById('sm-emoji');
-    em.style.transform='scale(0) rotate(-15deg)';em.style.opacity='0';
-    setTimeout(()=>{em.textContent=p.emoji;em.style.transition='all .5s cubic-bezier(.34,1.56,.64,1)';em.style.transform='scale(1) rotate(0)';em.style.opacity='1';},180);
-    const gal=document.getElementById('sm-gallery');
-    if(gal) gal.querySelectorAll('.sm-gal-item').forEach((g,i)=>{g.textContent=p.gal[i]||p.emoji;});
-    ['width','depth','height'].forEach(dim=>{
-      const el=document.getElementById('sm-'+dim);
-      const pd=dim==='width'?p.w:dim==='depth'?p.d:p.h;
-      el.min=pd.min;el.max=pd.max;el.value=pd.val;
-    });
-    const lt=document.getElementById('sm-locked-tags');
-    if(lt) lt.innerHTML=p.locked.map(l=>'<span style="background:rgba(107,63,212,0.06);border:1px solid rgba(107,63,212,0.12);color:var(--text-dim);font-size:.7rem;padding:.25rem .75rem;border-radius:20px">🔒 '+l+'</span>').join('');
-    const photo=document.getElementById('sm-photo');
-    photo.style.transform='scale(0.95)';photo.style.opacity='.7';
-    setTimeout(()=>{photo.style.transition='all .4s cubic-bezier(.34,1.56,.64,1)';photo.style.transform='';photo.style.opacity='1';},200);
-    updateSM();
-  }
-
-  function smSelectGal(el,idx){
-    document.querySelectorAll('.sm-gal-item').forEach(g=>g.classList.remove('active'));
-    el.classList.add('active');
-  }
-
-  function updateSM(){
-    const p=SM_PRODUCTS[smCurrent];
-    const w=parseInt(document.getElementById('sm-width').value);
-    const d=parseInt(document.getElementById('sm-depth').value);
-    const h=parseInt(document.getElementById('sm-height').value);
-    document.getElementById('sm-width-val').textContent=w+' cm';
-    document.getElementById('sm-depth-val').textContent=d+' cm';
-    document.getElementById('sm-height-val').textContent=h+' cm';
-    document.getElementById('sm-dim-w').textContent=w;
-    document.getElementById('sm-dim-d').textContent=d;
-    document.getElementById('sm-dim-h').textContent=h;
-    ['sm-width','sm-depth','sm-height'].forEach(id=>{
-      const el=document.getElementById(id);
-      const pct=((el.value-el.min)/(el.max-el.min))*100;
-      el.style.background='linear-gradient(to right,#7c3aed '+pct+'%,#e8e4ff '+pct+'%)';
-    });
-    const wE=Math.round((w-p.w.val)*2.5);
-    const dE=Math.round((d-p.d.val)*2);
-    const hE=Math.round((h-p.h.val)*1.5);
-    const extra=Math.max(0,wE+dE+hE);
-    const total=p.base+extra;
-    document.getElementById('sm-base-price').textContent=p.base+' TND';
-    document.getElementById('sm-dim-extra').textContent=(extra>0?'+':'')+extra+' TND';
-    document.getElementById('sm-total-price').textContent=total+' TND';
-    document.getElementById('sm-price').innerHTML=total+' <span style="font-size:1rem;color:var(--text-muted)">TND</span>';
-    document.getElementById('sm-w-min').textContent=p.w.min+'cm min';
-    document.getElementById('sm-w-max').textContent=p.w.max+'cm max';
-    document.getElementById('sm-d-min').textContent=p.d.min+'cm min';
-    document.getElementById('sm-d-max').textContent=p.d.max+'cm max';
-    document.getElementById('sm-h-min').textContent=p.h.min+'cm min';
-    document.getElementById('sm-h-max').textContent=p.h.max+'cm max';
-  }
-
-  function selectColor(btn,color,name){
-    smColor=color;
-    document.querySelectorAll('.sm-clr div').forEach(d=>d.style.boxShadow='0 0 0 2px transparent');
-    btn.querySelector('div').style.boxShadow='0 0 0 2.5px #7c3aed';
-    document.getElementById('sm-color-name').textContent=name;
-    const ov=document.getElementById('sm-color-overlay');
-    ov.style.background=color;ov.style.opacity='0.18';
-    if(typeof toast==='function') toast('🎨 '+name+' sélectionné','default');
-  }
-
-  function addSMToCart(){
-    const p=SM_PRODUCTS[smCurrent];
-    const total=parseInt(document.getElementById('sm-total-price').textContent);
-    const succ=document.getElementById('sm-success');
-    succ.style.display='flex';
-    setTimeout(()=>{succ.style.display='none';},3500);
-    if(typeof toast==='function') toast('🪑 '+p.title+' ajouté! '+total+' TND','success');
-  }
-
-  function saveSMConfig(){
-    if(typeof toast==='function') toast('💾 Configuration sauvegardée!','default');
-  }
-
-  document.addEventListener('DOMContentLoaded',()=>updateSM());
-  setTimeout(updateSM,200);
-  </script>
+  <!-- SM script moved to bottom -->
 
 
 
@@ -864,6 +765,106 @@ function filterAndGo(cat) {
   }, 100);
 }
 </script>
+<script>
+  const SM_PRODUCTS=[
+    {title:'Chaise en Chêne',desc:'Chaise artisanale en chêne massif de Ksar Hellal. Structure solide, finition soignée, disponible en plusieurs teintes.',emoji:'🪑',base:850,w:{min:40,max:60,val:45},d:{min:38,max:55,val:42},h:{min:80,max:100,val:88},locked:['Chêne massif','Assemblage tenon-mortaise','Vernis naturel'],gal:['🪑','🪑','🪑','🪑']},
+    {title:'Table à Manger',desc:'Grande table en chêne massif pour 6 à 8 personnes. Plateau épais 4cm, pieds carrés robustes, idéale pour les grandes familles.',emoji:'🍽',base:2800,w:{min:140,max:220,val:180},d:{min:80,max:110,val:90},h:{min:72,max:80,val:75},locked:['Chêne massif 4cm','Pieds carrés','Huile naturelle'],gal:['🍽','🍽','🍽','🍽']},
+    {title:'Canapé Cadre Chêne',desc:'Cadre de canapé en chêne avec accoudoirs sculptés à la main. Structure premium, coussins non inclus.',emoji:'🛋',base:3200,w:{min:160,max:240,val:200},d:{min:85,max:100,val:90},h:{min:75,max:90,val:82},locked:['Chêne massif','Pieds tournés','Vernis satiné'],gal:['🛋','🛋','🛋','🛋']},
+    {title:'Armoire en Chêne',desc:"Armoire en chêne massif avec portes battantes. Intérieur configurable, quincaillerie laiton. Garantie 15 ans structure.",emoji:'🚪',base:4500,w:{min:100,max:200,val:150},d:{min:50,max:70,val:60},h:{min:180,max:230,val:200},locked:['Chêne massif','Quincaillerie laiton','Fond contreplaqué'],gal:['🚪','🚪','🚪','🚪']},
+    {title:'Table Basse',desc:"Table basse en chêne au plateau légèrement bombé. Pieds en épingle acier noir. Design scandinave-tunisien unique.",emoji:'☕',base:1200,w:{min:80,max:130,val:100},d:{min:50,max:80,val:60},h:{min:38,max:50,val:42},locked:['Chêne massif','Pieds acier noir','Finition huile'],gal:['☕','☕','☕','☕']},
+    {title:'Coiffeuse avec Miroir',desc:"Coiffeuse en chêne avec miroir intégré et tiroirs. Finition dorée sur les poignées. Élégance vintage tunisienne.",emoji:'🪞',base:1800,w:{min:80,max:120,val:100},d:{min:40,max:55,val:45},h:{min:140,max:180,val:160},locked:['Chêne massif','Miroir 5mm','Poignées laiton'],gal:['🪞','🪞','🪞','🪞']}
+  ];
+  let smCurrent=0,smColor='#D4A853';
+
+  function selectSMProduct(idx,btn){
+    smCurrent=idx;
+    document.querySelectorAll('.sm-tab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const p=SM_PRODUCTS[idx];
+    document.getElementById('sm-title').textContent=p.title;
+    document.getElementById('sm-desc').textContent=p.desc;
+    const em=document.getElementById('sm-emoji');
+    em.style.transform='scale(0) rotate(-15deg)';em.style.opacity='0';
+    setTimeout(()=>{em.textContent=p.emoji;em.style.transition='all .5s cubic-bezier(.34,1.56,.64,1)';em.style.transform='scale(1) rotate(0)';em.style.opacity='1';},180);
+    const gal=document.getElementById('sm-gallery');
+    if(gal) gal.querySelectorAll('.sm-gal-item').forEach((g,i)=>{g.textContent=p.gal[i]||p.emoji;});
+    ['width','depth','height'].forEach(dim=>{
+      const el=document.getElementById('sm-'+dim);
+      const pd=dim==='width'?p.w:dim==='depth'?p.d:p.h;
+      el.min=pd.min;el.max=pd.max;el.value=pd.val;
+    });
+    const lt=document.getElementById('sm-locked-tags');
+    if(lt) lt.innerHTML=p.locked.map(l=>'<span style="background:rgba(107,63,212,0.06);border:1px solid rgba(107,63,212,0.12);color:var(--text-dim);font-size:.7rem;padding:.25rem .75rem;border-radius:20px">🔒 '+l+'</span>').join('');
+    const photo=document.getElementById('sm-photo');
+    photo.style.transform='scale(0.95)';photo.style.opacity='.7';
+    setTimeout(()=>{photo.style.transition='all .4s cubic-bezier(.34,1.56,.64,1)';photo.style.transform='';photo.style.opacity='1';},200);
+    updateSM();
+  }
+
+  function smSelectGal(el,idx){
+    document.querySelectorAll('.sm-gal-item').forEach(g=>g.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  function updateSM(){
+    const p=SM_PRODUCTS[smCurrent];
+    const w=parseInt(document.getElementById('sm-width').value);
+    const d=parseInt(document.getElementById('sm-depth').value);
+    const h=parseInt(document.getElementById('sm-height').value);
+    document.getElementById('sm-width-val').textContent=w+' cm';
+    document.getElementById('sm-depth-val').textContent=d+' cm';
+    document.getElementById('sm-height-val').textContent=h+' cm';
+    document.getElementById('sm-dim-w').textContent=w;
+    document.getElementById('sm-dim-d').textContent=d;
+    document.getElementById('sm-dim-h').textContent=h;
+    ['sm-width','sm-depth','sm-height'].forEach(id=>{
+      const el=document.getElementById(id);
+      const pct=((el.value-el.min)/(el.max-el.min))*100;
+      el.style.background='linear-gradient(to right,#7c3aed '+pct+'%,#e8e4ff '+pct+'%)';
+    });
+    const wE=Math.round((w-p.w.val)*2.5);
+    const dE=Math.round((d-p.d.val)*2);
+    const hE=Math.round((h-p.h.val)*1.5);
+    const extra=Math.max(0,wE+dE+hE);
+    const total=p.base+extra;
+    document.getElementById('sm-base-price').textContent=p.base+' TND';
+    document.getElementById('sm-dim-extra').textContent=(extra>0?'+':'')+extra+' TND';
+    document.getElementById('sm-total-price').textContent=total+' TND';
+    document.getElementById('sm-price').innerHTML=total+' <span style="font-size:1rem;color:var(--text-muted)">TND</span>';
+    document.getElementById('sm-w-min').textContent=p.w.min+'cm min';
+    document.getElementById('sm-w-max').textContent=p.w.max+'cm max';
+    document.getElementById('sm-d-min').textContent=p.d.min+'cm min';
+    document.getElementById('sm-d-max').textContent=p.d.max+'cm max';
+    document.getElementById('sm-h-min').textContent=p.h.min+'cm min';
+    document.getElementById('sm-h-max').textContent=p.h.max+'cm max';
+  }
+
+  function selectColor(btn,color,name){
+    smColor=color;
+    document.querySelectorAll('.sm-clr div').forEach(d=>d.style.boxShadow='0 0 0 2px transparent');
+    btn.querySelector('div').style.boxShadow='0 0 0 2.5px #7c3aed';
+    document.getElementById('sm-color-name').textContent=name;
+    const ov=document.getElementById('sm-color-overlay');
+    ov.style.background=color;ov.style.opacity='0.18';
+    if(typeof toast==='function') toast('🎨 '+name+' sélectionné','default');
+  }
+
+  function addSMToCart(){
+    const p=SM_PRODUCTS[smCurrent];
+    const total=parseInt(document.getElementById('sm-total-price').textContent);
+    const succ=document.getElementById('sm-success');
+    succ.style.display='flex';
+    setTimeout(()=>{succ.style.display='none';},3500);
+    if(typeof toast==='function') toast('🪑 '+p.title+' ajouté! '+total+' TND','success');
+  }
+
+  function saveSMConfig(){
+    if(typeof toast==='function') toast('💾 Configuration sauvegardée!','default');
+  }
+
+  document.addEventListener('DOMContentLoaded',()=>updateSM());
+  setTimeout(updateSM,200);
+  </script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   if (typeof init === 'function') init();
