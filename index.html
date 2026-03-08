@@ -767,9 +767,9 @@
 <!-- ════════════════════════════════ -->
 <!-- SCRIPTS — load order matters!    -->
 <!-- ════════════════════════════════ -->
-<script src="data.js"></script>
-<script src="app.js"></script>
-<script src="yasmine.js"></script>
+<script src="data.js" defer></script>
+<script src="app.js" defer></script>
+<script src="yasmine.js" defer></script>
 <script>
 // ── HELPERS ──
 function homeSearchTag(tag) {
@@ -907,8 +907,23 @@ function filterAndGo(cat) {
   setTimeout(updateSM,200);
   </script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  if (typeof init === 'function') init();
+// BULLETPROOF INIT — works on every refresh
+function safeInit() {
+  if (typeof init === 'function' && typeof STN !== 'undefined') {
+    init();
+  } else {
+    setTimeout(safeInit, 50);
+  }
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', safeInit);
+} else {
+  safeInit();
+}
+window.addEventListener('load', function() {
+  if (typeof State !== 'undefined' && !document.querySelector('.page.active')) {
+    safeInit();
+  }
 });
 </script>
 </body>

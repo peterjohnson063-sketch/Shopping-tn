@@ -289,3 +289,18 @@ function setLang(lang) {
   if (typeof AI !== 'undefined') AI.setLang(lang);
   if (typeof toast === 'function') { var flags={ar:'🇹🇳 عربي',fr:'🇫🇷 Français',en:'🌍 English'}; toast(flags[lang],'default'); }
 }
+
+// AUTO-RECONNECT when user comes back to page
+document.addEventListener('visibilitychange', function() {
+  if (!document.hidden && typeof AI !== 'undefined') {
+    var dot = document.querySelector('#ai-head .ai-status-dot');
+    if (dot) dot.style.background = '#4ade80';
+  }
+});
+
+// Keep Yasmine alive - reinit if bubble disappears
+setInterval(function() {
+  if (!document.getElementById('ai-bubble') && typeof AI !== 'undefined') {
+    AI.init();
+  }
+}, 3000);
