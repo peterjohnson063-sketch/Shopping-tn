@@ -100,7 +100,7 @@ body.cursor-big #cursor-ring { width: 50px; height: 50px; }
 .lang-btn.active, .lang-btn:hover { border-color: rgba(107,63,212,0.35); color: #7c3aed; background: #f5f2ff; }
 
 /* PAGES */
-.page { display: none; min-height: 100vh; position: relative; z-index: 1; padding-top: 64px; }
+.page { display: none; min-height: 100vh; position: relative; z-index: 1; padding-top: 64px; width: 100%; box-sizing: border-box; }
 .page.active { display: block !important; width: 100% !important; min-height: 100vh; animation: page-in .35s ease; }
 @keyframes page-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -986,7 +986,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 
   <!-- SM script moved to bottom -->
 
-
+</div><!-- /page-carpenter -->
 
 <div class="page" id="page-track">
   <div style="padding:6rem 5% 4rem;text-align:center">
