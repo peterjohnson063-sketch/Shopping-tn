@@ -1,4 +1,3 @@
-
 // ═══════════════════════════════════════════════
 // SHOPPING.TN — MAIN APPLICATION ENGINE
 // ═══════════════════════════════════════════════
@@ -717,7 +716,17 @@ function searchProducts() {
 }
 
 // ── TRACK ──
-function renderTrack() {}
+function renderTrack() {
+  const empty = document.getElementById('track-empty');
+  const result = document.getElementById('track-result');
+  if (empty) empty.style.display = 'block';
+  if (result) result.style.display = 'none';
+  setTimeout(function() {
+    document.querySelectorAll('#page-track .reveal').forEach(function(el) {
+      el.classList.add('visible');
+    });
+  }, 50);
+}
 
 function trackOrder() {
   const num = document.getElementById('track-num')?.value?.trim();
@@ -1202,10 +1211,19 @@ function renderLoyalty() {
       ${u && u.points >= tier.min && u.points <= tier.max ? `<div style="margin-top:1.2rem;font-size:0.7rem;background:rgba(46,213,115,0.1);border:1px solid rgba(46,213,115,0.25);color:var(--success);padding:0.35rem 0.8rem;border-radius:30px;display:inline-block">✓ Your Current Tier</div>` : ''}
     </div>`).join('');
   initReveal();
+  setTimeout(function() { document.querySelectorAll('#page-loyalty .reveal').forEach(function(el){el.classList.add('visible');}); }, 100);
 }
 
 // ── ABOUT ──
-function renderAbout() {}
+function renderAbout() {
+  // Make all reveal elements visible immediately
+  setTimeout(function() {
+    document.querySelectorAll('#page-about .reveal').forEach(function(el) {
+      el.classList.add('visible');
+    });
+    initReveal();
+  }, 50);
+}
 
 // ── FLASH SALE TIMER ──
 function startFlashTimer() {
@@ -1253,4 +1271,3 @@ function homeSearch() {
 
 // ── START ──
 document.addEventListener('DOMContentLoaded', init);
-
