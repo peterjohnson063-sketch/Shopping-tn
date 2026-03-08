@@ -532,12 +532,36 @@
         <div class="divider center"></div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;max-width:1100px;margin:0 auto">
-        <div class="sm-inspo-card"><div class="sm-inspo-img" style="background:linear-gradient(135deg,#D4A853,#8B5E3C)"><span style="font-size:4rem">🪑</span><div class="sm-inspo-badge">Chaise Bistrot</div></div><div class="sm-inspo-info"><strong>Chaise Bistrot Chêne</strong><span>1,200 TND</span></div></div>
-        <div class="sm-inspo-card"><div class="sm-inspo-img" style="background:linear-gradient(135deg,#5C3317,#8B5E3C)"><span style="font-size:4rem">🍽</span><div class="sm-inspo-badge">Table Famille</div></div><div class="sm-inspo-info"><strong>Table à Manger 8 pers.</strong><span>3,800 TND</span></div></div>
-        <div class="sm-inspo-card"><div class="sm-inspo-img" style="background:linear-gradient(135deg,#D4A853,#F5DEB3)"><span style="font-size:4rem">🛋</span><div class="sm-inspo-badge">Canapé Cadre</div></div><div class="sm-inspo-info"><strong>Canapé 3 Places</strong><span>4,200 TND</span></div></div>
-        <div class="sm-inspo-card"><div class="sm-inspo-img" style="background:linear-gradient(135deg,#2C2C2C,#5C3317)"><span style="font-size:4rem">🚪</span><div class="sm-inspo-badge">Armoire Luxe</div></div><div class="sm-inspo-info"><strong>Armoire 3 Portes</strong><span>5,500 TND</span></div></div>
-        <div class="sm-inspo-card"><div class="sm-inspo-img" style="background:linear-gradient(135deg,#8B5E3C,#D4A853)"><span style="font-size:4rem">☕</span><div class="sm-inspo-badge">Table Scandinave</div></div><div class="sm-inspo-info"><strong>Table Basse Design</strong><span>1,450 TND</span></div></div>
-        <div class="sm-inspo-card"><div class="sm-inspo-img" style="background:linear-gradient(135deg,#F5DEB3,#D4A853)"><span style="font-size:4rem">🪞</span><div class="sm-inspo-badge">Coiffeuse Vintage</div></div><div class="sm-inspo-info"><strong>Coiffeuse avec Miroir</strong><span>2,100 TND</span></div></div>
+        <div class="sm-inspo-card" onclick="smInspoClick(0,this)" title="Configurer cette pièce">
+          <div class="sm-inspo-img" style="background:linear-gradient(135deg,#D4A853,#8B5E3C)"><span style="font-size:4rem">🪑</span><div class="sm-inspo-badge">Chaise Bistrot</div></div>
+          <div class="sm-inspo-info"><strong>Chaise Bistrot Chêne</strong><span>1,200 TND</span></div>
+          <div class="sm-inspo-cta">✦ Configurer</div>
+        </div>
+        <div class="sm-inspo-card" onclick="smInspoClick(1,this)" title="Configurer cette pièce">
+          <div class="sm-inspo-img" style="background:linear-gradient(135deg,#5C3317,#8B5E3C)"><span style="font-size:4rem">🍽</span><div class="sm-inspo-badge">Table Famille</div></div>
+          <div class="sm-inspo-info"><strong>Table à Manger 8 pers.</strong><span>3,800 TND</span></div>
+          <div class="sm-inspo-cta">✦ Configurer</div>
+        </div>
+        <div class="sm-inspo-card" onclick="smInspoClick(2,this)" title="Configurer cette pièce">
+          <div class="sm-inspo-img" style="background:linear-gradient(135deg,#D4A853,#F5DEB3)"><span style="font-size:4rem">🛋</span><div class="sm-inspo-badge">Canapé Cadre</div></div>
+          <div class="sm-inspo-info"><strong>Canapé 3 Places</strong><span>4,200 TND</span></div>
+          <div class="sm-inspo-cta">✦ Configurer</div>
+        </div>
+        <div class="sm-inspo-card" onclick="smInspoClick(3,this)" title="Configurer cette pièce">
+          <div class="sm-inspo-img" style="background:linear-gradient(135deg,#2C2C2C,#5C3317)"><span style="font-size:4rem">🚪</span><div class="sm-inspo-badge">Armoire Luxe</div></div>
+          <div class="sm-inspo-info"><strong>Armoire 3 Portes</strong><span>5,500 TND</span></div>
+          <div class="sm-inspo-cta">✦ Configurer</div>
+        </div>
+        <div class="sm-inspo-card" onclick="smInspoClick(4,this)" title="Configurer cette pièce">
+          <div class="sm-inspo-img" style="background:linear-gradient(135deg,#8B5E3C,#D4A853)"><span style="font-size:4rem">☕</span><div class="sm-inspo-badge">Table Scandinave</div></div>
+          <div class="sm-inspo-info"><strong>Table Basse Design</strong><span>1,450 TND</span></div>
+          <div class="sm-inspo-cta">✦ Configurer</div>
+        </div>
+        <div class="sm-inspo-card" onclick="smInspoClick(5,this)" title="Configurer cette pièce">
+          <div class="sm-inspo-img" style="background:linear-gradient(135deg,#F5DEB3,#D4A853)"><span style="font-size:4rem">🪞</span><div class="sm-inspo-badge">Coiffeuse Vintage</div></div>
+          <div class="sm-inspo-info"><strong>Coiffeuse avec Miroir</strong><span>2,100 TND</span></div>
+          <div class="sm-inspo-cta">✦ Configurer</div>
+        </div>
       </div>
     </div>
 
@@ -588,13 +612,15 @@
   .sm-gal-item:hover,.sm-gal-item.active{border-color:var(--accent);background:var(--purple-pale);transform:scale(1.05)}
   input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:white;border:2px solid #7c3aed;box-shadow:0 2px 8px rgba(124,58,237,.4);cursor:none;transition:transform .15s}
   input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2)}
-  .sm-inspo-card{border-radius:16px;overflow:hidden;border:1px solid rgba(107,63,212,0.1);background:white;box-shadow:0 4px 16px rgba(74,31,168,0.08);transition:all .3s;cursor:none}
+  .sm-inspo-card{border-radius:16px;overflow:hidden;border:1px solid rgba(107,63,212,0.1);background:white;box-shadow:0 4px 16px rgba(74,31,168,0.08);transition:all .3s;cursor:pointer}
   .sm-inspo-card:hover{transform:translateY(-6px);box-shadow:0 12px 30px rgba(74,31,168,0.15);border-color:rgba(107,63,212,0.25)}
   .sm-inspo-img{height:180px;display:flex;align-items:center;justify-content:center;position:relative}
   .sm-inspo-badge{position:absolute;bottom:8px;left:8px;background:rgba(30,10,78,.8);color:white;font-size:.6rem;padding:.25rem .65rem;border-radius:20px;font-weight:600;backdrop-filter:blur(8px)}
   .sm-inspo-info{padding:.9rem 1rem;display:flex;justify-content:space-between;align-items:center}
   .sm-inspo-info strong{font-size:.8rem;color:var(--text-dark);font-weight:600}
   .sm-inspo-info span{font-size:.75rem;color:var(--accent);font-weight:700}
+  .sm-inspo-cta{background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;text-align:center;font-size:.72rem;font-weight:600;padding:.5rem;letter-spacing:.05em;opacity:0;transform:translateY(6px);transition:all .25s}
+  .sm-inspo-card:hover .sm-inspo-cta{opacity:1;transform:translateY(0)}
   </style>
 
   <!-- SM script moved to bottom -->
@@ -860,6 +886,21 @@ function filterAndGo(cat) {
 
   function saveSMConfig(){
     if(typeof toast==='function') toast('💾 Configuration sauvegardée!','default');
+  }
+
+  function smInspoClick(idx, card) {
+    // Scroll to configurator top
+    var tabs = document.querySelectorAll('.sm-tab');
+    if (tabs[idx]) {
+      selectSMProduct(idx, tabs[idx]);
+      // Highlight selected card
+      document.querySelectorAll('.sm-inspo-card').forEach(function(c){ c.style.border='1px solid rgba(107,63,212,0.1)'; });
+      card.style.border = '2px solid #7c3aed';
+      // Scroll to configurator
+      var config = document.getElementById('sm-photo');
+      if (config) config.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (typeof toast === 'function') toast('✦ ' + SM_PRODUCTS[idx].title + ' sélectionné!', 'success');
+    }
   }
 
   document.addEventListener('DOMContentLoaded',()=>updateSM());
