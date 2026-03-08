@@ -336,108 +336,370 @@
 <!-- PAGE: CARPENTER                  -->
 <!-- ════════════════════════════════ -->
 <div class="page" id="page-carpenter">
-  <div class="s" style="padding-top:5rem">
-    <div style="max-width:680px;margin-bottom:4rem">
-      <span class="eyebrow reveal">Sur Mesure · بالطلب</span>
-      <h1 class="display reveal" style="font-size:clamp(2.5rem,6vw,4.5rem);margin-bottom:1rem">Custom <em class="gold-text">Furniture</em><br/>Hub</h1>
-      <p class="body reveal">Request fully bespoke furniture from Tunisia's finest craftsmen. Specify your exact dimensions, preferred woods, and style.</p>
-    </div>
 
-    <!-- Process steps -->
-    <div style="display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;margin-bottom:4rem" class="reveal">
-      <div style="flex:1;min-width:130px;max-width:170px;text-align:center"><div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-mid));color:var(--bg-0);font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 0.7rem;font-size:0.9rem">1</div><div style="font-size:0.8rem;color:var(--champagne);margin-bottom:0.3rem;font-weight:500">Submit Request</div><div style="font-size:0.72rem;color:var(--text-muted);line-height:1.6">Describe vision &amp; specs</div></div>
-      <div style="flex:1;min-width:130px;max-width:170px;text-align:center"><div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-mid));color:var(--bg-0);font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 0.7rem;font-size:0.9rem">2</div><div style="font-size:0.8rem;color:var(--champagne);margin-bottom:0.3rem;font-weight:500">Artisan Matched</div><div style="font-size:0.72rem;color:var(--text-muted);line-height:1.6">We find your craftsman</div></div>
-      <div style="flex:1;min-width:130px;max-width:170px;text-align:center"><div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-mid));color:var(--bg-0);font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 0.7rem;font-size:0.9rem">3</div><div style="font-size:0.8rem;color:var(--champagne);margin-bottom:0.3rem;font-weight:500">3D Preview</div><div style="font-size:0.72rem;color:var(--text-muted);line-height:1.6">Approve before making</div></div>
-      <div style="flex:1;min-width:130px;max-width:170px;text-align:center"><div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-mid));color:var(--bg-0);font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 0.7rem;font-size:0.9rem">4</div><div style="font-size:0.8rem;color:var(--champagne);margin-bottom:0.3rem;font-weight:500">Handcrafted</div><div style="font-size:0.72rem;color:var(--text-muted);line-height:1.6">Premium materials used</div></div>
-      <div style="flex:1;min-width:130px;max-width:170px;text-align:center"><div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-mid));color:var(--bg-0);font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 0.7rem;font-size:0.9rem">5</div><div style="font-size:0.8rem;color:var(--champagne);margin-bottom:0.3rem;font-weight:500">Delivered</div><div style="font-size:0.72rem;color:var(--text-muted);line-height:1.6">White-glove installation</div></div>
-    </div>
-
-    <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:2.5rem;align-items:start">
-      <!-- Form -->
-      <div class="glass-lg reveal" style="padding:2.5rem" id="carp-form">
-        <h3 style="font-family:var(--font-display);font-size:1.6rem;color:var(--champagne);margin-bottom:2rem">Request Your <em class="gold-text">Quote</em></h3>
-        <div class="form-group" style="margin-bottom:1rem"><label class="form-label">Full Name *</label><input type="text" class="form-input" id="c-name" placeholder="Mohamed Trabelsi"/></div>
-        <div class="form-group" style="margin-bottom:1rem"><label class="form-label">Email *</label><input type="email" class="form-input" id="c-email" placeholder="your@email.com"/></div>
-        <div class="form-group" style="margin-bottom:1rem"><label class="form-label">Phone</label><input type="tel" class="form-input" id="c-phone" placeholder="+216 XX XXX XXX"/></div>
-        <div class="form-group" style="margin-bottom:1rem">
-          <label class="form-label">Furniture Type *</label>
-          <select class="form-select" id="c-ftype">
-            <option value="">Select…</option>
-            <option>Sofa / Canapé</option><option>Dining Table</option><option>Bedroom Set</option>
-            <option>Wardrobe / Armoire</option><option>Office Desk</option><option>Outdoor Set</option><option>Other</option>
-          </select>
-        </div>
-        <div style="margin-bottom:1rem">
-          <label class="form-label" style="display:block;margin-bottom:0.6rem">Custom Dimensions (cm)</label>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.6rem">
-            <div class="form-group"><label class="form-label" style="font-size:0.58rem">Width</label><input type="number" class="form-input" id="c-width" placeholder="200" style="padding:0.65rem"/></div>
-            <div class="form-group"><label class="form-label" style="font-size:0.58rem">Depth</label><input type="number" class="form-input" id="c-depth" placeholder="90" style="padding:0.65rem"/></div>
-            <div class="form-group"><label class="form-label" style="font-size:0.58rem">Height</label><input type="number" class="form-input" id="c-height" placeholder="80" style="padding:0.65rem"/></div>
-          </div>
-        </div>
-        <div class="form-group" style="margin-bottom:1rem">
-          <label class="form-label">Wood Type / Material</label>
-          <select class="form-select" id="c-wood">
-            <option value="">Select material…</option>
-            <option>Tunisian Walnut (Noyer Tunisien)</option>
-            <option>Olive Wood (Bois d'Olivier)</option>
-            <option>Cedar (Cèdre)</option>
-            <option>Pine (Pin)</option>
-            <option>MDF Premium</option>
-            <option>Solid Oak (Chêne)</option>
-            <option>Bamboo</option>
-            <option>Mixed Materials</option>
-          </select>
-        </div>
-        <div class="form-group" style="margin-bottom:1rem">
-          <label class="form-label">Budget Range (TND)</label>
-          <select class="form-select" id="c-budget">
-            <option value="">Select…</option>
-            <option>500 – 1,500 TND</option><option>1,500 – 4,000 TND</option>
-            <option>4,000 – 10,000 TND</option><option>10,000 TND+</option>
-          </select>
-        </div>
-        <div class="form-group" style="margin-bottom:1.5rem"><label class="form-label">Describe Your Vision *</label><textarea class="form-textarea" id="c-desc" placeholder="Style, colors, finishes, inspiration — the more detail the better…"></textarea></div>
-        <button class="btn btn-gold btn-full btn-lg" onclick="submitCarpenterRequest()">Request Quote ✦</button>
+  <!-- HERO -->
+  <div style="background:linear-gradient(135deg,#1e0a4e 0%,#4a1fa8 60%,#6b3fd4 100%);padding:5rem 5% 4rem;text-align:center;position:relative;overflow:hidden">
+    <div style="position:absolute;inset:0;background-image:radial-gradient(circle at 20% 50%,rgba(155,114,240,0.15),transparent 50%),radial-gradient(circle at 80% 20%,rgba(107,63,212,0.2),transparent 50%);pointer-events:none"></div>
+    <div style="position:relative;z-index:1">
+      <div style="display:inline-flex;align-items:center;gap:.6rem;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:30px;padding:.4rem 1.2rem;margin-bottom:1.5rem;animation:fadeSlideUp .6s ease both">
+        <span style="width:6px;height:6px;background:#4ade80;border-radius:50%;animation:pulse-dot 1.5s infinite;display:inline-block;flex-shrink:0"></span>
+        <span style="font-size:.68rem;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.9)">Configurateur Sur Mesure · حسب الطلب</span>
       </div>
-
-      <!-- Success + Artisans sidebar -->
-      <div>
-        <div class="glass-lg reveal" id="carp-success" style="display:none;padding:2.5rem;text-align:center;margin-bottom:2rem">
-          <div style="font-size:3.5rem;margin-bottom:1rem">✦</div>
-          <h3 style="font-family:var(--font-display);font-size:1.5rem;color:var(--champagne);margin-bottom:0.5rem">Quote Request Sent!</h3>
-          <p class="body" style="margin-bottom:1rem">Reference: <strong style="color:var(--gold)" id="carp-ref">CARP-XXXXXX</strong></p>
-          <p class="body" style="margin-bottom:1.5rem">Our team will match you with the perfect artisan and contact you within 24 hours.</p>
-          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('carp-form').style.display='block';document.getElementById('carp-success').style.display='none'">New Request</button>
-        </div>
-
-        <div class="glass reveal" style="padding:1.5rem;margin-bottom:1.5rem">
-          <h4 style="font-size:0.72rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--gold);margin-bottom:1.2rem">Verified Craftsmen</h4>
-          <div style="display:flex;flex-direction:column;gap:0.8rem">
-            <div style="display:flex;align-items:center;gap:1rem;padding:0.8rem;background:var(--bg-1,#f8f7ff);border-radius:var(--radius-sm)"><span style="font-size:1.8rem">🧑‍🎨</span><div><div style="font-size:0.85rem;color:var(--champagne)">Ahmed Maalej</div><div style="font-size:0.68rem;color:var(--gold)">Ksar Hellal · Walnut Specialist</div><div style="font-size:0.65rem;color:var(--success)">★★★★★ · Available</div></div></div>
-            <div style="display:flex;align-items:center;gap:1rem;padding:0.8rem;background:var(--bg-1,#f8f7ff);border-radius:var(--radius-sm)"><span style="font-size:1.8rem">🧑‍🎨</span><div><div style="font-size:0.85rem;color:var(--champagne)">Mohamed Trabelsi</div><div style="font-size:0.68rem;color:var(--gold)">Monastir · Bedroom Artisan</div><div style="font-size:0.65rem;color:var(--success)">★★★★★ · Available</div></div></div>
-            <div style="display:flex;align-items:center;gap:1rem;padding:0.8rem;background:var(--bg-1,#f8f7ff);border-radius:var(--radius-sm)"><span style="font-size:1.8rem">🧑‍🎨</span><div><div style="font-size:0.85rem;color:var(--champagne)">Karim Sfaxsi</div><div style="font-size:0.68rem;color:var(--gold)">Sfax · Metal &amp; Wood</div><div style="font-size:0.65rem;color:var(--warning)">★★★★★ · 2 wk wait</div></div></div>
-            <div style="display:flex;align-items:center;gap:1rem;padding:0.8rem;background:var(--bg-1,#f8f7ff);border-radius:var(--radius-sm)"><span style="font-size:1.8rem">🧑‍🎨</span><div><div style="font-size:0.85rem;color:var(--champagne)">Fatma Ben Nasr</div><div style="font-size:0.68rem;color:var(--gold)">Nabeul · Ceramics &amp; Wood</div><div style="font-size:0.65rem;color:var(--success)">★★★★★ · Available</div></div></div>
-          </div>
-        </div>
-        <div class="glass reveal" style="padding:1.5rem">
-          <h4 style="font-size:0.72rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--gold);margin-bottom:1rem">Why Sur Mesure?</h4>
-          <ul style="display:flex;flex-direction:column;gap:0.6rem">
-            <li style="display:flex;gap:0.6rem;font-size:0.8rem;color:var(--text-muted)"><span style="color:var(--gold);flex-shrink:0">◆</span>Exact dimensions for your space</li>
-            <li style="display:flex;gap:0.6rem;font-size:0.8rem;color:var(--text-muted)"><span style="color:var(--gold);flex-shrink:0">◆</span>Locally sourced Tunisian materials</li>
-            <li style="display:flex;gap:0.6rem;font-size:0.8rem;color:var(--text-muted)"><span style="color:var(--gold);flex-shrink:0">◆</span>Free 3D rendering before production</li>
-            <li style="display:flex;gap:0.6rem;font-size:0.8rem;color:var(--text-muted)"><span style="color:var(--gold);flex-shrink:0">◆</span>10-year craftsmanship warranty</li>
-            <li style="display:flex;gap:0.6rem;font-size:0.8rem;color:var(--text-muted)"><span style="color:var(--gold);flex-shrink:0">◆</span>White-glove delivery &amp; installation</li>
-          </ul>
-        </div>
+      <h1 style="font-family:'Cormorant Garamond',serif;font-size:clamp(2.5rem,7vw,5rem);color:white;font-weight:400;line-height:1.05;margin-bottom:1rem;animation:fadeSlideUp .6s .1s ease both">
+        Votre Meuble,<br/><em style="color:#c4b5fd;font-style:italic">Votre Vision</em>
+      </h1>
+      <p style="font-size:.95rem;color:rgba(255,255,255,.75);max-width:500px;margin:0 auto 2.5rem;line-height:1.8;animation:fadeSlideUp .6s .2s ease both">
+        Choisissez votre pièce en chêne, ajustez dimensions et couleur — nos charpentiers du Sahel font le reste.
+      </p>
+      <div style="display:flex;gap:2rem;justify-content:center;flex-wrap:wrap;animation:fadeSlideUp .6s .3s ease both">
+        <div style="text-align:center"><div style="font-family:'Cormorant Garamond',serif;font-size:2.2rem;color:white">4–6</div><div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.55)">Semaines</div></div>
+        <div style="color:rgba(255,255,255,.2);font-size:2rem;align-self:center">·</div>
+        <div style="text-align:center"><div style="font-family:'Cormorant Garamond',serif;font-size:2.2rem;color:white">100%</div><div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.55)">Chêne Massif</div></div>
+        <div style="color:rgba(255,255,255,.2);font-size:2rem;align-self:center">·</div>
+        <div style="text-align:center"><div style="font-family:'Cormorant Garamond',serif;font-size:2.2rem;color:white">10</div><div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.55)">Ans Garantie</div></div>
+        <div style="color:rgba(255,255,255,.2);font-size:2rem;align-self:center">·</div>
+        <div style="text-align:center"><div style="font-family:'Cormorant Garamond',serif;font-size:2.2rem;color:white">24h</div><div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.55)">Réponse</div></div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- ════════════════════════════════ -->
-<!-- PAGE: TRACK                      -->
-<!-- ════════════════════════════════ -->
+  <div class="s" style="padding-top:3rem;background:var(--bg-1)">
+
+    <!-- SECTION TITLE -->
+    <div class="s-header">
+      <span class="eyebrow">Choisir une pièce · اختر قطعة</span>
+      <h2 class="display" style="font-size:clamp(2rem,5vw,3.5rem)">Nos Pièces en <em class="gold-text">Chêne</em></h2>
+      <div class="divider center wide"></div>
+      <p class="body" style="max-width:550px;margin:.5rem auto 0;color:var(--text-muted)">Chaque meuble est fabriqué à la main par des charpentiers certifiés de Ksar Hellal et Monastir.</p>
+    </div>
+
+    <!-- PRODUCT TABS -->
+    <div style="display:flex;gap:.7rem;flex-wrap:wrap;justify-content:center;margin-bottom:3rem">
+      <button class="sm-tab active" onclick="selectSMProduct(0,this)">🪑 Chaise</button>
+      <button class="sm-tab" onclick="selectSMProduct(1,this)">🍽 Table à Manger</button>
+      <button class="sm-tab" onclick="selectSMProduct(2,this)">🛋 Canapé Cadre</button>
+      <button class="sm-tab" onclick="selectSMProduct(3,this)">🚪 Armoire</button>
+      <button class="sm-tab" onclick="selectSMProduct(4,this)">☕ Table Basse</button>
+      <button class="sm-tab" onclick="selectSMProduct(5,this)">🪞 Coiffeuse</button>
+    </div>
+
+    <!-- CONFIGURATOR -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:start;max-width:1200px;margin:0 auto">
+
+      <!-- LEFT: VISUAL -->
+      <div style="position:sticky;top:84px">
+
+        <!-- PHOTO -->
+        <div id="sm-photo" style="aspect-ratio:4/3;border-radius:24px;border:2px solid rgba(107,63,212,0.15);position:relative;overflow:hidden;box-shadow:0 16px 50px rgba(74,31,168,0.14);transition:all .4s cubic-bezier(.4,0,.2,1);margin-bottom:1rem;background:#f5f2ff">
+          <img id="sm-img" src="" alt="" style="width:100%;height:100%;object-fit:cover;transition:all .5s ease;display:none"/>
+          <div id="sm-emoji-wrap" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:9rem;transition:all .4s">
+            <span id="sm-emoji">🪑</span>
+          </div>
+          <div id="sm-color-overlay" style="position:absolute;inset:0;opacity:0;transition:opacity .5s;mix-blend-mode:multiply;pointer-events:none"></div>
+          <div style="position:absolute;top:12px;left:12px;background:rgba(30,10,78,.85);backdrop-filter:blur(8px);color:white;font-size:.62rem;padding:.35rem .8rem;border-radius:20px;font-weight:600">🧑‍🎨 Ahmed Maalej · Ksar Hellal</div>
+          <div style="position:absolute;top:12px;right:12px;background:rgba(5,150,105,.9);color:white;font-size:.6rem;padding:.3rem .7rem;border-radius:20px;font-weight:700">✓ Certifié</div>
+          <div id="sm-dim-float" style="position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:rgba(30,10,78,.8);backdrop-filter:blur(8px);color:white;font-size:.72rem;padding:.4rem 1rem;border-radius:20px;font-weight:600;white-space:nowrap;transition:all .3s">
+            <span id="sm-dim-w">45</span>×<span id="sm-dim-d">42</span>×<span id="sm-dim-h">88</span> cm
+          </div>
+        </div>
+
+        <!-- PHOTO GALLERY ROW -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;margin-bottom:1.5rem" id="sm-gallery">
+          <div class="sm-gal-item active" onclick="smSelectGal(this,0)">🪑</div>
+          <div class="sm-gal-item" onclick="smSelectGal(this,1)">🪑</div>
+          <div class="sm-gal-item" onclick="smSelectGal(this,2)">🪑</div>
+          <div class="sm-gal-item" onclick="smSelectGal(this,3)">🪑</div>
+        </div>
+
+        <!-- CARPENTER CARD -->
+        <div style="background:white;border:1px solid rgba(107,63,212,0.12);border-radius:16px;padding:1.3rem;box-shadow:0 2px 8px rgba(74,31,168,0.06)">
+          <div style="font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:.8rem;font-weight:700">Charpentier · النجار</div>
+          <div style="display:flex;align-items:center;gap:1rem;margin-bottom:.9rem">
+            <div style="width:50px;height:50px;background:linear-gradient(135deg,#4a1fa8,#6b3fd4);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;box-shadow:0 4px 12px rgba(74,31,168,.25)">🧑‍🎨</div>
+            <div>
+              <div style="font-size:.92rem;color:var(--text-dark);font-weight:700">Ahmed Maalej</div>
+              <div style="font-size:.72rem;color:var(--accent);margin-top:.1rem">Ksar Hellal · Spécialiste Chêne</div>
+              <div style="font-size:.65rem;color:var(--text-muted);margin-top:.2rem">⭐⭐⭐⭐⭐ · 127 commandes · Depuis 1998</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+            <span style="background:rgba(5,150,105,.08);border:1px solid rgba(5,150,105,.2);color:#059669;font-size:.62rem;padding:.2rem .65rem;border-radius:20px;font-weight:600">✓ Disponible</span>
+            <span style="background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);color:var(--accent);font-size:.62rem;padding:.2rem .65rem;border-radius:20px">📐 Mesures Exactes</span>
+            <span style="background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);color:var(--accent);font-size:.62rem;padding:.2rem .65rem;border-radius:20px">🚚 Livraison Incluse</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: CONTROLS -->
+      <div style="display:flex;flex-direction:column;gap:1rem">
+
+        <!-- PRODUCT HEADER -->
+        <div style="background:white;border:1px solid rgba(107,63,212,0.12);border-radius:16px;padding:1.5rem;box-shadow:0 2px 8px rgba(74,31,168,0.06);animation:fadeSlideUp .5s ease both">
+          <h3 id="sm-title" style="font-family:'Cormorant Garamond',serif;font-size:1.9rem;color:var(--text-dark);margin-bottom:.4rem">Chaise en Chêne</h3>
+          <p id="sm-desc" style="font-size:.82rem;color:var(--text-muted);line-height:1.7;margin-bottom:1rem">Chaise artisanale en chêne massif de Ksar Hellal. Structure solide, finition soignée.</p>
+          <div style="display:flex;align-items:center;gap:1rem">
+            <div id="sm-price" style="font-family:'Cormorant Garamond',serif;font-size:2rem;color:var(--text-dark);transition:all .3s">850 <span style="font-size:1rem;color:var(--text-muted)">TND</span></div>
+            <span style="font-size:.68rem;color:var(--text-muted);background:var(--bg-1);border:1px solid rgba(107,63,212,0.12);padding:.3rem .8rem;border-radius:20px">Prix estimé</span>
+          </div>
+        </div>
+
+        <!-- DIMENSIONS -->
+        <div style="background:white;border:1.5px solid rgba(107,63,212,0.12);border-radius:16px;padding:1.5rem;box-shadow:0 2px 8px rgba(74,31,168,0.06);animation:fadeSlideUp .5s .1s ease both">
+          <div style="font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:1.2rem">📐 Dimensions <span style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0;font-size:.62rem">(limites fixées par le charpentier)</span></div>
+
+          <div style="margin-bottom:1.2rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+              <span style="font-size:.82rem;color:var(--text-body);font-weight:500">Largeur</span>
+              <span id="sm-width-val" style="font-size:.85rem;color:var(--accent);font-weight:700;background:#ede8ff;padding:.2rem .75rem;border-radius:20px">45 cm</span>
+            </div>
+            <input type="range" id="sm-width" min="40" max="60" value="45" oninput="updateSM()" style="width:100%;-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;outline:none;cursor:none;background:linear-gradient(to right,#7c3aed 50%,#e8e4ff 50%)"/>
+            <div style="display:flex;justify-content:space-between;font-size:.6rem;color:var(--text-dim);margin-top:.3rem"><span id="sm-w-min">40cm min</span><span id="sm-w-max">60cm max</span></div>
+          </div>
+
+          <div style="margin-bottom:1.2rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+              <span style="font-size:.82rem;color:var(--text-body);font-weight:500">Profondeur</span>
+              <span id="sm-depth-val" style="font-size:.85rem;color:var(--accent);font-weight:700;background:#ede8ff;padding:.2rem .75rem;border-radius:20px">42 cm</span>
+            </div>
+            <input type="range" id="sm-depth" min="38" max="55" value="42" oninput="updateSM()" style="width:100%;-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;outline:none;cursor:none;background:linear-gradient(to right,#7c3aed 50%,#e8e4ff 50%)"/>
+            <div style="display:flex;justify-content:space-between;font-size:.6rem;color:var(--text-dim);margin-top:.3rem"><span id="sm-d-min">38cm min</span><span id="sm-d-max">55cm max</span></div>
+          </div>
+
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+              <span style="font-size:.82rem;color:var(--text-body);font-weight:500">Hauteur</span>
+              <span id="sm-height-val" style="font-size:.85rem;color:var(--accent);font-weight:700;background:#ede8ff;padding:.2rem .75rem;border-radius:20px">88 cm</span>
+            </div>
+            <input type="range" id="sm-height" min="80" max="100" value="88" oninput="updateSM()" style="width:100%;-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;outline:none;cursor:none;background:linear-gradient(to right,#7c3aed 50%,#e8e4ff 50%)"/>
+            <div style="display:flex;justify-content:space-between;font-size:.6rem;color:var(--text-dim);margin-top:.3rem"><span id="sm-h-min">80cm min</span><span id="sm-h-max">100cm max</span></div>
+          </div>
+        </div>
+
+        <!-- COLORS -->
+        <div style="background:white;border:1.5px solid rgba(107,63,212,0.12);border-radius:16px;padding:1.5rem;box-shadow:0 2px 8px rgba(74,31,168,0.06);animation:fadeSlideUp .5s .15s ease both">
+          <div style="font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:1.2rem">🎨 Teinte du Chêne</div>
+          <div style="display:flex;gap:.8rem;flex-wrap:wrap;margin-bottom:.8rem" id="sm-colors">
+            <div class="sm-clr active" onclick="selectColor(this,'#D4A853','Chêne Naturel')"><div style="width:38px;height:38px;border-radius:50%;background:#D4A853;border:3px solid white;box-shadow:0 0 0 2.5px #7c3aed;transition:box-shadow .2s"></div><span>Naturel</span></div>
+            <div class="sm-clr" onclick="selectColor(this,'#8B5E3C','Chêne Brun')"><div style="width:38px;height:38px;border-radius:50%;background:#8B5E3C;border:3px solid white;box-shadow:0 0 0 2px transparent;transition:box-shadow .2s"></div><span>Brun</span></div>
+            <div class="sm-clr" onclick="selectColor(this,'#5C3317','Chêne Foncé')"><div style="width:38px;height:38px;border-radius:50%;background:#5C3317;border:3px solid white;box-shadow:0 0 0 2px transparent;transition:box-shadow .2s"></div><span>Foncé</span></div>
+            <div class="sm-clr" onclick="selectColor(this,'#F5DEB3','Chêne Clair')"><div style="width:38px;height:38px;border-radius:50%;background:#F5DEB3;border:3px solid #e0d8a8;box-shadow:0 0 0 2px transparent;transition:box-shadow .2s"></div><span>Clair</span></div>
+            <div class="sm-clr" onclick="selectColor(this,'#2C2C2C','Chêne Noir')"><div style="width:38px;height:38px;border-radius:50%;background:#2C2C2C;border:3px solid white;box-shadow:0 0 0 2px transparent;transition:box-shadow .2s"></div><span>Noir</span></div>
+            <div class="sm-clr" onclick="selectColor(this,'#F0EEE9','Chêne Blanc')"><div style="width:38px;height:38px;border-radius:50%;background:#F0EEE9;border:3px solid #ddd;box-shadow:0 0 0 2px transparent;transition:box-shadow .2s"></div><span>Blanc</span></div>
+          </div>
+          <div style="font-size:.75rem;color:var(--text-body)">Sélectionné: <strong id="sm-color-name" style="color:var(--accent)">Chêne Naturel</strong></div>
+        </div>
+
+        <!-- LOCKED -->
+        <div style="background:var(--bg-1);border:1.5px dashed rgba(107,63,212,0.2);border-radius:16px;padding:1.2rem;animation:fadeSlideUp .5s .2s ease both">
+          <div style="font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;color:var(--text-dim);font-weight:700;margin-bottom:.8rem">🔒 Fixé par le Charpentier</div>
+          <div style="display:flex;flex-wrap:wrap;gap:.5rem" id="sm-locked-tags">
+            <span style="background:rgba(107,63,212,0.06);border:1px solid rgba(107,63,212,0.12);color:var(--text-dim);font-size:.7rem;padding:.25rem .75rem;border-radius:20px">🔒 Chêne massif</span>
+            <span style="background:rgba(107,63,212,0.06);border:1px solid rgba(107,63,212,0.12);color:var(--text-dim);font-size:.7rem;padding:.25rem .75rem;border-radius:20px">🔒 Assemblage tenon-mortaise</span>
+            <span style="background:rgba(107,63,212,0.06);border:1px solid rgba(107,63,212,0.12);color:var(--text-dim);font-size:.7rem;padding:.25rem .75rem;border-radius:20px">🔒 Vernis naturel</span>
+          </div>
+        </div>
+
+        <!-- PRICE SUMMARY -->
+        <div style="background:linear-gradient(135deg,#1e0a4e,#4a1fa8);border-radius:16px;padding:1.5rem;color:white;animation:fadeSlideUp .5s .25s ease both">
+          <div style="font-size:.62rem;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:1rem">Résumé de Configuration</div>
+          <div style="display:flex;justify-content:space-between;font-size:.8rem;color:rgba(255,255,255,.75);margin-bottom:.5rem"><span>Prix de base</span><span id="sm-base-price">850 TND</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:.8rem;color:rgba(255,255,255,.75);margin-bottom:.5rem"><span>Ajustement dimensions</span><span id="sm-dim-extra">+0 TND</span></div>
+          <div style="border-top:1px solid rgba(255,255,255,.15);padding-top:.9rem;margin-top:.4rem;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:.88rem;color:rgba(255,255,255,.9);font-weight:600">Total Estimé</span>
+            <span id="sm-total-price" style="font-family:'Cormorant Garamond',serif;font-size:2rem;color:white">850 TND</span>
+          </div>
+          <div style="font-size:.62rem;color:rgba(255,255,255,.4);margin-top:.6rem">* Prix final confirmé par le charpentier sous 24h</div>
+        </div>
+
+        <!-- CTA -->
+        <div style="display:flex;gap:.8rem;animation:fadeSlideUp .5s .3s ease both">
+          <button class="btn btn-gold btn-lg" style="flex:1" onclick="addSMToCart()">🛒 Ajouter au Panier</button>
+          <button class="btn btn-ghost" onclick="saveSMConfig()" style="padding:.95rem 1.2rem">💾 Sauvegarder</button>
+        </div>
+
+        <div id="sm-success" style="display:none;background:rgba(5,150,105,.08);border:1px solid rgba(5,150,105,.25);border-radius:12px;padding:1rem;display:none;align-items:center;gap:.8rem">
+          <span style="font-size:1.5rem">✅</span>
+          <div><div style="font-size:.85rem;font-weight:600;color:#059669">Ajouté au panier!</div><div style="font-size:.72rem;color:var(--text-muted)">Le charpentier confirmera sous 24h</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- INSPIRATION GALLERY -->
+    <div style="margin-top:5rem">
+      <div class="s-header">
+        <span class="eyebrow">Galerie d'Inspiration · معرض</span>
+        <h2 class="display" style="font-size:clamp(1.8rem,4vw,3rem)">Réalisations de nos <em class="gold-text">Artisans</em></h2>
+        <div class="divider center"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;max-width:1100px;margin:0 auto">
+        <div class="sm-inspo-card"><div class="sm-inspo-img" style="background:linear-gradient(135deg,#D4A853,#8B5E3C)"><span style="font-size:4rem">🪑</span><div class="sm-inspo-badge">Chaise Bistrot</div></div><div class="sm-inspo-info"><strong>Chaise Bistrot Chêne</strong><span>1,200 TND</span></div></div>
+        <div class="sm-inspo-card"><div class="sm-inspo-img" style="background:linear-gradient(135deg,#5C3317,#8B5E3C)"><span style="font-size:4rem">🍽</span><div class="sm-inspo-badge">Table Famille</div></div><div class="sm-inspo-info"><strong>Table à Manger 8 pers.</strong><span>3,800 TND</span></div></div>
+        <div class="sm-inspo-card"><div class="sm-inspo-img" style="background:linear-gradient(135deg,#D4A853,#F5DEB3)"><span style="font-size:4rem">🛋</span><div class="sm-inspo-badge">Canapé Cadre</div></div><div class="sm-inspo-info"><strong>Canapé 3 Places</strong><span>4,200 TND</span></div></div>
+        <div class="sm-inspo-card"><div class="sm-inspo-img" style="background:linear-gradient(135deg,#2C2C2C,#5C3317)"><span style="font-size:4rem">🚪</span><div class="sm-inspo-badge">Armoire Luxe</div></div><div class="sm-inspo-info"><strong>Armoire 3 Portes</strong><span>5,500 TND</span></div></div>
+        <div class="sm-inspo-card"><div class="sm-inspo-img" style="background:linear-gradient(135deg,#8B5E3C,#D4A853)"><span style="font-size:4rem">☕</span><div class="sm-inspo-badge">Table Scandinave</div></div><div class="sm-inspo-info"><strong>Table Basse Design</strong><span>1,450 TND</span></div></div>
+        <div class="sm-inspo-card"><div class="sm-inspo-img" style="background:linear-gradient(135deg,#F5DEB3,#D4A853)"><span style="font-size:4rem">🪞</span><div class="sm-inspo-badge">Coiffeuse Vintage</div></div><div class="sm-inspo-info"><strong>Coiffeuse avec Miroir</strong><span>2,100 TND</span></div></div>
+      </div>
+    </div>
+
+    <!-- HOW IT WORKS -->
+    <div style="margin-top:5rem;margin-bottom:3rem">
+      <div class="s-header">
+        <span class="eyebrow">Comment ça marche · كيف يعمل</span>
+        <h2 class="display" style="font-size:clamp(1.8rem,4vw,3rem)">Simple comme <em class="gold-text">Bonjour</em></h2>
+        <div class="divider center"></div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:1rem;flex-wrap:wrap;max-width:900px;margin:0 auto">
+        <div style="text-align:center;flex:1;min-width:120px;max-width:160px">
+          <div style="width:54px;height:54px;background:linear-gradient(135deg,#7c3aed,#6b3fd4);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto .8rem;font-size:.9rem;font-weight:700;color:white;box-shadow:0 6px 20px rgba(124,58,237,.35)">1</div>
+          <div style="font-size:.88rem;color:var(--text-dark);font-weight:700;margin-bottom:.3rem">Choisir</div>
+          <div style="font-size:.74rem;color:var(--text-muted);line-height:1.6">Sélectionnez votre meuble parmi nos modèles</div>
+        </div>
+        <div style="color:#c4b5fd;font-size:1.5rem">→</div>
+        <div style="text-align:center;flex:1;min-width:120px;max-width:160px">
+          <div style="width:54px;height:54px;background:linear-gradient(135deg,#7c3aed,#6b3fd4);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto .8rem;font-size:.9rem;font-weight:700;color:white;box-shadow:0 6px 20px rgba(124,58,237,.35)">2</div>
+          <div style="font-size:.88rem;color:var(--text-dark);font-weight:700;margin-bottom:.3rem">Configurer</div>
+          <div style="font-size:.74rem;color:var(--text-muted);line-height:1.6">Ajustez dimensions et teinte</div>
+        </div>
+        <div style="color:#c4b5fd;font-size:1.5rem">→</div>
+        <div style="text-align:center;flex:1;min-width:120px;max-width:160px">
+          <div style="width:54px;height:54px;background:linear-gradient(135deg,#7c3aed,#6b3fd4);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto .8rem;font-size:.9rem;font-weight:700;color:white;box-shadow:0 6px 20px rgba(124,58,237,.35)">3</div>
+          <div style="font-size:.88rem;color:var(--text-dark);font-weight:700;margin-bottom:.3rem">Commander</div>
+          <div style="font-size:.74rem;color:var(--text-muted);line-height:1.6">Devis confirmé sous 24h</div>
+        </div>
+        <div style="color:#c4b5fd;font-size:1.5rem">→</div>
+        <div style="text-align:center;flex:1;min-width:120px;max-width:160px">
+          <div style="width:54px;height:54px;background:linear-gradient(135deg,#7c3aed,#6b3fd4);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto .8rem;font-size:.9rem;font-weight:700;color:white;box-shadow:0 6px 20px rgba(124,58,237,.35)">4</div>
+          <div style="font-size:.88rem;color:var(--text-dark);font-weight:700;margin-bottom:.3rem">Livraison</div>
+          <div style="font-size:.74rem;color:var(--text-muted);line-height:1.6">Livré en 4–6 semaines</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <style>
+  .sm-tab{background:white;border:1.5px solid rgba(107,63,212,0.15);color:var(--text-muted);padding:.65rem 1.4rem;border-radius:25px;font-size:.78rem;font-weight:500;transition:all .25s;cursor:none;font-family:inherit;box-shadow:0 2px 8px rgba(74,31,168,0.05)}
+  .sm-tab:hover{border-color:var(--accent);color:var(--accent);background:#f5f2ff;transform:translateY(-2px)}
+  .sm-tab.active{background:linear-gradient(135deg,#7c3aed,#6b3fd4);border-color:transparent;color:white;box-shadow:0 6px 20px rgba(124,58,237,.35);transform:translateY(-2px)}
+  .sm-clr{display:flex;flex-direction:column;align-items:center;gap:.4rem;cursor:none;transition:transform .15s}
+  .sm-clr:hover{transform:scale(1.1)}
+  .sm-clr span{font-size:.62rem;color:var(--text-muted);font-weight:500}
+  .sm-gal-item{aspect-ratio:1;background:var(--bg-2);border:2px solid rgba(107,63,212,0.12);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.8rem;cursor:none;transition:all .2s}
+  .sm-gal-item:hover,.sm-gal-item.active{border-color:var(--accent);background:var(--purple-pale);transform:scale(1.05)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:white;border:2px solid #7c3aed;box-shadow:0 2px 8px rgba(124,58,237,.4);cursor:none;transition:transform .15s}
+  input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2)}
+  .sm-inspo-card{border-radius:16px;overflow:hidden;border:1px solid rgba(107,63,212,0.1);background:white;box-shadow:0 4px 16px rgba(74,31,168,0.08);transition:all .3s;cursor:none}
+  .sm-inspo-card:hover{transform:translateY(-6px);box-shadow:0 12px 30px rgba(74,31,168,0.15);border-color:rgba(107,63,212,0.25)}
+  .sm-inspo-img{height:180px;display:flex;align-items:center;justify-content:center;position:relative}
+  .sm-inspo-badge{position:absolute;bottom:8px;left:8px;background:rgba(30,10,78,.8);color:white;font-size:.6rem;padding:.25rem .65rem;border-radius:20px;font-weight:600;backdrop-filter:blur(8px)}
+  .sm-inspo-info{padding:.9rem 1rem;display:flex;justify-content:space-between;align-items:center}
+  .sm-inspo-info strong{font-size:.8rem;color:var(--text-dark);font-weight:600}
+  .sm-inspo-info span{font-size:.75rem;color:var(--accent);font-weight:700}
+  </style>
+
+  <script>
+  const SM_PRODUCTS=[
+    {title:'Chaise en Chêne',desc:'Chaise artisanale en chêne massif de Ksar Hellal. Structure solide, finition soignée, disponible en plusieurs teintes.',emoji:'🪑',base:850,w:{min:40,max:60,val:45},d:{min:38,max:55,val:42},h:{min:80,max:100,val:88},locked:['Chêne massif','Assemblage tenon-mortaise','Vernis naturel'],gal:['🪑','🪑','🪑','🪑']},
+    {title:'Table à Manger',desc:'Grande table en chêne massif pour 6 à 8 personnes. Plateau épais 4cm, pieds carrés robustes, idéale pour les grandes familles.',emoji:'🍽',base:2800,w:{min:140,max:220,val:180},d:{min:80,max:110,val:90},h:{min:72,max:80,val:75},locked:['Chêne massif 4cm','Pieds carrés','Huile naturelle'],gal:['🍽','🍽','🍽','🍽']},
+    {title:'Canapé Cadre Chêne',desc:'Cadre de canapé en chêne avec accoudoirs sculptés à la main. Structure premium, coussins non inclus.',emoji:'🛋',base:3200,w:{min:160,max:240,val:200},d:{min:85,max:100,val:90},h:{min:75,max:90,val:82},locked:['Chêne massif','Pieds tournés','Vernis satiné'],gal:['🛋','🛋','🛋','🛋']},
+    {title:'Armoire en Chêne',desc:"Armoire en chêne massif avec portes battantes. Intérieur configurable, quincaillerie laiton. Garantie 15 ans structure.",emoji:'🚪',base:4500,w:{min:100,max:200,val:150},d:{min:50,max:70,val:60},h:{min:180,max:230,val:200},locked:['Chêne massif','Quincaillerie laiton','Fond contreplaqué'],gal:['🚪','🚪','🚪','🚪']},
+    {title:'Table Basse',desc:"Table basse en chêne au plateau légèrement bombé. Pieds en épingle acier noir. Design scandinave-tunisien unique.",emoji:'☕',base:1200,w:{min:80,max:130,val:100},d:{min:50,max:80,val:60},h:{min:38,max:50,val:42},locked:['Chêne massif','Pieds acier noir','Finition huile'],gal:['☕','☕','☕','☕']},
+    {title:'Coiffeuse avec Miroir',desc:"Coiffeuse en chêne avec miroir intégré et tiroirs. Finition dorée sur les poignées. Élégance vintage tunisienne.",emoji:'🪞',base:1800,w:{min:80,max:120,val:100},d:{min:40,max:55,val:45},h:{min:140,max:180,val:160},locked:['Chêne massif','Miroir 5mm','Poignées laiton'],gal:['🪞','🪞','🪞','🪞']}
+  ];
+  let smCurrent=0,smColor='#D4A853';
+
+  function selectSMProduct(idx,btn){
+    smCurrent=idx;
+    document.querySelectorAll('.sm-tab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const p=SM_PRODUCTS[idx];
+    document.getElementById('sm-title').textContent=p.title;
+    document.getElementById('sm-desc').textContent=p.desc;
+    const em=document.getElementById('sm-emoji');
+    em.style.transform='scale(0) rotate(-15deg)';em.style.opacity='0';
+    setTimeout(()=>{em.textContent=p.emoji;em.style.transition='all .5s cubic-bezier(.34,1.56,.64,1)';em.style.transform='scale(1) rotate(0)';em.style.opacity='1';},180);
+    const gal=document.getElementById('sm-gallery');
+    if(gal) gal.querySelectorAll('.sm-gal-item').forEach((g,i)=>{g.textContent=p.gal[i]||p.emoji;});
+    ['width','depth','height'].forEach(dim=>{
+      const el=document.getElementById('sm-'+dim);
+      const pd=dim==='width'?p.w:dim==='depth'?p.d:p.h;
+      el.min=pd.min;el.max=pd.max;el.value=pd.val;
+    });
+    const lt=document.getElementById('sm-locked-tags');
+    if(lt) lt.innerHTML=p.locked.map(l=>'<span style="background:rgba(107,63,212,0.06);border:1px solid rgba(107,63,212,0.12);color:var(--text-dim);font-size:.7rem;padding:.25rem .75rem;border-radius:20px">🔒 '+l+'</span>').join('');
+    const photo=document.getElementById('sm-photo');
+    photo.style.transform='scale(0.95)';photo.style.opacity='.7';
+    setTimeout(()=>{photo.style.transition='all .4s cubic-bezier(.34,1.56,.64,1)';photo.style.transform='';photo.style.opacity='1';},200);
+    updateSM();
+  }
+
+  function smSelectGal(el,idx){
+    document.querySelectorAll('.sm-gal-item').forEach(g=>g.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  function updateSM(){
+    const p=SM_PRODUCTS[smCurrent];
+    const w=parseInt(document.getElementById('sm-width').value);
+    const d=parseInt(document.getElementById('sm-depth').value);
+    const h=parseInt(document.getElementById('sm-height').value);
+    document.getElementById('sm-width-val').textContent=w+' cm';
+    document.getElementById('sm-depth-val').textContent=d+' cm';
+    document.getElementById('sm-height-val').textContent=h+' cm';
+    document.getElementById('sm-dim-w').textContent=w;
+    document.getElementById('sm-dim-d').textContent=d;
+    document.getElementById('sm-dim-h').textContent=h;
+    ['sm-width','sm-depth','sm-height'].forEach(id=>{
+      const el=document.getElementById(id);
+      const pct=((el.value-el.min)/(el.max-el.min))*100;
+      el.style.background='linear-gradient(to right,#7c3aed '+pct+'%,#e8e4ff '+pct+'%)';
+    });
+    const wE=Math.round((w-p.w.val)*2.5);
+    const dE=Math.round((d-p.d.val)*2);
+    const hE=Math.round((h-p.h.val)*1.5);
+    const extra=Math.max(0,wE+dE+hE);
+    const total=p.base+extra;
+    document.getElementById('sm-base-price').textContent=p.base+' TND';
+    document.getElementById('sm-dim-extra').textContent=(extra>0?'+':'')+extra+' TND';
+    document.getElementById('sm-total-price').textContent=total+' TND';
+    document.getElementById('sm-price').innerHTML=total+' <span style="font-size:1rem;color:var(--text-muted)">TND</span>';
+    document.getElementById('sm-w-min').textContent=p.w.min+'cm min';
+    document.getElementById('sm-w-max').textContent=p.w.max+'cm max';
+    document.getElementById('sm-d-min').textContent=p.d.min+'cm min';
+    document.getElementById('sm-d-max').textContent=p.d.max+'cm max';
+    document.getElementById('sm-h-min').textContent=p.h.min+'cm min';
+    document.getElementById('sm-h-max').textContent=p.h.max+'cm max';
+  }
+
+  function selectColor(btn,color,name){
+    smColor=color;
+    document.querySelectorAll('.sm-clr div').forEach(d=>d.style.boxShadow='0 0 0 2px transparent');
+    btn.querySelector('div').style.boxShadow='0 0 0 2.5px #7c3aed';
+    document.getElementById('sm-color-name').textContent=name;
+    const ov=document.getElementById('sm-color-overlay');
+    ov.style.background=color;ov.style.opacity='0.18';
+    if(typeof toast==='function') toast('🎨 '+name+' sélectionné','default');
+  }
+
+  function addSMToCart(){
+    const p=SM_PRODUCTS[smCurrent];
+    const total=parseInt(document.getElementById('sm-total-price').textContent);
+    const succ=document.getElementById('sm-success');
+    succ.style.display='flex';
+    setTimeout(()=>{succ.style.display='none';},3500);
+    if(typeof toast==='function') toast('🪑 '+p.title+' ajouté! '+total+' TND','success');
+  }
+
+  function saveSMConfig(){
+    if(typeof toast==='function') toast('💾 Configuration sauvegardée!','default');
+  }
+
+  document.addEventListener('DOMContentLoaded',()=>updateSM());
+  setTimeout(updateSM,200);
+  </script>
+
+
+
 <div class="page" id="page-track">
   <div class="s" style="padding-top:5rem;text-align:center">
     <span class="eyebrow reveal">تتبع طلبك · Aman Allah</span>
@@ -596,4 +858,16 @@ function filterAndGo(cat) {
   showPage('products');
   setTimeout(() => {
     document.querySelectorAll('#page-products .filter-btn').forEach(b => b.classList.remove('active'));
-    const btn = d
+    const btn = document.querySelector('#page-products .filter-btn[onclick*="' + cat + '"]');
+    if (btn) { btn.classList.add('active'); filterProducts(cat, btn); }
+    else filterProducts(cat, null);
+  }, 100);
+}
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  if (typeof init === 'function') init();
+});
+</script>
+</body>
+</html>

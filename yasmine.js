@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════
 
 // 🔑 PASTE YOUR GEMINI KEY HERE:
-const GEMINI_KEY = "gen-lang-client-0424037557";
+const GEMINI_KEY = "PUT_YOUR_KEY_HERE";
 
 const AI = {
   lang: 'fr',
