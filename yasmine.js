@@ -2,7 +2,7 @@
 // YASMINE — Super Smart AI for Shopping.TN
 // ═══════════════════════════════════════════════
 
-const GEMINI_KEY = "PUT_YOUR_KEY_HERE";
+const GEMINI_KEY = "gen-lang-client-0424037557";
 
 const AI = {
   open: false,
