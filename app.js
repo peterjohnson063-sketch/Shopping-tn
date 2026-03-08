@@ -1,4 +1,3 @@
-
 // ═══════════════════════════════════════════════
 // SHOPPING.TN — MAIN APPLICATION ENGINE
 // ═══════════════════════════════════════════════
@@ -1170,7 +1169,8 @@ function submitCarpenterRequest() {
 function renderLoyalty() {
   const grid = document.getElementById('loyalty-tiers-grid');
   const promoSection = document.getElementById('loyalty-promo-section');
-  if (!grid) return;
+  if (!grid) { console.log("loyalty-tiers-grid NOT FOUND"); return; }
+  console.log("renderLoyalty running!");
   const u = State.currentUser;
 
   // Render promo codes
@@ -1194,15 +1194,15 @@ function renderLoyalty() {
 
   // Render tier cards
   grid.innerHTML = STN.LOYALTY_TIERS.map((tier, i) => `
-    <div class="tier-card reveal" style="border-color:rgba(255,255,255,0.08)">
+    <div class="tier-card" style="border-color:rgba(107,63,212,0.2);position:relative">
       <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${tier.color};border-radius:var(--radius) var(--radius) 0 0"></div>
       <div class="tier-badge" style="border-color:${tier.color};margin-bottom:1rem">
         ${['🥉','🥈','🥇','💎'][i]}
       </div>
-      <div style="font-family:var(--font-display);font-size:1.4rem;color:var(--champagne);margin-bottom:0.3rem">${tier.name}</div>
+      <div style="font-family:var(--font-display);font-size:1.4rem;color:#1e0a4e;margin-bottom:0.3rem">${tier.name}</div>
       <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:1.2rem">${tier.min.toLocaleString()}${tier.max !== Infinity ? '–' + tier.max.toLocaleString() : '+'} pts</div>
       <ul style="text-align:left;display:flex;flex-direction:column;gap:0.5rem">
-        ${tier.perks.map(p => `<li style="font-size:0.78rem;color:var(--text-muted);display:flex;gap:0.5rem;align-items:flex-start"><span style="color:${tier.color};flex-shrink:0;margin-top:1px">◆</span>${p}</li>`).join('')}
+        ${tier.perks.map(p => `<li style="font-size:0.78rem;color:#3d3460;display:flex;gap:0.5rem;align-items:flex-start"><span style="color:${tier.color};flex-shrink:0;margin-top:1px">◆</span>${p}</li>`).join('')}
       </ul>
       ${u && u.points >= tier.min && u.points <= tier.max ? `<div style="margin-top:1.2rem;font-size:0.7rem;background:rgba(46,213,115,0.1);border:1px solid rgba(46,213,115,0.25);color:var(--success);padding:0.35rem 0.8rem;border-radius:30px;display:inline-block">✓ Your Current Tier</div>` : ''}
     </div>`).join('');
@@ -1267,4 +1267,3 @@ function homeSearch() {
 
 // ── START ──
 document.addEventListener('DOMContentLoaded', init);
-
