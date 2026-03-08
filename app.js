@@ -135,6 +135,12 @@ function showPage(id) {
 
 // ── REVEAL ──
 function initReveal() {
+  // Immediately make ALL reveal elements on current active page visible
+  const activePage = document.querySelector('.page.active');
+  if (activePage) {
+    activePage.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
+  }
+  // Also use observer for scroll reveals
   const obs = new IntersectionObserver((entries) => {
     entries.forEach((e, i) => {
       if (e.isIntersecting) {
@@ -142,7 +148,7 @@ function initReveal() {
         obs.unobserve(e.target);
       }
     });
-  }, { threshold: 0.07 });
+  }, { threshold: 0.01 });
   document.querySelectorAll('.reveal:not(.visible)').forEach(el => obs.observe(el));
 }
 
