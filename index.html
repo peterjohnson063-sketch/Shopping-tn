@@ -989,26 +989,22 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 
 
 <div class="page" id="page-track">
-  <div class="s" style="padding-top:5rem;text-align:center">
-    <span class="eyebrow">تتبع طلبك · Aman Allah</span>
-    <h1 class="display" style="font-size:clamp(2.5rem,6vw,4.5rem);margin-bottom:1rem">Track Your <em class="gold-text">Order</em></h1>
-    <p class="body" style="max-width:440px;margin:0 auto 3rem">Real-time updates from our artisans' workshops all the way to your door.</p>
-
-    <div class="reveal" style="max-width:580px;margin:0 auto 3rem">
-      <div class="search-bar" style="margin-bottom:0.8rem">
-        <div class="search-icon-wrap">📦</div>
-        <input type="text" class="search-input" id="track-num" placeholder="Enter order ID e.g. SHP-2026-0042" onkeydown="if(event.key==='Enter')trackOrder()"/>
-        <button class="search-btn" data-lang="track-btn" onclick="trackOrder()">Track</button>
-      </div>
-      <div style="display:flex;gap:0.5rem;justify-content:center;flex-wrap:wrap">
-        <span class="search-tag" onclick="document.getElementById('track-num').value='SHP-2026-0042';trackOrder()">Try: SHP-2026-0042</span>
-        <span class="search-tag" onclick="document.getElementById('track-num').value='SHP-2026-0001';trackOrder()">Try: SHP-2026-0001</span>
-      </div>
+  <div style="padding:6rem 5% 4rem;text-align:center">
+    <p style="font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:#7c3aed;margin-bottom:1rem">تتبع طلبك · Track Order</p>
+    <h1 style="font-family:'Cormorant Garamond',serif;font-size:clamp(2.5rem,6vw,4rem);color:#1e0a4e;margin-bottom:1rem;font-weight:400">Track Your <em style="color:#7c3aed;font-style:italic">Order</em></h1>
+    <p style="color:#3d3460;max-width:440px;margin:0 auto 3rem;font-size:1rem">Real-time updates from our artisans workshops all the way to your door.</p>
+    <div style="max-width:580px;margin:0 auto 2rem;display:flex;gap:0.5rem;background:white;border:1px solid rgba(107,63,212,0.2);border-radius:50px;padding:0.4rem 0.4rem 0.4rem 1.2rem;box-shadow:0 4px 20px rgba(74,31,168,0.1)">
+      <span style="font-size:1.2rem;display:flex;align-items:center">📦</span>
+      <input type="text" id="track-num" placeholder="Enter order ID e.g. SHP-2026-0042" onkeydown="if(event.key==='Enter')trackOrder()" style="flex:1;border:none;outline:none;font-size:0.9rem;color:#1e0a4e;background:transparent;font-family:inherit"/>
+      <button onclick="trackOrder()" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:40px;padding:0.6rem 1.5rem;font-size:0.85rem;cursor:pointer;font-family:inherit;font-weight:500">Track</button>
     </div>
-
-    <div class="glass" id="track-empty" style="max-width:450px;margin:0 auto;padding:3rem;text-align:center">
+    <div style="display:flex;gap:0.5rem;justify-content:center;flex-wrap:wrap;margin-bottom:3rem">
+      <span onclick="document.getElementById('track-num').value='SHP-2026-0042';trackOrder()" style="background:#f5f2ff;border:1px solid rgba(107,63,212,0.2);color:#7c3aed;font-size:0.75rem;padding:0.3rem 0.9rem;border-radius:20px;cursor:pointer">Try: SHP-2026-0042</span>
+      <span onclick="document.getElementById('track-num').value='SHP-2026-0001';trackOrder()" style="background:#f5f2ff;border:1px solid rgba(107,63,212,0.2);color:#7c3aed;font-size:0.75rem;padding:0.3rem 0.9rem;border-radius:20px;cursor:pointer">Try: SHP-2026-0001</span>
+    </div>
+    <div id="track-empty" style="max-width:450px;margin:0 auto;padding:3rem;text-align:center;background:white;border:1px solid rgba(107,63,212,0.15);border-radius:18px;box-shadow:0 2px 12px rgba(74,31,168,0.08)">
       <div style="font-size:4rem;margin-bottom:1rem">📦</div>
-      <p class="body">Enter your order ID above to track your shipment in real time.</p>
+      <p style="color:#3d3460;font-size:1rem">Enter your order ID above to track your shipment in real time.</p>
     </div>
     <div id="track-result" style="display:none;max-width:600px;margin:0 auto;text-align:left"></div>
   </div>
@@ -1075,57 +1071,87 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 <!-- PAGE: ABOUT                      -->
 <!-- ════════════════════════════════ -->
 <div class="page" id="page-about">
-  <div class="s" style="padding-top:5rem">
-    <div class="s-header">
-      <span class="eyebrow">قصتنا · Notre Histoire</span>
-      <h1 class="display" style="font-size:clamp(2.5rem,6vw,4.5rem)">About <em class="gold-text">Shopping.TN</em></h1>
-      <div class="divider center wide"></div>
-      <p class="body" style="max-width:600px;margin:0 auto">Born in the heart of Tunisia's Sahel region, Shopping.TN was created to connect the world with the extraordinary craftsmanship of Monastir, Ksar Hellal, and beyond.</p>
+  <div style="padding:6rem 5% 4rem">
+    <div style="text-align:center;margin-bottom:4rem">
+      <p style="font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:#7c3aed;margin-bottom:1rem">قصتنا · Notre Histoire</p>
+      <h1 style="font-family:'Cormorant Garamond',serif;font-size:clamp(2.5rem,6vw,4rem);color:#1e0a4e;font-weight:400;margin-bottom:1.5rem">About <em style="color:#7c3aed;font-style:italic">Shopping.TN</em></h1>
+      <div style="width:60px;height:2px;background:linear-gradient(90deg,#7c3aed,#9b72f0);margin:0 auto 2rem"></div>
+      <p style="color:#3d3460;max-width:600px;margin:0 auto;font-size:1rem;line-height:1.8">Born in the heart of Tunisia's Sahel region, Shopping.TN was created to connect the world with the extraordinary craftsmanship of Monastir, Ksar Hellal, and beyond.</p>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:3rem;margin-bottom:5rem;align-items:center" class="reveal">
-      <div style="aspect-ratio:4/3;background:linear-gradient(135deg,var(--purple-pale,#ede8ff),var(--bg-3,#e8e4ff));border-radius:var(--radius-xl);border:1px solid rgba(107,63,212,0.12);display:flex;align-items:center;justify-content:center;font-size:8rem">🇹🇳</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:3rem;margin-bottom:5rem;align-items:center;max-width:1100px;margin:0 auto 5rem">
+      <div style="aspect-ratio:4/3;background:linear-gradient(135deg,#ede8ff,#e8e4ff);border-radius:20px;border:1px solid rgba(107,63,212,0.12);display:flex;align-items:center;justify-content:center;font-size:8rem">🇹🇳</div>
       <div>
-        <span class="eyebrow">Our Mission</span>
-        <h2 class="display" style="font-size:2.5rem;margin-bottom:1rem">Sahel <em class="gold-text">to the World</em></h2>
-        <div class="divider"></div>
-        <p class="body" style="margin:1.5rem 0 1rem">Tunisia's Sahel region has been producing world-class furniture and crafts for centuries. Shopping.TN is building the digital bridge that connects these master artisans with customers across 50+ countries.</p>
-        <p class="body">Every purchase directly supports a Tunisian family, preserves a traditional craft, and keeps alive a 500-year-old heritage.</p>
+        <p style="font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:#7c3aed;margin-bottom:0.8rem">Our Mission</p>
+        <h2 style="font-family:'Cormorant Garamond',serif;font-size:2.2rem;color:#1e0a4e;font-weight:400;margin-bottom:1rem">Sahel <em style="color:#7c3aed;font-style:italic">to the World</em></h2>
+        <div style="width:40px;height:2px;background:#7c3aed;margin-bottom:1.5rem"></div>
+        <p style="color:#3d3460;line-height:1.8;margin-bottom:1rem">Tunisia's Sahel region has been producing world-class furniture and crafts for centuries. Shopping.TN is building the digital bridge that connects these master artisans with customers across 50+ countries.</p>
+        <p style="color:#3d3460;line-height:1.8">Every purchase directly supports a Tunisian family, preserves a traditional craft, and keeps alive a 500-year-old heritage.</p>
       </div>
     </div>
 
-    <div class="grid-4" style="margin-bottom:5rem">
-      <div class="glass" style="padding:2rem;text-align:center"><div class="stat-num">4<span>+</span></div><div class="stat-label">Tunisian Regions</div></div>
-      <div class="glass" style="padding:2rem;text-align:center"><div class="stat-num">200<span>+</span></div><div class="stat-label">Certified Artisans</div></div>
-      <div class="glass" style="padding:2rem;text-align:center"><div class="stat-num">12<span>K+</span></div><div class="stat-label">Products Listed</div></div>
-      <div class="glass" style="padding:2rem;text-align:center"><div class="stat-num">50<span>+</span></div><div class="stat-label">Countries Reached</div></div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;margin-bottom:5rem;max-width:1100px;margin:0 auto 5rem">
+      <div style="background:white;border:1px solid rgba(107,63,212,0.15);border-radius:18px;padding:2rem;text-align:center;box-shadow:0 2px 12px rgba(74,31,168,0.08)">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:2.8rem;color:#1e0a4e">4<span style="font-size:1.4rem;color:#7c3aed">+</span></div>
+        <div style="font-size:0.65rem;letter-spacing:0.14em;text-transform:uppercase;color:#7b72a8;margin-top:0.3rem">Tunisian Regions</div>
+      </div>
+      <div style="background:white;border:1px solid rgba(107,63,212,0.15);border-radius:18px;padding:2rem;text-align:center;box-shadow:0 2px 12px rgba(74,31,168,0.08)">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:2.8rem;color:#1e0a4e">200<span style="font-size:1.4rem;color:#7c3aed">+</span></div>
+        <div style="font-size:0.65rem;letter-spacing:0.14em;text-transform:uppercase;color:#7b72a8;margin-top:0.3rem">Certified Artisans</div>
+      </div>
+      <div style="background:white;border:1px solid rgba(107,63,212,0.15);border-radius:18px;padding:2rem;text-align:center;box-shadow:0 2px 12px rgba(74,31,168,0.08)">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:2.8rem;color:#1e0a4e">12<span style="font-size:1.4rem;color:#7c3aed">K+</span></div>
+        <div style="font-size:0.65rem;letter-spacing:0.14em;text-transform:uppercase;color:#7b72a8;margin-top:0.3rem">Products Listed</div>
+      </div>
+      <div style="background:white;border:1px solid rgba(107,63,212,0.15);border-radius:18px;padding:2rem;text-align:center;box-shadow:0 2px 12px rgba(74,31,168,0.08)">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:2.8rem;color:#1e0a4e">50<span style="font-size:1.4rem;color:#7c3aed">+</span></div>
+        <div style="font-size:0.65rem;letter-spacing:0.14em;text-transform:uppercase;color:#7b72a8;margin-top:0.3rem">Countries Reached</div>
+      </div>
     </div>
 
-    <div class="s-header">
-      <span class="eyebrow">The Team · الفريق</span>
-      <h2 class="display" style="font-size:2.5rem">Meet Our <em class="gold-text">Founders</em></h2>
-      <div class="divider center"></div>
+    <div style="text-align:center;margin-bottom:3rem">
+      <p style="font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:#7c3aed;margin-bottom:0.8rem">The Team</p>
+      <h2 style="font-family:'Cormorant Garamond',serif;font-size:2.2rem;color:#1e0a4e;font-weight:400">Meet Our <em style="color:#7c3aed;font-style:italic">Founders</em></h2>
     </div>
-    <div class="grid-4" style="margin-bottom:5rem">
-      <div class="team-card"><div class="team-avatar">👑</div><div style="font-size:0.95rem;color:var(--champagne);font-weight:500;margin-bottom:0.2rem">Youssef Ben Salah</div><div style="font-size:0.72rem;color:var(--gold);margin-bottom:0.5rem">CEO & Founder</div><p style="font-size:0.75rem;color:var(--text-muted);line-height:1.6">Born in Monastir. Passionate about connecting Tunisian craftsmanship with the world.</p></div>
-      <div class="team-card"><div class="team-avatar">💻</div><div style="font-size:0.95rem;color:var(--champagne);font-weight:500;margin-bottom:0.2rem">Amina Trabelsi</div><div style="font-size:0.72rem;color:var(--gold);margin-bottom:0.5rem">CTO</div><p style="font-size:0.75rem;color:var(--text-muted);line-height:1.6">Full-stack engineer from Ksar Hellal. Architected the Shopping.TN platform.</p></div>
-      <div class="team-card"><div class="team-avatar">🎨</div><div style="font-size:0.95rem;color:var(--champagne);font-weight:500;margin-bottom:0.2rem">Khaled Sfaxsi</div><div style="font-size:0.72rem;color:var(--gold);margin-bottom:0.5rem">Head of Design</div><p style="font-size:0.75rem;color:var(--text-muted);line-height:1.6">Award-winning designer with 12+ years in luxury brand identity.</p></div>
-      <div class="team-card"><div class="team-avatar">🤝</div><div style="font-size:0.95rem;color:var(--champagne);font-weight:500;margin-bottom:0.2rem">Sarra Nabeuli</div><div style="font-size:0.72rem;color:var(--gold);margin-bottom:0.5rem">Head of Artisans</div><p style="font-size:0.75rem;color:var(--text-muted);line-height:1.6">Manages relationships with 200+ artisans across the Sahel and beyond.</p></div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;margin-bottom:5rem;max-width:1100px;margin:0 auto 5rem">
+      <div style="background:white;border:1px solid rgba(107,63,212,0.15);border-radius:18px;padding:2rem;text-align:center;box-shadow:0 2px 12px rgba(74,31,168,0.08)">
+        <div style="width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,#4a1fa8,#6b3fd4);display:flex;align-items:center;justify-content:center;font-size:1.9rem;margin:0 auto 1rem">👑</div>
+        <div style="font-size:0.95rem;color:#1e0a4e;font-weight:500;margin-bottom:0.2rem">Youssef Ben Salah</div>
+        <div style="font-size:0.72rem;color:#7c3aed;margin-bottom:0.5rem">CEO & Founder</div>
+        <p style="font-size:0.75rem;color:#7b72a8;line-height:1.6">Born in Monastir. Passionate about connecting Tunisian craftsmanship with the world.</p>
+      </div>
+      <div style="background:white;border:1px solid rgba(107,63,212,0.15);border-radius:18px;padding:2rem;text-align:center;box-shadow:0 2px 12px rgba(74,31,168,0.08)">
+        <div style="width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,#4a1fa8,#6b3fd4);display:flex;align-items:center;justify-content:center;font-size:1.9rem;margin:0 auto 1rem">💻</div>
+        <div style="font-size:0.95rem;color:#1e0a4e;font-weight:500;margin-bottom:0.2rem">Amina Trabelsi</div>
+        <div style="font-size:0.72rem;color:#7c3aed;margin-bottom:0.5rem">CTO</div>
+        <p style="font-size:0.75rem;color:#7b72a8;line-height:1.6">Full-stack engineer from Ksar Hellal. Architected the Shopping.TN platform.</p>
+      </div>
+      <div style="background:white;border:1px solid rgba(107,63,212,0.15);border-radius:18px;padding:2rem;text-align:center;box-shadow:0 2px 12px rgba(74,31,168,0.08)">
+        <div style="width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,#4a1fa8,#6b3fd4);display:flex;align-items:center;justify-content:center;font-size:1.9rem;margin:0 auto 1rem">🎨</div>
+        <div style="font-size:0.95rem;color:#1e0a4e;font-weight:500;margin-bottom:0.2rem">Khaled Sfaxsi</div>
+        <div style="font-size:0.72rem;color:#7c3aed;margin-bottom:0.5rem">Head of Design</div>
+        <p style="font-size:0.75rem;color:#7b72a8;line-height:1.6">Award-winning designer with 12+ years in luxury brand identity.</p>
+      </div>
+      <div style="background:white;border:1px solid rgba(107,63,212,0.15);border-radius:18px;padding:2rem;text-align:center;box-shadow:0 2px 12px rgba(74,31,168,0.08)">
+        <div style="width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,#4a1fa8,#6b3fd4);display:flex;align-items:center;justify-content:center;font-size:1.9rem;margin:0 auto 1rem">🤝</div>
+        <div style="font-size:0.95rem;color:#1e0a4e;font-weight:500;margin-bottom:0.2rem">Sarra Nabeuli</div>
+        <div style="font-size:0.72rem;color:#7c3aed;margin-bottom:0.5rem">Head of Artisans</div>
+        <p style="font-size:0.75rem;color:#7b72a8;line-height:1.6">Manages relationships with 200+ artisans across the Sahel and beyond.</p>
+      </div>
     </div>
 
-    <div class="glass" style="padding:3rem;text-align:center;max-width:900px;margin:0 auto">
-      <span class="eyebrow">Our Values</span>
-      <h2 class="display" style="font-size:2rem;margin-bottom:2.5rem">What We <em class="gold-text">Stand For</em></h2>
-      <div class="grid-3" style="gap:2rem;text-align:left">
-        <div><div style="font-size:2rem;margin-bottom:0.8rem">🤲</div><h4 style="font-size:0.82rem;color:var(--champagne);margin-bottom:0.5rem">Artisan First</h4><p style="font-size:0.77rem;color:var(--text-muted);line-height:1.7">Every decision prioritizes the welfare and livelihood of our artisan community.</p></div>
-        <div><div style="font-size:2rem;margin-bottom:0.8rem">🌿</div><h4 style="font-size:0.82rem;color:var(--champagne);margin-bottom:0.5rem">Sustainable Craft</h4><p style="font-size:0.77rem;color:var(--text-muted);line-height:1.7">Locally sourced materials, traditional techniques, zero-waste production philosophy.</p></div>
-        <div><div style="font-size:2rem;margin-bottom:0.8rem">✨</div><h4 style="font-size:0.82rem;color:var(--champagne);margin-bottom:0.5rem">Uncompromising Quality</h4><p style="font-size:0.77rem;color:var(--text-muted);line-height:1.7">Every product is verified and certified before listing. Quality is non-negotiable.</p></div>
+    <div style="background:white;border:1px solid rgba(107,63,212,0.15);border-radius:20px;padding:3rem;text-align:center;max-width:900px;margin:0 auto;box-shadow:0 4px 20px rgba(74,31,168,0.08)">
+      <p style="font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:#7c3aed;margin-bottom:0.8rem">Our Values</p>
+      <h2 style="font-family:'Cormorant Garamond',serif;font-size:2rem;color:#1e0a4e;font-weight:400;margin-bottom:2.5rem">What We <em style="color:#7c3aed;font-style:italic">Stand For</em></h2>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2rem;text-align:left">
+        <div><div style="font-size:2rem;margin-bottom:0.8rem">🤲</div><h4 style="font-size:0.85rem;color:#1e0a4e;margin-bottom:0.5rem;font-weight:600">Artisan First</h4><p style="font-size:0.77rem;color:#7b72a8;line-height:1.7">Every decision prioritizes the welfare and livelihood of our artisan community.</p></div>
+        <div><div style="font-size:2rem;margin-bottom:0.8rem">🌿</div><h4 style="font-size:0.85rem;color:#1e0a4e;margin-bottom:0.5rem;font-weight:600">Sustainable Craft</h4><p style="font-size:0.77rem;color:#7b72a8;line-height:1.7">Locally sourced materials, traditional techniques, zero-waste production philosophy.</p></div>
+        <div><div style="font-size:2rem;margin-bottom:0.8rem">✨</div><h4 style="font-size:0.85rem;color:#1e0a4e;margin-bottom:0.5rem;font-weight:600">Uncompromising Quality</h4><p style="font-size:0.77rem;color:#7b72a8;line-height:1.7">Every product is verified and certified before listing. Quality is non-negotiable.</p></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ════════════════════════════════ -->
 <!-- SCRIPTS — load order matters!    -->
 <!-- ════════════════════════════════ -->
 
