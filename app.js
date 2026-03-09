@@ -1,4 +1,3 @@
-
 // ═══════════════════════════════════════════════
 // SHOPPING.TN — MAIN APPLICATION ENGINE
 // ═══════════════════════════════════════════════
@@ -612,6 +611,29 @@ function renderAuth() {
         <div class="form-group" style="margin-bottom:1.5rem">
           <label class="form-label">Confirm Password *</label>
           <input type="password" class="form-input" id="reg-pass2" placeholder="Repeat password"/>
+        </div>
+        <div class="form-group" style="margin-bottom:1.5rem;padding:1rem;background:#f5f2ff;border-radius:12px;border:1px solid rgba(107,63,212,0.2)">
+          <label style="display:flex;align-items:center;gap:0.8rem;cursor:pointer">
+            <input type="checkbox" id="reg-is-vendor" onchange="document.getElementById('reg-vendor-fields').style.display=this.checked?'block':'none'" style="width:18px;height:18px;accent-color:#7c3aed"/>
+            <span style="font-size:0.85rem;color:#1e0a4e;font-weight:500">🏪 I am an artisan/vendor — I want to sell on Shopping.TN</span>
+          </label>
+        </div>
+        <div id="reg-vendor-fields" style="display:none;margin-bottom:1.5rem;padding:1rem;background:#f8f7ff;border-radius:12px;border:1px solid rgba(107,63,212,0.15)">
+          <div class="form-group" style="margin-bottom:1rem">
+            <label class="form-label">Shop/Brand Name *</label>
+            <input type="text" class="form-input" id="reg-shop" placeholder="ex: Ateliers Maalej"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">What do you make?</label>
+            <select class="form-select" id="reg-specialty">
+              <option value="furniture">🪑 Furniture & Wood</option>
+              <option value="lighting">💡 Lighting & Lamps</option>
+              <option value="ceramics">🏺 Ceramics & Pottery</option>
+              <option value="textiles">🧵 Textiles & Rugs</option>
+              <option value="decor">🎭 Home Decor</option>
+              <option value="outdoor">🌿 Outdoor & Garden</option>
+            </select>
+          </div>
         </div>
         <button class="btn btn-gold btn-full btn-lg" onclick="doRegister()">Create Account →</button>
       </div>
@@ -1309,4 +1331,3 @@ function homeSearch() {
 
 // ── START ──
 document.addEventListener('DOMContentLoaded', init);
-
