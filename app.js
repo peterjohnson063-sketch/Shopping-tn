@@ -1117,10 +1117,24 @@ function switchVendorSection(section) {
     content.innerHTML = `
       <div class="glass-lg reveal" style="padding:2.5rem">
         <h3 style="font-family:var(--font-display);font-size:1.5rem;color:var(--champagne);margin-bottom:2rem">Upload New Product</h3>
-        <div class="upload-zone reveal" style="margin-bottom:2rem" onclick="toast('File upload simulation — in production this connects to storage','default')">
-          <div class="upload-icon">📸</div>
-          <p class="body" style="margin-bottom:0.5rem">Click to upload product images</p>
-          <p style="font-size:0.72rem;color:var(--text-dim)">PNG, JPG, WEBP up to 10MB each</p>
+        <div style="margin-bottom:2rem">
+          <label class="form-label">Product Image *</label>
+          <div id="upload-zone" onclick="document.getElementById('vp-image-file').click()" style="border:2px dashed rgba(107,63,212,0.3);border-radius:16px;padding:2rem;text-align:center;cursor:pointer;background:#f8f7ff;transition:all 0.3s" onmouseover="this.style.borderColor='#7c3aed'" onmouseout="this.style.borderColor='rgba(107,63,212,0.3)'">
+            <div id="upload-preview" style="display:none;margin-bottom:1rem">
+              <img id="upload-img-preview" style="max-height:150px;border-radius:12px;object-fit:cover" src=""/>
+            </div>
+            <div id="upload-placeholder">
+              <div style="font-size:2rem;margin-bottom:0.5rem">📸</div>
+              <p style="color:#3d3460;margin-bottom:0.3rem;font-size:0.9rem">Click to upload product image</p>
+              <p style="font-size:0.72rem;color:#7b72a8">PNG, JPG, WEBP up to 10MB</p>
+            </div>
+            <div id="upload-loading" style="display:none">
+              <div style="font-size:1.5rem">⏳</div>
+              <p style="color:#7c3aed;font-size:0.85rem">Uploading...</p>
+            </div>
+          </div>
+          <input type="file" id="vp-image-file" accept="image/*" style="display:none" onchange="uploadToCloudinary(this)"/>
+          <input type="hidden" id="vp-image-url"/>
         </div>
         <div class="form-row" style="margin-bottom:1rem">
           <div class="form-group"><label class="form-label">Product Title *</label><input type="text" class="form-input" id="vp-title" placeholder="Artisan Velvet Sofa"/></div>
@@ -1171,6 +1185,47 @@ function switchVendorSection(section) {
   initReveal();
 }
 
+function uploadToCloudinary(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const zone = document.getElementById('upload-zone');
+  const placeholder = document.getElementById('upload-placeholder');
+  const loading = document.getElementById('upload-loading');
+  const preview = document.getElementById('upload-preview');
+  const previewImg = document.getElementById('upload-img-preview');
+
+  placeholder.style.display = 'none';
+  loading.style.display = 'block';
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', 'Shopping');
+  formData.append('cloud_name', 'dzhnza3dn');
+
+  fetch('https://api.cloudinary.com/v1_1/dzhnza3dn/image/upload', {
+    method: 'POST',
+    body: formData
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.secure_url) {
+      document.getElementById('vp-image-url').value = data.secure_url;
+      previewImg.src = data.secure_url;
+      preview.style.display = 'block';
+      loading.style.display = 'none';
+      placeholder.style.display = 'none';
+      toast('✦ Image uploaded successfully!', 'success');
+    } else {
+      throw new Error('Upload failed');
+    }
+  })
+  .catch(() => {
+    loading.style.display = 'none';
+    placeholder.style.display = 'block';
+    toast('⚠️ Upload failed. Check your internet connection.', 'error');
+  });
+}
+
 function deleteVendorProduct(productId) {
   State.products = State.products.filter(p => p.id !== productId);
   STN.DB.set('products', State.products);
@@ -1203,6 +1258,7 @@ function uploadProduct() {
     reviews: 0,
     badge: badge || null,
     emoji: emojis[cat] || '🎁',
+    image: document.getElementById('vp-image-url')?.value || null,
     verified: false,
     stock,
     desc
