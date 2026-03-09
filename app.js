@@ -1,4 +1,3 @@
-
 // ═══════════════════════════════════════════════
 // SHOPPING.TN — MAIN APPLICATION ENGINE
 // ═══════════════════════════════════════════════
@@ -624,6 +623,12 @@ function switchAuthTab(tab) {
   document.getElementById('auth-register').style.display = tab === 'register' ? 'block' : 'none';
   document.getElementById('tab-login').classList.toggle('active', tab === 'login');
   document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+  // Add vendor toggle listener
+  setTimeout(() => {
+    const cb = document.getElementById('reg-is-vendor');
+    const fields = document.getElementById('reg-vendor-fields');
+    if (cb && fields) cb.onchange = () => fields.style.display = cb.checked ? 'block' : 'none';
+  }, 100);
 }
 
 function populateDelegations() {
@@ -666,14 +671,29 @@ function doRegister() {
   const users = STN.DB.get('users') || [];
   if (users.find(u => u.email === email)) { toast('⚠️ Email already registered', 'error'); return; }
 
-  const newUser = { id: Date.now(), firstName: fname, lastName: lname, email, phone, wilaya, delegation, password: pass, role: 'customer', points: 100, verified: false, avatar: '👤' };
+  const isVendor = document.getElementById('reg-is-vendor')?.checked;
+  const shopName = document.getElementById('reg-shop')?.value?.trim();
+  const specialty = document.getElementById('reg-specialty')?.value;
+  if (isVendor && !shopName) { toast('⚠️ Please enter your shop name', 'error'); return; }
+  
+  const newUser = { 
+    id: Date.now(), firstName: fname, lastName: lname, email, phone, wilaya, delegation, 
+    password: pass, role: isVendor ? 'vendor' : 'customer', 
+    points: 100, verified: false, avatar: isVendor ? '🏪' : '👤',
+    shopName: shopName || null, specialty: specialty || null
+  };
   users.push(newUser);
   STN.DB.set('users', users);
   State.currentUser = newUser;
   STN.DB.set('currentUser', newUser);
   updateNavUser();
-  toast(`✦ Welcome to Shopping.TN, ${fname}! You earned 100 bonus points!`, 'success');
-  showPage('home');
+  if (isVendor) {
+    toast(`✦ Welcome ${shopName}! Your vendor account is pending verification.`, 'success');
+    showPage('vendor');
+  } else {
+    toast(`✦ Welcome to Shopping.TN, ${fname}! You earned 100 bonus points!`, 'success');
+    showPage('home');
+  }
 }
 
 function logout() {
@@ -1100,24 +1120,36 @@ function switchVendorSection(section) {
         <button class="btn btn-gold btn-lg" onclick="uploadProduct()">Upload Product ✦</button>
       </div>`;
   } else if (section === 'inventory') {
+    const myProds = State.products.filter(p => p.vendorId === State.currentUser.id || p.brand === State.currentUser.shopName);
     content.innerHTML = `
       <div class="glass reveal" style="padding:1.5rem">
-        <h3 style="font-size:0.8rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:1.2rem">My Inventory</h3>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem">
+          <h3 style="font-size:0.8rem;letter-spacing:0.12em;text-transform:uppercase;color:#7c3aed">My Products (${myProds.length})</h3>
+          <button class="btn btn-gold btn-sm" onclick="switchVendorSection('upload')">+ Add Product</button>
+        </div>
+        ${myProds.length === 0 ? '<p style="color:#7b72a8;text-align:center;padding:2rem">No products yet. Upload your first product!</p>' : `
         <table class="data-table">
-          <thead><tr><th>Product</th><th>Price</th><th>Stock</th><th>Rating</th><th>Status</th></tr></thead>
-          <tbody>${State.products.map(p => `
+          <thead><tr><th>Product</th><th>Price</th><th>Stock</th><th>Status</th><th>Action</th></tr></thead>
+          <tbody>${myProds.map(p => `
             <tr>
-              <td><div style="display:flex;align-items:center;gap:0.8rem"><span style="font-size:1.4rem">${p.emoji}</span><span>${p.name}</span></div></td>
-              <td>${p.price.toLocaleString()} TND</td>
-              <td>${p.stock > 5 ? p.stock : `<span style="color:var(--warning)">${p.stock} ⚠️</span>`}</td>
-              <td><span style="color:var(--gold)">★</span> ${p.rating}</td>
-              <td><span class="status ${p.verified ? 'status-active' : 'status-pending'}">${p.verified ? 'Verified' : 'Pending'}</span></td>
+              <td><div style="display:flex;align-items:center;gap:0.8rem"><span style="font-size:1.4rem">${p.emoji}</span><span style="color:#1e0a4e">${p.name}</span></div></td>
+              <td style="color:#1e0a4e">${p.price.toLocaleString()} TND</td>
+              <td style="color:#1e0a4e">${p.stock > 5 ? p.stock : '<span style="color:orange">' + p.stock + ' ⚠️</span>'}</td>
+              <td><span style="background:${p.verified ? '#dcfce7' : '#fef9c3'};color:${p.verified ? '#166534' : '#854d0e'};padding:0.2rem 0.6rem;border-radius:20px;font-size:0.72rem">${p.verified ? '✓ Live' : '⏳ Pending'}</span></td>
+              <td><button onclick="deleteVendorProduct(${p.id})" style="background:#fee2e2;color:#dc2626;border:none;padding:0.2rem 0.6rem;border-radius:6px;font-size:0.72rem;cursor:pointer">Delete</button></td>
             </tr>`).join('')}
           </tbody>
-        </table>
+        </table>`}
       </div>`;
   }
   initReveal();
+}
+
+function deleteVendorProduct(productId) {
+  State.products = State.products.filter(p => p.id !== productId);
+  STN.DB.set('products', State.products);
+  toast('Product deleted!', 'success');
+  switchVendorSection('inventory');
 }
 
 function uploadProduct() {
@@ -1135,7 +1167,8 @@ function uploadProduct() {
   const newProduct = {
     id: Date.now(),
     name: title,
-    brand,
+    brand: State.currentUser?.shopName || brand,
+    vendorId: State.currentUser?.id,
     region: State.currentUser?.wilaya || 'Tunisia',
     cat,
     price,
@@ -1275,4 +1308,3 @@ function homeSearch() {
 
 // ── START ──
 document.addEventListener('DOMContentLoaded', init);
-
