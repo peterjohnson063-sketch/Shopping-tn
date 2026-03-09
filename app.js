@@ -92,7 +92,10 @@ function updateNavUser() {
   const btn = document.getElementById('nav-user-area');
   if (!btn) return;
   if (State.currentUser) {
-    btn.innerHTML = `<button class="nav-user-btn btn" onclick="showPage('account')"><span>${State.currentUser.avatar || '👤'}</span><span>${State.currentUser.firstName}</span></button>`;
+    const role = State.currentUser.role;
+    const page = role === 'admin' ? 'admin' : role === 'vendor' ? 'vendor' : 'account';
+    const label = role === 'admin' ? '⚙️ Admin' : role === 'vendor' ? '🏪 Dashboard' : State.currentUser.firstName;
+    btn.innerHTML = `<button class="nav-user-btn btn" onclick="showPage('${page}')"><span>${State.currentUser.avatar || '👤'}</span><span>${label}</span></button>`;
   } else {
     btn.innerHTML = `<button class="btn btn-gold btn-sm" onclick="showPage('auth')">Sign In</button>`;
   }
