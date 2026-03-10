@@ -1,6 +1,6 @@
 
 // ═══════════════════════════════════════════════
-// SHOPPING.TN — MOCK DATABASE & STATE MANAGER
+// SHOPPING — MOCK DATABASE & STATE MANAGER
 // ═══════════════════════════════════════════════
 const WILAYAS = {
   'Monastir': ['Monastir','Moknine','Ksar Hellal','Jemmal','Sayada','Bembla','Beni Hassen','Sahline','Zeramdine','Ouardanine','Téboulba'],
@@ -68,8 +68,8 @@ const DB = {
 // ── INIT DEFAULT DATA ──
 if (!DB.get('products')) DB.set('products', PRODUCTS_DATA);
 if (!DB.get('users')) DB.set('users', [
-  { id:1, firstName:'Admin', lastName:'Shopping', email:'admin@shopping.tn', phone:'20000001', wilaya:'Monastir', delegation:'Monastir', password:'admin123', role:'admin', points:15000, verified:true, avatar:'👑' },
-  { id:2, firstName:'Ahmed', lastName:'Maalej', email:'vendor@shopping.tn', phone:'20000002', wilaya:'Monastir', delegation:'Ksar Hellal', password:'vendor123', role:'vendor', points:5000, verified:true, avatar:'🧑‍🎨' }
+  { id:1, firstName:'Admin', lastName:'Shopping', email:'admin@shopping', phone:'20000001', wilaya:'Monastir', delegation:'Monastir', password:'admin123', role:'admin', points:15000, verified:true, avatar:'👑' },
+  { id:2, firstName:'Ahmed', lastName:'Maalej', email:'vendor@shopping', phone:'20000002', wilaya:'Monastir', delegation:'Ksar Hellal', password:'vendor123', role:'vendor', points:5000, verified:true, avatar:'🧑‍🎨' }
 ]);
 if (!DB.get('orders')) DB.set('orders', [
   { id:'SHP-2026-0001', userId:1, items:[{name:'Velvet Sultan Sofa',price:3299,qty:1}], total:3299, status:'delivered', date:'2026-02-10', tracking:[{status:'Confirmed',time:'Feb 10, 10:00 AM'},{status:'Processing',time:'Feb 11, 02:00 PM'},{status:'Shipped',time:'Feb 12, 08:00 AM'},{status:'Out for Delivery',time:'Feb 14, 09:00 AM'},{status:'Delivered',time:'Feb 14, 03:30 PM'}] },
@@ -85,5 +85,5 @@ if (!DB.get('wishlist')) DB.set('wishlist', []);
 if (!DB.get('currentUser')) DB.set('currentUser', null);
 
 window.STN = { DB, PRODUCTS_DATA, WILAYAS, PROMO_CODES, LOYALTY_TIERS };
-console.log('🛒 Shopping.TN Data Layer Ready');
+console.log('🛒 Shopping Data Layer Ready');
 

@@ -1,5 +1,6 @@
+
 // ═══════════════════════════════════════════════
-// SHOPPING.TN — MAIN APPLICATION ENGINE
+// SHOPPING — MAIN APPLICATION ENGINE
 // ═══════════════════════════════════════════════
 
 'use strict';
@@ -545,7 +546,7 @@ function renderAuth() {
   page.innerHTML = `
   <div class="s" style="max-width:520px;margin:0 auto;padding-top:5rem">
     <div class="s-header">
-      <span class="eyebrow">Welcome to Shopping.TN</span>
+      <span class="eyebrow">Welcome to Shopping</span>
       <h1 class="display" style="font-size:3rem;margin-bottom:0.5rem">Your Account</h1>
       <div class="divider center"></div>
     </div>
@@ -568,7 +569,7 @@ function renderAuth() {
         <span style="font-size:0.75rem;color:var(--gold);cursor:none">Forgot password?</span>
       </div>
       <button class="btn btn-gold btn-full btn-lg" onclick="doLogin()">Sign In →</button>
-      <div style="margin-top:1.2rem;text-align:center;font-size:0.75rem;color:var(--text-muted)">Demo: admin@shopping.tn / admin123</div>
+      <div style="margin-top:1.2rem;text-align:center;font-size:0.75rem;color:var(--text-muted)">Demo: admin@shopping / admin123</div>
     </div>
 
     <!-- REGISTER -->
@@ -618,7 +619,7 @@ function renderAuth() {
         <div class="form-group" style="margin-bottom:1.5rem;padding:1rem;background:#f5f2ff;border-radius:12px;border:1px solid rgba(107,63,212,0.2)">
           <label style="display:flex;align-items:center;gap:0.8rem;cursor:pointer">
             <input type="checkbox" id="reg-is-vendor" onchange="document.getElementById('reg-vendor-fields').style.display=this.checked?'block':'none'" style="width:18px;height:18px;accent-color:#7c3aed"/>
-            <span style="font-size:0.85rem;color:#1e0a4e;font-weight:500">🏪 I am an artisan/vendor — I want to sell on Shopping.TN</span>
+            <span style="font-size:0.85rem;color:#1e0a4e;font-weight:500">🏪 I am an artisan/vendor — I want to sell on Shopping</span>
           </label>
         </div>
         <div id="reg-vendor-fields" style="display:none;margin-bottom:1.5rem;padding:1rem;background:#f8f7ff;border-radius:12px;border:1px solid rgba(107,63,212,0.15)">
@@ -717,7 +718,7 @@ function doRegister() {
     toast(`✦ Welcome ${shopName}! Your vendor account is pending verification.`, 'success');
     showPage('vendor');
   } else {
-    toast(`✦ Welcome to Shopping.TN, ${fname}! You earned 100 bonus points!`, 'success');
+    toast(`✦ Welcome to Shopping, ${fname}! You earned 100 bonus points!`, 'success');
     showPage('home');
   }
 }
@@ -1371,7 +1372,7 @@ function subscribeNewsletter() {
   const email = document.getElementById('nl-email')?.value?.trim();
   if (!email) { toast('⚠️ Please enter your email', 'error'); return; }
   dismissNewsletter();
-  toast(`✦ Subscribed! Welcome to Shopping.TN family 🇹🇳`, 'success');
+  toast(`✦ Subscribed! Welcome to Shopping family 🇹🇳`, 'success');
 }
 
 // ── HOME SEARCH ──
@@ -1390,3 +1391,4 @@ function homeSearch() {
 
 // ── START ──
 document.addEventListener('DOMContentLoaded', init);
+

@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════
-// YASMINE — Super Smart AI for Shopping.TN
+// YASMINE — Super Smart AI for Shopping
 // ═══════════════════════════════════════════════
 
 const GEMINI_KEY = "PUT_YOUR_KEY_HERE";
@@ -9,7 +9,7 @@ const AI = {
   typing: false,
   history: [],
 
-  SYSTEM: `You are Yasmine, a super smart and warm AI shopping assistant for Shopping.TN — Tunisia's #1 artisan marketplace. 
+  SYSTEM: `You are Yasmine, a super smart and warm AI shopping assistant for Shopping — Tunisia's #1 artisan marketplace. 
 
 Your job is to HELP customers make the best decisions — recommend products, compare options, give interior design advice, answer any question they have!
 
@@ -17,7 +17,7 @@ ALWAYS reply in the SAME language the user writes (Arabic/French/English).
 Be conversational, warm, helpful like a best friend who knows everything about home decor and furniture.
 Use emojis naturally. Keep answers under 4 sentences but make them USEFUL and SPECIFIC.
 
-Shopping.TN knowledge:
+Shopping knowledge:
 - Products: oak furniture (Sur Mesure), Moroccan lighting, Nabeul ceramics, Kilim rugs, chandeliers, mirrors, sofas, beds
 - Artisans: Ahmed Maalej (Ksar Hellal, oak furniture ⭐⭐⭐⭐⭐), Mohamed Trabelsi (Monastir, bedroom sets), Fatma Ben Nasr (Nabeul, ceramics), Karim Sfaxsi (Sfax, metal+wood)
 - Promo codes: SAHEL20=20% off, WELCOME50=50TND off, VIP100=100TND off, MONASTIR15=15% off
@@ -26,7 +26,7 @@ Shopping.TN knowledge:
 - Loyalty: 1TND spent = 1 point, Bronze 5% cashback → Platinum 18% cashback
 - Prices: chairs from 850TND, dining tables 2800-5000TND, sofas 3200TND+, wardrobes 4500TND+
 
-When someone asks about lighting, furniture, decor — give REAL specific advice and recommend actual products from Shopping.TN!`,
+When someone asks about lighting, furniture, decor — give REAL specific advice and recommend actual products from Shopping!`,
 
   callGemini: function(msg, callback) {
     var url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + GEMINI_KEY;
@@ -137,7 +137,7 @@ When someone asks about lighting, furniture, decor — give REAL specific advice
           '<div>' +
             '<div style="font-weight:700;font-size:.88rem;color:white">Yasmine IA</div>' +
             '<div style="font-size:.62rem;color:rgba(255,255,255,.8);display:flex;align-items:center;gap:.3rem">' +
-              '<span style="width:6px;height:6px;background:#4ade80;border-radius:50%;display:inline-block"></span> Shopping.TN · Online' +
+              '<span style="width:6px;height:6px;background:#4ade80;border-radius:50%;display:inline-block"></span> Shopping · Online' +
             '</div>' +
           '</div>' +
         '</div>' +
