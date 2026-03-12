@@ -1,4 +1,3 @@
-
 // ═══════════════════════════════════════════════
 // SHOPPING — MAIN APPLICATION ENGINE
 // ═══════════════════════════════════════════════
@@ -380,9 +379,15 @@ async function submitOrder() {
           <button onclick="navigator.clipboard?.writeText('${order.tracking_number}');toast('✦ Copied!','success')" style="background:none;border:none;color:#7b72a8;font-size:0.72rem;cursor:pointer;margin-top:0.3rem">📋 Copy</button>
         </div>
         <p style="font-size:0.78rem;color:#7b72a8;margin-bottom:1.5rem">Save this number to track your order!</p>
-        <button onclick="document.querySelectorAll('div[style*=\"position:fixed\"]').forEach(e=>e.remove());showPage('track')" style="width:100%;padding:0.9rem;background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:12px;font-size:0.9rem;cursor:pointer">Track My Order →</button>
+        <button id="track-order-btn" style="width:100%;padding:0.9rem;background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:12px;font-size:0.9rem;cursor:pointer">Track My Order →</button>
       </div>`;
     document.body.appendChild(successModal);
+    document.getElementById('track-order-btn').onclick = function() {
+      document.querySelectorAll('#checkout-modal, #success-modal').forEach(e => e.remove());
+      // Remove the success modal itself
+      this.closest('div').closest('div').remove();
+      showPage('track');
+    };
 
   } catch(e) {
     toast('⚠️ Order failed. Try again.', 'error');
@@ -1549,4 +1554,3 @@ function homeSearch() {
 
 // ── START ──
 document.addEventListener('DOMContentLoaded', init);
-
