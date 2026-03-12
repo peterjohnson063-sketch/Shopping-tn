@@ -798,12 +798,52 @@ function searchProducts() {
 }
 
 // ── TRACK ──
-function renderTrack() {
+async function renderTrack() {
+  initReveal();
+  // If user is logged in, show their orders automatically
+  if (State.currentUser && State.currentUser.id) {
+    const trackInput = document.getElementById('track-num');
+    const emptyDiv = document.getElementById('track-empty');
+    const resultDiv = document.getElementById('track-result');
+
+    try {
+      const orders = await SB.getUserOrders(State.currentUser.id);
+      if (orders && orders.length > 0) {
+        emptyDiv.style.display = 'none';
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = `
+          <div style="margin-bottom:2rem">
+            <h3 style="font-family:'Cormorant Garamond',serif;font-size:1.8rem;color:#1e0a4e;margin-bottom:0.5rem">Your Orders</h3>
+            <p style="color:#7b72a8;font-size:0.85rem">${orders.length} order${orders.length > 1 ? 's' : ''} found</p>
+          </div>
+          ${orders.map(order => {
+            const statusColors = { pending:'#f59e0b', confirmed:'#3b82f6', processing:'#8b5cf6', shipped:'#06b6d4', delivered:'#10b981' };
+            const color = statusColors[order.status] || '#7c3aed';
+            return `<div style="background:white;border:1px solid rgba(107,63,212,0.15);border-radius:16px;padding:1.5rem;margin-bottom:1rem;cursor:pointer;transition:all 0.2s" onclick="document.getElementById('track-num').value='${order.tracking_number}';trackOrder()" onmouseover="this.style.borderColor='#7c3aed'" onmouseout="this.style.borderColor='rgba(107,63,212,0.15)'">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
+                <div>
+                  <p style="font-size:0.7rem;color:#7b72a8;margin-bottom:0.2rem">Tracking Number</p>
+                  <p style="font-family:'Cormorant Garamond',serif;font-size:1.1rem;color:#1e0a4e;font-weight:600">${order.tracking_number}</p>
+                </div>
+                <span style="background:${color}20;color:${color};padding:0.3rem 0.8rem;border-radius:20px;font-size:0.72rem;font-weight:600;text-transform:uppercase">● ${order.status}</span>
+              </div>
+              <div style="display:flex;gap:1.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid rgba(107,63,212,0.08)">
+                <div><p style="font-size:0.65rem;color:#7b72a8">Date</p><p style="font-size:0.8rem;color:#1e0a4e">${new Date(order.created_at).toLocaleDateString('fr-TN')}</p></div>
+                <div><p style="font-size:0.65rem;color:#7b72a8">Total</p><p style="font-size:0.8rem;color:#1e0a4e">${Number(order.total).toLocaleString()} TND</p></div>
+                <div><p style="font-size:0.65rem;color:#7b72a8">Items</p><p style="font-size:0.8rem;color:#1e0a4e">${order.items ? order.items.length : 0}</p></div>
+              </div>
+              <p style="font-size:0.72rem;color:#7c3aed;margin-top:0.8rem">Click to see full tracking →</p>
+            </div>`;
+          }).join('')}`;
+        return;
+      }
+    } catch(e) {}
+  }
+  
   const empty = document.getElementById('track-empty');
   const result = document.getElementById('track-result');
   if (empty) empty.style.display = 'block';
   if (result) result.style.display = 'none';
-  initReveal();
 }
 
 async function trackOrder() {
