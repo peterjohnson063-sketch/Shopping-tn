@@ -283,23 +283,20 @@ setInterval(function(){if(!document.getElementById('ai-bubble')&&typeof AI!=='un
 var TRANSLATIONS={
   fr:{
     'nav-home':'Accueil','nav-products':'Collections','nav-carpenter':'Sur Mesure',
-    'nav-track':'Suivi','nav-loyalty':'Récompenses','nav-about':'À Propos','signin-btn':'Connexion',
-    'cart-title':'Votre Panier','checkout-btn':'Commander','cart-empty':'Panier vide',
-    'hero-title':'Découvrez l'Artisanat Tunisien','hero-sub':'Des artisans de Monastir à votre porte',
-    'flash-title':'Jusqu'à <em class="gold-text">40% DE RÉDUCTION</em> — Aujourd'hui Seulement!'
+    'nav-track':'Suivi','nav-loyalty':'Recompenses','nav-about':'A Propos','signin-btn':'Connexion',
+    'cart-title':'Votre Panier','checkout-btn':'Commander','cart-empty':'Panier vide'
   },
   ar:{
     'nav-home':'الرئيسية','nav-products':'المجموعات','nav-carpenter':'حسب الطلب',
     'nav-track':'تتبع','nav-loyalty':'المكافآت','nav-about':'من نحن','signin-btn':'تسجيل الدخول',
     'cart-title':'سلة التسوق','checkout-btn':'إتمام الطلب','cart-empty':'السلة فارغة',
-    'hero-title':'اكتشف الحرف التونسية','hero-sub':'من حرفيي المنستير إلى بابك',
     'flash-title':'خصم يصل إلى <em class="gold-text">40%</em> — اليوم فقط!'
   },
   en:{
     'nav-home':'Home','nav-products':'Collections','nav-carpenter':'Custom Furniture',
     'nav-track':'Track','nav-loyalty':'Rewards','nav-about':'About','signin-btn':'Sign In',
     'cart-title':'Your Cart','checkout-btn':'Checkout','cart-empty':'Cart is empty',
-    'hero-title':'Discover Tunisian Craftsmanship','hero-sub':'From Monastir's master artisans to your door',
+    'hero-title':'Discover Tunisian Craftsmanship','hero-sub':'From Monastir artisans to your door',
     'flash-title':'Up to <em class="gold-text">40% OFF</em> — Today Only!'
   }
 };
