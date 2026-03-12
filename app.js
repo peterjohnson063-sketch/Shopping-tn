@@ -806,55 +806,86 @@ function renderTrack() {
   initReveal();
 }
 
-function trackOrder() {
-  const num = document.getElementById('track-num')?.value?.trim();
+async function trackOrder() {
+  const num = document.getElementById('track-num')?.value?.trim().toUpperCase();
   if (!num) { toast('⚠️ Please enter a tracking number', 'error'); return; }
 
-  const allOrders = STN.DB.get('orders') || [];
-  const order = allOrders.find(o => o.id === num);
   const resultDiv = document.getElementById('track-result');
   const emptyDiv = document.getElementById('track-empty');
 
-  if (!order) {
-    toast('⚠️ Order not found. Try: SHP-2026-0042', 'error');
-    return;
-  }
-
+  // Show loading
   emptyDiv.style.display = 'none';
-  const steps = ['Confirmed','Processing','Shipped','Out for Delivery','Delivered'];
-  const currentStep = steps.indexOf(order.tracking[order.tracking.length-1]?.status);
-
   resultDiv.style.display = 'block';
-  resultDiv.innerHTML = `
-    <div class="glass" style="padding:2rem;margin-bottom:1.5rem">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;margin-bottom:1.5rem">
-        <div>
-          <div class="section-label">Order ID</div>
-          <div style="font-family:var(--font-display);font-size:1.2rem;color:var(--champagne)">${order.id}</div>
+  resultDiv.innerHTML = '<div style="text-align:center;padding:3rem"><div style="font-size:2rem;animation:spin 1s linear infinite;display:inline-block">⏳</div><p style="color:#7b72a8;margin-top:1rem">Looking up your order...</p></div>';
+
+  try {
+    const order = await SB.getOrder(num);
+    if (!order) {
+      resultDiv.style.display = 'none';
+      emptyDiv.style.display = 'block';
+      toast('⚠️ Order not found. Check your tracking number!', 'error');
+      return;
+    }
+
+    const tracking = await SB.getTracking(order.id);
+    const steps = [
+      { key: 'pending', label: '🕐 Order Received', desc: 'Your order has been received' },
+      { key: 'confirmed', label: '✅ Confirmed', desc: 'Artisan is preparing your order' },
+      { key: 'processing', label: '🔨 Crafting', desc: 'Being handcrafted with care' },
+      { key: 'shipped', label: '🚚 Shipped', desc: 'On the way to you' },
+      { key: 'delivered', label: '🎉 Delivered', desc: 'Enjoy your purchase!' }
+    ];
+    const currentStepIndex = steps.findIndex(s => s.key === order.status);
+    const statusColors = { pending: '#f59e0b', confirmed: '#3b82f6', processing: '#8b5cf6', shipped: '#06b6d4', delivered: '#10b981' };
+    const statusColor = statusColors[order.status] || '#7c3aed';
+
+    resultDiv.innerHTML = `
+      <div style="padding:2rem;background:white;border-radius:20px;border:1px solid rgba(107,63,212,0.15);box-shadow:0 4px 24px rgba(74,31,168,0.08);margin-bottom:1.5rem">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;margin-bottom:2rem;padding-bottom:1.5rem;border-bottom:1px solid rgba(107,63,212,0.1)">
+          <div>
+            <p style="font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;color:#7b72a8;margin-bottom:0.3rem">Tracking Number</p>
+            <p style="font-family:'Cormorant Garamond',serif;font-size:1.4rem;color:#1e0a4e;font-weight:600">${order.tracking_number}</p>
+          </div>
+          <span style="background:${statusColor}20;color:${statusColor};padding:0.4rem 1rem;border-radius:20px;font-size:0.75rem;font-weight:600;text-transform:uppercase">● ${order.status}</span>
         </div>
-        <span class="status status-transit">● In Transit</span>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:2rem">
-        <div class="glass" style="padding:1rem;text-align:center;border-radius:var(--radius-sm)"><div class="section-label">Date</div><div style="font-size:0.85rem;color:var(--champagne)">${order.date}</div></div>
-        <div class="glass" style="padding:1rem;text-align:center;border-radius:var(--radius-sm)"><div class="section-label">Items</div><div style="font-size:0.85rem;color:var(--champagne)">${order.items.length}</div></div>
-        <div class="glass" style="padding:1rem;text-align:center;border-radius:var(--radius-sm)"><div class="section-label">Total</div><div style="font-size:0.85rem;color:var(--champagne)">${order.total.toLocaleString()} TND</div></div>
-      </div>
-      <div class="timeline">
-        ${steps.map((step, i) => {
-          const done = i < order.tracking.length;
-          const active = i === order.tracking.length - 1;
-          const trackEntry = order.tracking[i];
-          return `<div class="timeline-step ${!done ? 'pending' : ''}">
-            <div class="timeline-dot ${active ? 'active' : done ? 'done' : 'pending'}"></div>
-            <div>
-              <div class="timeline-label">${step}</div>
-              <div class="timeline-time">${trackEntry ? trackEntry.time : 'Pending'}</div>
-            </div>
-          </div>`;
-        }).join('')}
-      </div>
-    </div>`;
-  resultDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:2rem">
+          <div style="text-align:center;padding:1rem;background:#f8f7ff;border-radius:12px">
+            <p style="font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;color:#7b72a8;margin-bottom:0.3rem">Date</p>
+            <p style="font-size:0.85rem;color:#1e0a4e;font-weight:500">${new Date(order.created_at).toLocaleDateString('fr-TN')}</p>
+          </div>
+          <div style="text-align:center;padding:1rem;background:#f8f7ff;border-radius:12px">
+            <p style="font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;color:#7b72a8;margin-bottom:0.3rem">Items</p>
+            <p style="font-size:0.85rem;color:#1e0a4e;font-weight:500">${order.items ? order.items.length : 0}</p>
+          </div>
+          <div style="text-align:center;padding:1rem;background:#f8f7ff;border-radius:12px">
+            <p style="font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;color:#7b72a8;margin-bottom:0.3rem">Total</p>
+            <p style="font-size:0.85rem;color:#1e0a4e;font-weight:500">${Number(order.total).toLocaleString()} TND</p>
+          </div>
+        </div>
+
+        <!-- Timeline -->
+        <div style="position:relative;padding-left:2rem">
+          <div style="position:absolute;left:0.45rem;top:0;bottom:0;width:2px;background:linear-gradient(to bottom,#7c3aed,#e8e4ff)"></div>
+          ${steps.map((step, i) => {
+            const done = i <= currentStepIndex;
+            const active = i === currentStepIndex;
+            const trackEvent = tracking.find(t => t.status === step.key);
+            return `<div style="position:relative;margin-bottom:1.5rem;opacity:${done ? '1' : '0.4'}">
+              <div style="position:absolute;left:-1.6rem;top:0.2rem;width:14px;height:14px;border-radius:50%;background:${active ? '#7c3aed' : done ? '#9b72f0' : '#e8e4ff'};border:2px solid ${done ? '#7c3aed' : '#d4d0f0'};${active ? 'box-shadow:0 0 0 4px rgba(124,58,237,0.15)' : ''}"></div>
+              <p style="font-size:0.85rem;font-weight:600;color:#1e0a4e;margin-bottom:0.2rem">${step.label}</p>
+              <p style="font-size:0.75rem;color:#7b72a8">${trackEvent ? trackEvent.message : step.desc}</p>
+              ${trackEvent ? `<p style="font-size:0.68rem;color:#b0a8d4;margin-top:0.2rem">${new Date(trackEvent.created_at).toLocaleString('fr-TN')}${trackEvent.location ? ' · ' + trackEvent.location : ''}</p>` : ''}
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    resultDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch(e) {
+    resultDiv.style.display = 'none';
+    emptyDiv.style.display = 'block';
+    toast('⚠️ Error fetching order. Try again.', 'error');
+  }
 }
 
 // ── WISHLIST PAGE ──
