@@ -1324,11 +1324,19 @@ function filterAndGo(cat) {
 
   function addSMToCart(){
     const p=SM_PRODUCTS[smCurrent];
-    const total=parseInt(document.getElementById('sm-total-price').textContent);
+    const totalEl=document.getElementById('sm-total-price');
+    const total=totalEl ? parseInt(totalEl.textContent) : p.basePrice;
     const succ=document.getElementById('sm-success');
     succ.style.display='flex';
     setTimeout(()=>{succ.style.display='none';},3500);
-    if(typeof toast==='function') toast('🪑 '+p.title+' ajouté! '+total+' TND','success');
+    // Add to real cart
+    if(typeof State !== 'undefined') {
+      const cartItem = { id: 'SM-'+Date.now(), name: p.title, price: total, emoji: '🪑', quantity: 1, custom: true };
+      State.cart.push(cartItem);
+      if(typeof STN !== 'undefined') STN.DB.set('cart', State.cart);
+      if(typeof updateCartBadge === 'function') updateCartBadge();
+    }
+    if(typeof toast==='function') toast('🪑 '+p.title+' ajouté au panier! '+total+' TND','success');
   }
 
   function saveSMConfig(){

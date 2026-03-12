@@ -281,9 +281,27 @@ if (document.readyState==='loading') {
 setInterval(function(){if(!document.getElementById('ai-bubble')&&typeof AI!=='undefined')AI.init();},3000);
 
 var TRANSLATIONS={
-  fr:{'nav-home':'Accueil','nav-products':'Collections','nav-carpenter':'Sur Mesure','nav-track':'Suivi','nav-loyalty':'Récompenses','nav-about':'À Propos','signin-btn':'Connexion'},
-  ar:{'nav-home':'الرئيسية','nav-products':'المجموعات','nav-carpenter':'حسب الطلب','nav-track':'تتبع','nav-loyalty':'المكافآت','nav-about':'من نحن','signin-btn':'تسجيل الدخول'},
-  en:{'nav-home':'Home','nav-products':'Collections','nav-carpenter':'Sur Mesure','nav-track':'Track','nav-loyalty':'Rewards','nav-about':'About','signin-btn':'Sign In'}
+  fr:{
+    'nav-home':'Accueil','nav-products':'Collections','nav-carpenter':'Sur Mesure',
+    'nav-track':'Suivi','nav-loyalty':'Récompenses','nav-about':'À Propos','signin-btn':'Connexion',
+    'cart-title':'Votre Panier','checkout-btn':'Commander','cart-empty':'Panier vide',
+    'hero-title':'Découvrez l'Artisanat Tunisien','hero-sub':'Des artisans de Monastir à votre porte',
+    'flash-title':'Jusqu'à <em class="gold-text">40% DE RÉDUCTION</em> — Aujourd'hui Seulement!'
+  },
+  ar:{
+    'nav-home':'الرئيسية','nav-products':'المجموعات','nav-carpenter':'حسب الطلب',
+    'nav-track':'تتبع','nav-loyalty':'المكافآت','nav-about':'من نحن','signin-btn':'تسجيل الدخول',
+    'cart-title':'سلة التسوق','checkout-btn':'إتمام الطلب','cart-empty':'السلة فارغة',
+    'hero-title':'اكتشف الحرف التونسية','hero-sub':'من حرفيي المنستير إلى بابك',
+    'flash-title':'خصم يصل إلى <em class="gold-text">40%</em> — اليوم فقط!'
+  },
+  en:{
+    'nav-home':'Home','nav-products':'Collections','nav-carpenter':'Custom Furniture',
+    'nav-track':'Track','nav-loyalty':'Rewards','nav-about':'About','signin-btn':'Sign In',
+    'cart-title':'Your Cart','checkout-btn':'Checkout','cart-empty':'Cart is empty',
+    'hero-title':'Discover Tunisian Craftsmanship','hero-sub':'From Monastir's master artisans to your door',
+    'flash-title':'Up to <em class="gold-text">40% OFF</em> — Today Only!'
+  }
 };
 
 function setLang(lang){
@@ -294,6 +312,15 @@ function setLang(lang){
   document.querySelectorAll('[data-lang]').forEach(function(el){var key=el.getAttribute('data-lang');if(T[key])el.textContent=T[key];});
   var hs=document.getElementById('home-search');
   if(hs)hs.placeholder=lang==='ar'?'ابحث عن منتجات...':lang==='en'?'Search products...':'Rechercher produits...';
+  // Update cart title
+  var cartTitle = document.querySelector('#cart-panel h2, .cart-title');
+  if(cartTitle && T['cart-title']) cartTitle.textContent = T['cart-title'];
+  // Update checkout button
+  var checkoutBtn = document.querySelector('.cart-checkout-btn, [onclick="checkout()"]');
+  if(checkoutBtn && T['checkout-btn']) checkoutBtn.textContent = T['checkout-btn'] + ' →';
+  // Update nav sur mesure
+  var smNav = document.querySelector('[onclick*="carpenter"]');
+  if(smNav && T['nav-carpenter']) smNav.textContent = T['nav-carpenter'];
   if(typeof AI!=='undefined')AI.setLang(lang);
   if(typeof toast==='function'){var f={ar:'🇹🇳 عربي',fr:'🇫🇷 Français',en:'🌍 English'};toast(f[lang],'default');}
 }
