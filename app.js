@@ -666,19 +666,38 @@ function populateDelegations() {
   delSel.innerHTML = `<option value="">Select Delegation…</option>` + delegations.map(d => `<option value="${d}">${d}</option>`).join('');
 }
 
-function doLogin() {
+async function doLogin() {
   const email = document.getElementById('login-email')?.value?.trim();
   const pass = document.getElementById('login-pass')?.value;
-  const users = STN.DB.get('users') || [];
-  const user = users.find(u => u.email === email && u.password === pass);
-  if (!user) { toast('⚠️ Invalid email or password', 'error'); return; }
-  State.currentUser = user;
-  STN.DB.set('currentUser', user);
-  updateNavUser();
-  toast(`✦ Welcome back, ${user.firstName}!`, 'success');
-  if (user.role === 'admin') showPage('admin');
-  else if (user.role === 'vendor') showPage('vendor');
-  else showPage('home');
+  if (!email || !pass) { toast('⚠️ Please fill all fields', 'error'); return; }
+  
+  // Check hardcoded admin/vendor first
+  const local = (STN.DB.get('users') || []).find(u => u.email === email && u.password === pass);
+  if (local) {
+    State.currentUser = local;
+    STN.DB.set('currentUser', local);
+    updateNavUser();
+    toast(`✦ Welcome back, ${local.firstName}!`, 'success');
+    if (local.role === 'admin') showPage('admin');
+    else if (local.role === 'vendor') showPage('vendor');
+    else showPage('home');
+    return;
+  }
+
+  // Check Supabase
+  try {
+    const user = await SB.getUser(email);
+    if (!user || user.password !== pass) { toast('⚠️ Invalid email or password', 'error'); return; }
+    State.currentUser = { ...user, firstName: user.first_name, lastName: user.last_name };
+    STN.DB.set('currentUser', State.currentUser);
+    updateNavUser();
+    toast(`✦ Welcome back, ${user.first_name}!`, 'success');
+    if (user.role === 'admin') showPage('admin');
+    else if (user.role === 'vendor') showPage('vendor');
+    else showPage('home');
+  } catch(e) {
+    toast('⚠️ Login failed. Try again.', 'error');
+  }
 }
 
 function doRegister() {
@@ -702,24 +721,34 @@ function doRegister() {
   const shopName = document.getElementById('reg-shop')?.value?.trim();
   const specialty = document.getElementById('reg-specialty')?.value;
   if (isVendor && !shopName) { toast('⚠️ Please enter your shop name', 'error'); return; }
-  
-  const newUser = { 
-    id: Date.now(), firstName: fname, lastName: lname, email, phone, wilaya, delegation, 
-    password: pass, role: isVendor ? 'vendor' : 'customer', 
-    points: 100, verified: false, avatar: isVendor ? '🏪' : '👤',
-    shopName: shopName || null, specialty: specialty || null
-  };
-  users.push(newUser);
-  STN.DB.set('users', users);
-  State.currentUser = newUser;
-  STN.DB.set('currentUser', newUser);
-  updateNavUser();
-  if (isVendor) {
-    toast(`✦ Welcome ${shopName}! Your vendor account is pending verification.`, 'success');
-    showPage('vendor');
-  } else {
-    toast(`✦ Welcome to Shopping, ${fname}! You earned 100 bonus points!`, 'success');
-    showPage('home');
+
+  try {
+    const newUser = await SB.createUser({
+      email, password: pass,
+      first_name: fname, last_name: lname,
+      phone, wilaya, delegation,
+      role: isVendor ? 'vendor' : 'customer',
+      points: 100, verified: false,
+      avatar: isVendor ? '🏪' : '👤',
+      shop_name: shopName || null,
+      specialty: specialty || null
+    });
+    State.currentUser = { ...newUser, firstName: newUser.first_name, lastName: newUser.last_name };
+    STN.DB.set('currentUser', State.currentUser);
+    updateNavUser();
+    if (isVendor) {
+      toast(`✦ Welcome ${shopName}! Your vendor account is pending verification.`, 'success');
+      showPage('vendor');
+    } else {
+      toast(`✦ Welcome to Shopping, ${fname}! You earned 100 bonus points!`, 'success');
+      showPage('home');
+    }
+  } catch(e) {
+    if (e.message.includes('duplicate') || e.message.includes('unique')) {
+      toast('⚠️ Email already registered!', 'error');
+    } else {
+      toast('⚠️ Registration failed. Try again.', 'error');
+    }
   }
 }
 
