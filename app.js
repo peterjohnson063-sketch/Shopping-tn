@@ -291,45 +291,103 @@ function applyPromo() {
   }
 }
 
-function checkout() {
-  if (!State.currentUser) {
-    closeCart();
-    toast('Please sign in to checkout', 'error');
-    showPage('auth');
-    return;
-  }
-  // Create order
-  const orderId = 'SHP-2026-' + String(Math.floor(Math.random() * 9000) + 1000);
-  const order = {
-    id: orderId,
-    userId: State.currentUser.id,
-    items: [...State.cart],
-    total: getCartTotal(),
-    status: 'confirmed',
-    date: new Date().toISOString().split('T')[0],
-    tracking: [{ status: 'Confirmed', time: new Date().toLocaleString() }]
-  };
-  const orders = STN.DB.get('orders') || [];
-  orders.push(order);
-  STN.DB.set('orders', orders);
-
-  // Award points
-  const users = STN.DB.get('users') || [];
-  const userIdx = users.findIndex(u => u.id === State.currentUser.id);
-  if (userIdx !== -1) {
-    users[userIdx].points = (users[userIdx].points || 0) + Math.floor(order.total * 0.1);
-    STN.DB.set('users', users);
-    State.currentUser = users[userIdx];
-    STN.DB.set('currentUser', State.currentUser);
-  }
-
-  State.cart = [];
-  State.promoApplied = null;
-  STN.DB.set('cart', []);
-  updateCartBadge();
+async function checkout() {
+  // Show checkout form — works for guests AND logged in users
   closeCart();
-  toast(`✦ Order ${orderId} confirmed! Check your tracker.`, 'success');
-  showPage('track');
+  
+  // Build checkout modal
+  const existing = document.getElementById('checkout-modal');
+  if (existing) existing.remove();
+  
+  const modal = document.createElement('div');
+  modal.id = 'checkout-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(30,10,78,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:24px;padding:2.5rem;max-width:480px;width:100%;max-height:90vh;overflow-y:auto;position:relative">
+      <button onclick="document.getElementById('checkout-modal').remove()" style="position:absolute;top:1rem;right:1rem;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#7b72a8">✕</button>
+      <h3 style="font-family:'Cormorant Garamond',serif;font-size:1.8rem;color:#1e0a4e;margin-bottom:0.3rem">Complete Order</h3>
+      <p style="color:#7b72a8;font-size:0.8rem;margin-bottom:1.5rem">Total: <strong style="color:#7c3aed">${getCartTotal().toLocaleString()} TND</strong></p>
+      
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin-bottom:0.8rem">
+        <div>
+          <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">First Name *</label>
+          <input id="co-fname" type="text" value="${State.currentUser?.firstName || ''}" placeholder="Mohamed" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
+        </div>
+        <div>
+          <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Last Name *</label>
+          <input id="co-lname" type="text" value="${State.currentUser?.lastName || ''}" placeholder="Trabelsi" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
+        </div>
+      </div>
+      <div style="margin-bottom:0.8rem">
+        <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Phone *</label>
+        <input id="co-phone" type="tel" value="${State.currentUser?.phone || ''}" placeholder="+216 XX XXX XXX" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
+      </div>
+      <div style="margin-bottom:0.8rem">
+        <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Wilaya *</label>
+        <input id="co-wilaya" type="text" value="${State.currentUser?.wilaya || ''}" placeholder="Monastir" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
+      </div>
+      <div style="margin-bottom:1.5rem">
+        <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Full Address *</label>
+        <input id="co-address" type="text" placeholder="12 Rue Habib Bourguiba, Monastir" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
+      </div>
+      ${!State.currentUser ? `<p style="font-size:0.75rem;color:#7b72a8;margin-bottom:1rem;text-align:center">💡 <a onclick="document.getElementById('checkout-modal').remove();showPage('auth')" style="color:#7c3aed;cursor:pointer">Sign in</a> to track your order easily</p>` : ''}
+      <button onclick="submitOrder()" style="width:100%;padding:1rem;background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:12px;font-size:0.9rem;font-weight:600;cursor:pointer;letter-spacing:0.05em">Place Order ✦</button>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function submitOrder() {
+  const fname = document.getElementById('co-fname')?.value?.trim();
+  const lname = document.getElementById('co-lname')?.value?.trim();
+  const phone = document.getElementById('co-phone')?.value?.trim();
+  const wilaya = document.getElementById('co-wilaya')?.value?.trim();
+  const address = document.getElementById('co-address')?.value?.trim();
+  
+  if (!fname || !phone || !wilaya || !address) { toast('⚠️ Please fill all fields', 'error'); return; }
+  
+  const btn = document.querySelector('#checkout-modal button:last-child');
+  btn.textContent = 'Processing...';
+  btn.disabled = true;
+
+  try {
+    const order = await SB.createOrder({
+      user_id: State.currentUser?.id || null,
+      items: State.cart,
+      total: getCartTotal(),
+      status: 'pending',
+      wilaya,
+      address,
+      phone
+    });
+
+    document.getElementById('checkout-modal').remove();
+    State.cart = [];
+    State.promoApplied = null;
+    STN.DB.set('cart', []);
+    updateCartBadge();
+
+    // Show success with tracking number
+    const successModal = document.createElement('div');
+    successModal.style.cssText = 'position:fixed;inset:0;background:rgba(30,10,78,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+    successModal.innerHTML = `
+      <div style="background:white;border-radius:24px;padding:2.5rem;max-width:420px;width:100%;text-align:center">
+        <div style="font-size:3rem;margin-bottom:1rem">🎉</div>
+        <h3 style="font-family:'Cormorant Garamond',serif;font-size:1.8rem;color:#1e0a4e;margin-bottom:0.5rem">Order Confirmed!</h3>
+        <p style="color:#7b72a8;font-size:0.85rem;margin-bottom:1.5rem">Your tracking number:</p>
+        <div style="background:#f8f7ff;border:1px solid rgba(124,58,237,0.2);border-radius:12px;padding:1rem;margin-bottom:1.5rem">
+          <p style="font-family:'Cormorant Garamond',serif;font-size:1.5rem;color:#7c3aed;font-weight:600;letter-spacing:0.1em">${order.tracking_number}</p>
+          <button onclick="navigator.clipboard?.writeText('${order.tracking_number}');toast('✦ Copied!','success')" style="background:none;border:none;color:#7b72a8;font-size:0.72rem;cursor:pointer;margin-top:0.3rem">📋 Copy</button>
+        </div>
+        <p style="font-size:0.78rem;color:#7b72a8;margin-bottom:1.5rem">Save this number to track your order!</p>
+        <button onclick="this.closest('div[style]').remove();showPage('track')" style="width:100%;padding:0.9rem;background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:12px;font-size:0.9rem;cursor:pointer">Track My Order →</button>
+      </div>`;
+    document.body.appendChild(successModal);
+
+  } catch(e) {
+    toast('⚠️ Order failed. Try again.', 'error');
+    const btn = document.querySelector('#checkout-modal button:last-child');
+    if (btn) { btn.textContent = 'Place Order ✦'; btn.disabled = false; }
+  }
 }
 
 // ── WISHLIST ──
