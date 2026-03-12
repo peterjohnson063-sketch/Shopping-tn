@@ -1,4 +1,3 @@
-
 // ═══════════════════════════════════════════════
 // SHOPPING — MAIN APPLICATION ENGINE
 // ═══════════════════════════════════════════════
@@ -700,7 +699,7 @@ async function doLogin() {
   }
 }
 
-function doRegister() {
+async function doRegister() {
   const fname = document.getElementById('reg-fname')?.value?.trim();
   const lname = document.getElementById('reg-lname')?.value?.trim();
   const email = document.getElementById('reg-email')?.value?.trim();
@@ -1420,4 +1419,3 @@ function homeSearch() {
 
 // ── START ──
 document.addEventListener('DOMContentLoaded', init);
-
