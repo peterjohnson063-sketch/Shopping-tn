@@ -132,6 +132,12 @@ function showPage(id) {
   if (renderers[id]) renderers[id]();
 
   setTimeout(initReveal, 80);
+  // Re-apply current language after page render
+  const activeLangBtn = document.querySelector('.lang-btn.active');
+  if (activeLangBtn) {
+    const lang = activeLangBtn.id.replace('lang-','');
+    setTimeout(() => { if(typeof setLang === 'function') setLang(lang); }, 100);
+  }
   return false;
 }
 
@@ -336,6 +342,14 @@ async function checkout() {
   document.body.appendChild(modal);
 }
 
+function closeSuccessModal() {
+  const m = document.getElementById('success-modal');
+  if (m) m.remove();
+  const c = document.getElementById('checkout-modal');
+  if (c) c.remove();
+  showPage('track');
+}
+
 async function submitOrder() {
   const fname = document.getElementById('co-fname')?.value?.trim();
   const lname = document.getElementById('co-lname')?.value?.trim();
@@ -368,26 +382,22 @@ async function submitOrder() {
 
     // Show success with tracking number
     const successModal = document.createElement('div');
+    successModal.id = 'success-modal';
     successModal.style.cssText = 'position:fixed;inset:0;background:rgba(30,10,78,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+    const trackNum = order.tracking_number;
     successModal.innerHTML = `
       <div style="background:white;border-radius:24px;padding:2.5rem;max-width:420px;width:100%;text-align:center">
         <div style="font-size:3rem;margin-bottom:1rem">🎉</div>
         <h3 style="font-family:'Cormorant Garamond',serif;font-size:1.8rem;color:#1e0a4e;margin-bottom:0.5rem">Order Confirmed!</h3>
         <p style="color:#7b72a8;font-size:0.85rem;margin-bottom:1.5rem">Your tracking number:</p>
         <div style="background:#f8f7ff;border:1px solid rgba(124,58,237,0.2);border-radius:12px;padding:1rem;margin-bottom:1.5rem">
-          <p style="font-family:'Cormorant Garamond',serif;font-size:1.5rem;color:#7c3aed;font-weight:600;letter-spacing:0.1em">${order.tracking_number}</p>
-          <button onclick="navigator.clipboard?.writeText('${order.tracking_number}');toast('✦ Copied!','success')" style="background:none;border:none;color:#7b72a8;font-size:0.72rem;cursor:pointer;margin-top:0.3rem">📋 Copy</button>
+          <p style="font-family:'Cormorant Garamond',serif;font-size:1.5rem;color:#7c3aed;font-weight:600;letter-spacing:0.1em">${trackNum}</p>
+          <button onclick="navigator.clipboard?.writeText('${trackNum}');toast('✦ Copied!','success')" style="background:none;border:none;color:#7b72a8;font-size:0.72rem;cursor:pointer;margin-top:0.3rem">📋 Copy</button>
         </div>
         <p style="font-size:0.78rem;color:#7b72a8;margin-bottom:1.5rem">Save this number to track your order!</p>
-        <button id="track-order-btn" style="width:100%;padding:0.9rem;background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:12px;font-size:0.9rem;cursor:pointer">Track My Order →</button>
+        <button onclick="closeSuccessModal()" style="width:100%;padding:0.9rem;background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:12px;font-size:0.9rem;cursor:pointer">Track My Order →</button>
       </div>`;
     document.body.appendChild(successModal);
-    document.getElementById('track-order-btn').onclick = function() {
-      document.querySelectorAll('#checkout-modal, #success-modal').forEach(e => e.remove());
-      // Remove the success modal itself
-      this.closest('div').closest('div').remove();
-      showPage('track');
-    };
 
   } catch(e) {
     toast('⚠️ Order failed. Try again.', 'error');
