@@ -1,5 +1,5 @@
 // ── YASMINE AI + LANGUAGE SYSTEM ──
-var GEMINI_KEY = "AIzaSyDrpm51A5UBYQebJSdcteTvcI2dJ2i9gd4";
+var GEMINI_KEY = "AIzaSyAV7ie6sGSXF-l2eWTzDG7HuIzriSVK_hk";
 
 var TRANSLATIONS = {
   en: {
@@ -202,5 +202,6 @@ var AI = (function() {
     setLang: function(l) { currentLang = l; }
   };
 })();
+
 
 
