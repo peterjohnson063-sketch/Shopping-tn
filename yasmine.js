@@ -1,5 +1,5 @@
 // ── YASMINE AI + LANGUAGE SYSTEM ──
-var GEMINI_KEY = "AIzaSyBA717CN0z0gsqdw4fbFhnz88wwQYWEHXQ";
+var GEMINI_KEY = "PUT_YOUR_KEY_HERE";
 
 var TRANSLATIONS = {
   en: {
@@ -156,7 +156,7 @@ var AI = (function() {
     appendMsg('user', userMsg);
     appendMsg('bot', '...', true);
     var xhr = new XMLHttpRequest();
-    xhr.open('POST', 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + GEMINI_KEY, true);
+    xhr.open('POST', 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + GEMINI_KEY, true);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.timeout = 12000;
     var messages = [
@@ -202,5 +202,3 @@ var AI = (function() {
     setLang: function(l) { currentLang = l; }
   };
 })();
-
-
