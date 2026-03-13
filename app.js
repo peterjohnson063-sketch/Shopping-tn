@@ -277,7 +277,7 @@ function renderCartDrawer() {
         <input type="text" class="form-input" id="promo-input" placeholder="Promo code…" style="flex:1;padding:0.65rem 0.9rem;font-size:0.82rem"/>
         <button class="btn btn-ghost btn-sm" onclick="applyPromo()">Apply</button>
       </div>
-      ${State.promoApplied ? `<div style="font-size:0.75rem;color:var(--success);margin-bottom:0.8rem">✓ ${STN.PROMO_CODES[State.promoApplied].desc}</div>` : ''}
+      
       <div style="display:flex;justify-content:space-between;font-size:0.82rem;color:var(--text-muted);margin-bottom:0.4rem"><span>Subtotal</span><span>${subtotal.toLocaleString()} TND</span></div>
       ${saved > 0 ? `<div style="display:flex;justify-content:space-between;font-size:0.78rem;color:var(--success);margin-bottom:0.4rem"><span>Saved</span><span>−${saved.toLocaleString()} TND</span></div>` : ''}
       <div style="display:flex;justify-content:space-between;font-size:0.82rem;color:var(--text-muted);margin-bottom:0.8rem"><span>Shipping</span><span style="color:var(--success)">Free</span></div>
@@ -1471,23 +1471,7 @@ function renderLoyalty() {
   if (!grid) return;
   const u = State.currentUser;
 
-  // Render promo codes
-  if (promoSection) {
-    promoSection.innerHTML = `
-      <div class="glass reveal" style="padding:2rem;text-align:left;border-color:rgba(124,58,237,0.2)">
-        <h3 style="font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--gold);margin-bottom:1.2rem;text-align:center">🎁 Active Promo Codes</h3>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:0.8rem">
-          ${Object.entries(STN.PROMO_CODES).map(([code, info]) => `
-            <div style="background:#f8f7ff;border:1px solid rgba(124,58,237,0.2);border-radius:var(--radius-sm);padding:1rem;display:flex;justify-content:space-between;align-items:center;gap:0.8rem">
-              <div>
-                <div style="font-size:0.88rem;color:var(--gold);font-weight:600;font-family:monospace;letter-spacing:0.05em">${code}</div>
-                <div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.2rem">${info.desc}</div>
-              </div>
-              <button class="btn btn-ghost btn-sm" style="font-size:0.62rem;padding:0.3rem 0.7rem;flex-shrink:0"
-                onclick="if(navigator.clipboard){navigator.clipboard.writeText('${code}');toast('✦ Copied: ${code}','success')}else{toast('Code: ${code}','success')}">Copy</button>
-            </div>`).join('')}
-        </div>
-      </div>`;
+  // Promo codes removed - events only
   }
 
   // Render tier cards

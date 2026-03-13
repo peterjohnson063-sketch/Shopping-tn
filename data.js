@@ -43,13 +43,7 @@ const PRODUCTS_DATA = [
   { id:12, name:'Kilim Berber Rug', brand:'Kairouan Weave', region:'Kairouan', cat:'decor', price:1200, oldPrice:1500, rating:4.8, reviews:156, badge:'Artisan', emoji:'🪡', verified:true, stock:9, desc:'Authentic hand-woven Berber kilim rug from Kairouan masters. Natural wool dyed with traditional plant pigments. No two rugs are identical.', specs:{size:'200x300cm', material:'Natural Wool', handmade:'Yes', warranty:'Lifetime'} }
 ];
 
-const PROMO_CODES = {
-  'SHOPPING10': { type:'percent', value:10, desc:'10% off your order' },
-  'SAHEL20': { type:'percent', value:20, desc:'20% off — Sahel Region Special' },
-  'WELCOME50': { type:'fixed', value:50, desc:'50 TND off first order' },
-  'VIP100': { type:'fixed', value:100, desc:'100 TND VIP discount' },
-  'MONASTIR15': { type:'percent', value:15, desc:'15% — Monastir Pride discount' }
-};
+const PROMO_CODES = {}; // Promo codes are temporary events — none active
 
 const LOYALTY_TIERS = [
   { name:'Bronze', min:0, max:999, color:'#cd7f32', perks:['5% cashback','Free standard shipping','Early access to sales'] },
