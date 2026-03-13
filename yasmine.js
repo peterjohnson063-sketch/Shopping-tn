@@ -159,10 +159,7 @@ var AI = (function() {
     xhr.open('POST', 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + GEMINI_KEY, true);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.timeout = 12000;
-    var messages = [
-      { role: 'user', parts: [{ text: SYSTEM }] },
-      { role: 'model', parts: [{ text: 'Bonjour! Je suis Yasmine.' }] }
-    ];
+    var messages = [];
     history.slice(-10).forEach(function(m) {
       messages.push({ role: m.role === 'user' ? 'user' : 'model', parts: [{ text: m.content }] });
     });
@@ -206,7 +203,10 @@ var AI = (function() {
       document.querySelectorAll('.ym-typing').forEach(function(e) { e.remove(); });
       appendMsg('bot', getOfflineReply(userMsg));
     };
-    xhr.send(JSON.stringify({ contents: messages }));
+    xhr.send(JSON.stringify({
+      system_instruction: { parts: [{ text: SYSTEM }] },
+      contents: messages
+    }));
   }
 
   function toggle() {
