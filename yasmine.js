@@ -1,5 +1,5 @@
 // ── YASMINE AI + LANGUAGE SYSTEM ──
-var GEMINI_KEY = "AIzaSyAV7ie6sGSXF-l2eWTzDG7HuIzriSVK_hk";
+var GEMINI_KEY = "PUT_YOUR_KEY_HERE";
 
 var TRANSLATIONS = {
   en: {
@@ -176,6 +176,30 @@ var AI = (function() {
           history.push({ role: 'assistant', content: reply });
           appendMsg('bot', reply);
         } catch(e) { appendMsg('bot', getOfflineReply(userMsg)); }
+      } else if (xhr.status === 429) {
+        appendMsg('bot', '⏳ Un instant...', true);
+        var retryBody = JSON.stringify({ contents: messages });
+        setTimeout(function() {
+          document.querySelectorAll('.ym-typing').forEach(function(e) { e.remove(); });
+          var xhr2 = new XMLHttpRequest();
+          xhr2.open('POST', 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + GEMINI_KEY, true);
+          xhr2.setRequestHeader('Content-Type', 'application/json');
+          xhr2.timeout = 15000;
+          xhr2.onreadystatechange = function() {
+            if (xhr2.readyState !== 4) return;
+            document.querySelectorAll('.ym-typing').forEach(function(e) { e.remove(); });
+            if (xhr2.status === 200) {
+              try {
+                var d2 = JSON.parse(xhr2.responseText);
+                var r2 = d2.candidates[0].content.parts[0].text;
+                history.push({ role: 'assistant', content: r2 });
+                appendMsg('bot', r2);
+              } catch(e2) { appendMsg('bot', getOfflineReply(userMsg)); }
+            } else { appendMsg('bot', getOfflineReply(userMsg)); }
+          };
+          xhr2.ontimeout = function() { document.querySelectorAll('.ym-typing').forEach(function(e) { e.remove(); }); appendMsg('bot', getOfflineReply(userMsg)); };
+          xhr2.send(retryBody);
+        }, 6000);
       } else { appendMsg('bot', getOfflineReply(userMsg)); }
     };
     xhr.ontimeout = function() {
@@ -202,6 +226,3 @@ var AI = (function() {
     setLang: function(l) { currentLang = l; }
   };
 })();
-
-
-
