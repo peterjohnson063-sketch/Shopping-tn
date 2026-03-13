@@ -125,7 +125,7 @@ var AI = (function() {
   var history = [];
   var currentLang = 'fr';
   var isOpen = false;
-  var SYSTEM = "You are Yasmine, AI assistant for Shopping — Tunisia's premium artisan marketplace. Speak Arabic, French, or English based on the user. Key facts: artisans from Monastir and Ksar Hellal. Delivery 24-48h. Free shipping over 500 TND. Promo codes: SHOPPING10 (10% off), SAHEL20 (20% off), WELCOME50 (50 TND off). Be warm and helpful.";
+  var SYSTEM = "You are Yasmine, a helpful AI assistant for Shopping, Tunisia's #1 artisan marketplace. Answer in the same language the user writes in (Arabic, French, or English). Key info: artisans from Monastir and Ksar Hellal, delivery 24-48h, free shipping over 500 TND, promo codes: SAHEL20 for 20% off, WELCOME50 for 50 TND off. Be warm, helpful and guide users to find products.";
 
   function getOfflineReply(msg) {
     var m = msg.toLowerCase();
@@ -198,7 +198,7 @@ var AI = (function() {
           };
           xhr2.ontimeout = function() { document.querySelectorAll('.ym-typing').forEach(function(e) { e.remove(); }); appendMsg('bot', getOfflineReply(userMsg)); };
           xhr2.send(JSON.stringify({
-            model: 'llama3-8b-8192',
+            model: 'llama-3.1-8b-instant',
             messages: messages,
             max_tokens: 500,
             temperature: 0.7
@@ -211,7 +211,7 @@ var AI = (function() {
       appendMsg('bot', getOfflineReply(userMsg));
     };
     xhr.send(JSON.stringify({
-      model: 'llama3-8b-8192',
+      model: 'llama-3.1-8b-instant',
       messages: messages,
       max_tokens: 500,
       temperature: 0.7
