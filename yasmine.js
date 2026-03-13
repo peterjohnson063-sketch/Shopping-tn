@@ -1,5 +1,5 @@
 // ── YASMINE AI + LANGUAGE SYSTEM ──
-var GEMINI_KEY = "AIzaSyDTzSx4agHlWt31oFyTtZXh8ThnBrV14RA";
+var GROQ_KEY = "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";
 
 var TRANSLATIONS = {
   en: {
@@ -156,12 +156,13 @@ var AI = (function() {
     appendMsg('user', userMsg);
     appendMsg('bot', '...', true);
     var xhr = new XMLHttpRequest();
-    xhr.open('POST', 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + GEMINI_KEY, true);
+    xhr.open('POST', 'https://api.groq.com/openai/v1/chat/completions', true);
     xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.timeout = 12000;
-    var messages = [];
+    xhr.setRequestHeader('Authorization', 'Bearer ' + GROQ_KEY);
+    xhr.timeout = 15000;
+    var messages = [{ role: 'system', content: SYSTEM }];
     history.slice(-10).forEach(function(m) {
-      messages.push({ role: m.role === 'user' ? 'user' : 'model', parts: [{ text: m.content }] });
+      messages.push({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content });
     });
     xhr.onreadystatechange = function() {
       if (xhr.readyState !== 4) return;
@@ -169,7 +170,7 @@ var AI = (function() {
       if (xhr.status === 200) {
         try {
           var data = JSON.parse(xhr.responseText);
-          var reply = data.candidates[0].content.parts[0].text;
+          var reply = data.choices[0].message.content;
           history.push({ role: 'assistant', content: reply });
           appendMsg('bot', reply);
         } catch(e) { appendMsg('bot', getOfflineReply(userMsg)); }
@@ -179,8 +180,9 @@ var AI = (function() {
         setTimeout(function() {
           document.querySelectorAll('.ym-typing').forEach(function(e) { e.remove(); });
           var xhr2 = new XMLHttpRequest();
-          xhr2.open('POST', 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + GEMINI_KEY, true);
+          xhr2.open('POST', 'https://api.groq.com/openai/v1/chat/completions', true);
           xhr2.setRequestHeader('Content-Type', 'application/json');
+          xhr2.setRequestHeader('Authorization', 'Bearer ' + GROQ_KEY);
           xhr2.timeout = 15000;
           xhr2.onreadystatechange = function() {
             if (xhr2.readyState !== 4) return;
@@ -188,14 +190,19 @@ var AI = (function() {
             if (xhr2.status === 200) {
               try {
                 var d2 = JSON.parse(xhr2.responseText);
-                var r2 = d2.candidates[0].content.parts[0].text;
+                var r2 = d2.choices[0].message.content;
                 history.push({ role: 'assistant', content: r2 });
                 appendMsg('bot', r2);
               } catch(e2) { appendMsg('bot', getOfflineReply(userMsg)); }
             } else { appendMsg('bot', getOfflineReply(userMsg)); }
           };
           xhr2.ontimeout = function() { document.querySelectorAll('.ym-typing').forEach(function(e) { e.remove(); }); appendMsg('bot', getOfflineReply(userMsg)); };
-          xhr2.send(retryBody);
+          xhr2.send(JSON.stringify({
+            model: 'llama3-8b-8192',
+            messages: messages,
+            max_tokens: 500,
+            temperature: 0.7
+          }));
         }, 6000);
       } else { appendMsg('bot', getOfflineReply(userMsg)); }
     };
@@ -204,8 +211,10 @@ var AI = (function() {
       appendMsg('bot', getOfflineReply(userMsg));
     };
     xhr.send(JSON.stringify({
-      system_instruction: { parts: [{ text: SYSTEM }] },
-      contents: messages
+      model: 'llama3-8b-8192',
+      messages: messages,
+      max_tokens: 500,
+      temperature: 0.7
     }));
   }
 
