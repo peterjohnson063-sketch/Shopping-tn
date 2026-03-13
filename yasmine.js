@@ -1,5 +1,5 @@
 // ── YASMINE AI + LANGUAGE SYSTEM ──
-var GEMINI_KEY = "PUT_YOUR_KEY_HERE";
+var GEMINI_KEY = "gen-lang-client-0424037557";
 
 var TRANSLATIONS = {
   en: {
@@ -202,3 +202,4 @@ var AI = (function() {
     setLang: function(l) { currentLang = l; }
   };
 })();
+
