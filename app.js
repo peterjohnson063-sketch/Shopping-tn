@@ -1468,11 +1468,11 @@ function renderLoyalty() {
   initReveal();
   const grid = document.getElementById('loyalty-tiers-grid');
   const promoSection = document.getElementById('loyalty-promo-section');
+  if (promoSection) promoSection.style.display = 'none';
   if (!grid) return;
   const u = State.currentUser;
 
   // Promo codes removed - events only
-  }
 
   // Render tier cards
   grid.innerHTML = STN.LOYALTY_TIERS.map((tier, i) => `
