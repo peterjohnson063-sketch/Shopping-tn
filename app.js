@@ -273,13 +273,8 @@ function renderCartDrawer() {
 
   document.getElementById('cart-footer').innerHTML = `
     <div style="padding:1.2rem 1.6rem;border-top:1px solid rgba(107,63,212,0.12)">
-      <div style="display:flex;gap:0.6rem;margin-bottom:1rem">
-        <input type="text" class="form-input" id="promo-input" placeholder="Promo code…" style="flex:1;padding:0.65rem 0.9rem;font-size:0.82rem"/>
-        <button class="btn btn-ghost btn-sm" onclick="applyPromo()">Apply</button>
-      </div>
       
       <div style="display:flex;justify-content:space-between;font-size:0.82rem;color:var(--text-muted);margin-bottom:0.4rem"><span>Subtotal</span><span>${subtotal.toLocaleString()} TND</span></div>
-      ${saved > 0 ? `<div style="display:flex;justify-content:space-between;font-size:0.78rem;color:var(--success);margin-bottom:0.4rem"><span>Saved</span><span>−${saved.toLocaleString()} TND</span></div>` : ''}
       <div style="display:flex;justify-content:space-between;font-size:0.82rem;color:var(--text-muted);margin-bottom:0.8rem"><span>Shipping</span><span style="color:var(--success)">Free</span></div>
       <div style="display:flex;justify-content:space-between;font-size:1rem;color:var(--champagne);font-weight:600;margin-bottom:1.2rem"><span>Total</span><span>${total.toLocaleString()} TND</span></div>
       <button class="btn btn-gold btn-full" onclick="checkout()">Checkout →</button>
