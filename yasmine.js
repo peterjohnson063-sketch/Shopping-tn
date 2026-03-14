@@ -150,11 +150,24 @@ var AI = (function(){
       if(xhr.status === 200){
         try{
           var data = JSON.parse(xhr.responseText);
-          var reply = data.candidates[0].content.parts[0].text;
+          console.log('Gemini response:', JSON.stringify(data).slice(0,300));
+          var reply = '';
+          if(data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts){
+            reply = data.candidates[0].content.parts[0].text;
+          } else if(data.choices && data.choices[0]){
+            reply = data.choices[0].message.content;
+          } else {
+            console.log('Unknown response format:', JSON.stringify(data));
+            reply = getOfflineReply(userMsg);
+          }
           history.push({role:'assistant', content: reply});
           appendMsg('bot', reply);
-        } catch(e){ appendMsg('bot', getOfflineReply(userMsg)); }
+        } catch(e){ 
+          console.log('Parse error:', e, xhr.responseText.slice(0,200));
+          appendMsg('bot', getOfflineReply(userMsg)); 
+        }
       } else {
+        console.log('HTTP error:', xhr.status, xhr.responseText.slice(0,200));
         appendMsg('bot', getOfflineReply(userMsg));
       }
     };
