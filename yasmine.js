@@ -135,7 +135,7 @@ var AI = (function(){
     appendMsg('bot', '...', true);
 
     var xhr = new XMLHttpRequest();
-    xhr.open('POST', 'https://api.groq.com/openai/v1/chat/completions', true);
+    xhr.open('POST', 'https://api.x.ai/v1/chat/completions', true);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.timeout = 12000;
 
@@ -159,7 +159,7 @@ var AI = (function(){
       }
     };
     xhr.ontimeout = function(){ removeTyping(); appendMsg('bot', getOfflineReply(userMsg)); };
-    xhr.send(JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: messages, max_tokens: 500, temperature: 0.7 }));
+    xhr.send(JSON.stringify({ model: 'grok-3-latest', messages: messages, max_tokens: 500, temperature: 0.7 }));
   }
 
   function getOfflineReply(msg){
