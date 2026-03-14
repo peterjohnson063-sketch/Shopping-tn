@@ -135,13 +135,13 @@ var AI = (function(){
     appendMsg('bot', '...', true);
 
     var xhr = new XMLHttpRequest();
-    xhr.open('POST', 'https://yasmine-proxy.bensalemyassine063.workers.dev', true);
+    xhr.open('POST', 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyC4F-BYfypgDDZkv1s5NbVrsHITuypLQtA', true);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.timeout = 12000;
 
-    var messages = [{role:'system', content: SYSTEM}];
+    var messages = [{role:'user', parts:[{text: SYSTEM}]}, {role:'model', parts:[{text:'Bonjour! Je suis Yasmine.'}]}];
     history.slice(-10).forEach(function(m){
-      messages.push({role: m.role === 'user' ? 'user' : 'assistant', content: m.content});
+      messages.push({role: m.role === 'user' ? 'user' : 'model', parts:[{text: m.content}]});
     });
 
     xhr.onreadystatechange = function(){
@@ -150,7 +150,7 @@ var AI = (function(){
       if(xhr.status === 200){
         try{
           var data = JSON.parse(xhr.responseText);
-          var reply = data.choices[0].message.content;
+          var reply = data.candidates[0].content.parts[0].text;
           history.push({role:'assistant', content: reply});
           appendMsg('bot', reply);
         } catch(e){ appendMsg('bot', getOfflineReply(userMsg)); }
@@ -159,7 +159,7 @@ var AI = (function(){
       }
     };
     xhr.ontimeout = function(){ removeTyping(); appendMsg('bot', getOfflineReply(userMsg)); };
-    xhr.send(JSON.stringify({ messages: messages }));
+    xhr.send(JSON.stringify({ contents: messages }));
   }
 
   function getOfflineReply(msg){
