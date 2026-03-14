@@ -1,4 +1,3 @@
-
 // ═══════════════════════════════════════════════
 // SHOPPING — MAIN APPLICATION ENGINE
 // ═══════════════════════════════════════════════
@@ -198,14 +197,14 @@ function addToCart(productId) {
 }
 
 function removeFromCart(productId) {
-  State.cart = State.cart.filter(i => i.id !== productId);
+  State.cart = State.cart.filter(i => String(i.id) !== String(productId));
   STN.DB.set('cart', State.cart);
   updateCartBadge();
   renderCartDrawer();
 }
 
 function updateQty(productId, delta) {
-  const item = State.cart.find(i => i.id === productId);
+  const item = State.cart.find(i => String(i.id) === String(productId));
   if (!item) return;
   item.qty = Math.max(1, item.qty + delta);
   STN.DB.set('cart', State.cart);
@@ -257,11 +256,11 @@ function renderCartDrawer() {
         <div class="cart-item-price">${(item.price * item.qty).toLocaleString()} TND</div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.5rem">
-        <button class="wishlist-btn" onclick="removeFromCart(${item.id})" style="width:28px;height:28px;font-size:0.8rem;color:var(--danger);border-color:rgba(255,71,87,0.2)">✕</button>
+        <button class="wishlist-btn" onclick="removeFromCart('${item.id}')" style="width:28px;height:28px;font-size:0.8rem;color:var(--danger);border-color:rgba(255,71,87,0.2)">✕</button>
         <div class="qty-control">
-          <button class="qty-btn" onclick="updateQty(${item.id},-1)">−</button>
+          <button class="qty-btn" onclick="updateQty('${item.id}',-1)">−</button>
           <span style="font-size:0.85rem;min-width:20px;text-align:center">${item.qty}</span>
-          <button class="qty-btn" onclick="updateQty(${item.id},1)">+</button>
+          <button class="qty-btn" onclick="updateQty('${item.id}',1)">+</button>
         </div>
       </div>
     </div>
@@ -1559,4 +1558,3 @@ function homeSearch() {
 
 // ── START ──
 document.addEventListener('DOMContentLoaded', init);
-
