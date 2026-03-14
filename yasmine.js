@@ -139,9 +139,9 @@ var AI = (function(){
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.timeout = 12000;
 
-    var messages = [{role:'user', parts:[{text: SYSTEM}]}, {role:'model', parts:[{text:'Bonjour! Je suis Yasmine. Comment puis-je vous aider?'}]}];
+    var messages = [{role:'system', content: SYSTEM}];
     history.slice(-10).forEach(function(m){
-      messages.push({role: m.role === 'user' ? 'user' : 'model', parts:[{text: m.content}]});
+      messages.push({role: m.role === 'user' ? 'user' : 'assistant', content: m.content});
     });
 
     xhr.onreadystatechange = function(){
