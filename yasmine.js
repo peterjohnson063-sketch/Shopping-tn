@@ -1,5 +1,4 @@
 // ── YASMINE AI ASSISTANT ──
-const GEMINI_KEY = "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";
 
 var TRANSLATIONS={
   en:{
