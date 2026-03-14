@@ -4,7 +4,7 @@ var TRANSLATIONS={
   en:{
     'nav-home':'Home','nav-products':'Collections','nav-carpenter':'Custom Furniture',
     'nav-track':'Track','nav-loyalty':'Rewards','nav-about':'About','signin-btn':'Sign In',
-    'hero-badge':"Tunisia's #1 Artisan Marketplace",
+    'hero-badge':"Tunisias #1 Artisan Marketplace",
     'hero-search':'Search products, artisans, regions...','hero-search-btn':'Search',
     'stat-products':'Products','stat-regions':'Regions','stat-satisfaction':'Satisfaction','stat-delivery':'Max Delivery',
     'browse-label':'Browse by Category','browse-title':'Our Collections',
@@ -126,7 +126,7 @@ var AI = (function(){
   var currentLang = 'fr';
   var isOpen = false;
 
-  var SYSTEM = `You are Yasmine, the AI assistant for Shopping — Tunisia's premium artisan marketplace. You help customers find products, answer questions about delivery, artisans, and orders. You speak Arabic, French, and English — auto-detect the language. Always be warm, helpful, and bring conversations back to Shopping naturally. Key facts: artisans from Monastir, Ksar Hellal, Sfax, Nabeul. Delivery 24-48h in Tunisia. Free shipping over 500 TND. Promo codes: SHOPPING10 (10% off), SAHEL20 (20% off), WELCOME50 (50 TND off). Products include furniture, ceramics, lighting, rugs, bedroom sets.`;
+  var SYSTEM = `You are Yasmine, the AI assistant for Shopping — Tunisias premium artisan marketplace. You help customers find products, answer questions about delivery, artisans, and orders. You speak Arabic, French, and English — auto-detect the language. Always be warm, helpful, and bring conversations back to Shopping naturally. Key facts: artisans from Monastir, Ksar Hellal, Sfax, Nabeul. Delivery 24-48h in Tunisia. Free shipping over 500 TND. Promo codes: SHOPPING10 (10% off), SAHEL20 (20% off), WELCOME50 (50 TND off). Products include furniture, ceramics, lighting, rugs, bedroom sets.`;
 
   function sendMessage(userMsg){
     if(!userMsg || !userMsg.trim()) return;
@@ -169,10 +169,74 @@ var AI = (function(){
 
   function getOfflineReply(msg){
     var m = msg.toLowerCase();
-    if(m.includes('livr') || m.includes('توصيل') || m.includes('delivery')) return currentLang==='ar' ? 'التوصيل خلال 24-48 ساعة في تونس. مجاني فوق 500 دينار!' : currentLang==='en' ? 'Delivery in 24-48h across Tunisia. Free over 500 TND!' : 'Livraison en 24-48h partout en Tunisie. Gratuite au-dessus de 500 TND!';
-    if(m.includes('promo') || m.includes('remise') || m.includes('code')) return currentLang==='ar' ? 'كود SAHEL20 للخصم 20%، WELCOME50 لخصم 50 دينار!' : currentLang==='en' ? 'Use SAHEL20 for 20% off or WELCOME50 for 50 TND off!' : 'Utilisez SAHEL20 (-20%) ou WELCOME50 (-50 TND)!';
-    if(m.includes('sofa') || m.includes('canap') || m.includes('meuble') || m.includes('furniture')) return currentLang==='ar' ? 'لدينا أثاث رائع من منستير وقصر هلال! الأريكة السلطانية 3299 دينار.' : currentLang==='en' ? 'We have amazing furniture from Monastir artisans! The Velvet Sultan Sofa is 3,299 TND.' : 'Nous avons des meubles magnifiques des artisans de Monastir! Le Canape Sultan Velours est a 3 299 TND.';
-    return currentLang==='ar' ? 'مرحبا! كيف يمكنني مساعدتك في Shopping اليوم؟' : currentLang==='en' ? 'Hello! How can I help you with Shopping today?' : 'Bonjour! Comment puis-je vous aider avec Shopping aujourd\'hui?';
+    var ar = currentLang==='ar', en = currentLang==='en';
+
+    // Greetings
+    if(m.match(/^(hi|hello|hey|salut|bonjour|bonsoir|مرحبا|السلام|هلا|coucou|slt)/))
+      return ar ? 'مرحبا! أنا ياسمين، مساعدتك في Shopping 🛍️ كيف يمكنني مساعدتك اليوم؟' : en ? 'Hi! I am Yasmine, your Shopping assistant 🛍️ How can I help you today?' : 'Bonjour! Je suis Yasmine, votre assistante Shopping 🛍️ Comment puis-je vous aider?';
+
+    // How are you
+    if(m.includes('how are') || m.includes('comment tu') || m.includes('comment vas') || m.includes('كيف حالك'))
+      return ar ? 'أنا بخير شكراً! مستعدة لمساعدتك في إيجاد أفضل المنتجات التونسية 😊' : en ? 'I am great, thank you! Ready to help you find the best Tunisian crafts 😊' : 'Je vais très bien merci! Prête à vous aider trouver les meilleurs produits tunisiens 😊';
+
+    // Delivery
+    if(m.includes('livr') || m.includes('delivery') || m.includes('shipping') || m.includes('توصيل') || m.includes('شحن'))
+      return ar ? '🚚 التوصيل خلال 24-48 ساعة في كامل تونس. مجاني للطلبات فوق 500 دينار! نصل لكل الولايات.' : en ? '🚚 Delivery in 24-48h across all of Tunisia. FREE for orders over 500 TND! We deliver to all regions.' : '🚚 Livraison en 24-48h partout en Tunisie. GRATUITE pour les commandes au-dessus de 500 TND!';
+
+    // Price / cost
+    if(m.includes('prix') || m.includes('price') || m.includes('cost') || m.includes('combien') || m.includes('سعر') || m.includes('ثمن') || m.includes('how much'))
+      return ar ? '💰 أسعارنا تبدأ من 29 دينار للإكسسوارات وتصل لـ 4500 دينار للأثاث الفاخر. جميع الأسعار بالدينار التونسي.' : en ? '💰 Our prices start from 29 TND for accessories up to 4,500 TND for premium furniture. All prices in Tunisian Dinar.' : '💰 Nos prix commencent à 29 TND pour les accessoires jusqu a 4 500 TND pour les meubles premium.';
+
+    // Sofa / furniture / canape
+    if(m.includes('sofa') || m.includes('canap') || m.includes('fauteuil') || m.includes('أريكة') || m.includes('كنبة') || m.includes('meuble') || m.includes('furniture'))
+      return ar ? '🛋️ لدينا أثاث فاخر من حرفيي المنستير وقصر هلال! الأريكة السلطانية المخملية 3,299 دينار، وأريكة نجمة الصحراء 2,800 دينار. كلها مصنوعة يدوياً!' : en ? '🛋️ We have luxury furniture from Monastir & Ksar Hellal artisans! The Velvet Sultan Sofa 3,299 TND, Desert Star Sofa 2,800 TND. All handcrafted!' : '🛋️ Nous avons des meubles de luxe des artisans de Monastir & Ksar Hellal! Canapé Sultan Velours 3 299 TND, tout fait à la main!';
+
+    // Rug / carpet / kilim / tapis
+    if(m.includes('rug') || m.includes('carpet') || m.includes('kilim') || m.includes('tapis') || m.includes('سجادة') || m.includes('زربية'))
+      return ar ? '🏺 سجادنا الكيليم مصنوع يدوياً من كيروان! أسعار تبدأ من 450 دينار. ألوان وأنماط تقليدية أصيلة.' : en ? '🏺 Our Kilim rugs are handwoven in Kairouan! Prices from 450 TND. Authentic traditional patterns and colors.' : '🏺 Nos tapis Kilim sont tissés à la main à Kairouan! Prix à partir de 450 TND. Motifs traditionnels authentiques.';
+
+    // Lighting / lantern / lampe / lustre
+    if(m.includes('light') || m.includes('lamp') || m.includes('lantern') || m.includes('lustre') || m.includes('lampe') || m.includes('إنارة') || m.includes('فانوس') || m.includes('مصباح'))
+      return ar ? '💡 لدينا فوانيس وإنارة نحاسية مذهلة من صفاقس! الفانوس النحاسي السلطاني 185 دينار. يضفي جمالاً رائعاً لأي منزل.' : en ? '💡 We have stunning brass lanterns & lighting from Sfax! The Sultan Brass Lantern 185 TND. Adds a magical touch to any home.' : '💡 Nous avons de superbes lanternes et luminaires en laiton de Sfax! La Lanterne Sultan en Laiton 185 TND.';
+
+    // Ceramics / pottery / ceramique
+    if(m.includes('ceramic') || m.includes('ceramique') || m.includes('pottery') || m.includes('poterie') || m.includes('سيراميك') || m.includes('فخار'))
+      return ar ? '🏺 سيراميكنا مصنوع يدوياً من نابل وقابس! أسعار تبدأ من 45 دينار. ألوان زرقاء وبيضاء تقليدية رائعة.' : en ? '🏺 Our ceramics are handmade in Nabeul & Gabes! Prices from 45 TND. Beautiful traditional blue and white designs.' : '🏺 Notre céramique est faite à la main à Nabeul & Gabes! Prix à partir de 45 TND.';
+
+    // Sur mesure / custom / custom furniture
+    if(m.includes('sur mesure') || m.includes('custom') || m.includes('personaliz') || m.includes('حسب الطلب') || m.includes('مخصص'))
+      return ar ? '🪑 نعم! لدينا خدمة الأثاث حسب الطلب. يمكنك تخصيص اللون والحجم والتصميم. تواصل مع حرفيينا عبر صفحة "حسب الطلب"!' : en ? '🪑 Yes! We offer custom furniture service. You can customize color, size and design. Visit our "Custom Furniture" page to get started!' : '🪑 Oui! Nous proposons un service de meubles sur mesure. Personnalisez couleur, taille et design via la page "Sur Mesure"!';
+
+    // Artisans / who makes / qui fabrique
+    if(m.includes('artisan') || m.includes('who make') || m.includes('qui fabrique') || m.includes('حرفي') || m.includes('صانع'))
+      return ar ? '👨‍🎨 حرفيونا من أفضل المناطق التونسية: المنستير، قصر هلال، صفاقس، نابل، القيروان! كل منتج مصنوع يدوياً بحرفية تونسية أصيلة.' : en ? '👨‍🎨 Our artisans are from Tunisias finest regions: Monastir, Ksar Hellal, Sfax, Nabeul, Kairouan! Every product is handcrafted with authentic Tunisian expertise.' : '👨‍🎨 Nos artisans viennent des meilleures régions de Tunisie: Monastir, Ksar Hellal, Sfax, Nabeul, Kairouan!';
+
+    // Track order / suivi
+    if(m.includes('track') || m.includes('suivi') || m.includes('order') || m.includes('commande') || m.includes('تتبع') || m.includes('طلب'))
+      return ar ? '📦 يمكنك تتبع طلبك من صفحة "تتبع"! أدخل رقم التتبع الذي تلقيته بعد الطلب. رقم التتبع يبدأ بـ STN-' : en ? '📦 You can track your order on the "Track" page! Enter the tracking number you received after ordering. Tracking numbers start with STN-' : '📦 Vous pouvez suivre votre commande sur la page "Suivi"! Entrez le numéro de suivi reçu après votre commande. Les numéros commencent par STN-';
+
+    // Return / retour / refund
+    if(m.includes('return') || m.includes('retour') || m.includes('refund') || m.includes('رجوع') || m.includes('استرجاع'))
+      return ar ? '↩️ سياسة الإرجاع: 30 يوماً لإرجاع أي منتج. المنتج يجب أن يكون بحالته الأصلية. تواصل معنا وسنرتب الاستلام.' : en ? '↩️ Return policy: 30 days to return any product. Item must be in original condition. Contact us and we will arrange pickup.' : '↩️ Politique de retour: 30 jours pour retourner tout produit. L article doit être en état original.';
+
+    // Payment / paiement
+    if(m.includes('pay') || m.includes('paiement') || m.includes('payment') || m.includes('دفع') || m.includes('كيف ندفع'))
+      return ar ? '💳 ندفع عند الاستلام (Cash on delivery) في كامل تونس! قريباً سنضيف الدفع الإلكتروني عبر Konnect.' : en ? '💳 We offer Cash on Delivery across all of Tunisia! Online payment via Konnect coming soon.' : '💳 Nous proposons le paiement à la livraison partout en Tunisie! Paiement en ligne via Konnect bientôt disponible.';
+
+    // Contact / help
+    if(m.includes('contact') || m.includes('help') || m.includes('aide') || m.includes('مساعدة') || m.includes('تواصل'))
+      return ar ? '📞 للتواصل معنا: راسلنا عبر الموقع أو تفضل بزيارة صفحة "من نحن". فريقنا متاح 9 صباحاً - 9 مساءً!' : en ? '📞 Contact us via the website or visit our "About" page. Our team is available 9AM - 9PM!' : '📞 Contactez-nous via le site ou visitez notre page "À Propos". Notre équipe est disponible de 9h à 21h!';
+
+    // Products / what do you have
+    if(m.includes('product') || m.includes('produit') || m.includes('what do you') || m.includes('what you') || m.includes('منتج') || m.includes('ماذا عندك') || m.includes('collection'))
+      return ar ? '🛍️ لدينا تشكيلة واسعة: أثاث فاخر، سجاد كيليم، إنارة نحاسية، سيراميك، عطور، ديكور، وأثاث حسب الطلب! كلها من حرفيين تونسيين.' : en ? '🛍️ We have: luxury furniture, kilim rugs, brass lighting, ceramics, fragrances, decor, and custom furniture! All from Tunisian artisans.' : '🛍️ Nous avons: meubles de luxe, tapis kilim, luminaires en laiton, céramiques, parfums, déco, et meubles sur mesure!';
+
+    // About shopping / what is
+    if(m.includes('what is shopping') || m.includes('about') || m.includes('qui etes') || m.includes('ما هو') || m.includes('من انتم'))
+      return ar ? '🇹🇳 Shopping هي منصة التسوق الأولى للحرف اليدوية التونسية! نربط حرفيي الصحل من المنستير وقصر هلال بالعالم. كل منتج قصة وإرث!' : en ? '🇹🇳 Shopping is Tunisias #1 artisan marketplace! We connect Sahel craftsmen from Monastir & Ksar Hellal with the world. Every product tells a story!' : '🇹🇳 Shopping est la 1ère marketplace artisanale de Tunisie! Nous connectons les artisans du Sahel avec le monde entier.';
+
+    // Default
+    return ar ? 'مرحبا! 😊 أنا ياسمين. يمكنني مساعدتك في: المنتجات، التوصيل، الطلبات، الأسعار، الحرفيين. ماذا تريد أن تعرف؟' : en ? 'Hi! 😊 I am Yasmine. I can help with: products, delivery, orders, prices, artisans. What would you like to know?' : 'Bonjour! 😊 Je suis Yasmine. Je peux vous aider avec: produits, livraison, commandes, prix, artisans. Que souhaitez-vous savoir?';
   }
 
   function appendMsg(role, text, typing){
