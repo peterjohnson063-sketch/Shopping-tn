@@ -135,7 +135,7 @@ var AI = (function(){
     appendMsg('bot', '...', true);
 
     var xhr = new XMLHttpRequest();
-    xhr.open('POST', 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyC4F-BYfypgDDZkv1s5NbVrsHITuypLQtA', true);
+    xhr.open('POST', 'https://yasmine-proxy.bensalemyassine063.workers.dev', true);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.timeout = 12000;
 
