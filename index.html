@@ -492,212 +492,193 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 <!-- ════════════════════════════════════════════════════════════════ -->
 <div class="page" id="page-home">
 
-  <!-- HERO -->
-  <section style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 6%;position:relative;z-index:1;">
-    <!-- Big animated logo -->
-    <div class="reveal" style="margin-bottom:2rem;position:relative;display:flex;align-items:center;justify-content:center">
-      <!-- Orbiting particles -->
-      <div style="position:absolute;width:160px;height:160px;border-radius:50%;animation:spin 10s linear infinite;border:1.5px dashed rgba(124,58,237,0.2)"></div>
-      <div style="position:absolute;width:130px;height:130px;border-radius:50%;animation:spin 7s linear infinite reverse;border:1px dashed rgba(155,114,240,0.15)"></div>
-      <!-- Glow -->
-      <div style="position:absolute;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,0.12),transparent 70%);filter:blur(15px)"></div>
-      <!-- Logo circle -->
-      <div style="width:90px;height:90px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#9b72f0);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 32px rgba(124,58,237,0.3),0 0 0 8px rgba(124,58,237,0.08)">
-        <svg width="42" height="42" viewBox="0 0 58 58" fill="none">
-          <path d="M19 22 C19 14 39 14 39 22" stroke="white" stroke-width="4" stroke-linecap="round" fill="none"/>
-          <path d="M11 22 H47 L43 48 H15 Z" fill="white" opacity="0.95"/>
-          <path d="M15 26 H43 L42 30 H16 Z" fill="rgba(255,255,255,0.15)"/>
-          <circle cx="29" cy="37" r="3.5" fill="rgba(124,58,237,0.4)"/>
-          <circle cx="29" cy="37" r="1.5" fill="white" opacity="0.7"/>
-        </svg>
+  <!-- AMAZON-STYLE HOME -->
+
+  <!-- HERO BANNER -->
+  <div style="background:linear-gradient(135deg,#1e0a4e 0%,#4a1fa8 50%,#7c3aed 100%);padding:3rem 4%;display:flex;align-items:center;justify-content:space-between;gap:2rem;flex-wrap:wrap;min-height:320px;position:relative;overflow:hidden">
+    <div style="position:absolute;inset:0;background:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2220%22 cy=%2220%22 r=%2240%22 fill=%22rgba(255,255,255,0.03)%22/><circle cx=%2280%22 cy=%2280%22 r=%2260%22 fill=%22rgba(255,255,255,0.02)%22/></svg>')"></div>
+    <div style="position:relative;z-index:1;max-width:500px">
+      <div style="display:inline-flex;align-items:center;gap:0.5rem;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:30px;padding:0.3rem 1rem;margin-bottom:1.5rem">
+        <span style="color:#fbbf24;font-size:0.7rem">🇹🇳</span>
+        <span style="color:rgba(255,255,255,0.9);font-size:0.7rem;letter-spacing:0.1em" data-lang="hero-badge">Tunisia's #1 Artisan Marketplace</span>
+      </div>
+      <h1 style="font-family:'Cormorant Garamond',serif;font-size:clamp(2.5rem,6vw,4.5rem);color:white;font-weight:300;line-height:1.1;margin-bottom:1rem">Authentic <em style="color:#c4b5fd;font-style:italic">Tunisian</em><br>Craftsmanship</h1>
+      <p style="color:rgba(255,255,255,0.75);font-size:0.95rem;margin-bottom:2rem;line-height:1.6">From Monastir's master craftsmen to your door — handcrafted with tradition</p>
+      <div style="display:flex;gap:1rem;flex-wrap:wrap">
+        <button onclick="showPage('products')" style="background:white;color:#4a1fa8;border:none;padding:0.85rem 2rem;border-radius:50px;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:inherit">Shop Now →</button>
+        <button onclick="showPage('carpenter')" style="background:transparent;color:white;border:2px solid rgba(255,255,255,0.4);padding:0.85rem 2rem;border-radius:50px;font-weight:600;font-size:0.9rem;cursor:pointer;font-family:inherit">Custom Furniture</button>
       </div>
     </div>
-
-    <div style="display:inline-flex;align-items:center;gap:0.6rem;background:var(--purple-ultra,#f5f2ff);border:1px solid rgba(124,58,237,0.2);border-radius:30px;padding:0.4rem 1.2rem;margin-bottom:1.5rem" class="reveal">
-      <span style="width:6px;height:6px;background:var(--success);border-radius:50%;animation:pulse-dot 1.5s infinite"></span>
-      <span style="font-size:0.68rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--gold)"><span data-lang="hero-badge">Tunisia's #1 Artisan Marketplace</span></span>
-    </div>
-    <h1 class="display reveal" style="font-size:clamp(4rem,12vw,9rem);margin-bottom:1rem;transition-delay:0.1s">
-      <em class="gold-text">Shopping</em>
-    </h1>
-    <p class="body reveal" style="max-width:500px;margin-bottom:3rem;transition-delay:0.2s">
-      From Monastir's master craftsmen to Ksar Hellal's finest weavers — discover exceptional Tunisian artisanship delivered to your door.
-    </p>
-
-    <!-- Hero Search -->
-    <div class="reveal" style="width:100%;max-width:580px;margin-bottom:1.5rem;transition-delay:0.3s">
-      <div class="search-bar">
-        <div class="search-icon-wrap">⌕</div>
-        <input type="text" class="search-input" id="home-search" placeholder="Search products, artisans, regions…" onkeydown="if(event.key==='Enter')homeSearch()"/>
-        <button class="search-btn" data-lang="hero-search-btn" onclick="homeSearch()">Search</button>
+    <div style="position:relative;z-index:1;display:flex;gap:1.5rem;flex-wrap:wrap">
+      <div style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);border-radius:16px;padding:1.5rem;text-align:center;backdrop-filter:blur(10px)">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:2.5rem;color:white;font-weight:600">12K+</div>
+        <div style="color:rgba(255,255,255,0.7);font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase" data-lang="stat-products">Products</div>
       </div>
-      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:center;margin-top:0.9rem">
-        <span class="search-tag" onclick="homeSearchTag('Velvet Sofa')">Velvet Sofa</span>
-        <span class="search-tag" onclick="homeSearchTag('Brass Lantern')">Brass Lantern</span>
-        <span class="search-tag" onclick="homeSearchTag('Kilim Rug')">Kilim Rug</span>
-        <span class="search-tag" onclick="homeSearchTag('Nabeul Ceramics')">Ceramics</span>
-        <span class="search-tag" onclick="showPage('carpenter')">Sur Mesure ✦</span>
+      <div style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);border-radius:16px;padding:1.5rem;text-align:center;backdrop-filter:blur(10px)">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:2.5rem;color:white;font-weight:600">98%</div>
+        <div style="color:rgba(255,255,255,0.7);font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase" data-lang="stat-satisfaction">Satisfaction</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);border-radius:16px;padding:1.5rem;text-align:center;backdrop-filter:blur(10px)">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:2.5rem;color:white;font-weight:600">48h</div>
+        <div style="color:rgba(255,255,255,0.7);font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase" data-lang="stat-delivery">Delivery</div>
       </div>
     </div>
+  </div>
 
-    <!-- Stats -->
-    <div class="reveal" style="display:flex;gap:3.5rem;flex-wrap:wrap;justify-content:center;transition-delay:0.4s">
-      <div><div class="stat-num">12<span>K+</span></div><div class="stat-label">Products</div></div>
-      <div><div class="stat-num">4<span>+</span></div><div class="stat-label">Regions</div></div>
-      <div><div class="stat-num">98<span>%</span></div><div class="stat-label">Satisfaction</div></div>
-      <div><div class="stat-num">48<span>h</span></div><div class="stat-label">Max Delivery</div></div>
+  <!-- SEARCH BAR -->
+  <div style="background:#f3f0ff;padding:1rem 4%;border-bottom:1px solid rgba(107,63,212,0.1)">
+    <div style="max-width:800px;margin:0 auto;display:flex;gap:0.5rem">
+      <div style="flex:1;display:flex;align-items:center;background:white;border:2px solid rgba(124,58,237,0.3);border-radius:8px;padding:0 1rem;transition:border-color 0.2s" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='rgba(124,58,237,0.3)'">
+        <span style="color:#9b72f0;margin-right:0.5rem">🔍</span>
+        <input id="home-search" placeholder="Search products, artisans, regions..." style="flex:1;border:none;outline:none;font-size:0.95rem;color:#1e0a4e;background:transparent;font-family:'Outfit',sans-serif;padding:0.7rem 0" onkeydown="if(event.key==='Enter')searchHome()"/>
+      </div>
+      <button onclick="searchHome()" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0 1.5rem;border-radius:8px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap" data-lang="hero-search-btn">Search</button>
     </div>
-  </section>
+  </div>
 
-  <!-- TICKER -->
-  <div class="ticker-wrap">
-    <div class="ticker">
-      <span class="ticker-item"><span class="ticker-dot"></span>شحن مجاني فوق 500 دينار</span>
-      <span class="ticker-item"><span class="ticker-dot"></span>Free Shipping Over 500 TND</span>
-      <span class="ticker-item"><span class="ticker-dot"></span>Livraison Gratuite +500 TND</span>
-      <span class="ticker-item"><span class="ticker-dot"></span>Artisans Certifiés — Monastir &amp; Ksar Hellal</span>
-      <span class="ticker-item"><span class="ticker-dot"></span>30-Day Returns · Retour 30 Jours</span>
-      <span class="ticker-item"><span class="ticker-dot"></span>Sur Mesure · Custom Furniture Requests</span>
-      <span class="ticker-item"><span class="ticker-dot"></span>شحن مجاني فوق 500 دينار</span>
-      <span class="ticker-item"><span class="ticker-dot"></span>Free Shipping Over 500 TND</span>
-      <span class="ticker-item"><span class="ticker-dot"></span>Livraison Gratuite +500 TND</span>
-      <span class="ticker-item"><span class="ticker-dot"></span>Artisans Certifiés — Monastir &amp; Ksar Hellal</span>
-      <span class="ticker-item"><span class="ticker-dot"></span>30-Day Returns · Retour 30 Jours</span>
-      <span class="ticker-item"><span class="ticker-dot"></span>Sur Mesure · Custom Furniture Requests</span>
+  <!-- CATEGORIES ROW - Amazon style -->
+  <div style="background:white;padding:1.5rem 4%;border-bottom:1px solid #f0eeff">
+    <div style="display:flex;gap:1rem;overflow-x:auto;padding-bottom:0.5rem;scrollbar-width:none">
+      <div onclick="filterAndGo('all')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.15);transition:all 0.2s;min-width:80px" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f2ff'" onmouseout="this.style.borderColor='rgba(124,58,237,0.15)';this.style.background='white'">
+        <span style="font-size:1.8rem">🛍️</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap">All</span>
+      </div>
+      <div onclick="filterAndGo('sofa')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.15);transition:all 0.2s;min-width:80px" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f2ff'" onmouseout="this.style.borderColor='rgba(124,58,237,0.15)';this.style.background='white'">
+        <span style="font-size:1.8rem">🛋️</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap">Sofas</span>
+      </div>
+      <div onclick="filterAndGo('rug')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.15);transition:all 0.2s;min-width:80px" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f2ff'" onmouseout="this.style.borderColor='rgba(124,58,237,0.15)';this.style.background='white'">
+        <span style="font-size:1.8rem">🏺</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap">Rugs</span>
+      </div>
+      <div onclick="filterAndGo('lighting')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.15);transition:all 0.2s;min-width:80px" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f2ff'" onmouseout="this.style.borderColor='rgba(124,58,237,0.15)';this.style.background='white'">
+        <span style="font-size:1.8rem">💡</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap">Lighting</span>
+      </div>
+      <div onclick="filterAndGo('ceramic')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.15);transition:all 0.2s;min-width:80px" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f2ff'" onmouseout="this.style.borderColor='rgba(124,58,237,0.15)';this.style.background='white'">
+        <span style="font-size:1.8rem">🏺</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap">Ceramics</span>
+      </div>
+      <div onclick="filterAndGo('bedroom')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.15);transition:all 0.2s;min-width:80px" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f2ff'" onmouseout="this.style.borderColor='rgba(124,58,237,0.15)';this.style.background='white'">
+        <span style="font-size:1.8rem">🛏️</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap">Bedroom</span>
+      </div>
+      <div onclick="filterAndGo('outdoor')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.15);transition:all 0.2s;min-width:80px" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f2ff'" onmouseout="this.style.borderColor='rgba(124,58,237,0.15)';this.style.background='white'">
+        <span style="font-size:1.8rem">🌿</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap">Outdoor</span>
+      </div>
+      <div onclick="filterAndGo('fragrance')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.15);transition:all 0.2s;min-width:80px" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f2ff'" onmouseout="this.style.borderColor='rgba(124,58,237,0.15)';this.style.background='white'">
+        <span style="font-size:1.8rem">🧴</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap">Fragrance</span>
+      </div>
+      <div onclick="showPage('carpenter')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.3);background:#f5f2ff;transition:all 0.2s;min-width:80px">
+        <span style="font-size:1.8rem">🪵</span><span style="font-size:0.7rem;color:#7c3aed;font-weight:700;white-space:nowrap">Custom</span>
+      </div>
     </div>
   </div>
 
   <!-- FLASH SALE BANNER -->
-  <div class="s-full reveal" style="background:linear-gradient(135deg,rgba(124,58,237,0.06),rgba(107,63,212,0.04));border-top:1px solid rgba(107,63,212,0.12);border-bottom:1px solid rgba(107,63,212,0.12);padding:2.5rem 5%">
-    <div style="max-width:1440px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1.5rem">
-      <div style="display:flex;align-items:center;gap:1.5rem">
-        <div style="font-size:2.5rem">⚡</div>
+  <div style="background:linear-gradient(135deg,#7c3aed,#4a1fa8);padding:0.8rem 4%;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem">
+    <div style="display:flex;align-items:center;gap:1rem">
+      <span style="background:#fbbf24;color:#1e0a4e;padding:0.2rem 0.8rem;border-radius:20px;font-size:0.7rem;font-weight:800;letter-spacing:0.05em">⚡ FLASH SALE</span>
+      <span style="color:white;font-size:0.85rem;font-weight:600">Up to <strong style="color:#fbbf24">40% OFF</strong> — Today Only!</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.5rem;color:white">
+      <span style="font-size:0.75rem;color:rgba(255,255,255,0.8)">Ends in:</span>
+      <span style="background:rgba(0,0,0,0.3);padding:0.2rem 0.6rem;border-radius:6px;font-weight:700;font-size:0.9rem;font-family:monospace"><span class="flash-h">05</span>:<span class="flash-m">00</span>:<span class="flash-s">00</span></span>
+      <button onclick="showPage('products')" style="background:white;color:#7c3aed;border:none;padding:0.3rem 1rem;border-radius:20px;font-size:0.75rem;font-weight:700;cursor:pointer;margin-left:0.5rem">Shop Now</button>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT - 2 column Amazon layout -->
+  <div style="background:#f3f0ff;padding:1.5rem 4%;min-height:100vh">
+
+    <!-- ROW 1: Featured deals -->
+    <div style="background:white;border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 1px 4px rgba(74,31,168,0.08)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem">
+        <h2 style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;color:#1e0a4e;font-weight:500" data-lang="featured-title">Featured Products</h2>
+        <button onclick="showPage('products')" style="color:#7c3aed;background:none;border:none;font-size:0.82rem;cursor:pointer;font-family:inherit;font-weight:600" data-lang="view-all">View All →</button>
+      </div>
+      <div id="home-featured-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1rem"></div>
+    </div>
+
+    <!-- ROW 2: 3 promo banners -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-bottom:1.5rem">
+      <div onclick="filterAndGo('sofa')" style="background:linear-gradient(135deg,#1e0a4e,#4a1fa8);border-radius:12px;padding:1.5rem;cursor:pointer;position:relative;overflow:hidden;min-height:140px;display:flex;flex-direction:column;justify-content:space-between">
+        <div style="position:absolute;right:-10px;bottom:-10px;font-size:5rem;opacity:0.2">🛋️</div>
         <div>
-          <div style="font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--gold);margin-bottom:0.2rem">Flash Sale · تخفيضات</div>
-          <div style="font-family:var(--font-display);font-size:1.6rem;color:var(--champagne)"><span data-lang="flash-title">Up to <em class="gold-text">40% OFF</em> — Today Only!</span></div>
+          <div style="color:rgba(255,255,255,0.7);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.4rem">Premium Collection</div>
+          <div style="color:white;font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:400">Luxury Sofas</div>
         </div>
+        <div style="color:#c4b5fd;font-size:0.8rem;font-weight:600">Shop Now →</div>
       </div>
+      <div onclick="filterAndGo('rug')" style="background:linear-gradient(135deg,#92400e,#b45309);border-radius:12px;padding:1.5rem;cursor:pointer;position:relative;overflow:hidden;min-height:140px;display:flex;flex-direction:column;justify-content:space-between">
+        <div style="position:absolute;right:-10px;bottom:-10px;font-size:5rem;opacity:0.2">🏺</div>
+        <div>
+          <div style="color:rgba(255,255,255,0.7);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.4rem">Kairouan Weavers</div>
+          <div style="color:white;font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:400">Kilim Rugs</div>
+        </div>
+        <div style="color:#fcd34d;font-size:0.8rem;font-weight:600">Shop Now →</div>
+      </div>
+      <div onclick="showPage('carpenter')" style="background:linear-gradient(135deg,#064e3b,#065f46);border-radius:12px;padding:1.5rem;cursor:pointer;position:relative;overflow:hidden;min-height:140px;display:flex;flex-direction:column;justify-content:space-between">
+        <div style="position:absolute;right:-10px;bottom:-10px;font-size:5rem;opacity:0.2">🪵</div>
+        <div>
+          <div style="color:rgba(255,255,255,0.7);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.4rem">Made For You</div>
+          <div style="color:white;font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:400">Custom Furniture</div>
+        </div>
+        <div style="color:#6ee7b7;font-size:0.8rem;font-weight:600">Design Yours →</div>
+      </div>
+    </div>
+
+    <!-- ROW 3: Best sellers -->
+    <div style="background:white;border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 1px 4px rgba(74,31,168,0.08)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem">
+        <h2 style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;color:#1e0a4e;font-weight:500">🔥 Best Sellers</h2>
+        <button onclick="showPage('products')" style="color:#7c3aed;background:none;border:none;font-size:0.82rem;cursor:pointer;font-family:inherit;font-weight:600">See All →</button>
+      </div>
+      <div id="home-bestsellers-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1rem"></div>
+    </div>
+
+    <!-- ROW 4: Artisans banner + new arrivals -->
+    <div style="display:grid;grid-template-columns:280px 1fr;gap:1.5rem;margin-bottom:1.5rem">
+      <!-- Artisan promo -->
+      <div style="background:linear-gradient(180deg,#1e0a4e,#4a1fa8);border-radius:12px;padding:2rem;display:flex;flex-direction:column;justify-content:space-between">
+        <div>
+          <div style="font-size:3rem;margin-bottom:1rem">👨‍🎨</div>
+          <div style="color:rgba(255,255,255,0.7);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.5rem">Meet The Makers</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;color:white;line-height:1.2;margin-bottom:1rem">Monastir & Ksar Hellal Artisans</div>
+          <p style="color:rgba(255,255,255,0.65);font-size:0.78rem;line-height:1.6">Every product handcrafted with 500 years of Tunisian tradition</p>
+        </div>
+        <button onclick="showPage('about')" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.3);padding:0.6rem 1.2rem;border-radius:8px;font-size:0.8rem;cursor:pointer;font-family:inherit;margin-top:1.5rem">Learn More →</button>
+      </div>
+      <!-- New arrivals -->
+      <div style="background:white;border-radius:12px;padding:1.5rem;box-shadow:0 1px 4px rgba(74,31,168,0.08)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem">
+          <h2 style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;color:#1e0a4e;font-weight:500">✨ New Arrivals</h2>
+          <button onclick="showPage('products')" style="color:#7c3aed;background:none;border:none;font-size:0.82rem;cursor:pointer;font-family:inherit;font-weight:600">View All →</button>
+        </div>
+        <div id="home-new-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem"></div>
+      </div>
+    </div>
+
+    <!-- FREE SHIPPING BANNER -->
+    <div style="background:white;border-radius:12px;padding:1.2rem 2rem;margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-around;flex-wrap:wrap;gap:1rem;box-shadow:0 1px 4px rgba(74,31,168,0.08)">
       <div style="display:flex;align-items:center;gap:0.8rem">
-        <div class="flash-timer">
-          <div class="timer-block"><div class="timer-num flash-h">05</div><div class="timer-label">Hrs</div></div>
-          <div class="timer-sep">:</div>
-          <div class="timer-block"><div class="timer-num flash-m">30</div><div class="timer-label">Min</div></div>
-          <div class="timer-sep">:</div>
-          <div class="timer-block"><div class="timer-num flash-s">00</div><div class="timer-label">Sec</div></div>
-        </div>
-        <button class="btn btn-gold" data-lang="flash-btn" onclick="showPage('products')">Shop Now →</button>
+        <span style="font-size:1.8rem">🚚</span>
+        <div><div style="font-weight:700;color:#1e0a4e;font-size:0.9rem">Free Delivery</div><div style="color:#7b72a8;font-size:0.75rem">Orders over 500 TND</div></div>
+      </div>
+      <div style="width:1px;height:40px;background:#f0eeff"></div>
+      <div style="display:flex;align-items:center;gap:0.8rem">
+        <span style="font-size:1.8rem">↩️</span>
+        <div><div style="font-weight:700;color:#1e0a4e;font-size:0.9rem">30-Day Returns</div><div style="color:#7b72a8;font-size:0.75rem">No questions asked</div></div>
+      </div>
+      <div style="width:1px;height:40px;background:#f0eeff"></div>
+      <div style="display:flex;align-items:center;gap:0.8rem">
+        <span style="font-size:1.8rem">✓</span>
+        <div><div style="font-weight:700;color:#1e0a4e;font-size:0.9rem">Certified Artisans</div><div style="color:#7b72a8;font-size:0.75rem">100% authentic Tunisian</div></div>
+      </div>
+      <div style="width:1px;height:40px;background:#f0eeff"></div>
+      <div style="display:flex;align-items:center;gap:0.8rem">
+        <span style="font-size:1.8rem">💳</span>
+        <div><div style="font-weight:700;color:#1e0a4e;font-size:0.9rem">Cash on Delivery</div><div style="color:#7b72a8;font-size:0.75rem">Pay when you receive</div></div>
       </div>
     </div>
+
   </div>
-
-  <!-- CATEGORIES -->
-  <div class="s">
-    <div class="s-header">
-      <span class="eyebrow reveal">تصفح حسب الفئة · Browse by Category</span>
-      <h2 class="display reveal" style="font-size:clamp(2rem,5vw,3.5rem)">Our <em class="gold-text">Collections</em></h2>
-      <div class="divider center wide reveal"></div>
-    </div>
-    <div class="grid-5 reveal" style="max-width:1100px;margin:0 auto">
-      <div class="cat-card" onclick="filterAndGo('furniture')"><div class="cat-icon">🛋</div><div class="cat-name">Furniture · أثاث</div></div>
-      <div class="cat-card" onclick="filterAndGo('lighting')"><div class="cat-icon">💡</div><div class="cat-name">Lighting · إنارة</div></div>
-      <div class="cat-card" onclick="filterAndGo('decor')"><div class="cat-icon">🎨</div><div class="cat-name">Art & Decor</div></div>
-      <div class="cat-card" onclick="filterAndGo('ceramics')"><div class="cat-icon">🍽</div><div class="cat-name">Ceramics · فخار</div></div>
-      <div class="cat-card" onclick="filterAndGo('bedroom')"><div class="cat-icon">🛏</div><div class="cat-name">Bedroom · غرفة</div></div>
-      <div class="cat-card" onclick="filterAndGo('outdoor')"><div class="cat-icon">🌿</div><div class="cat-name">Outdoor · خارجي</div></div>
-      <div class="cat-card" onclick="filterAndGo('fragrance')"><div class="cat-icon">🧴</div><div class="cat-name">Fragrance · عطور</div></div>
-      <div class="cat-card" onclick="showPage('carpenter')"><div class="cat-icon">🪵</div><div class="cat-name">Sur Mesure</div></div>
-    </div>
-  </div>
-
-
-  <!-- FEATURED PRODUCTS -->
-  <div class="s" style="background:var(--bg-1);border-top:1px solid rgba(107,63,212,0.12);padding:4rem 5%">
-    <div class="s-header">
-      <span class="eyebrow reveal">منتجات مميزة · Featured</span>
-      <h2 class="display reveal" style="font-size:clamp(2rem,5vw,3.5rem)">Trending <em class="gold-text">Products</em></h2>
-      <div class="divider center reveal"></div>
-    </div>
-    <div class="grid-auto" id="home-featured-grid"></div>
-    <div style="text-align:center;margin-top:3rem"><button class="btn btn-ghost" onclick="showPage('products')">View All Collections →</button></div>
-  </div>
-
-  <!-- SAHEL ARTISAN CTA -->
-  <div class="s-full reveal" style="background:linear-gradient(135deg,var(--purple-deep),var(--purple-main));border-top:1px solid rgba(107,63,212,0.12);border-bottom:1px solid rgba(107,63,212,0.12);padding:5rem 5%">
-    <div style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:5rem;align-items:center">
-      <div>
-        <span class="eyebrow" style="color:rgba(255,255,255,0.7)">حرفيون معتمدون · Certified Artisans</span>
-        <h2 class="display" style="font-size:clamp(2rem,5vw,3.8rem);margin-bottom:1.2rem;color:white">Your Vision,<br/><em class="gold-text">Masterfully<br/>Crafted</em></h2>
-        <div class="divider"></div>
-        <p class="body" style="margin:1.5rem 0 1rem;color:rgba(255,255,255,0.75)">Connect directly with Tunisia's master craftsmen from Monastir, Ksar Hellal, and Nabeul for fully bespoke furniture.</p>
-        <ul style="display:flex;flex-direction:column;gap:0.7rem;margin-bottom:2rem">
-          <li style="display:flex;gap:0.8rem;font-size:0.83rem;color:var(--champagne);align-items:flex-start"><span style="color:var(--gold);margin-top:1px">◆</span>Custom dimensions for any space</li>
-          <li style="display:flex;gap:0.8rem;font-size:0.83rem;color:var(--champagne);align-items:flex-start"><span style="color:var(--gold);margin-top:1px">◆</span>Premium Tunisian walnut, olive wood &amp; more</li>
-          <li style="display:flex;gap:0.8rem;font-size:0.83rem;color:var(--champagne);align-items:flex-start"><span style="color:var(--gold);margin-top:1px">◆</span>Free white-glove delivery in Sahel region</li>
-          <li style="display:flex;gap:0.8rem;font-size:0.83rem;color:var(--champagne);align-items:flex-start"><span style="color:var(--gold);margin-top:1px">◆</span>10-year craftsmanship warranty</li>
-        </ul>
-        <div style="display:flex;gap:1rem;flex-wrap:wrap">
-          <button class="btn btn-gold btn-lg" onclick="showPage('carpenter')">Start Your Request →</button>
-          <button class="btn btn-ghost" onclick="showPage('about')">Meet the Artisans</button>
-        </div>
-      </div>
-      <div style="position:relative">
-        <div style="aspect-ratio:4/3;border-radius:var(--radius-xl);background:linear-gradient(135deg,var(--purple-pale,#ede8ff),var(--bg-3,#e8e4ff));border:1px solid rgba(124,58,237,0.1);display:flex;align-items:center;justify-content:center;font-size:8rem">🪵</div>
-        <div style="position:absolute;bottom:-1.5rem;right:-1.5rem;background:linear-gradient(135deg,var(--gold),var(--gold-mid));color:var(--bg-0);padding:1.2rem 1.8rem;border-radius:var(--radius);box-shadow:0 12px 40px rgba(0,0,0,0.5)">
-          <div style="font-family:var(--font-display);font-size:1.5rem;font-weight:300;line-height:1">Bespoke</div>
-          <div style="font-size:0.62rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin-top:0.2rem">Made to Order</div>
-        </div>
-        <div style="position:absolute;top:-1rem;left:-1rem;background:#ffffff;border:1px solid rgba(107,63,212,0.12);padding:0.8rem 1.2rem;border-radius:var(--radius-sm);backdrop-filter:blur(20px)">
-          <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.1em">Avg. Lead Time</div>
-          <div style="font-family:var(--font-display);font-size:1.2rem;color:var(--champagne)">4–6 Weeks</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- FOOTER -->
-  <footer>
-    <div class="footer-grid">
-      <div>
-        <div class="nav-logo" style="display:inline-block;margin-bottom:1rem;font-size:1.4rem;color:white">Shopping</div>
-        <p class="body" style="max-width:260px;font-size:0.8rem;margin-bottom:1.2rem;color:rgba(255,255,255,0.55)">Tunisia's premium digital marketplace bridging local artisans with the world. Sahel region focus — global ambition.</p>
-        <div style="font-size:0.72rem;color:var(--text-muted)">📍 Monastir, Sahel, Tunisia 🇹🇳</div>
-        <div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.3rem">✉️ <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="553d3039393a15263d3a25253c3b327b213b">[email&#160;protected]</a></div>
-      </div>
-      <div>
-        <h4 style="font-size:0.62rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--gold);margin-bottom:1.2rem">Collections</h4>
-        <a class="footer-link" onclick="filterAndGo('furniture')">Furniture · أثاث</a>
-        <a class="footer-link" onclick="filterAndGo('lighting')">Lighting · إنارة</a>
-        <a class="footer-link" onclick="filterAndGo('decor')">Art &amp; Decor</a>
-        <a class="footer-link" onclick="filterAndGo('ceramics')">Ceramics · فخار</a>
-        <a class="footer-link" onclick="filterAndGo('bedroom')">Bedroom · غرفة</a>
-      </div>
-      <div>
-        <h4 style="font-size:0.62rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--gold);margin-bottom:1.2rem">Services</h4>
-        <a class="footer-link" onclick="showPage('carpenter')">Sur Mesure</a>
-        <a class="footer-link" onclick="showPage('track')">Track Order</a>
-        <a class="footer-link" onclick="showPage('vendor')">Sell With Us</a>
-        <a class="footer-link" onclick="showPage('loyalty')">Loyalty Rewards</a>
-        <a class="footer-link" onclick="showPage('about')">About Us</a>
-      </div>
-      <div>
-        <h4 style="font-size:0.62rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--gold);margin-bottom:1.2rem">Account</h4>
-        <a class="footer-link" onclick="showPage('auth')">Sign In</a>
-        <a class="footer-link" onclick="showPage('auth');setTimeout(()=>switchAuthTab('register'),200)">Register</a>
-        <a class="footer-link" onclick="showPage('wishlist')">Wishlist</a>
-        <a class="footer-link" onclick="showPage('admin')">Admin Panel</a>
-        <a class="footer-link" onclick="showPage('vendor')">Vendor Portal</a>
-      </div>
-    </div>
-    <div class="footer-bottom">
-      <p style="font-size:0.7rem;color:var(--text-muted)">© 2025–2026 Shopping — All rights reserved. صنعة تونسية</p>
-      <p style="font-size:0.62rem;color:var(--gold);letter-spacing:0.1em">CRAFTED IN TUNISIA ◆ DELIVERED WITH PRIDE</p>
-    </div>
-  </footer>
 </div>
 
-<!-- ════════════════════════════════ -->
-<!-- PAGE: PRODUCTS                   -->
-<!-- ════════════════════════════════ -->
 <div class="page" id="page-products">
   <div class="s" style="padding-top:5rem">
     <div style="margin-bottom:3rem">

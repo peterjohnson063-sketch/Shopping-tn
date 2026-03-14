@@ -831,9 +831,24 @@ function logout() {
 
 // ── HOME ──
 function renderHome() {
-  const featured = State.products.slice(0, 6);
+  const products = State.products;
+  
+  // Featured - first 8
   const grid = document.getElementById('home-featured-grid');
-  if (grid) grid.innerHTML = featured.map(productCardHTML).join('');
+  if (grid) grid.innerHTML = products.slice(0, 8).map(productCardHTML).join('');
+  
+  // Best sellers - sort by reviews
+  const bsGrid = document.getElementById('home-bestsellers-grid');
+  if (bsGrid) {
+    const bs = [...products].sort((a,b) => b.reviews - a.reviews).slice(0, 8);
+    bsGrid.innerHTML = bs.map(productCardHTML).join('');
+  }
+  
+  // New arrivals - last 6
+  const newGrid = document.getElementById('home-new-grid');
+  if (newGrid) newGrid.innerHTML = products.slice(-6).map(productCardHTML).join('');
+  
+  startFlashTimer();
   initReveal();
 }
 
