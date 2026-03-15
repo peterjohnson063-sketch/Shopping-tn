@@ -1,3 +1,4 @@
+
 // ═══════════════════════════════════════════════
 // SHOPPING — MAIN APPLICATION ENGINE
 // ═══════════════════════════════════════════════
@@ -89,15 +90,20 @@ function initNav() {
 }
 
 function updateNavUser() {
-  const btn = document.getElementById('nav-user-area');
+  var btn = document.getElementById('nav-user-area');
   if (!btn) return;
   if (State.currentUser) {
-    const role = State.currentUser.role;
-    const page = role === 'admin' ? 'admin' : role === 'vendor' ? 'vendor' : 'account';
-    const label = role === 'admin' ? '⚙️ Admin' : role === 'vendor' ? '🏪 Dashboard' : State.currentUser.firstName;
-    btn.innerHTML = `<button class="nav-user-btn btn" onclick="showPage('${page}')"><span>${State.currentUser.avatar || '👤'}</span><span>${label}</span></button>`;
+    var role = State.currentUser.role;
+    var name = State.currentUser.first_name || State.currentUser.firstName || '';
+    if (role === 'admin') {
+      btn.innerHTML = '<button onclick="showPage(\'admin\')" style="background:linear-gradient(135deg,#7c3aed,#4a1fa8);color:white;border:none;padding:0.5rem 1.2rem;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:Outfit,sans-serif;display:flex;align-items:center;gap:0.5rem">&#9881; Admin Dashboard</button>';
+    } else if (role === 'vendor') {
+      btn.innerHTML = '<button onclick="showPage(\'vendor\')" style="background:linear-gradient(135deg,#059669,#047857);color:white;border:none;padding:0.5rem 1.2rem;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:Outfit,sans-serif;display:flex;align-items:center;gap:0.5rem">&#127978; My Dashboard</button>';
+    } else {
+      btn.innerHTML = '<button onclick="showPage(\'account\')" style="background:white;color:#374151;border:1px solid #e5e7eb;padding:0.5rem 1.2rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif;display:flex;align-items:center;gap:0.5rem">&#128100; ' + name + '</button>';
+    }
   } else {
-    btn.innerHTML = `<button class="btn btn-gold btn-sm" onclick="showPage('auth')">Sign In</button>`;
+    btn.innerHTML = '<button onclick="showPage(\'auth\')" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.5rem 1.2rem;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:Outfit,sans-serif">Sign In</button>';
   }
 }
 
@@ -1095,11 +1101,10 @@ function renderAdmin() {
 
 function buildAdminHTML() {
   var tabs = [
-    {id:'overview', label:'Overview'},
-    {id:'orders', label:'Orders'},
-    {id:'products', label:'Products'},
-    {id:'users', label:'Customers'},
-    {id:'vendors', label:'Vendors'}
+    {id:'overview', label:'&#128202; Overview'},
+    {id:'orders', label:'&#129534; Orders'},
+    {id:'users', label:'&#128101; Customers'},
+    {id:'vendors', label:'&#127978; Vendors'}
   ];
   var tabsHTML = tabs.map(function(t) {
     return '<button id="adm-nav-'+t.id+'" onclick="switchAdmin(\'' + t.id + '\')" style="background:none;border:none;border-bottom:2px solid transparent;padding:0.875rem 1.25rem;cursor:pointer;font-size:0.875rem;font-weight:500;color:#6b7280;font-family:Outfit,sans-serif;white-space:nowrap;transition:all 0.15s">'+t.label+'</button>';
@@ -1827,3 +1832,4 @@ function homeSearch() {
 
 // ── START ──
 document.addEventListener('DOMContentLoaded', init);
+
