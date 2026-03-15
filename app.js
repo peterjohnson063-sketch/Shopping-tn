@@ -1,3 +1,4 @@
+
 // ═══════════════════════════════════════════════
 // SHOPPING — MAIN APPLICATION ENGINE
 // ═══════════════════════════════════════════════
@@ -1850,3 +1851,4 @@ function homeSearch() {
 
 // ── START ──
 document.addEventListener('DOMContentLoaded', init);
+
