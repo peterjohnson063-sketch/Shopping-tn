@@ -1,4 +1,3 @@
-
 // ═══════════════════════════════════════════════
 // SHOPPING — MAIN APPLICATION ENGINE
 // ═══════════════════════════════════════════════
@@ -1095,41 +1094,38 @@ function renderAdmin() {
 }
 
 function buildAdminHTML() {
-  return `<div style="display:flex;min-height:100vh;background:#f9fafb;font-family:'Outfit',sans-serif">
-    <!-- SIDEBAR -->
-    <div style="width:240px;flex-shrink:0;background:white;border-right:1px solid #e5e7eb;display:flex;flex-direction:column;position:sticky;top:64px;height:calc(100vh - 64px);overflow-y:auto">
-      <div style="padding:1.5rem 1rem 1rem">
-        <div style="font-size:0.65rem;font-weight:700;color:#9ca3af;letter-spacing:0.1em;text-transform:uppercase;padding:0 0.5rem;margin-bottom:0.5rem">Main Menu</div>
-        ${['overview:📊:Overview','orders:🧾:Orders','products:📦:Products','users:👥:Customers','vendors:🏪:Vendors'].map(s => {
-          const [id,icon,label] = s.split(':');
-          return `<div id="adm-nav-${id}" onclick="switchAdmin('${id}')" style="display:flex;align-items:center;gap:0.75rem;padding:0.7rem 0.8rem;border-radius:8px;cursor:pointer;margin-bottom:0.2rem;color:#374151;font-size:0.875rem;transition:all 0.15s" onmouseover="if(!this.classList.contains('adm-active'))this.style.background='#f3f4f6'" onmouseout="if(!this.classList.contains('adm-active'))this.style.background=''">${icon} ${label}</div>`;
-        }).join('')}
-      </div>
-      <div style="margin-top:auto;padding:1rem;border-top:1px solid #e5e7eb">
-        <div style="display:flex;align-items:center;gap:0.75rem;padding:0.7rem;background:#f9fafb;border-radius:8px">
-          <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#9b72f0);display:flex;align-items:center;justify-content:center;color:white;font-size:0.8rem;font-weight:700">A</div>
-          <div><div style="font-size:0.8rem;font-weight:600;color:#111827">Admin</div><div style="font-size:0.7rem;color:#6b7280">Super Admin</div></div>
-        </div>
-      </div>
-    </div>
-    <!-- CONTENT -->
-    <div style="flex:1;padding:2rem;min-width:0" id="admin-content"></div>
-  </div>`;
+  var tabs = [
+    {id:'overview', label:'Overview'},
+    {id:'orders', label:'Orders'},
+    {id:'products', label:'Products'},
+    {id:'users', label:'Customers'},
+    {id:'vendors', label:'Vendors'}
+  ];
+  var tabsHTML = tabs.map(function(t) {
+    return '<button id="adm-nav-'+t.id+'" onclick="switchAdmin(\'' + t.id + '\')" style="background:none;border:none;border-bottom:2px solid transparent;padding:0.875rem 1.25rem;cursor:pointer;font-size:0.875rem;font-weight:500;color:#6b7280;font-family:Outfit,sans-serif;white-space:nowrap;transition:all 0.15s">'+t.label+'</button>';
+  }).join('');
+  return '<div style="background:#f9fafb;min-height:100vh">'
+    + '<div style="background:white;border-bottom:2px solid #e5e7eb;padding:0 2rem;display:flex;align-items:center;gap:1rem;overflow-x:auto">'
+    + '<span style="font-size:0.9rem;font-weight:700;color:#7c3aed;padding:0.875rem 0;margin-right:0.5rem;white-space:nowrap;flex-shrink:0">&#9881; Admin Panel</span>'
+    + '<div style="display:flex;flex:1">' + tabsHTML + '</div>'
+    + '</div>'
+    + '<div style="padding:2rem" id="admin-content"></div>'
+    + '</div>';
 }
 
 function switchAdmin(section) {
-  // Update nav
-  document.querySelectorAll('[id^="adm-nav-"]').forEach(el => {
-    el.style.background = '';
-    el.style.color = '#374151';
-    el.style.fontWeight = '';
+  // Update tabs
+  document.querySelectorAll('[id^="adm-nav-"]').forEach(function(el) {
+    el.style.borderBottomColor = 'transparent';
+    el.style.color = '#6b7280';
+    el.style.fontWeight = '500';
     el.classList.remove('adm-active');
   });
-  const active = document.getElementById('adm-nav-' + section);
+  var active = document.getElementById('adm-nav-' + section);
   if (active) {
-    active.style.background = '#f5f3ff';
+    active.style.borderBottomColor = '#7c3aed';
     active.style.color = '#7c3aed';
-    active.style.fontWeight = '600';
+    active.style.fontWeight = '700';
     active.classList.add('adm-active');
   }
 
@@ -1459,51 +1455,41 @@ function renderVendor() {
 }
 
 function buildVendorHTML() {
-  const u = State.currentUser;
-  return `<div style="display:flex;min-height:100vh;background:#f9fafb;font-family:'Outfit',sans-serif">
-    <!-- SIDEBAR -->
-    <div style="width:240px;flex-shrink:0;background:white;border-right:1px solid #e5e7eb;display:flex;flex-direction:column;position:sticky;top:64px;height:calc(100vh - 64px);overflow-y:auto">
-      <div style="padding:1.25rem 1rem;border-bottom:1px solid #e5e7eb">
-        <div style="display:flex;align-items:center;gap:0.75rem">
-          <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#9b72f0);display:flex;align-items:center;justify-content:center;color:white;font-size:1.2rem">🏪</div>
-          <div>
-            <div style="font-size:0.85rem;font-weight:700;color:#111827">${u.shop_name||u.shopName||'My Shop'}</div>
-            <div style="font-size:0.7rem;color:${u.verified?'#059669':'#d97706'};font-weight:600">${u.verified?'✓ Verified':'⏳ Pending Approval'}</div>
-          </div>
-        </div>
-      </div>
-      <div style="padding:1rem">
-        <div style="font-size:0.65rem;font-weight:700;color:#9ca3af;letter-spacing:0.1em;text-transform:uppercase;padding:0 0.5rem;margin-bottom:0.5rem">Menu</div>
-        ${['overview:📊:Overview','upload:📤:Upload Product','inventory:📦:My Products','orders:🧾:My Orders'].map(s => {
-          const [id,icon,label] = s.split(':');
-          return `<div id="vnd-nav-${id}" onclick="switchVendorSection('${id}')" style="display:flex;align-items:center;gap:0.75rem;padding:0.7rem 0.8rem;border-radius:8px;cursor:pointer;margin-bottom:0.2rem;color:#374151;font-size:0.875rem;transition:all 0.15s" onmouseover="if(!this.classList.contains('vnd-active'))this.style.background='#f3f4f6'" onmouseout="if(!this.classList.contains('vnd-active'))this.style.background=''">${icon} ${label}</div>`;
-        }).join('')}
-      </div>
-      <div style="margin-top:auto;padding:1rem;border-top:1px solid #e5e7eb">
-        <div style="display:flex;align-items:center;gap:0.75rem;padding:0.7rem;background:#f9fafb;border-radius:8px">
-          <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#9b72f0);display:flex;align-items:center;justify-content:center;color:white;font-size:0.8rem;font-weight:700">${(u.first_name||u.firstName||'V')[0].toUpperCase()}</div>
-          <div><div style="font-size:0.8rem;font-weight:600;color:#111827">${u.first_name||u.firstName||'Vendor'}</div><div style="font-size:0.7rem;color:#6b7280">Vendor</div></div>
-        </div>
-      </div>
-    </div>
-    <!-- CONTENT -->
-    <div style="flex:1;padding:2rem;min-width:0" id="vendor-content"></div>
-  </div>`;
+  var u = State.currentUser;
+  var shopName = u.shop_name || u.shopName || 'My Shop';
+  var isVerified = u.verified;
+  var tabs = [
+    {id:'overview', label:'Overview'},
+    {id:'upload', label:'Upload Product'},
+    {id:'inventory', label:'My Products'},
+    {id:'orders', label:'My Orders'}
+  ];
+  var tabsHTML = tabs.map(function(t) {
+    return '<button id="vnd-nav-'+t.id+'" onclick="switchVendorSection(\'' + t.id + '\')" style="background:none;border:none;border-bottom:2px solid transparent;padding:0.875rem 1.25rem;cursor:pointer;font-size:0.875rem;font-weight:500;color:#6b7280;font-family:Outfit,sans-serif;white-space:nowrap;transition:all 0.15s">'+t.label+'</button>';
+  }).join('');
+  return '<div style="background:#f9fafb;min-height:100vh">'
+    + '<div style="background:white;border-bottom:2px solid #e5e7eb;padding:0 2rem;display:flex;align-items:center;gap:1rem;overflow-x:auto">'
+    + '<span style="font-size:0.9rem;font-weight:700;color:#7c3aed;padding:0.875rem 0;margin-right:0.5rem;white-space:nowrap;flex-shrink:0">&#127978; '+shopName+'</span>'
+    + '<span style="font-size:0.7rem;font-weight:600;color:'+(isVerified?'#059669':'#d97706')+';padding:0.2rem 0.6rem;background:'+(isVerified?'#f0fdf4':'#fffbeb')+';border-radius:20px;flex-shrink:0">'+(isVerified?'Verified':'Pending')+'</span>'
+    + '<div style="display:flex;flex:1">' + tabsHTML + '</div>'
+    + '</div>'
+    + '<div style="padding:2rem" id="vendor-content"></div>'
+    + '</div>';
 }
 
 function switchVendorSection(section) {
-  document.querySelectorAll('[id^="vnd-nav-"]').forEach(el => {
-    el.style.background = '';
-    el.style.color = '#374151';
-    el.style.fontWeight = '';
+  document.querySelectorAll('[id^="vnd-nav-"]').forEach(function(el) {
+    el.style.borderBottomColor = 'transparent';
+    el.style.color = '#6b7280';
+    el.style.fontWeight = '500';
     el.classList.remove('vnd-active');
   });
-  const active = document.getElementById('vnd-nav-' + section);
-  if (active) {
-    active.style.background = '#f5f3ff';
-    active.style.color = '#7c3aed';
-    active.style.fontWeight = '600';
-    active.classList.add('vnd-active');
+  var vActive = document.getElementById('vnd-nav-' + section);
+  if (vActive) {
+    vActive.style.borderBottomColor = '#7c3aed';
+    vActive.style.color = '#7c3aed';
+    vActive.style.fontWeight = '700';
+    vActive.classList.add('vnd-active');
   }
 
   const content = document.getElementById('vendor-content');
@@ -1841,4 +1827,3 @@ function homeSearch() {
 
 // ── START ──
 document.addEventListener('DOMContentLoaded', init);
-
