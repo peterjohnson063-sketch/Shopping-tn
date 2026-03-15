@@ -360,14 +360,20 @@ async function submitOrder() {
   btn.disabled = true;
 
   try {
+    // Get shop names from cart items
+    const shopNames = [...new Set(State.cart.map(i => i.brand || i.shopName || 'Shopping').filter(Boolean))].join(', ');
+    
     const order = await SB.createOrder({
       user_id: State.currentUser?.id || null,
+      client_name: fname + ' ' + lname,
       items: State.cart,
       total: getCartTotal(),
       status: 'pending',
       wilaya,
       address,
-      phone
+      phone,
+      shop_names: shopNames,
+      notes: ''
     });
 
     document.getElementById('checkout-modal').remove();
@@ -1217,22 +1223,36 @@ function switchAdmin(section) {
         <div style="margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between">
           <div>
             <h1 style="font-size:1.5rem;font-weight:700;color:#111827">Orders</h1>
-            <p style="color:#6b7280;font-size:0.875rem">${orders.length} total orders</p>
+            <p style="color:#6b7280;font-size:0.875rem">${orders.length} total orders · ${revenue.toLocaleString()} TND total revenue</p>
           </div>
         </div>
         <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
           <div style="overflow-x:auto">
             <table style="width:100%;border-collapse:collapse">
-              <thead><tr style="background:#f9fafb">${['Tracking #','Phone','Wilaya','Items','Total','Status','Action'].map(h=>`<th style="text-align:left;padding:0.875rem 1rem;font-size:0.75rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap">${h}</th>`).join('')}</tr></thead>
-              <tbody>${orders.length===0?'<tr><td colspan="7" style="text-align:center;padding:3rem;color:#9ca3af">No orders yet</td></tr>':orders.reverse().map(o=>`
+              <thead><tr style="background:#f9fafb">${['Tracking #','Client','Shop','Wilaya / Address','Items','Total','Status','Date','Action'].map(h=>`<th style="text-align:left;padding:0.75rem 0.875rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap">${h}</th>`).join('')}</tr></thead>
+              <tbody>${orders.length===0?'<tr><td colspan="9" style="text-align:center;padding:3rem;color:#9ca3af">No orders yet</td></tr>':[...orders].reverse().map(o=>`
                 <tr style="border-top:1px solid #f3f4f6" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
-                  <td style="padding:0.875rem 1rem;font-size:0.8rem;font-weight:600;color:#7c3aed">${o.tracking_number||o.id}</td>
-                  <td style="padding:0.875rem 1rem;font-size:0.8rem;color:#374151">${o.phone||'-'}</td>
-                  <td style="padding:0.875rem 1rem;font-size:0.8rem;color:#374151">${o.wilaya||'-'}</td>
-                  <td style="padding:0.875rem 1rem;font-size:0.8rem;color:#374151">${Array.isArray(o.items)?o.items.length:1} item(s)</td>
-                  <td style="padding:0.875rem 1rem;font-size:0.8rem;font-weight:600;color:#111827">${(o.total||0).toLocaleString()} TND</td>
-                  <td style="padding:0.875rem 1rem"><span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:${o.status==='delivered'?'#dcfce7':o.status==='shipped'?'#dbeafe':'#fef9c3'};color:${o.status==='delivered'?'#166534':o.status==='shipped'?'#1d4ed8':'#92400e'}">${o.status||'pending'}</span></td>
-                  <td style="padding:0.875rem 1rem"><button onclick="advanceOrder('${o.id||o.tracking_number}')" style="background:#f5f3ff;color:#7c3aed;border:1px solid #e9d5ff;padding:0.3rem 0.8rem;border-radius:6px;font-size:0.75rem;cursor:pointer;font-weight:600">Advance →</button></td>
+                  <td style="padding:0.75rem 0.875rem;font-size:0.78rem;font-weight:600;color:#7c3aed;white-space:nowrap">${o.tracking_number||o.id||'-'}</td>
+                  <td style="padding:0.75rem 0.875rem">
+                    <div style="font-size:0.78rem;font-weight:600;color:#111827">${o.client_name||o.phone||'Guest'}</div>
+                    <div style="font-size:0.7rem;color:#9ca3af">${o.phone||''}</div>
+                  </td>
+                  <td style="padding:0.75rem 0.875rem;font-size:0.78rem;color:#374151">${o.shop_names||'Shopping'}</td>
+                  <td style="padding:0.75rem 0.875rem">
+                    <div style="font-size:0.78rem;font-weight:600;color:#374151">${o.wilaya||'-'}</div>
+                    <div style="font-size:0.7rem;color:#9ca3af;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.address||''}</div>
+                  </td>
+                  <td style="padding:0.75rem 0.875rem;font-size:0.78rem;color:#374151">${Array.isArray(o.items)?o.items.map(i=>i.name||'Item').join(', ').substring(0,30)+(o.items.length>1?'...':''):'1 item'}</td>
+                  <td style="padding:0.75rem 0.875rem;font-size:0.78rem;font-weight:700;color:#111827;white-space:nowrap">${(o.total||0).toLocaleString()} TND</td>
+                  <td style="padding:0.75rem 0.875rem">
+                    <span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;white-space:nowrap;background:${o.status==='delivered'?'#dcfce7':o.status==='shipped'?'#dbeafe':o.status==='processing'?'#ede9fe':'#fef9c3'};color:${o.status==='delivered'?'#166534':o.status==='shipped'?'#1d4ed8':o.status==='processing'?'#6d28d9':'#92400e'}">
+                      ${o.status==='delivered'?'✓ Delivered':o.status==='shipped'?'🚚 Shipped':o.status==='processing'?'⚙️ Processing':'⏳ Pending'}
+                    </span>
+                  </td>
+                  <td style="padding:0.75rem 0.875rem;font-size:0.72rem;color:#9ca3af;white-space:nowrap">${o.created_at?new Date(o.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'Today'}</td>
+                  <td style="padding:0.75rem 0.875rem">
+                    <button onclick="advanceOrder('${o.id||o.tracking_number}')" style="background:#f5f3ff;color:#7c3aed;border:1px solid #e9d5ff;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.72rem;cursor:pointer;font-weight:600;white-space:nowrap">Advance →</button>
+                  </td>
                 </tr>`).join('')}
               </tbody>
             </table>
@@ -1275,63 +1295,83 @@ function switchAdmin(section) {
       </div>`;
 
   } else if (section === 'users') {
-    content.innerHTML = `
-      <div>
-        <div style="margin-bottom:1.5rem">
-          <h1 style="font-size:1.5rem;font-weight:700;color:#111827">Customers</h1>
-          <p style="color:#6b7280;font-size:0.875rem">${users.length} registered users</p>
-        </div>
-        <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
-          <div style="overflow-x:auto">
-            <table style="width:100%;border-collapse:collapse">
-              <thead><tr style="background:#f9fafb">${['Customer','Email','Wilaya','Role','Points','Status'].map(h=>`<th style="text-align:left;padding:0.875rem 1rem;font-size:0.75rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em">${h}</th>`).join('')}</tr></thead>
-              <tbody>${users.length===0?'<tr><td colspan="6" style="text-align:center;padding:3rem;color:#9ca3af">No users yet</td></tr>':users.map(u=>`
-                <tr style="border-top:1px solid #f3f4f6" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
-                  <td style="padding:0.875rem 1rem">
-                    <div style="display:flex;align-items:center;gap:0.75rem">
-                      <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#9b72f0);display:flex;align-items:center;justify-content:center;color:white;font-size:0.8rem;font-weight:700">${(u.first_name||u.firstName||'?')[0].toUpperCase()}</div>
-                      <span style="font-size:0.82rem;font-weight:600;color:#111827">${u.first_name||u.firstName||''} ${u.last_name||u.lastName||''}</span>
-                    </div>
-                  </td>
-                  <td style="padding:0.875rem 1rem;font-size:0.8rem;color:#6b7280">${u.email}</td>
-                  <td style="padding:0.875rem 1rem;font-size:0.8rem;color:#374151">${u.wilaya||'-'}</td>
-                  <td style="padding:0.875rem 1rem"><span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:${u.role==='admin'?'#fef3c7':u.role==='vendor'?'#ede9fe':'#f3f4f6'};color:${u.role==='admin'?'#92400e':u.role==='vendor'?'#6d28d9':'#374151'};text-transform:capitalize">${u.role||'customer'}</span></td>
-                  <td style="padding:0.875rem 1rem;font-size:0.8rem;font-weight:600;color:#7c3aed">${(u.points||0).toLocaleString()}</td>
-                  <td style="padding:0.875rem 1rem"><span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:${u.verified?'#dcfce7':'#fef9c3'};color:${u.verified?'#166534':'#92400e'}">${u.verified?'✓ Verified':'Pending'}</span></td>
-                </tr>`).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>`;
-
-  } else if (section === 'vendors') {
-    content.innerHTML = `
-      <div>
-        <div style="margin-bottom:1.5rem">
-          <h1 style="font-size:1.5rem;font-weight:700;color:#111827">Vendors</h1>
-          <p style="color:#6b7280;font-size:0.875rem">${vendors.length} vendors registered</p>
-        </div>
-        <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
-          <div style="overflow-x:auto">
-            <table style="width:100%;border-collapse:collapse">
-              <thead><tr style="background:#f9fafb">${['Vendor','Email','Shop','Wilaya','Status','Action'].map(h=>`<th style="text-align:left;padding:0.875rem 1rem;font-size:0.75rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em">${h}</th>`).join('')}</tr></thead>
-              <tbody>${vendors.length===0?'<tr><td colspan="6" style="text-align:center;padding:3rem;color:#9ca3af">No vendors yet</td></tr>':vendors.map(v=>`
-                <tr style="border-top:1px solid #f3f4f6" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
-                  <td style="padding:0.875rem 1rem;font-size:0.82rem;font-weight:600;color:#111827">${v.first_name||v.firstName||''} ${v.last_name||v.lastName||''}</td>
-                  <td style="padding:0.875rem 1rem;font-size:0.8rem;color:#6b7280">${v.email}</td>
-                  <td style="padding:0.875rem 1rem;font-size:0.8rem;color:#374151">${v.shop_name||v.shopName||'-'}</td>
-                  <td style="padding:0.875rem 1rem;font-size:0.8rem;color:#374151">${v.wilaya||'-'}</td>
-                  <td style="padding:0.875rem 1rem"><span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:${v.verified?'#dcfce7':'#fef9c3'};color:${v.verified?'#166534':'#92400e'}">${v.verified?'✓ Approved':'⏳ Pending'}</span></td>
-                  <td style="padding:0.875rem 1rem">
-                    ${!v.verified?`<button onclick="verifyVendor('${v.id}')" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.3rem 0.8rem;border-radius:6px;font-size:0.75rem;cursor:pointer;font-weight:600">✓ Approve</button>`:'<span style="color:#9ca3af;font-size:0.78rem">Approved</span>'}
-                  </td>
-                </tr>`).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>`;
+    var userRows = users.length === 0
+      ? '<tr><td colspan="7" style="text-align:center;padding:3rem;color:#9ca3af">No users yet</td></tr>'
+      : users.map(function(u) {
+          var isBanned = u.banned;
+          var isTimedOut = u.timeout_until && new Date(u.timeout_until) > new Date();
+          var timeoutLeft = isTimedOut ? Math.ceil((new Date(u.timeout_until)-new Date())/3600000)+'h left' : '';
+          var statusBadge = isBanned
+            ? '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#fee2e2;color:#dc2626">&#128683; Banned</span>'
+            : isTimedOut
+            ? '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#fef3c7;color:#d97706">&#9203; '+timeoutLeft+'</span>'
+            : '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#dcfce7;color:#166534">&#10003; Active</span>';
+          var roleColor = u.role==='admin'?'#92400e':u.role==='vendor'?'#6d28d9':'#374151';
+          var roleBg = u.role==='admin'?'#fef3c7':u.role==='vendor'?'#ede9fe':'#f3f4f6';
+          var actions = u.role === 'admin' ? '<span style="color:#9ca3af;font-size:0.72rem">Admin</span>' : (
+            isBanned
+              ? '<button data-action="unban" data-id="'+u.id+'" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;font-weight:600">Unban</button>'
+              : '<button data-action="timeout" data-id="'+u.id+'" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;font-weight:600;margin-right:0.3rem">&#9203; Timeout</button><button data-action="ban" data-id="'+u.id+'" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;font-weight:600">&#128683; Ban</button>'
+          );
+          return '<tr style="border-top:1px solid #f3f4f6'+(isBanned?';background:#fff5f5':'')+'">' +
+            '<td style="padding:0.75rem 1rem"><div style="display:flex;align-items:center;gap:0.75rem"><div style="width:32px;height:32px;border-radius:50%;background:'+(isBanned?'#ef4444':'linear-gradient(135deg,#7c3aed,#9b72f0)')+';display:flex;align-items:center;justify-content:center;color:white;font-size:0.8rem;font-weight:700">'+((u.first_name||u.firstName||'?')[0].toUpperCase())+'</div><div><div style="font-size:0.82rem;font-weight:600;color:'+(isBanned?'#ef4444':'#111827')+'">'+(u.first_name||u.firstName||'')+' '+(u.last_name||u.lastName||'')+(isBanned?' &#128683;':'')+'</div>'+(isTimedOut?'<div style="font-size:0.68rem;color:#f59e0b">&#9203; '+timeoutLeft+'</div>':'')+'</div></div></td>' +
+            '<td style="padding:0.75rem 1rem;font-size:0.78rem;color:#6b7280">'+u.email+'</td>' +
+            '<td style="padding:0.75rem 1rem;font-size:0.78rem;color:#374151">'+(u.wilaya||'-')+'</td>' +
+            '<td style="padding:0.75rem 1rem"><span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:'+roleBg+';color:'+roleColor+';text-transform:capitalize">'+(u.role||'customer')+'</span></td>' +
+            '<td style="padding:0.75rem 1rem;font-size:0.78rem;font-weight:600;color:#7c3aed">'+((u.points||0).toLocaleString())+'</td>' +
+            '<td style="padding:0.75rem 1rem">'+statusBadge+'</td>' +
+            '<td style="padding:0.75rem 1rem">'+actions+'</td>' +
+            '</tr>';
+        }).join('');
+    content.innerHTML = '<div><div style="margin-bottom:1.5rem"><h1 style="font-size:1.5rem;font-weight:700;color:#111827">Customers</h1><p style="color:#6b7280;font-size:0.875rem">'+users.length+' users &middot; '+users.filter(function(u){return u.banned;}).length+' banned</p></div><div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f9fafb"><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Customer</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Email</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Wilaya</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Role</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Points</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Status</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Actions</th></tr></thead><tbody>'+userRows+'</tbody></table></div></div></div>';
+    var tbl = content.querySelector('table');
+    if (tbl) tbl.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      var id = btn.dataset.id;
+      if (btn.dataset.action === 'ban') banUser(id);
+      else if (btn.dataset.action === 'timeout') timeoutUser(id);
+      else if (btn.dataset.action === 'unban') unbanUser(id);
+    });
+    } else if (section === 'vendors') {
+    var vendorRows = vendors.length === 0
+      ? '<tr><td colspan="7" style="text-align:center;padding:3rem;color:#9ca3af">No vendors yet</td></tr>'
+      : vendors.map(function(v) {
+          var isBanned = v.banned;
+          var isTimedOut = v.timeout_until && new Date(v.timeout_until) > new Date();
+          var timeoutLeft = isTimedOut ? Math.ceil((new Date(v.timeout_until)-new Date())/3600000)+'h left' : '';
+          var vProds = State.products.filter(function(p){ return p.vendorId===v.id || p.brand===(v.shop_name||v.shopName); }).length;
+          var sb = isBanned ? '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#fee2e2;color:#dc2626">Banned</span>'
+            : isTimedOut ? '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#fef3c7;color:#d97706">Timeout '+timeoutLeft+'</span>'
+            : v.verified ? '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#dcfce7;color:#166534">Approved</span>'
+            : '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#fef9c3;color:#92400e">Pending</span>';
+          var act = '';
+          if (!v.verified && !isBanned) act += '<button data-action="approve" data-id="'+v.id+'" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;margin-right:0.3rem">Approve</button>';
+          act += isBanned
+            ? '<button data-action="unban" data-id="'+v.id+'" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer">Unban</button>'
+            : '<button data-action="timeout" data-id="'+v.id+'" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;margin-right:0.3rem">Timeout</button><button data-action="ban" data-id="'+v.id+'" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer">Ban</button>';
+          return '<tr style="border-top:1px solid #f3f4f6'+(isBanned?';background:#fff5f5':'')+'">'
+            +'<td style="padding:0.75rem 1rem;font-size:0.82rem;font-weight:600;color:'+(isBanned?'#ef4444':'#111827')+'">'+(v.first_name||v.firstName||'')+' '+(v.last_name||v.lastName||'')+(isTimedOut?' <small style="color:#f59e0b">'+timeoutLeft+'</small>':'')+'</td>'
+            +'<td style="padding:0.75rem 1rem;font-size:0.78rem;color:#6b7280">'+v.email+'</td>'
+            +'<td style="padding:0.75rem 1rem;font-size:0.78rem;font-weight:600;color:#374151">'+(v.shop_name||v.shopName||'-')+'</td>'
+            +'<td style="padding:0.75rem 1rem;font-size:0.78rem;color:#374151">'+(v.wilaya||'-')+'</td>'
+            +'<td style="padding:0.75rem 1rem;font-size:0.78rem;font-weight:600;color:#7c3aed">'+vProds+'</td>'
+            +'<td style="padding:0.75rem 1rem">'+sb+'</td>'
+            +'<td style="padding:0.75rem 1rem">'+act+'</td>'
+            +'</tr>';
+        }).join('');
+    content.innerHTML = '<div><div style="margin-bottom:1.5rem"><h1 style="font-size:1.5rem;font-weight:700;color:#111827">Vendors</h1><p style="color:#6b7280;font-size:0.875rem">'+vendors.length+' vendors</p></div><div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f9fafb"><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Vendor</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Email</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Shop</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Wilaya</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Products</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Status</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Actions</th></tr></thead><tbody>'+vendorRows+'</tbody></table></div></div></div>';
+    var vtbl = content.querySelector('table');
+    if (vtbl) vtbl.addEventListener('click', function(e) {
+      var b = e.target.closest('[data-action]');
+      if (!b) return;
+      var id = b.dataset.id, action = b.dataset.action;
+      if (action==='approve') verifyVendor(id);
+      else if (action==='ban') banUser(id);
+      else if (action==='timeout') timeoutUser(id);
+      else if (action==='unban') unbanUser(id);
+    });
+  
   }
 }
 
@@ -1354,6 +1394,59 @@ function verifyVendor(userId) {
   if (idx !== -1) { users[idx].verified = true; STN.DB.set('users', users); }
   toast('Vendor approved!', 'success');
   switchAdmin('vendors');
+}
+
+function banUser(userId) {
+  if (!confirm('Are you sure you want to BAN this user permanently?')) return;
+  const users = STN.DB.get('users') || [];
+  const idx = users.findIndex(u => u.id == userId);
+  if (idx !== -1) {
+    users[idx].banned = true;
+    users[idx].ban_reason = 'Banned by admin';
+    users[idx].banned_at = new Date().toISOString();
+    STN.DB.set('users', users);
+    // If this is the current logged in user, log them out
+    if (State.currentUser && State.currentUser.id == userId) {
+      State.currentUser = null;
+      STN.DB.set('currentUser', null);
+      updateNavUser();
+      showPage('home');
+    }
+    toast('User banned!', 'success');
+  }
+  const activeSection = document.querySelector('[id^="adm-nav-"].adm-active')?.id?.replace('adm-nav-', '') || 'users';
+  switchAdmin(activeSection);
+}
+
+function timeoutUser(userId) {
+  const hours = prompt('Timeout duration in hours? (e.g. 24, 48, 72)', '24');
+  if (!hours) return;
+  const h = parseInt(hours);
+  if (isNaN(h) || h <= 0) { toast('Invalid duration', 'error'); return; }
+  const users = STN.DB.get('users') || [];
+  const idx = users.findIndex(u => u.id == userId);
+  if (idx !== -1) {
+    const until = new Date(Date.now() + h * 3600000).toISOString();
+    users[idx].timeout_until = until;
+    users[idx].timeout_hours = h;
+    STN.DB.set('users', users);
+    toast('User timed out for ' + h + ' hours!', 'success');
+  }
+  const activeSection = document.querySelector('[id^="adm-nav-"].adm-active')?.id?.replace('adm-nav-', '') || 'users';
+  switchAdmin(activeSection);
+}
+
+function unbanUser(userId) {
+  const users = STN.DB.get('users') || [];
+  const idx = users.findIndex(u => u.id == userId);
+  if (idx !== -1) {
+    users[idx].banned = false;
+    users[idx].timeout_until = null;
+    STN.DB.set('users', users);
+    toast('User unbanned!', 'success');
+  }
+  const activeSection = document.querySelector('[id^="adm-nav-"].adm-active')?.id?.replace('adm-nav-', '') || 'users';
+  switchAdmin(activeSection);
 }
 
 // ── VENDOR DASHBOARD ──
