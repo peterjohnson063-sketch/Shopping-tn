@@ -1591,38 +1591,65 @@ function switchVendorSection(section) {
   const myRevenue = myProds.reduce((s,p) => s + p.price, 0);
 
   if (section === 'overview') {
-    content.innerHTML = `
-      <div>
-        <div style="margin-bottom:2rem">
-          <h1 style="font-size:1.5rem;font-weight:700;color:#111827">Welcome back, ${u.first_name||u.firstName||'Vendor'}! 👋</h1>
-          <p style="color:#6b7280;font-size:0.875rem">Here's your shop overview</p>
-        </div>
-        <!-- KPIs -->
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-bottom:2rem">
-          ${[
-            {label:'My Products',value:myProds.length,icon:'📦',color:'#7c3aed',bg:'#f5f3ff'},
-            {label:'Total Orders',value:orders.length,icon:'🧾',color:'#2563eb',bg:'#eff6ff'},
-            {label:'Shop Status',value:u.verified?'✓ Live':'Pending',icon:'🏪',color:u.verified?'#059669':'#d97706',bg:u.verified?'#f0fdf4':'#fffbeb'}
-          ].map(k=>`
-            <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.5rem">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
-                <div style="width:40px;height:40px;background:${k.bg};border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem">${k.icon}</div>
-              </div>
-              <div style="font-size:1.75rem;font-weight:700;color:${k.color};margin-bottom:0.25rem">${k.value}</div>
-              <div style="font-size:0.8rem;color:#6b7280">${k.label}</div>
-            </div>`).join('')}
-        </div>
-        <!-- Quick actions -->
-        <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.5rem;margin-bottom:1.5rem">
-          <h3 style="font-size:0.95rem;font-weight:600;color:#111827;margin-bottom:1.2rem">Quick Actions</h3>
-          <div style="display:flex;gap:1rem;flex-wrap:wrap">
-            <button onclick="switchVendorSection('upload')" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.7rem 1.5rem;border-radius:8px;font-size:0.875rem;font-weight:600;cursor:pointer;font-family:inherit">+ Upload Product</button>
-            <button onclick="switchVendorSection('inventory')" style="background:#f5f3ff;color:#7c3aed;border:1px solid #e9d5ff;padding:0.7rem 1.5rem;border-radius:8px;font-size:0.875rem;font-weight:600;cursor:pointer;font-family:inherit">📦 My Products</button>
-            <button onclick="showPage('products')" style="background:#f9fafb;color:#374151;border:1px solid #e5e7eb;padding:0.7rem 1.5rem;border-radius:8px;font-size:0.875rem;font-weight:600;cursor:pointer;font-family:inherit">🛍️ View Store</button>
-          </div>
-        </div>
-        ${!u.verified?`<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:1.25rem;display:flex;align-items:center;gap:1rem"><span style="font-size:1.5rem">⏳</span><div><div style="font-weight:600;color:#92400e;font-size:0.875rem">Awaiting Approval</div><div style="color:#a16207;font-size:0.8rem">Your shop is under review. Products will go live once approved by admin.</div></div></div>`:''}
-      </div>`;
+
+    var pendingOrds = orders.filter(function(o){ return o.status==='pending'; }).length;
+    var totalRev = orders.reduce(function(s,o){ return s+(o.total||0); }, 0);
+    var recentOrds = [...orders].reverse().slice(0,5);
+    var today = new Date().toLocaleDateString('en-GB', {weekday:'long',day:'numeric',month:'long'});
+    var statusColor = u.verified ? '#059669' : '#d97706';
+    var statusBg = u.verified ? 'linear-gradient(135deg,#059669,#047857)' : 'linear-gradient(135deg,#d97706,#b45309)';
+    var statusText = u.verified ? '&#9989; Live' : '&#9203; Pending';
+    var statusDesc = u.verified ? 'Products visible to customers' : 'Waiting for admin approval';
+    
+    var recentHTML = recentOrds.length === 0
+      ? '<p style="text-align:center;color:#9ca3af;padding:2rem">No orders yet</p>'
+      : recentOrds.map(function(o){
+          var sc = o.status==='delivered'?'#dcfce7':o.status==='ready'?'#dbeafe':'#fef9c3';
+          var st = o.status==='delivered'?'#166534':o.status==='ready'?'#1d4ed8':'#92400e';
+          return '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 0;border-bottom:1px solid #f3f4f6">'
+            +'<div><div style="font-size:0.82rem;font-weight:600;color:#111827">'+(o.tracking_number||o.id)+'</div><div style="font-size:0.72rem;color:#9ca3af">'+(o.notes||o.phone||'Guest')+'</div></div>'
+            +'<div style="text-align:right"><div style="font-size:0.82rem;font-weight:700">'+(o.total||0).toLocaleString()+' TND</div>'
+            +'<span style="font-size:0.7rem;padding:0.15rem 0.5rem;border-radius:20px;background:'+sc+';color:'+st+'">'+(o.status||'pending')+'</span></div>'
+            +'</div>';
+        }).join('');
+
+    var html = '<div>'
+      +'<div style="margin-bottom:1.5rem"><h1 style="font-size:1.5rem;font-weight:700;color:#111827">Welcome back, '+(u.first_name||u.firstName||'Vendor')+'! &#128075;</h1>'
+      +'<p style="color:#6b7280;font-size:0.875rem">'+today+'</p></div>'
+      +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem">'
+      +'<div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.25rem"><div style="font-size:0.78rem;color:#6b7280;margin-bottom:0.5rem">Products</div><div style="font-size:1.8rem;font-weight:700;color:#7c3aed">'+myProds.length+'</div></div>'
+      +'<div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.25rem"><div style="font-size:0.78rem;color:#6b7280;margin-bottom:0.5rem">Total Orders</div><div style="font-size:1.8rem;font-weight:700;color:#2563eb">'+orders.length+'</div></div>'
+      +'<div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.25rem"><div style="font-size:0.78rem;color:#6b7280;margin-bottom:0.5rem">Pending</div><div style="font-size:1.8rem;font-weight:700;color:#d97706">'+pendingOrds+'</div></div>'
+      +'<div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.25rem"><div style="font-size:0.78rem;color:#6b7280;margin-bottom:0.5rem">Revenue</div><div style="font-size:1.4rem;font-weight:700;color:#059669">'+totalRev.toLocaleString()+' TND</div></div>'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 280px;gap:1.5rem">'
+      +'<div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.5rem">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem"><h3 style="font-size:0.95rem;font-weight:600;color:#111827">Recent Orders</h3>'
+      +'<button data-action="view-orders" style="color:#7c3aed;background:none;border:none;font-size:0.8rem;cursor:pointer;font-weight:600">View All</button></div>'
+      +recentHTML+'</div>'
+      +'<div style="display:flex;flex-direction:column;gap:1rem">'
+      +'<div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.25rem">'
+      +'<h3 style="font-size:0.9rem;font-weight:600;color:#111827;margin-bottom:0.875rem">Quick Actions</h3>'
+      +'<button data-action="upload" style="width:100%;background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.65rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif;margin-bottom:0.5rem;display:block">+ Upload Product</button>'
+      +'<button data-action="view-orders" style="width:100%;background:#f5f3ff;color:#7c3aed;border:1px solid #e9d5ff;padding:0.65rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif;margin-bottom:0.5rem;display:block">View Orders</button>'
+      +'<button data-action="view-store" style="width:100%;background:#f9fafb;color:#374151;border:1px solid #e5e7eb;padding:0.65rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif;display:block">View Store</button>'
+      +'</div>'
+      +'<div style="background:'+statusBg+';border-radius:12px;padding:1.25rem;color:white">'
+      +'<div style="font-size:0.72rem;opacity:0.8;margin-bottom:0.3rem">Shop Status</div>'
+      +'<div style="font-size:1.2rem;font-weight:700;margin-bottom:0.4rem">'+statusText+'</div>'
+      +'<div style="font-size:0.75rem;opacity:0.8">'+statusDesc+'</div>'
+      +'</div>'
+      +'</div></div></div>';
+    
+    content.innerHTML = html;
+    content.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      var a = btn.dataset.action;
+      if (a === 'upload') switchVendorSection('upload');
+      else if (a === 'view-orders') switchVendorSection('orders');
+      else if (a === 'view-store') showPage('products');
+    });
 
   } else if (section === 'upload') {
     content.innerHTML = `
@@ -1879,11 +1906,11 @@ function uploadProduct() {
 
   if (!title || !brand || !desc || !price || !stock) { toast('⚠️ Please fill all required fields', 'error'); return; }
 
-  const emojis = {furniture:'🪑',lighting:'🔦',decor:'🎭',ceramics:'🏺',bedroom:'🛌',outdoor:'🌳'};
+  const emojis = {sofa:'🛋️',rug:'🏺',lighting:'💡',ceramic:'🏺',bedroom:'🛏️',outdoor:'🌿',fragrance:'🧴',decor:'🎭',furniture:'🪑'};
   const newProduct = {
     id: Date.now(),
     name: title,
-    brand: State.currentUser?.shopName || brand,
+    brand: State.currentUser?.shop_name || State.currentUser?.shopName || brand,
     vendorId: State.currentUser?.id,
     region: State.currentUser?.wilaya || 'Tunisia',
     cat,
@@ -1894,14 +1921,14 @@ function uploadProduct() {
     badge: badge || null,
     emoji: emojis[cat] || '🎁',
     image: document.getElementById('vp-image-url')?.value || null,
-    verified: false,
+    verified: true,
     stock,
     desc
   };
 
   State.products.push(newProduct);
   STN.DB.set('products', State.products);
-  toast(`✦ Product "${title}" uploaded! Pending admin verification.`, 'success');
+  toast('Product uploaded and live in collections!', 'success');
   switchVendorSection('inventory');
 }
 
