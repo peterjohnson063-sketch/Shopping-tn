@@ -1,3 +1,4 @@
+
 // ═══════════════════════════════════════════════
 // SHOPPING — MAIN APPLICATION ENGINE
 // ═══════════════════════════════════════════════
@@ -1700,31 +1701,122 @@ function switchVendorSection(section) {
       </div>`;
 
   } else if (section === 'orders') {
-    content.innerHTML = `
-      <div>
-        <div style="margin-bottom:1.5rem">
-          <h1 style="font-size:1.5rem;font-weight:700;color:#111827">My Orders</h1>
-          <p style="color:#6b7280;font-size:0.875rem">${orders.length} orders received</p>
-        </div>
-        <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
-          ${orders.length===0?'<div style="text-align:center;padding:4rem;color:#9ca3af"><div style="font-size:3rem;margin-bottom:1rem">🧾</div><p>No orders yet</p></div>':`
-          <div style="overflow-x:auto">
-            <table style="width:100%;border-collapse:collapse">
-              <thead><tr style="background:#f9fafb">${['Order #','Phone','Total','Status','Date'].map(h=>`<th style="text-align:left;padding:0.875rem 1rem;font-size:0.75rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em">${h}</th>`).join('')}</tr></thead>
-              <tbody>${orders.reverse().map(o=>`
-                <tr style="border-top:1px solid #f3f4f6" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
-                  <td style="padding:0.875rem 1rem;font-size:0.8rem;font-weight:600;color:#7c3aed">${o.tracking_number||o.id}</td>
-                  <td style="padding:0.875rem 1rem;font-size:0.8rem;color:#374151">${o.phone||'-'}</td>
-                  <td style="padding:0.875rem 1rem;font-size:0.875rem;font-weight:600;color:#111827">${(o.total||0).toLocaleString()} TND</td>
-                  <td style="padding:0.875rem 1rem"><span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:${o.status==='delivered'?'#dcfce7':o.status==='shipped'?'#dbeafe':'#fef9c3'};color:${o.status==='delivered'?'#166534':o.status==='shipped'?'#1d4ed8':'#92400e'}">${o.status||'pending'}</span></td>
-                  <td style="padding:0.875rem 1rem;font-size:0.78rem;color:#9ca3af">${o.created_at?new Date(o.created_at).toLocaleDateString():'Today'}</td>
-                </tr>`).join('')}
-              </tbody>
-            </table>
-          </div>`}
-        </div>
-      </div>`;
+    var pendingOrders = orders.filter(function(o){ return o.status === 'pending'; });
+    var processingOrders = orders.filter(function(o){ return o.status === 'processing' || o.status === 'ready'; });
+    var doneOrders = orders.filter(function(o){ return o.status === 'shipped' || o.status === 'delivered'; });
+
+    var orderRows = orders.length === 0
+      ? '<tr><td colspan="7" style="text-align:center;padding:3rem;color:#9ca3af"><div style="font-size:3rem;margin-bottom:1rem">📭</div><p>No orders yet</p></td></tr>'
+      : [...orders].reverse().map(function(o) {
+          var isPending = o.status === 'pending';
+          var isReady = o.status === 'ready';
+          var isProcessing = o.status === 'processing';
+          var isShipped = o.status === 'shipped' || o.status === 'delivered';
+          var statusBadge = isShipped
+            ? '<span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:#dcfce7;color:#166534">✓ '+o.status+'</span>'
+            : isReady
+            ? '<span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:#dbeafe;color:#1d4ed8">📦 Ready</span>'
+            : isProcessing
+            ? '<span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:#ede9fe;color:#6d28d9">⚙️ Processing</span>'
+            : '<span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:#fef9c3;color:#92400e">⏳ New Order</span>';
+
+          var actionBtn = isShipped
+            ? '<span style="color:#9ca3af;font-size:0.75rem">Completed</span>'
+            : isReady
+            ? '<span style="color:#1d4ed8;font-size:0.75rem;font-weight:600">Waiting pickup...</span>'
+            : '<button data-oid="'+o.id+'" data-otrack="'+(o.tracking_number||'')+'" class="vendor-confirm-btn" style="background:linear-gradient(135deg,#059669,#047857);color:white;border:none;padding:0.4rem 1rem;border-radius:8px;font-size:0.78rem;cursor:pointer;font-weight:600">✓ Confirm &amp; Ready</button>';
+
+          var items = Array.isArray(o.items) ? o.items.map(function(i){ return i.name||'Item'; }).join(', ').substring(0,40) : '1 item';
+
+          return '<tr style="border-top:1px solid #f3f4f6;'+(isPending?'background:#fffbeb':'')+'">'
+            +'<td style="padding:0.75rem 1rem;font-size:0.8rem;font-weight:600;color:#7c3aed">'+(o.tracking_number||o.id||'-')+'</td>'
+            +'<td style="padding:0.75rem 1rem"><div style="font-size:0.8rem;font-weight:600;color:#111827">'+(o.notes||o.phone||'Guest')+'</div><div style="font-size:0.72rem;color:#9ca3af">'+(o.phone||'')+'</div></td>'
+            +'<td style="padding:0.75rem 1rem;font-size:0.78rem;color:#374151">'+(o.wilaya||'-')+'</td>'
+            +'<td style="padding:0.75rem 1rem;font-size:0.78rem;color:#374151;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+items+'</td>'
+            +'<td style="padding:0.75rem 1rem;font-size:0.8rem;font-weight:700;color:#111827">'+(o.total||0).toLocaleString()+' TND</td>'
+            +'<td style="padding:0.75rem 1rem">'+statusBadge+'</td>'
+            +'<td style="padding:0.75rem 1rem">'+actionBtn+'</td>'
+            +'</tr>';
+        }).join('');
+
+    content.innerHTML = '<div>'
+      +'<div style="margin-bottom:1.5rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">'
+      +'<div><h1 style="font-size:1.5rem;font-weight:700;color:#111827">My Orders</h1><p style="color:#6b7280;font-size:0.875rem">'+orders.length+' orders · <span style="color:#f59e0b;font-weight:600">'+pendingOrders.length+' new</span></p></div>'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem">'
+      +'<div style="background:white;border:1px solid #fde68a;border-radius:12px;padding:1.25rem;display:flex;align-items:center;gap:1rem"><div style="width:40px;height:40px;background:#fffbeb;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem">⏳</div><div><div style="font-size:1.5rem;font-weight:700;color:#92400e">'+pendingOrders.length+'</div><div style="font-size:0.78rem;color:#6b7280">New Orders</div></div></div>'
+      +'<div style="background:white;border:1px solid #c7d2fe;border-radius:12px;padding:1.25rem;display:flex;align-items:center;gap:1rem"><div style="width:40px;height:40px;background:#ede9fe;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem">📦</div><div><div style="font-size:1.5rem;font-weight:700;color:#6d28d9">'+processingOrders.length+'</div><div style="font-size:0.78rem;color:#6b7280">Processing</div></div></div>'
+      +'<div style="background:white;border:1px solid #bbf7d0;border-radius:12px;padding:1.25rem;display:flex;align-items:center;gap:1rem"><div style="width:40px;height:40px;background:#f0fdf4;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem">✓</div><div><div style="font-size:1.5rem;font-weight:700;color:#166534">'+doneOrders.length+'</div><div style="font-size:0.78rem;color:#6b7280">Completed</div></div></div>'
+      +'</div>'
+      +'<div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">'
+      +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">'
+      +'<thead><tr style="background:#f9fafb"><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Tracking</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Client</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Wilaya</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Items</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Total</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Status</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Action</th></tr></thead>'
+      +'<tbody>'+orderRows+'</tbody></table></div></div></div>';
+
+    // Event delegation for confirm buttons
+    var tbl = content.querySelector('table');
+    if (tbl) tbl.addEventListener('click', function(e) {
+      var btn = e.target.closest('.vendor-confirm-btn');
+      if (!btn) return;
+      vendorConfirmOrder(btn.dataset.oid, btn.dataset.otrack);
+    });
   }
+}
+
+
+function vendorConfirmOrder(orderId, trackingNum) {
+  if (!confirm('Confirm this order is ready for pickup?')) return;
+
+  var orders = STN.DB.get('orders') || [];
+  var idx = orders.findIndex(function(o){ return o.id == orderId || o.tracking_number == trackingNum; });
+  if (idx !== -1) {
+    orders[idx].status = 'ready';
+    STN.DB.set('orders', orders);
+  }
+  if (typeof SB !== 'undefined' && orderId) {
+    SB.updateOrderStatus(orderId, 'ready').catch(function(){});
+  }
+
+  toast('Order confirmed! Ready for pickup.', 'success');
+
+  var order = orders[idx] || {};
+  var msg = '*New Order Ready - Shopping*\n\n'
+    + 'Tracking: ' + (order.tracking_number || trackingNum || orderId) + '\n'
+    + 'Client: ' + (order.notes || order.phone || 'Guest') + '\n'
+    + 'Phone: ' + (order.phone || '-') + '\n'
+    + 'Wilaya: ' + (order.wilaya || '-') + '\n'
+    + 'Address: ' + (order.address || '-') + '\n'
+    + 'Total: ' + ((order.total||0).toLocaleString()) + ' TND';
+
+  var waUrl = 'https://wa.me/?text=' + encodeURIComponent(msg);
+
+  var popup = document.createElement('div');
+  popup.id = 'vendor-confirm-popup';
+  popup.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  var inner = document.createElement('div');
+  inner.style.cssText = 'background:white;border-radius:16px;padding:2rem;max-width:400px;width:100%;text-align:center';
+  inner.innerHTML = '<div style="font-size:2.5rem;margin-bottom:1rem">&#9989;</div>'
+    + '<h3 style="font-size:1.2rem;font-weight:700;color:#111827;margin-bottom:0.5rem">Order Ready!</h3>'
+    + '<p style="color:#6b7280;font-size:0.85rem;margin-bottom:1.5rem">Send order details to delivery man via WhatsApp</p>';
+
+  var waBtn = document.createElement('a');
+  waBtn.href = waUrl;
+  waBtn.target = '_blank';
+  waBtn.style.cssText = 'display:block;background:#25d366;color:white;text-decoration:none;padding:0.875rem;border-radius:8px;font-weight:700;font-size:0.9rem;margin-bottom:0.75rem';
+  waBtn.textContent = 'Send via WhatsApp';
+  inner.appendChild(waBtn);
+
+  var closeBtn = document.createElement('button');
+  closeBtn.style.cssText = 'width:100%;background:none;border:1px solid #e5e7eb;color:#6b7280;padding:0.7rem;border-radius:8px;cursor:pointer;font-family:Outfit,sans-serif';
+  closeBtn.textContent = 'Close';
+  closeBtn.onclick = function() {
+    var p = document.getElementById('vendor-confirm-popup');
+    if (p) p.remove();
+    switchVendorSection('orders');
+  };
+  inner.appendChild(closeBtn);
+  popup.appendChild(inner);
+  document.body.appendChild(popup);
 }
 
 
@@ -1917,3 +2009,4 @@ function homeSearch() {
 
 // ── START ──
 document.addEventListener('DOMContentLoaded', init);
+
