@@ -1,4 +1,3 @@
-
 // ═══════════════════════════════════════════════
 // SHOPPING — MAIN APPLICATION ENGINE
 // ═══════════════════════════════════════════════
@@ -426,15 +425,13 @@ async function submitOrder() {
     
     const order = await SB.createOrder({
       user_id: State.currentUser?.id || null,
-      client_name: fname + ' ' + lname,
       items: State.cart,
       total: getCartTotal(),
       status: 'pending',
       wilaya,
       address,
       phone,
-      shop_names: shopNames,
-      notes: ''
+      notes: fname + ' ' + lname
     });
 
     document.getElementById('checkout-modal').remove();
@@ -1920,4 +1917,3 @@ function homeSearch() {
 
 // ── START ──
 document.addEventListener('DOMContentLoaded', init);
-
