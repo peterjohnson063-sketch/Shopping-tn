@@ -362,6 +362,43 @@ async function checkout() {
   document.body.appendChild(modal);
 }
 
+function showForgotPassword() {
+  var email = document.getElementById('login-email') ? document.getElementById('login-email').value.trim() : '';
+  var modal = document.createElement('div');
+  modal.id = 'forgot-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(30,10,78,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  var html = '<div style="background:white;border-radius:20px;padding:2rem;max-width:400px;width:100%">';
+  html += '<h3 style="font-family:Cormorant Garamond,serif;font-size:1.5rem;color:#1e0a4e;margin-bottom:0.5rem">Reset Password</h3>';
+  html += '<p style="color:#6b7280;font-size:0.85rem;margin-bottom:1.5rem">Enter your email to reset your password.</p>';
+  html += '<input type="email" id="forgot-email" value="' + email + '" placeholder="your@email.com" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.75rem;font-size:0.875rem;margin-bottom:1rem;box-sizing:border-box;font-family:Outfit,sans-serif"/>';
+  html += '<button onclick="submitForgotPassword()" style="width:100%;background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.875rem;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif;margin-bottom:0.75rem">Reset Password</button>';
+  html += '<button onclick="var m=document.getElementById(\'forgot-modal\');if(m)m.remove();" style="width:100%;background:none;border:none;color:#6b7280;font-size:0.85rem;cursor:pointer;font-family:Outfit,sans-serif">Cancel</button>';
+  html += '</div>';
+  modal.innerHTML = html;
+  document.body.appendChild(modal);
+}
+
+function submitForgotPassword() {
+  var emailEl = document.getElementById('forgot-email');
+  var email = emailEl ? emailEl.value.trim() : '';
+  if (!email) { toast('Please enter your email', 'error'); return; }
+  var users = STN.DB.get('users') || [];
+  var user = users.find(function(u){ return u.email === email; });
+  if (!user) { toast('No account found with this email', 'error'); return; }
+  var modal = document.getElementById('forgot-modal');
+  if (modal) modal.remove();
+  var newPass = prompt('Enter your new password (min 8 characters):');
+  if (!newPass || newPass.length < 8) { toast('Password must be at least 8 characters!', 'error'); return; }
+  var confirm = prompt('Confirm new password:');
+  if (newPass !== confirm) { toast('Passwords do not match!', 'error'); return; }
+  var idx = users.findIndex(function(u){ return u.email === email; });
+  if (idx !== -1) {
+    users[idx].password = newPass;
+    STN.DB.set('users', users);
+    toast('Password updated! You can now login.', 'success');
+  }
+}
+
 function closeSuccessModal() {
   const m = document.getElementById('success-modal');
   if (m) m.remove();
@@ -665,7 +702,7 @@ function renderAuth() {
         <input type="password" class="form-input" id="login-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/>
       </div>
       <div style="text-align:right;margin-bottom:1.5rem">
-        <span style="font-size:0.75rem;color:var(--gold);cursor:none">Forgot password?</span>
+        <span style="font-size:0.75rem;color:var(--accent);cursor:pointer;text-decoration:underline" onclick="showForgotPassword()">Forgot password?</span>
       </div>
       <button class="btn btn-gold btn-full btn-lg" onclick="doLogin()">Sign In →</button>
       <div style="margin-top:1.2rem;text-align:center;font-size:0.75rem;color:var(--text-muted)">Demo: admin@shopping / admin123</div>
@@ -808,6 +845,38 @@ async function doRegister() {
   const delegation = document.getElementById('reg-delegation')?.value;
   const pass = document.getElementById('reg-pass')?.value;
   const pass2 = document.getElementById('reg-pass2')?.value;
+
+  // ── ANTI-CHEAT CHECKS ──
+  // 1. Real email validation
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    toast('Please enter a valid email address', 'error'); return;
+  }
+  // 2. Phone validation (Tunisia: 8 digits)
+  if (phone && !/^[0-9+\s\-]{8,15}$/.test(phone)) {
+    toast('Please enter a valid phone number', 'error'); return;
+  }
+  // 3. No fake names (numbers in name, too short)
+  if (fname && (fname.length < 2 || /\d/.test(fname))) {
+    toast('Please enter a real first name', 'error'); return;
+  }
+  if (lname && (lname.length < 2 || /\d/.test(lname))) {
+    toast('Please enter a real last name', 'error'); return;
+  }
+  // 4. Strong password
+  if (pass && pass.length < 8) {
+    toast('Password must be at least 8 characters', 'error'); return;
+  }
+  // 5. Check for duplicate email
+  const existingUsers = STN.DB.get('users') || [];
+  if (existingUsers.find(u => u.email === email)) {
+    toast('An account with this email already exists', 'error'); return;
+  }
+  // 6. Rate limit - max 3 accounts per session
+  const regCount = parseInt(sessionStorage.getItem('reg_count') || '0');
+  if (regCount >= 3) {
+    toast('Too many registration attempts. Please try again later.', 'error'); return;
+  }
+  sessionStorage.setItem('reg_count', String(regCount + 1));
 
   if (!fname || !lname || !email || !phone || !wilaya || !delegation || !pass) { toast('⚠️ Please fill all required fields', 'error'); return; }
   if (pass !== pass2) { toast('⚠️ Passwords do not match', 'error'); return; }
