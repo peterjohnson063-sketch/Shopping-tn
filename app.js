@@ -1558,47 +1558,6 @@ function switchVendorSection(section) {
   }
 }
 
-function deleteVendorProduct(productId) {
-  State.products = State.products.filter(p => p.id !== productId);
-  STN.DB.set('products', State.products);
-  toast('Product deleted!', 'success');
-  switchVendorSection('inventory');
-}
-
-function uploadProduct() {
-  const title = document.getElementById('vp-title')?.value?.trim();
-  const brand = document.getElementById('vp-brand')?.value?.trim();
-  const desc = document.getElementById('vp-desc')?.value?.trim();
-  const price = parseFloat(document.getElementById('vp-price')?.value);
-  const stock = parseInt(document.getElementById('vp-stock')?.value);
-  const cat = document.getElementById('vp-cat')?.value;
-  const badge = document.getElementById('vp-badge')?.value?.trim();
-  const oldPrice = parseFloat(document.getElementById('vp-old-price')?.value) || null;
-  const imageUrl = document.getElementById('vp-image-url')?.value || null;
-
-  if (!title || !brand || !desc || !price || !stock) {
-    toast('Please fill all required fields', 'error'); return;
-  }
-
-  const emojis = {sofa:'🛋️',rug:'🏺',lighting:'💡',ceramic:'🏺',bedroom:'🛏️',outdoor:'🌿',fragrance:'🧴',decor:'🎭'};
-  const newProduct = {
-    id: Date.now(),
-    name: title,
-    brand: State.currentUser?.shop_name || State.currentUser?.shopName || brand,
-    vendorId: State.currentUser?.id,
-    region: State.currentUser?.wilaya || 'Tunisia',
-    cat,
-    price,
-    oldPrice,
-    rating: 0,
-    reviews: 0,
-    badge: badge || null,
-    emoji: emojis[cat] || '🎁',
-    image: imageUrl,
-    verified: false,
-    stock,
-    desc
-  };
 
 function uploadToCloudinary(input) {
   const file = input.files[0];
@@ -1785,8 +1744,6 @@ function homeSearch() {
   } else {
     showPage('products');
   }
-}
-
 }
 
 // ── START ──
