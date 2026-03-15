@@ -1,4 +1,3 @@
-
 // ═══════════════════════════════════════════════
 // SHOPPING — MAIN APPLICATION ENGINE
 // ═══════════════════════════════════════════════
@@ -95,15 +94,34 @@ function updateNavUser() {
   if (State.currentUser) {
     var role = State.currentUser.role;
     var name = State.currentUser.first_name || State.currentUser.firstName || '';
+    var el = document.createElement('button');
+    el.style.cssText = 'border:none;padding:0.5rem 1.2rem;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:Outfit,sans-serif;display:flex;align-items:center;gap:0.5rem;';
     if (role === 'admin') {
-      btn.innerHTML = '<button onclick="showPage(\'admin\')" style="background:linear-gradient(135deg,#7c3aed,#4a1fa8);color:white;border:none;padding:0.5rem 1.2rem;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:Outfit,sans-serif;display:flex;align-items:center;gap:0.5rem">&#9881; Admin Dashboard</button>';
+      el.style.background = 'linear-gradient(135deg,#7c3aed,#4a1fa8)';
+      el.style.color = 'white';
+      el.textContent = 'Admin Dashboard';
+      el.onclick = function(){ showPage('admin'); };
     } else if (role === 'vendor') {
-      btn.innerHTML = '<button onclick="showPage(\'vendor\')" style="background:linear-gradient(135deg,#059669,#047857);color:white;border:none;padding:0.5rem 1.2rem;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:Outfit,sans-serif;display:flex;align-items:center;gap:0.5rem">&#127978; My Dashboard</button>';
+      el.style.background = 'linear-gradient(135deg,#059669,#047857)';
+      el.style.color = 'white';
+      el.textContent = 'My Dashboard';
+      el.onclick = function(){ showPage('vendor'); };
     } else {
-      btn.innerHTML = '<button onclick="showPage(\'account\')" style="background:white;color:#374151;border:1px solid #e5e7eb;padding:0.5rem 1.2rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif;display:flex;align-items:center;gap:0.5rem">&#128100; ' + name + '</button>';
+      el.style.background = 'white';
+      el.style.color = '#374151';
+      el.style.border = '1px solid #e5e7eb';
+      el.textContent = name || 'My Account';
+      el.onclick = function(){ showPage('account'); };
     }
+    btn.innerHTML = '';
+    btn.appendChild(el);
   } else {
-    btn.innerHTML = '<button onclick="showPage(\'auth\')" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.5rem 1.2rem;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:Outfit,sans-serif">Sign In</button>';
+    var el2 = document.createElement('button');
+    el2.style.cssText = 'background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.5rem 1.2rem;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:Outfit,sans-serif;';
+    el2.textContent = 'Sign In';
+    el2.onclick = function(){ showPage('auth'); };
+    btn.innerHTML = '';
+    btn.appendChild(el2);
   }
 }
 
@@ -1832,4 +1850,3 @@ function homeSearch() {
 
 // ── START ──
 document.addEventListener('DOMContentLoaded', init);
-
