@@ -1090,7 +1090,7 @@ function renderAdmin() {
 function buildAdminHTML() {
   return `<div style="display:flex;min-height:100vh;background:#f9fafb;font-family:'Outfit',sans-serif">
     <!-- SIDEBAR -->
-    <div style="width:240px;background:white;border-right:1px solid #e5e7eb;display:flex;flex-direction:column;position:fixed;top:64px;bottom:0;left:0;z-index:10;overflow-y:auto">
+    <div style="width:240px;flex-shrink:0;background:white;border-right:1px solid #e5e7eb;display:flex;flex-direction:column;position:sticky;top:64px;height:calc(100vh - 64px);overflow-y:auto">
       <div style="padding:1.5rem 1rem 1rem">
         <div style="font-size:0.65rem;font-weight:700;color:#9ca3af;letter-spacing:0.1em;text-transform:uppercase;padding:0 0.5rem;margin-bottom:0.5rem">Main Menu</div>
         ${['overview:📊:Overview','orders:🧾:Orders','products:📦:Products','users:👥:Customers','vendors:🏪:Vendors'].map(s => {
@@ -1106,7 +1106,7 @@ function buildAdminHTML() {
       </div>
     </div>
     <!-- CONTENT -->
-    <div style="margin-left:240px;flex:1;padding:2rem" id="admin-content"></div>
+    <div style="flex:1;padding:2rem;min-width:0" id="admin-content"></div>
   </div>`;
 }
 
@@ -1368,7 +1368,7 @@ function buildVendorHTML() {
   const u = State.currentUser;
   return `<div style="display:flex;min-height:100vh;background:#f9fafb;font-family:'Outfit',sans-serif">
     <!-- SIDEBAR -->
-    <div style="width:240px;background:white;border-right:1px solid #e5e7eb;display:flex;flex-direction:column;position:fixed;top:64px;bottom:0;left:0;z-index:10;overflow-y:auto">
+    <div style="width:240px;flex-shrink:0;background:white;border-right:1px solid #e5e7eb;display:flex;flex-direction:column;position:sticky;top:64px;height:calc(100vh - 64px);overflow-y:auto">
       <div style="padding:1.25rem 1rem;border-bottom:1px solid #e5e7eb">
         <div style="display:flex;align-items:center;gap:0.75rem">
           <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#9b72f0);display:flex;align-items:center;justify-content:center;color:white;font-size:1.2rem">🏪</div>
@@ -1393,7 +1393,7 @@ function buildVendorHTML() {
       </div>
     </div>
     <!-- CONTENT -->
-    <div style="margin-left:240px;flex:1;padding:2rem" id="vendor-content"></div>
+    <div style="flex:1;padding:2rem;min-width:0" id="vendor-content"></div>
   </div>`;
 }
 
