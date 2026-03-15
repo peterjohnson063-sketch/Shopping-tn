@@ -1079,171 +1079,279 @@ function renderAccount() {
 // ── ADMIN ──
 function renderAdmin() {
   if (!State.currentUser || State.currentUser.role !== 'admin') {
-    toast('⚠️ Admin access required', 'error'); showPage('auth'); return;
+    toast('Admin access required', 'error'); showPage('auth'); return;
   }
-  const users = STN.DB.get('users') || [];
-  const orders = STN.DB.get('orders') || [];
-  const revenue = orders.reduce((s, o) => s + (o.total || 0), 0);
   const page = document.getElementById('page-admin');
   if (!page) return;
+  page.innerHTML = buildAdminHTML();
+  switchAdmin('overview');
+}
 
-  page.innerHTML = `
-  <div class="s">
-    <div style="margin-bottom:3rem">
-      <span class="eyebrow reveal">Admin Panel</span>
-      <h1 class="display reveal" style="font-size:3rem">Command <em class="gold-text">Center</em></h1>
-      <div class="divider reveal"></div>
-    </div>
-    <div style="display:flex;gap:1.5rem">
-      <!-- Sidebar -->
-      <div style="width:220px;flex-shrink:0">
-        <div class="dash-sidebar">
-          <div class="dash-nav-item active" id="admin-nav-overview" onclick="switchAdmin('overview')"><span class="dash-nav-icon">📊</span>Overview</div>
-          <div class="dash-nav-item" id="admin-nav-products" onclick="switchAdmin('products')"><span class="dash-nav-icon">📦</span>Products</div>
-          <div class="dash-nav-item" id="admin-nav-orders" onclick="switchAdmin('orders')"><span class="dash-nav-icon">🧾</span>Orders</div>
-          <div class="dash-nav-item" id="admin-nav-users" onclick="switchAdmin('users')"><span class="dash-nav-icon">👥</span>Users</div>
-          <div class="dash-nav-item" id="admin-nav-vendors" onclick="switchAdmin('vendors')"><span class="dash-nav-icon">🏪</span>Vendors</div>
-        </div>
+function buildAdminHTML() {
+  return `<div style="display:flex;min-height:100vh;background:#f9fafb;font-family:'Outfit',sans-serif">
+    <!-- SIDEBAR -->
+    <div style="width:240px;background:white;border-right:1px solid #e5e7eb;display:flex;flex-direction:column;position:fixed;top:64px;bottom:0;left:0;z-index:10;overflow-y:auto">
+      <div style="padding:1.5rem 1rem 1rem">
+        <div style="font-size:0.65rem;font-weight:700;color:#9ca3af;letter-spacing:0.1em;text-transform:uppercase;padding:0 0.5rem;margin-bottom:0.5rem">Main Menu</div>
+        ${['overview:📊:Overview','orders:🧾:Orders','products:📦:Products','users:👥:Customers','vendors:🏪:Vendors'].map(s => {
+          const [id,icon,label] = s.split(':');
+          return `<div id="adm-nav-${id}" onclick="switchAdmin('${id}')" style="display:flex;align-items:center;gap:0.75rem;padding:0.7rem 0.8rem;border-radius:8px;cursor:pointer;margin-bottom:0.2rem;color:#374151;font-size:0.875rem;transition:all 0.15s" onmouseover="if(!this.classList.contains('adm-active'))this.style.background='#f3f4f6'" onmouseout="if(!this.classList.contains('adm-active'))this.style.background=''">${icon} ${label}</div>`;
+        }).join('')}
       </div>
-      <!-- Content -->
-      <div style="flex:1" id="admin-content">
-        <!-- OVERVIEW -->
-        <div id="admin-overview">
-          <div class="grid-4 reveal" style="margin-bottom:2rem">
-            <div class="kpi-card"><div class="kpi-val">${revenue.toLocaleString()}</div><div class="kpi-label">Revenue (TND)</div><div class="kpi-trend up">↑ +18% this month</div></div>
-            <div class="kpi-card"><div class="kpi-val">${orders.length}</div><div class="kpi-label">Total Orders</div><div class="kpi-trend up">↑ +12 this week</div></div>
-            <div class="kpi-card"><div class="kpi-val">${users.length}</div><div class="kpi-label">Registered Users</div><div class="kpi-trend up">↑ +5 today</div></div>
-            <div class="kpi-card"><div class="kpi-val">${State.products.length}</div><div class="kpi-label">Products</div><div class="kpi-trend up">↑ +3 new</div></div>
-          </div>
-          <div class="glass reveal" style="padding:1.5rem;margin-bottom:1.5rem">
-            <h3 style="font-size:0.8rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:1.2rem">Recent Orders</h3>
-            <table class="data-table">
-              <thead><tr><th>Order ID</th><th>Items</th><th>Total</th><th>Status</th><th>Date</th></tr></thead>
-              <tbody>${orders.slice(-5).reverse().map(o => `
-                <tr>
-                  <td style="font-family:var(--font-display);font-size:0.9rem">${o.id}</td>
-                  <td>${o.items.length} item(s)</td>
-                  <td>${o.total?.toLocaleString()} TND</td>
-                  <td><span class="status status-${o.status === 'delivered' ? 'delivered' : 'transit'}">${o.status}</span></td>
-                  <td style="color:var(--text-muted)">${o.date}</td>
-                </tr>`).join('')}
-              </tbody>
-            </table>
-          </div>
+      <div style="margin-top:auto;padding:1rem;border-top:1px solid #e5e7eb">
+        <div style="display:flex;align-items:center;gap:0.75rem;padding:0.7rem;background:#f9fafb;border-radius:8px">
+          <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#9b72f0);display:flex;align-items:center;justify-content:center;color:white;font-size:0.8rem;font-weight:700">A</div>
+          <div><div style="font-size:0.8rem;font-weight:600;color:#111827">Admin</div><div style="font-size:0.7rem;color:#6b7280">Super Admin</div></div>
         </div>
       </div>
     </div>
+    <!-- CONTENT -->
+    <div style="margin-left:240px;flex:1;padding:2rem" id="admin-content"></div>
   </div>`;
-  initReveal();
 }
 
 function switchAdmin(section) {
-  document.querySelectorAll('[id^="admin-nav-"]').forEach(el => el.classList.remove('active'));
-  document.getElementById('admin-nav-' + section)?.classList.add('active');
+  // Update nav
+  document.querySelectorAll('[id^="adm-nav-"]').forEach(el => {
+    el.style.background = '';
+    el.style.color = '#374151';
+    el.style.fontWeight = '';
+    el.classList.remove('adm-active');
+  });
+  const active = document.getElementById('adm-nav-' + section);
+  if (active) {
+    active.style.background = '#f5f3ff';
+    active.style.color = '#7c3aed';
+    active.style.fontWeight = '600';
+    active.classList.add('adm-active');
+  }
+
   const content = document.getElementById('admin-content');
   if (!content) return;
 
   const users = STN.DB.get('users') || [];
   const orders = STN.DB.get('orders') || [];
   const vendors = users.filter(u => u.role === 'vendor');
+  const revenue = orders.reduce((s, o) => s + (o.total || 0), 0);
+  const pending = orders.filter(o => o.status !== 'delivered').length;
 
-  if (section === 'products') {
+  if (section === 'overview') {
     content.innerHTML = `
-      <div class="glass reveal" style="padding:1.5rem">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem">
-          <h3 style="font-size:0.8rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold)">All Products (${State.products.length})</h3>
-          <button class="btn btn-gold btn-sm" onclick="toast('Add product feature coming soon!','success')">+ Add Product</button>
+      <div>
+        <div style="margin-bottom:2rem">
+          <h1 style="font-size:1.5rem;font-weight:700;color:#111827;margin-bottom:0.25rem">Dashboard Overview</h1>
+          <p style="color:#6b7280;font-size:0.875rem">Welcome back, Admin! Here's what's happening today.</p>
         </div>
-        <table class="data-table">
-          <thead><tr><th>Product</th><th>Category</th><th>Price (TND)</th><th>Stock</th><th>Rating</th><th>Actions</th></tr></thead>
-          <tbody>${State.products.map(p => `
-            <tr>
-              <td><div style="display:flex;align-items:center;gap:0.8rem"><span style="font-size:1.4rem">${p.emoji}</span><div><div style="color:var(--champagne)">${p.name}</div><div style="font-size:0.7rem;color:var(--text-muted)">${p.brand}</div></div></div></td>
-              <td style="text-transform:capitalize">${p.cat}</td>
-              <td>${p.price.toLocaleString()}</td>
-              <td>${p.stock}</td>
-              <td><span style="color:var(--gold)">★</span> ${p.rating}</td>
-              <td><button class="btn btn-glass btn-sm" onclick="openProductDetail(${p.id})">View</button></td>
-            </tr>`).join('')}
-          </tbody>
-        </table>
+        <!-- KPI CARDS -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;margin-bottom:2rem">
+          ${[
+            {label:'Total Revenue',value:revenue.toLocaleString()+' TND',icon:'💰',change:'+18%',color:'#7c3aed',bg:'#f5f3ff'},
+            {label:'Total Orders',value:orders.length,icon:'🧾',change:'+12 this week',color:'#2563eb',bg:'#eff6ff'},
+            {label:'Customers',value:users.length,icon:'👥',change:'+5 today',color:'#059669',bg:'#f0fdf4'},
+            {label:'Products',value:State.products.length,icon:'📦',change:'+3 new',color:'#d97706',bg:'#fffbeb'}
+          ].map(k => `
+            <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.5rem;transition:box-shadow 0.2s" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)'" onmouseout="this.style.boxShadow=''">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+                <div style="width:40px;height:40px;background:${k.bg};border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem">${k.icon}</div>
+                <span style="background:#f0fdf4;color:#166534;font-size:0.7rem;padding:0.2rem 0.6rem;border-radius:20px;font-weight:600">↑ ${k.change}</span>
+              </div>
+              <div style="font-size:1.75rem;font-weight:700;color:#111827;margin-bottom:0.25rem">${k.value}</div>
+              <div style="font-size:0.8rem;color:#6b7280">${k.label}</div>
+            </div>
+          `).join('')}
+        </div>
+        <!-- RECENT ORDERS + TOP PRODUCTS -->
+        <div style="display:grid;grid-template-columns:1fr 340px;gap:1.5rem">
+          <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
+            <div style="padding:1.25rem 1.5rem;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between">
+              <h3 style="font-size:0.95rem;font-weight:600;color:#111827">Recent Orders</h3>
+              <button onclick="switchAdmin('orders')" style="color:#7c3aed;background:none;border:none;font-size:0.8rem;cursor:pointer;font-weight:600">View All →</button>
+            </div>
+            <div style="overflow-x:auto">
+              <table style="width:100%;border-collapse:collapse">
+                <thead><tr style="background:#f9fafb">${['Order ID','Customer','Total','Status','Date'].map(h=>`<th style="text-align:left;padding:0.75rem 1rem;font-size:0.75rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em">${h}</th>`).join('')}</tr></thead>
+                <tbody>${orders.slice(-6).reverse().map(o => `
+                  <tr style="border-top:1px solid #f3f4f6" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
+                    <td style="padding:0.875rem 1rem;font-size:0.8rem;font-weight:600;color:#7c3aed">${o.tracking_number || o.id}</td>
+                    <td style="padding:0.875rem 1rem;font-size:0.8rem;color:#374151">${o.phone || 'Guest'}</td>
+                    <td style="padding:0.875rem 1rem;font-size:0.8rem;font-weight:600;color:#111827">${(o.total||0).toLocaleString()} TND</td>
+                    <td style="padding:0.875rem 1rem"><span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:${o.status==='delivered'?'#dcfce7':o.status==='shipped'?'#dbeafe':'#fef9c3'};color:${o.status==='delivered'?'#166534':o.status==='shipped'?'#1d4ed8':'#92400e'}">${o.status||'pending'}</span></td>
+                    <td style="padding:0.875rem 1rem;font-size:0.78rem;color:#9ca3af">${o.created_at ? new Date(o.created_at).toLocaleDateString() : 'Today'}</td>
+                  </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <!-- Quick stats panel -->
+          <div style="display:flex;flex-direction:column;gap:1.5rem">
+            <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.5rem">
+              <h3 style="font-size:0.95rem;font-weight:600;color:#111827;margin-bottom:1.2rem">Order Status</h3>
+              ${[
+                {label:'Pending',count:orders.filter(o=>!o.status||o.status==='pending').length,color:'#f59e0b',bg:'#fffbeb'},
+                {label:'Processing',count:orders.filter(o=>o.status==='processing').length,color:'#3b82f6',bg:'#eff6ff'},
+                {label:'Shipped',count:orders.filter(o=>o.status==='shipped').length,color:'#8b5cf6',bg:'#f5f3ff'},
+                {label:'Delivered',count:orders.filter(o=>o.status==='delivered').length,color:'#10b981',bg:'#ecfdf5'},
+              ].map(s=>`
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:0.6rem 0;border-bottom:1px solid #f3f4f6">
+                  <div style="display:flex;align-items:center;gap:0.6rem">
+                    <div style="width:8px;height:8px;border-radius:50%;background:${s.color}"></div>
+                    <span style="font-size:0.82rem;color:#374151">${s.label}</span>
+                  </div>
+                  <span style="background:${s.bg};color:${s.color};padding:0.15rem 0.6rem;border-radius:20px;font-size:0.75rem;font-weight:700">${s.count}</span>
+                </div>`).join('')}
+            </div>
+            <div style="background:linear-gradient(135deg,#7c3aed,#4a1fa8);border-radius:12px;padding:1.5rem;color:white">
+              <div style="font-size:0.75rem;opacity:0.8;margin-bottom:0.5rem">Pending Vendors</div>
+              <div style="font-size:2rem;font-weight:700;margin-bottom:0.5rem">${vendors.filter(v=>!v.verified).length}</div>
+              <div style="font-size:0.78rem;opacity:0.75;margin-bottom:1rem">waiting for approval</div>
+              <button onclick="switchAdmin('vendors')" style="background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.3);padding:0.4rem 1rem;border-radius:6px;font-size:0.78rem;cursor:pointer;font-family:inherit">Review Now →</button>
+            </div>
+          </div>
+        </div>
       </div>`;
+
   } else if (section === 'orders') {
     content.innerHTML = `
-      <div class="glass reveal" style="padding:1.5rem">
-        <h3 style="font-size:0.8rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:1.2rem">All Orders (${orders.length})</h3>
-        <table class="data-table">
-          <thead><tr><th>Order ID</th><th>Items</th><th>Total</th><th>Status</th><th>Date</th><th>Action</th></tr></thead>
-          <tbody>${orders.map(o => `
-            <tr>
-              <td style="font-family:var(--font-display)">${o.id}</td>
-              <td>${o.items.map(i=>i.name).join(', ').substring(0,30)}…</td>
-              <td>${o.total?.toLocaleString()} TND</td>
-              <td><span class="status status-${o.status === 'delivered' ? 'delivered' : 'transit'}">${o.status}</span></td>
-              <td style="color:var(--text-muted)">${o.date}</td>
-              <td><button class="btn btn-glass btn-sm" onclick="advanceOrder('${o.id}')">Advance</button></td>
-            </tr>`).join('')}
-          </tbody>
-        </table>
+      <div>
+        <div style="margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <h1 style="font-size:1.5rem;font-weight:700;color:#111827">Orders</h1>
+            <p style="color:#6b7280;font-size:0.875rem">${orders.length} total orders</p>
+          </div>
+        </div>
+        <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
+          <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse">
+              <thead><tr style="background:#f9fafb">${['Tracking #','Phone','Wilaya','Items','Total','Status','Action'].map(h=>`<th style="text-align:left;padding:0.875rem 1rem;font-size:0.75rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap">${h}</th>`).join('')}</tr></thead>
+              <tbody>${orders.length===0?'<tr><td colspan="7" style="text-align:center;padding:3rem;color:#9ca3af">No orders yet</td></tr>':orders.reverse().map(o=>`
+                <tr style="border-top:1px solid #f3f4f6" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
+                  <td style="padding:0.875rem 1rem;font-size:0.8rem;font-weight:600;color:#7c3aed">${o.tracking_number||o.id}</td>
+                  <td style="padding:0.875rem 1rem;font-size:0.8rem;color:#374151">${o.phone||'-'}</td>
+                  <td style="padding:0.875rem 1rem;font-size:0.8rem;color:#374151">${o.wilaya||'-'}</td>
+                  <td style="padding:0.875rem 1rem;font-size:0.8rem;color:#374151">${Array.isArray(o.items)?o.items.length:1} item(s)</td>
+                  <td style="padding:0.875rem 1rem;font-size:0.8rem;font-weight:600;color:#111827">${(o.total||0).toLocaleString()} TND</td>
+                  <td style="padding:0.875rem 1rem"><span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:${o.status==='delivered'?'#dcfce7':o.status==='shipped'?'#dbeafe':'#fef9c3'};color:${o.status==='delivered'?'#166534':o.status==='shipped'?'#1d4ed8':'#92400e'}">${o.status||'pending'}</span></td>
+                  <td style="padding:0.875rem 1rem"><button onclick="advanceOrder('${o.id||o.tracking_number}')" style="background:#f5f3ff;color:#7c3aed;border:1px solid #e9d5ff;padding:0.3rem 0.8rem;border-radius:6px;font-size:0.75rem;cursor:pointer;font-weight:600">Advance →</button></td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>`;
+
+  } else if (section === 'products') {
+    content.innerHTML = `
+      <div>
+        <div style="margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <h1 style="font-size:1.5rem;font-weight:700;color:#111827">Products</h1>
+            <p style="color:#6b7280;font-size:0.875rem">${State.products.length} products listed</p>
+          </div>
+        </div>
+        <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
+          <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse">
+              <thead><tr style="background:#f9fafb">${['Product','Category','Price','Stock','Rating','Status','Action'].map(h=>`<th style="text-align:left;padding:0.875rem 1rem;font-size:0.75rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em">${h}</th>`).join('')}</tr></thead>
+              <tbody>${State.products.map(p=>`
+                <tr style="border-top:1px solid #f3f4f6" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
+                  <td style="padding:0.875rem 1rem">
+                    <div style="display:flex;align-items:center;gap:0.75rem">
+                      <div style="width:36px;height:36px;background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.2rem">${p.emoji}</div>
+                      <div><div style="font-size:0.82rem;font-weight:600;color:#111827">${p.name}</div><div style="font-size:0.72rem;color:#9ca3af">${p.brand}</div></div>
+                    </div>
+                  </td>
+                  <td style="padding:0.875rem 1rem;font-size:0.8rem;color:#374151;text-transform:capitalize">${p.cat}</td>
+                  <td style="padding:0.875rem 1rem;font-size:0.8rem;font-weight:600;color:#111827">${p.price.toLocaleString()} TND</td>
+                  <td style="padding:0.875rem 1rem;font-size:0.8rem"><span style="color:${p.stock>5?'#059669':'#dc2626'};font-weight:600">${p.stock}</span></td>
+                  <td style="padding:0.875rem 1rem;font-size:0.8rem;color:#f59e0b;font-weight:600">★ ${p.rating}</td>
+                  <td style="padding:0.875rem 1rem"><span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:${p.verified?'#dcfce7':'#fef9c3'};color:${p.verified?'#166534':'#92400e'}">${p.verified?'✓ Live':'⏳ Pending'}</span></td>
+                  <td style="padding:0.875rem 1rem"><button onclick="openProductDetail(${p.id})" style="background:#f5f3ff;color:#7c3aed;border:1px solid #e9d5ff;padding:0.3rem 0.8rem;border-radius:6px;font-size:0.75rem;cursor:pointer">View</button></td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>`;
+
   } else if (section === 'users') {
     content.innerHTML = `
-      <div class="glass reveal" style="padding:1.5rem">
-        <h3 style="font-size:0.8rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:1.2rem">All Users (${users.length})</h3>
-        <table class="data-table">
-          <thead><tr><th>Name</th><th>Email</th><th>Wilaya</th><th>Role</th><th>Points</th><th>Status</th></tr></thead>
-          <tbody>${users.map(u => `
-            <tr>
-              <td><div style="display:flex;align-items:center;gap:0.6rem"><span>${u.avatar||'👤'}</span><span>${u.firstName} ${u.lastName}</span></div></td>
-              <td style="color:var(--text-muted)">${u.email}</td>
-              <td>${u.wilaya}</td>
-              <td style="text-transform:capitalize">${u.role}</td>
-              <td style="color:var(--gold)">${(u.points||0).toLocaleString()}</td>
-              <td><span class="status ${u.verified ? 'status-active' : 'status-pending'}">${u.verified ? 'Verified' : 'Pending'}</span></td>
-            </tr>`).join('')}
-          </tbody>
-        </table>
+      <div>
+        <div style="margin-bottom:1.5rem">
+          <h1 style="font-size:1.5rem;font-weight:700;color:#111827">Customers</h1>
+          <p style="color:#6b7280;font-size:0.875rem">${users.length} registered users</p>
+        </div>
+        <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
+          <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse">
+              <thead><tr style="background:#f9fafb">${['Customer','Email','Wilaya','Role','Points','Status'].map(h=>`<th style="text-align:left;padding:0.875rem 1rem;font-size:0.75rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em">${h}</th>`).join('')}</tr></thead>
+              <tbody>${users.length===0?'<tr><td colspan="6" style="text-align:center;padding:3rem;color:#9ca3af">No users yet</td></tr>':users.map(u=>`
+                <tr style="border-top:1px solid #f3f4f6" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
+                  <td style="padding:0.875rem 1rem">
+                    <div style="display:flex;align-items:center;gap:0.75rem">
+                      <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#9b72f0);display:flex;align-items:center;justify-content:center;color:white;font-size:0.8rem;font-weight:700">${(u.first_name||u.firstName||'?')[0].toUpperCase()}</div>
+                      <span style="font-size:0.82rem;font-weight:600;color:#111827">${u.first_name||u.firstName||''} ${u.last_name||u.lastName||''}</span>
+                    </div>
+                  </td>
+                  <td style="padding:0.875rem 1rem;font-size:0.8rem;color:#6b7280">${u.email}</td>
+                  <td style="padding:0.875rem 1rem;font-size:0.8rem;color:#374151">${u.wilaya||'-'}</td>
+                  <td style="padding:0.875rem 1rem"><span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:${u.role==='admin'?'#fef3c7':u.role==='vendor'?'#ede9fe':'#f3f4f6'};color:${u.role==='admin'?'#92400e':u.role==='vendor'?'#6d28d9':'#374151'};text-transform:capitalize">${u.role||'customer'}</span></td>
+                  <td style="padding:0.875rem 1rem;font-size:0.8rem;font-weight:600;color:#7c3aed">${(u.points||0).toLocaleString()}</td>
+                  <td style="padding:0.875rem 1rem"><span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:${u.verified?'#dcfce7':'#fef9c3'};color:${u.verified?'#166534':'#92400e'}">${u.verified?'✓ Verified':'Pending'}</span></td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>`;
+
   } else if (section === 'vendors') {
     content.innerHTML = `
-      <div class="glass reveal" style="padding:1.5rem">
-        <h3 style="font-size:0.8rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:1.2rem">Vendors (${vendors.length})</h3>
-        ${vendors.length > 0 ? `<table class="data-table">
-          <thead><tr><th>Vendor</th><th>Email</th><th>Region</th><th>Status</th><th>Actions</th></tr></thead>
-          <tbody>${vendors.map(v => `
-            <tr>
-              <td>${v.firstName} ${v.lastName}</td>
-              <td style="color:var(--text-muted)">${v.email}</td>
-              <td>${v.wilaya}</td>
-              <td><span class="status ${v.verified ? 'status-active' : 'status-pending'}">${v.verified ? 'Verified' : 'Pending'}</span></td>
-              <td><button class="btn btn-success btn-sm" onclick="verifyVendor(${v.id})">Verify</button></td>
-            </tr>`).join('')}
-          </tbody>
-        </table>` : '<p style="color:var(--text-muted);font-size:0.85rem">No vendors yet.</p>'}
+      <div>
+        <div style="margin-bottom:1.5rem">
+          <h1 style="font-size:1.5rem;font-weight:700;color:#111827">Vendors</h1>
+          <p style="color:#6b7280;font-size:0.875rem">${vendors.length} vendors registered</p>
+        </div>
+        <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
+          <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse">
+              <thead><tr style="background:#f9fafb">${['Vendor','Email','Shop','Wilaya','Status','Action'].map(h=>`<th style="text-align:left;padding:0.875rem 1rem;font-size:0.75rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em">${h}</th>`).join('')}</tr></thead>
+              <tbody>${vendors.length===0?'<tr><td colspan="6" style="text-align:center;padding:3rem;color:#9ca3af">No vendors yet</td></tr>':vendors.map(v=>`
+                <tr style="border-top:1px solid #f3f4f6" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
+                  <td style="padding:0.875rem 1rem;font-size:0.82rem;font-weight:600;color:#111827">${v.first_name||v.firstName||''} ${v.last_name||v.lastName||''}</td>
+                  <td style="padding:0.875rem 1rem;font-size:0.8rem;color:#6b7280">${v.email}</td>
+                  <td style="padding:0.875rem 1rem;font-size:0.8rem;color:#374151">${v.shop_name||v.shopName||'-'}</td>
+                  <td style="padding:0.875rem 1rem;font-size:0.8rem;color:#374151">${v.wilaya||'-'}</td>
+                  <td style="padding:0.875rem 1rem"><span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:${v.verified?'#dcfce7':'#fef9c3'};color:${v.verified?'#166534':'#92400e'}">${v.verified?'✓ Approved':'⏳ Pending'}</span></td>
+                  <td style="padding:0.875rem 1rem">
+                    ${!v.verified?`<button onclick="verifyVendor('${v.id}')" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.3rem 0.8rem;border-radius:6px;font-size:0.75rem;cursor:pointer;font-weight:600">✓ Approve</button>`:'<span style="color:#9ca3af;font-size:0.78rem">Approved</span>'}
+                  </td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>`;
   }
-  initReveal();
 }
 
 function advanceOrder(orderId) {
   const orders = STN.DB.get('orders') || [];
-  const order = orders.find(o => o.id === orderId);
-  if (!order) return;
-  const steps = ['Confirmed','Processing','Shipped','Out for Delivery','Delivered'];
-  const nextStep = steps[order.tracking.length];
-  if (!nextStep) { toast('Order already delivered', 'default'); return; }
-  order.tracking.push({ status: nextStep, time: new Date().toLocaleString() });
-  order.status = nextStep === 'Delivered' ? 'delivered' : 'transit';
+  const order = orders.find(o => o.id === orderId || o.tracking_number === orderId);
+  if (!order) { toast('Order not found', 'error'); return; }
+  const steps = ['pending','processing','shipped','delivered'];
+  const curr = steps.indexOf(order.status||'pending');
+  if (curr >= steps.length - 1) { toast('Order already delivered!', 'default'); return; }
+  order.status = steps[curr + 1];
   STN.DB.set('orders', orders);
-  toast(`✦ Order advanced to: ${nextStep}`, 'success');
+  toast('Order advanced to: ' + order.status, 'success');
   switchAdmin('orders');
 }
 
 function verifyVendor(userId) {
   const users = STN.DB.get('users') || [];
-  const userIdx = users.findIndex(u => u.id === userId);
-  if (userIdx !== -1) { users[userIdx].verified = true; STN.DB.set('users', users); }
-  toast('✦ Vendor verified!', 'success');
+  const idx = users.findIndex(u => u.id == userId);
+  if (idx !== -1) { users[idx].verified = true; STN.DB.set('users', users); }
+  toast('Vendor approved!', 'success');
   switchAdmin('vendors');
 }
 
@@ -1252,122 +1360,244 @@ function renderVendor() {
   if (!State.currentUser) { showPage('auth'); return; }
   const page = document.getElementById('page-vendor');
   if (!page) return;
+  page.innerHTML = buildVendorHTML();
+  switchVendorSection('overview');
+}
 
-  const myProducts = State.products.filter(p => p.brand.includes(State.currentUser.firstName));
-  const orders = STN.DB.get('orders') || [];
-  const revenue = myProducts.reduce((s,p) => s + p.price, 0);
-
-  page.innerHTML = `
-  <div class="s">
-    <div style="margin-bottom:2.5rem">
-      <span class="eyebrow reveal">Vendor Portal</span>
-      <h1 class="display reveal" style="font-size:3rem">Your <em class="gold-text">Dashboard</em></h1>
-      <div class="divider reveal"></div>
-    </div>
-    <div style="display:flex;gap:1.5rem">
-      <div style="width:220px;flex-shrink:0">
-        <div class="dash-sidebar">
-          <div class="dash-nav-item active" onclick="this.parentElement.querySelectorAll('.dash-nav-item').forEach(e=>e.classList.remove('active'));this.classList.add('active');switchVendorSection('overview')"><span class="dash-nav-icon">📊</span>Overview</div>
-          <div class="dash-nav-item" onclick="this.parentElement.querySelectorAll('.dash-nav-item').forEach(e=>e.classList.remove('active'));this.classList.add('active');switchVendorSection('upload')"><span class="dash-nav-icon">📤</span>Upload Product</div>
-          <div class="dash-nav-item" onclick="this.parentElement.querySelectorAll('.dash-nav-item').forEach(e=>e.classList.remove('active'));this.classList.add('active');switchVendorSection('inventory')"><span class="dash-nav-icon">📦</span>Inventory</div>
-          <div class="dash-nav-item" onclick="this.parentElement.querySelectorAll('.dash-nav-item').forEach(e=>e.classList.remove('active'));this.classList.add('active');switchVendorSection('orders')"><span class="dash-nav-icon">🧾</span>Orders</div>
-        </div>
-      </div>
-      <div style="flex:1" id="vendor-content">
-        <div class="grid-3 reveal" style="margin-bottom:1.5rem">
-          <div class="kpi-card"><div class="kpi-val">${myProducts.length}</div><div class="kpi-label">My Products</div></div>
-          <div class="kpi-card"><div class="kpi-val">${orders.length}</div><div class="kpi-label">Total Orders</div></div>
-          <div class="kpi-card"><div class="kpi-val">${(State.currentUser.verified ? '✓' : '⏳')}</div><div class="kpi-label">Verified Status</div></div>
-        </div>
-        <div class="glass reveal" style="padding:1.5rem">
-          <h3 style="font-size:0.8rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:1rem">Quick Actions</h3>
-          <div style="display:flex;gap:0.8rem;flex-wrap:wrap">
-            <button class="btn btn-gold btn-sm" onclick="switchVendorSection('upload')">+ Upload Product</button>
-            <button class="btn btn-ghost btn-sm" onclick="switchVendorSection('inventory')">View Inventory</button>
-            <button class="btn btn-ghost btn-sm" onclick="showPage('products')">View Store</button>
+function buildVendorHTML() {
+  const u = State.currentUser;
+  return `<div style="display:flex;min-height:100vh;background:#f9fafb;font-family:'Outfit',sans-serif">
+    <!-- SIDEBAR -->
+    <div style="width:240px;background:white;border-right:1px solid #e5e7eb;display:flex;flex-direction:column;position:fixed;top:64px;bottom:0;left:0;z-index:10;overflow-y:auto">
+      <div style="padding:1.25rem 1rem;border-bottom:1px solid #e5e7eb">
+        <div style="display:flex;align-items:center;gap:0.75rem">
+          <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#9b72f0);display:flex;align-items:center;justify-content:center;color:white;font-size:1.2rem">🏪</div>
+          <div>
+            <div style="font-size:0.85rem;font-weight:700;color:#111827">${u.shop_name||u.shopName||'My Shop'}</div>
+            <div style="font-size:0.7rem;color:${u.verified?'#059669':'#d97706'};font-weight:600">${u.verified?'✓ Verified':'⏳ Pending Approval'}</div>
           </div>
         </div>
       </div>
+      <div style="padding:1rem">
+        <div style="font-size:0.65rem;font-weight:700;color:#9ca3af;letter-spacing:0.1em;text-transform:uppercase;padding:0 0.5rem;margin-bottom:0.5rem">Menu</div>
+        ${['overview:📊:Overview','upload:📤:Upload Product','inventory:📦:My Products','orders:🧾:My Orders'].map(s => {
+          const [id,icon,label] = s.split(':');
+          return `<div id="vnd-nav-${id}" onclick="switchVendorSection('${id}')" style="display:flex;align-items:center;gap:0.75rem;padding:0.7rem 0.8rem;border-radius:8px;cursor:pointer;margin-bottom:0.2rem;color:#374151;font-size:0.875rem;transition:all 0.15s" onmouseover="if(!this.classList.contains('vnd-active'))this.style.background='#f3f4f6'" onmouseout="if(!this.classList.contains('vnd-active'))this.style.background=''">${icon} ${label}</div>`;
+        }).join('')}
+      </div>
+      <div style="margin-top:auto;padding:1rem;border-top:1px solid #e5e7eb">
+        <div style="display:flex;align-items:center;gap:0.75rem;padding:0.7rem;background:#f9fafb;border-radius:8px">
+          <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#9b72f0);display:flex;align-items:center;justify-content:center;color:white;font-size:0.8rem;font-weight:700">${(u.first_name||u.firstName||'V')[0].toUpperCase()}</div>
+          <div><div style="font-size:0.8rem;font-weight:600;color:#111827">${u.first_name||u.firstName||'Vendor'}</div><div style="font-size:0.7rem;color:#6b7280">Vendor</div></div>
+        </div>
+      </div>
     </div>
+    <!-- CONTENT -->
+    <div style="margin-left:240px;flex:1;padding:2rem" id="vendor-content"></div>
   </div>`;
-  initReveal();
 }
 
 function switchVendorSection(section) {
+  document.querySelectorAll('[id^="vnd-nav-"]').forEach(el => {
+    el.style.background = '';
+    el.style.color = '#374151';
+    el.style.fontWeight = '';
+    el.classList.remove('vnd-active');
+  });
+  const active = document.getElementById('vnd-nav-' + section);
+  if (active) {
+    active.style.background = '#f5f3ff';
+    active.style.color = '#7c3aed';
+    active.style.fontWeight = '600';
+    active.classList.add('vnd-active');
+  }
+
   const content = document.getElementById('vendor-content');
   if (!content) return;
+  const u = State.currentUser;
+  const myProds = State.products.filter(p => p.vendorId === u.id || p.brand === (u.shopName||u.shop_name));
+  const orders = STN.DB.get('orders') || [];
+  const myRevenue = myProds.reduce((s,p) => s + p.price, 0);
 
-  if (section === 'upload') {
+  if (section === 'overview') {
     content.innerHTML = `
-      <div class="glass-lg reveal" style="padding:2.5rem">
-        <h3 style="font-family:var(--font-display);font-size:1.5rem;color:var(--champagne);margin-bottom:2rem">Upload New Product</h3>
+      <div>
         <div style="margin-bottom:2rem">
-          <label class="form-label">Product Image *</label>
-          <div id="upload-zone" onclick="document.getElementById('vp-image-file').click()" style="border:2px dashed rgba(107,63,212,0.3);border-radius:16px;padding:2rem;text-align:center;cursor:pointer;background:#f8f7ff;transition:all 0.3s" onmouseover="this.style.borderColor='#7c3aed'" onmouseout="this.style.borderColor='rgba(107,63,212,0.3)'">
-            <div id="upload-preview" style="display:none;margin-bottom:1rem">
-              <img id="upload-img-preview" style="max-height:150px;border-radius:12px;object-fit:cover" src=""/>
-            </div>
-            <div id="upload-placeholder">
-              <div style="font-size:2rem;margin-bottom:0.5rem">📸</div>
-              <p style="color:#3d3460;margin-bottom:0.3rem;font-size:0.9rem">Click to upload product image</p>
-              <p style="font-size:0.72rem;color:#7b72a8">PNG, JPG, WEBP up to 10MB</p>
-            </div>
-            <div id="upload-loading" style="display:none">
-              <div style="font-size:1.5rem">⏳</div>
-              <p style="color:#7c3aed;font-size:0.85rem">Uploading...</p>
-            </div>
+          <h1 style="font-size:1.5rem;font-weight:700;color:#111827">Welcome back, ${u.first_name||u.firstName||'Vendor'}! 👋</h1>
+          <p style="color:#6b7280;font-size:0.875rem">Here's your shop overview</p>
+        </div>
+        <!-- KPIs -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-bottom:2rem">
+          ${[
+            {label:'My Products',value:myProds.length,icon:'📦',color:'#7c3aed',bg:'#f5f3ff'},
+            {label:'Total Orders',value:orders.length,icon:'🧾',color:'#2563eb',bg:'#eff6ff'},
+            {label:'Shop Status',value:u.verified?'✓ Live':'Pending',icon:'🏪',color:u.verified?'#059669':'#d97706',bg:u.verified?'#f0fdf4':'#fffbeb'}
+          ].map(k=>`
+            <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.5rem">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+                <div style="width:40px;height:40px;background:${k.bg};border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem">${k.icon}</div>
+              </div>
+              <div style="font-size:1.75rem;font-weight:700;color:${k.color};margin-bottom:0.25rem">${k.value}</div>
+              <div style="font-size:0.8rem;color:#6b7280">${k.label}</div>
+            </div>`).join('')}
+        </div>
+        <!-- Quick actions -->
+        <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.5rem;margin-bottom:1.5rem">
+          <h3 style="font-size:0.95rem;font-weight:600;color:#111827;margin-bottom:1.2rem">Quick Actions</h3>
+          <div style="display:flex;gap:1rem;flex-wrap:wrap">
+            <button onclick="switchVendorSection('upload')" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.7rem 1.5rem;border-radius:8px;font-size:0.875rem;font-weight:600;cursor:pointer;font-family:inherit">+ Upload Product</button>
+            <button onclick="switchVendorSection('inventory')" style="background:#f5f3ff;color:#7c3aed;border:1px solid #e9d5ff;padding:0.7rem 1.5rem;border-radius:8px;font-size:0.875rem;font-weight:600;cursor:pointer;font-family:inherit">📦 My Products</button>
+            <button onclick="showPage('products')" style="background:#f9fafb;color:#374151;border:1px solid #e5e7eb;padding:0.7rem 1.5rem;border-radius:8px;font-size:0.875rem;font-weight:600;cursor:pointer;font-family:inherit">🛍️ View Store</button>
           </div>
-          <input type="file" id="vp-image-file" accept="image/*" style="display:none" onchange="uploadToCloudinary(this)"/>
-          <input type="hidden" id="vp-image-url"/>
         </div>
-        <div class="form-row" style="margin-bottom:1rem">
-          <div class="form-group"><label class="form-label">Product Title *</label><input type="text" class="form-input" id="vp-title" placeholder="Artisan Velvet Sofa"/></div>
-          <div class="form-group"><label class="form-label">Brand Name *</label><input type="text" class="form-input" id="vp-brand" placeholder="Your Brand Name"/></div>
-        </div>
-        <div class="form-group" style="margin-bottom:1rem"><label class="form-label">Description *</label><textarea class="form-textarea" id="vp-desc" placeholder="Describe your product in detail…"></textarea></div>
-        <div class="form-row three" style="margin-bottom:1rem">
-          <div class="form-group"><label class="form-label">Price (TND) *</label><input type="number" class="form-input" id="vp-price" placeholder="1299"/></div>
-          <div class="form-group"><label class="form-label">Original Price</label><input type="number" class="form-input" id="vp-old-price" placeholder="1599"/></div>
-          <div class="form-group"><label class="form-label">Stock Quantity *</label><input type="number" class="form-input" id="vp-stock" placeholder="10"/></div>
-        </div>
-        <div class="form-row" style="margin-bottom:1.5rem">
-          <div class="form-group">
-            <label class="form-label">Category *</label>
-            <select class="form-select" id="vp-cat">
-              <option value="furniture">Furniture</option><option value="lighting">Lighting</option>
-              <option value="decor">Decor</option><option value="ceramics">Ceramics</option>
-              <option value="bedroom">Bedroom</option><option value="outdoor">Outdoor</option>
-            </select>
-          </div>
-          <div class="form-group"><label class="form-label">Badge (optional)</label><input type="text" class="form-input" id="vp-badge" placeholder="New, Bestseller…"/></div>
-        </div>
-        <button class="btn btn-gold btn-lg" onclick="uploadProduct()">Upload Product ✦</button>
+        ${!u.verified?`<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:1.25rem;display:flex;align-items:center;gap:1rem"><span style="font-size:1.5rem">⏳</span><div><div style="font-weight:600;color:#92400e;font-size:0.875rem">Awaiting Approval</div><div style="color:#a16207;font-size:0.8rem">Your shop is under review. Products will go live once approved by admin.</div></div></div>`:''}
       </div>`;
-  } else if (section === 'inventory') {
-    const myProds = State.products.filter(p => p.vendorId === State.currentUser.id || p.brand === State.currentUser.shopName);
+
+  } else if (section === 'upload') {
     content.innerHTML = `
-      <div class="glass reveal" style="padding:1.5rem">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem">
-          <h3 style="font-size:0.8rem;letter-spacing:0.12em;text-transform:uppercase;color:#7c3aed">My Products (${myProds.length})</h3>
-          <button class="btn btn-gold btn-sm" onclick="switchVendorSection('upload')">+ Add Product</button>
+      <div>
+        <div style="margin-bottom:1.5rem">
+          <h1 style="font-size:1.5rem;font-weight:700;color:#111827">Upload Product</h1>
+          <p style="color:#6b7280;font-size:0.875rem">Add a new product to your shop</p>
         </div>
-        ${myProds.length === 0 ? '<p style="color:#7b72a8;text-align:center;padding:2rem">No products yet. Upload your first product!</p>' : `
-        <table class="data-table">
-          <thead><tr><th>Product</th><th>Price</th><th>Stock</th><th>Status</th><th>Action</th></tr></thead>
-          <tbody>${myProds.map(p => `
-            <tr>
-              <td><div style="display:flex;align-items:center;gap:0.8rem"><span style="font-size:1.4rem">${p.emoji}</span><span style="color:#1e0a4e">${p.name}</span></div></td>
-              <td style="color:#1e0a4e">${p.price.toLocaleString()} TND</td>
-              <td style="color:#1e0a4e">${p.stock > 5 ? p.stock : '<span style="color:orange">' + p.stock + ' ⚠️</span>'}</td>
-              <td><span style="background:${p.verified ? '#dcfce7' : '#fef9c3'};color:${p.verified ? '#166534' : '#854d0e'};padding:0.2rem 0.6rem;border-radius:20px;font-size:0.72rem">${p.verified ? '✓ Live' : '⏳ Pending'}</span></td>
-              <td><button onclick="deleteVendorProduct(${p.id})" style="background:#fee2e2;color:#dc2626;border:none;padding:0.2rem 0.6rem;border-radius:6px;font-size:0.72rem;cursor:pointer">Delete</button></td>
-            </tr>`).join('')}
-          </tbody>
-        </table>`}
+        <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:2rem;max-width:700px">
+          <!-- Image upload -->
+          <div style="margin-bottom:1.5rem">
+            <label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.5rem">Product Image *</label>
+            <div id="upload-zone" onclick="document.getElementById('vp-image-file').click()" style="border:2px dashed #e9d5ff;border-radius:10px;padding:2rem;text-align:center;cursor:pointer;background:#fafafa;transition:all 0.2s" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f3ff'" onmouseout="this.style.borderColor='#e9d5ff';this.style.background='#fafafa'">
+              <div id="upload-preview" style="display:none;margin-bottom:1rem"><img id="upload-img-preview" style="max-height:150px;border-radius:8px;object-fit:cover" src=""/></div>
+              <div id="upload-placeholder"><div style="font-size:2rem;margin-bottom:0.5rem">📸</div><p style="color:#6b7280;margin-bottom:0.25rem;font-size:0.875rem;font-weight:500">Click to upload image</p><p style="font-size:0.75rem;color:#9ca3af">PNG, JPG up to 10MB</p></div>
+              <div id="upload-loading" style="display:none"><div style="font-size:1.5rem">⏳</div><p style="color:#7c3aed;font-size:0.85rem">Uploading...</p></div>
+            </div>
+            <input type="file" id="vp-image-file" accept="image/*" style="display:none" onchange="uploadToCloudinary(this)"/>
+            <input type="hidden" id="vp-image-url"/>
+          </div>
+          <!-- Fields -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Product Name *</label><input type="text" id="vp-title" placeholder="e.g. Velvet Sultan Sofa" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;color:#111827;font-family:inherit;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
+            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Brand Name *</label><input type="text" id="vp-brand" placeholder="Your brand" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;color:#111827;font-family:inherit;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
+          </div>
+          <div style="margin-bottom:1rem"><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Description *</label><textarea id="vp-desc" placeholder="Describe your product..." style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;color:#111827;font-family:inherit;outline:none;min-height:100px;resize:vertical;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"></textarea></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Price (TND) *</label><input type="number" id="vp-price" placeholder="1299" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;color:#111827;font-family:inherit;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
+            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Old Price</label><input type="number" id="vp-old-price" placeholder="1599" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;color:#111827;font-family:inherit;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
+            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Stock *</label><input type="number" id="vp-stock" placeholder="10" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;color:#111827;font-family:inherit;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Category *</label>
+              <select id="vp-cat" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;color:#111827;font-family:inherit;outline:none;background:white;box-sizing:border-box">
+                <option value="sofa">Sofa / Furniture</option><option value="rug">Rugs / Kilim</option><option value="lighting">Lighting</option><option value="ceramic">Ceramics</option><option value="bedroom">Bedroom</option><option value="outdoor">Outdoor</option><option value="fragrance">Fragrance</option><option value="decor">Decor</option>
+              </select>
+            </div>
+            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Badge (optional)</label><input type="text" id="vp-badge" placeholder="New, Bestseller..." style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;color:#111827;font-family:inherit;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
+          </div>
+          <button onclick="uploadProduct()" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.875rem 2rem;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;width:100%">Upload Product →</button>
+        </div>
+      </div>`;
+
+  } else if (section === 'inventory') {
+    content.innerHTML = `
+      <div>
+        <div style="margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <h1 style="font-size:1.5rem;font-weight:700;color:#111827">My Products</h1>
+            <p style="color:#6b7280;font-size:0.875rem">${myProds.length} products in your shop</p>
+          </div>
+          <button onclick="switchVendorSection('upload')" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.7rem 1.25rem;border-radius:8px;font-size:0.875rem;font-weight:600;cursor:pointer;font-family:inherit">+ Add Product</button>
+        </div>
+        <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
+          ${myProds.length===0?'<div style="text-align:center;padding:4rem;color:#9ca3af"><div style="font-size:3rem;margin-bottom:1rem">📦</div><p style="font-weight:500;margin-bottom:0.5rem">No products yet</p><p style="font-size:0.875rem">Upload your first product to start selling!</p></div>':`
+          <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse">
+              <thead><tr style="background:#f9fafb">${['Product','Price','Stock','Status','Action'].map(h=>`<th style="text-align:left;padding:0.875rem 1rem;font-size:0.75rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em">${h}</th>`).join('')}</tr></thead>
+              <tbody>${myProds.map(p=>`
+                <tr style="border-top:1px solid #f3f4f6" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
+                  <td style="padding:0.875rem 1rem">
+                    <div style="display:flex;align-items:center;gap:0.75rem">
+                      <div style="width:40px;height:40px;background:#f5f3ff;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.3rem">${p.emoji}</div>
+                      <div><div style="font-size:0.82rem;font-weight:600;color:#111827">${p.name}</div><div style="font-size:0.72rem;color:#9ca3af">${p.cat}</div></div>
+                    </div>
+                  </td>
+                  <td style="padding:0.875rem 1rem;font-size:0.875rem;font-weight:600;color:#111827">${p.price.toLocaleString()} TND</td>
+                  <td style="padding:0.875rem 1rem;font-size:0.875rem"><span style="color:${p.stock>5?'#059669':'#dc2626'};font-weight:600">${p.stock} units</span></td>
+                  <td style="padding:0.875rem 1rem"><span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:${p.verified?'#dcfce7':'#fef9c3'};color:${p.verified?'#166534':'#92400e'}">${p.verified?'✓ Live':'⏳ Pending'}</span></td>
+                  <td style="padding:0.875rem 1rem"><button onclick="deleteVendorProduct(${p.id})" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;padding:0.3rem 0.8rem;border-radius:6px;font-size:0.75rem;cursor:pointer;font-weight:600">Delete</button></td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>`}
+        </div>
+      </div>`;
+
+  } else if (section === 'orders') {
+    content.innerHTML = `
+      <div>
+        <div style="margin-bottom:1.5rem">
+          <h1 style="font-size:1.5rem;font-weight:700;color:#111827">My Orders</h1>
+          <p style="color:#6b7280;font-size:0.875rem">${orders.length} orders received</p>
+        </div>
+        <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
+          ${orders.length===0?'<div style="text-align:center;padding:4rem;color:#9ca3af"><div style="font-size:3rem;margin-bottom:1rem">🧾</div><p>No orders yet</p></div>':`
+          <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse">
+              <thead><tr style="background:#f9fafb">${['Order #','Phone','Total','Status','Date'].map(h=>`<th style="text-align:left;padding:0.875rem 1rem;font-size:0.75rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em">${h}</th>`).join('')}</tr></thead>
+              <tbody>${orders.reverse().map(o=>`
+                <tr style="border-top:1px solid #f3f4f6" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
+                  <td style="padding:0.875rem 1rem;font-size:0.8rem;font-weight:600;color:#7c3aed">${o.tracking_number||o.id}</td>
+                  <td style="padding:0.875rem 1rem;font-size:0.8rem;color:#374151">${o.phone||'-'}</td>
+                  <td style="padding:0.875rem 1rem;font-size:0.875rem;font-weight:600;color:#111827">${(o.total||0).toLocaleString()} TND</td>
+                  <td style="padding:0.875rem 1rem"><span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:${o.status==='delivered'?'#dcfce7':o.status==='shipped'?'#dbeafe':'#fef9c3'};color:${o.status==='delivered'?'#166534':o.status==='shipped'?'#1d4ed8':'#92400e'}">${o.status||'pending'}</span></td>
+                  <td style="padding:0.875rem 1rem;font-size:0.78rem;color:#9ca3af">${o.created_at?new Date(o.created_at).toLocaleDateString():'Today'}</td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>`}
+        </div>
       </div>`;
   }
-  initReveal();
 }
+
+function deleteVendorProduct(productId) {
+  State.products = State.products.filter(p => p.id !== productId);
+  STN.DB.set('products', State.products);
+  toast('Product deleted!', 'success');
+  switchVendorSection('inventory');
+}
+
+function uploadProduct() {
+  const title = document.getElementById('vp-title')?.value?.trim();
+  const brand = document.getElementById('vp-brand')?.value?.trim();
+  const desc = document.getElementById('vp-desc')?.value?.trim();
+  const price = parseFloat(document.getElementById('vp-price')?.value);
+  const stock = parseInt(document.getElementById('vp-stock')?.value);
+  const cat = document.getElementById('vp-cat')?.value;
+  const badge = document.getElementById('vp-badge')?.value?.trim();
+  const oldPrice = parseFloat(document.getElementById('vp-old-price')?.value) || null;
+  const imageUrl = document.getElementById('vp-image-url')?.value || null;
+
+  if (!title || !brand || !desc || !price || !stock) {
+    toast('Please fill all required fields', 'error'); return;
+  }
+
+  const emojis = {sofa:'🛋️',rug:'🏺',lighting:'💡',ceramic:'🏺',bedroom:'🛏️',outdoor:'🌿',fragrance:'🧴',decor:'🎭'};
+  const newProduct = {
+    id: Date.now(),
+    name: title,
+    brand: State.currentUser?.shop_name || State.currentUser?.shopName || brand,
+    vendorId: State.currentUser?.id,
+    region: State.currentUser?.wilaya || 'Tunisia',
+    cat,
+    price,
+    oldPrice,
+    rating: 0,
+    reviews: 0,
+    badge: badge || null,
+    emoji: emojis[cat] || '🎁',
+    image: imageUrl,
+    verified: false,
+    stock,
+    desc
+  };
 
 function uploadToCloudinary(input) {
   const file = input.files[0];
@@ -1554,6 +1784,8 @@ function homeSearch() {
   } else {
     showPage('products');
   }
+}
+
 }
 
 // ── START ──
