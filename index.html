@@ -686,24 +686,217 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
       <h1 class="display reveal" style="font-size:clamp(2.5rem,6vw,4.5rem)">Our <em class="gold-text">Collections</em></h1>
       <div class="divider reveal"></div>
     </div>
+    
+    <!-- Mobile Filter Toggle -->
     <div style="display:flex;gap:1rem;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap">
+      <button class="btn btn-outline btn-sm" onclick="toggleSidebar()" style="display:none;" id="mobile-filter-btn">
+        🎯 Filters <span id="filter-count" style="background:#7c3aed;color:white;padding:0.1rem 0.4rem;border-radius:12px;margin-left:0.3rem;font-size:0.65rem">0</span>
+      </button>
       <div class="search-bar reveal" style="flex:1;min-width:250px">
         <div class="search-icon-wrap">⌕</div>
         <input type="text" class="search-input" id="prod-search" placeholder="Search products, brands, regions…" onkeydown="if(event.key==='Enter')searchProducts()" oninput="if(this.value.length>2||this.value.length===0)searchProducts()"/>
         <button class="search-btn" onclick="searchProducts()">Search</button>
       </div>
     </div>
-    <div class="filters reveal">
-      <button class="filter-btn active" id="filter-all" onclick="filterProducts('all',this)">All Products</button>
-      <button class="filter-btn" onclick="filterProducts('furniture',this)">🛋 Furniture</button>
-      <button class="filter-btn" onclick="filterProducts('lighting',this)">💡 Lighting</button>
-      <button class="filter-btn" onclick="filterProducts('decor',this)">🎨 Decor</button>
-      <button class="filter-btn" onclick="filterProducts('ceramics',this)">🍽 Ceramics</button>
-      <button class="filter-btn" onclick="filterProducts('bedroom',this)">🛏 Bedroom</button>
-      <button class="filter-btn" onclick="filterProducts('outdoor',this)">🌿 Outdoor</button>
-      <button class="filter-btn" onclick="filterProducts('fragrance',this)">🧴 Fragrance</button>
+    
+    <!-- Amazon-style Layout: Sidebar + Main Content -->
+    <div style="display:grid;grid-template-columns:280px 1fr;gap:2rem;align-items:start">
+      
+      <!-- SIDEBAR -->
+      <aside id="ecom-sidebar" style="position:sticky;top:84px;z-index:10">
+        <div class="sidebar-card">
+          <!-- Sidebar Header -->
+          <div class="sidebar-header">
+            <h3 style="font-family:var(--font-display);font-size:1.2rem;color:var(--text-dark);margin-bottom:0.5rem">Filters</h3>
+            <button onclick="clearAllFilters()" style="background:none;border:none;color:var(--accent);font-size:0.75rem;font-weight:600;cursor:pointer">Clear All</button>
+          </div>
+          
+          <!-- Categories -->
+          <div class="sidebar-section">
+            <h4 class="sidebar-title">📦 Categories</h4>
+            <div class="category-list">
+              <label class="category-item">
+                <input type="checkbox" value="all" onchange="applyFilters()" checked id="cat-all">
+                <span class="checkmark"></span>
+                <span>All Products</span>
+                <span class="count">248</span>
+              </label>
+              <label class="category-item">
+                <input type="checkbox" value="furniture" onchange="applyFilters()" id="cat-furniture">
+                <span class="checkmark"></span>
+                <span>🛋️ Furniture</span>
+                <span class="count">67</span>
+              </label>
+              <label class="category-item">
+                <input type="checkbox" value="lighting" onchange="applyFilters()" id="cat-lighting">
+                <span class="checkmark"></span>
+                <span>💡 Lighting</span>
+                <span class="count">43</span>
+              </label>
+              <label class="category-item">
+                <input type="checkbox" value="decor" onchange="applyFilters()" id="cat-decor">
+                <span class="checkmark"></span>
+                <span>🎨 Decor</span>
+                <span class="count">52</span>
+              </label>
+              <label class="category-item">
+                <input type="checkbox" value="ceramics" onchange="applyFilters()" id="cat-ceramics">
+                <span class="checkmark"></span>
+                <span>🏺 Ceramics</span>
+                <span class="count">38</span>
+              </label>
+              <label class="category-item">
+                <input type="checkbox" value="bedroom" onchange="applyFilters()" id="cat-bedroom">
+                <span class="checkmark"></span>
+                <span>🛏️ Bedroom</span>
+                <span class="count">28</span>
+              </label>
+              <label class="category-item">
+                <input type="checkbox" value="outdoor" onchange="applyFilters()" id="cat-outdoor">
+                <span class="checkmark"></span>
+                <span>🌿 Outdoor</span>
+                <span class="count">20</span>
+              </label>
+            </div>
+          </div>
+          
+          <!-- Price Range -->
+          <div class="sidebar-section">
+            <h4 class="sidebar-title">💰 Price Range</h4>
+            <div style="margin-bottom:1rem">
+              <div style="display:flex;justify-content:space-between;margin-bottom:0.8rem">
+                <span style="font-size:0.75rem;color:var(--text-muted)">Min</span>
+                <span style="font-size:0.75rem;color:var(--text-muted)">Max</span>
+              </div>
+              <div style="display:flex;gap:0.8rem;align-items:center">
+                <input type="number" id="price-min" placeholder="0" min="0" max="5000" step="10" onchange="applyFilters()" style="flex:1;padding:0.5rem;border:1px solid var(--border);border-radius:6px;font-size:0.85rem">
+                <span style="color:var(--text-muted)">-</span>
+                <input type="number" id="price-max" placeholder="5000" min="0" max="5000" step="10" onchange="applyFilters()" style="flex:1;padding:0.5rem;border:1px solid var(--border);border-radius:6px;font-size:0.85rem">
+              </div>
+            </div>
+            <!-- Price Range Slider -->
+            <div class="price-slider-container">
+              <div class="price-slider-track">
+                <div class="price-slider-range" id="price-range"></div>
+              </div>
+              <input type="range" id="price-min-slider" min="0" max="5000" value="0" step="10" oninput="updatePriceSlider()" style="position:absolute;top:0;left:0;width:100%;height:6px;opacity:0;cursor:pointer;z-index:2">
+              <input type="range" id="price-max-slider" min="0" max="5000" value="5000" step="10" oninput="updatePriceSlider()" style="position:absolute;top:0;left:0;width:100%;height:6px;opacity:0;cursor:pointer;z-index:2">
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:0.5rem">
+              <span class="price-display" id="price-display-min">0 TND</span>
+              <span class="price-display" id="price-display-max">5000 TND</span>
+            </div>
+          </div>
+          
+          <!-- Rating -->
+          <div class="sidebar-section">
+            <h4 class="sidebar-title">⭐ Customer Rating</h4>
+            <div class="rating-list">
+              <label class="rating-item" onclick="setRatingFilter(4)">
+                <input type="radio" name="rating" value="4" onchange="applyFilters()">
+                <span class="stars">★★★★☆</span>
+                <span class="rating-text">& Up</span>
+                <span class="count">156</span>
+              </label>
+              <label class="rating-item" onclick="setRatingFilter(3)">
+                <input type="radio" name="rating" value="3" onchange="applyFilters()">
+                <span class="stars">★★★☆☆</span>
+                <span class="rating-text">& Up</span>
+                <span class="count">189</span>
+              </label>
+              <label class="rating-item" onclick="setRatingFilter(2)">
+                <input type="radio" name="rating" value="2" onchange="applyFilters()">
+                <span class="stars">★★☆☆☆</span>
+                <span class="rating-text">& Up</span>
+                <span class="count">203</span>
+              </label>
+              <label class="rating-item" onclick="setRatingFilter(1)">
+                <input type="radio" name="rating" value="1" onchange="applyFilters()">
+                <span class="stars">★☆☆☆☆</span>
+                <span class="rating-text">& Up</span>
+                <span class="count">248</span>
+              </label>
+            </div>
+          </div>
+          
+          <!-- Availability -->
+          <div class="sidebar-section">
+            <h4 class="sidebar-title">📦 Availability</h4>
+            <div class="availability-options">
+              <label class="availability-item">
+                <input type="checkbox" id="in-stock" onchange="applyFilters()" checked>
+                <span class="checkmark"></span>
+                <span>✅ In Stock</span>
+                <span class="count">234</span>
+              </label>
+              <label class="availability-item">
+                <input type="checkbox" id="out-of-stock" onchange="applyFilters()">
+                <span class="checkmark"></span>
+                <span>⏳ Out of Stock</span>
+                <span class="count">14</span>
+              </label>
+            </div>
+          </div>
+          
+          <!-- Special Offers -->
+          <div class="sidebar-section">
+            <h4 class="sidebar-title">🎁 Special Offers</h4>
+            <div class="offer-list">
+              <label class="offer-item">
+                <input type="checkbox" onchange="applyFilters()">
+                <span class="checkmark"></span>
+                <span>🚚 Free Shipping</span>
+                <span class="count">89</span>
+              </label>
+              <label class="offer-item">
+                <input type="checkbox" onchange="applyFilters()">
+                <span class="checkmark"></span>
+                <span>💳 Cash on Delivery</span>
+                <span class="count">156</span>
+              </label>
+              <label class="offer-item">
+                <input type="checkbox" onchange="applyFilters()">
+                <span class="checkmark"></span>
+                <span>🏷️ On Sale</span>
+                <span class="count">42</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </aside>
+      
+      <!-- Mobile Sidebar Overlay -->
+      <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+      
+      <!-- MAIN CONTENT -->
+      <main>
+        <!-- Active Filters Bar -->
+        <div id="active-filters-bar" style="display:none;background:white;border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:1.5rem;align-items:center;justify-content:space-between">
+          <div id="active-filters-list" style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center"></div>
+          <button onclick="clearAllFilters()" style="background:none;border:none;color:var(--danger);font-size:0.75rem;font-weight:600;cursor:pointer">Clear All</button>
+        </div>
+        
+        <!-- Results Header -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem">
+          <div style="font-size:0.9rem;color:var(--text-body)">
+            <span id="results-count" style="font-weight:600;color:var(--text-dark)">248</span> results
+          </div>
+          <div style="display:flex;gap:0.8rem;align-items:center">
+            <span style="font-size:0.75rem;color:var(--text-muted)">Sort by:</span>
+            <select class="form-select" style="width:auto;padding:0.5rem 0.8rem;font-size:0.85rem" onchange="sortProducts(this.value)">
+              <option value="featured">Featured</option>
+              <option value="price-low">Price: Low to High</option>
+              <option value="price-high">Price: High to Low</option>
+              <option value="rating">Customer Rating</option>
+              <option value="newest">Newest Arrivals</option>
+            </select>
+          </div>
+        </div>
+        
+        <!-- Products Grid -->
+        <div class="grid-auto" id="products-grid"></div>
+      </main>
     </div>
-    <div class="grid-auto" id="products-grid"></div>
   </div>
 </div>
 

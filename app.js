@@ -951,7 +951,9 @@ function renderHome() {
 
 // ── PRODUCTS ──
 function renderProducts() {
-  filterProducts(State.filterCat);
+  // Initialize the sidebar with current products
+  filterAndRenderProducts();
+  initReveal();
 }
 
 function filterProducts(cat, btn) {
@@ -960,22 +962,42 @@ function filterProducts(cat, btn) {
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
   }
-  const grid = document.getElementById('products-grid');
-  if (!grid) return;
-  const filtered = cat === 'all' ? State.products : State.products.filter(p => p.cat === cat);
-  grid.innerHTML = filtered.length > 0
-    ? filtered.map(productCardHTML).join('')
-    : `<div style="grid-column:1/-1;text-align:center;padding:4rem;color:var(--text-muted)"><div style="font-size:3rem;margin-bottom:1rem">🔍</div><p>No products found in this category</p></div>`;
-  initReveal();
+  
+  // Update sidebar categories based on legacy filter
+  const allCheckbox = document.getElementById('cat-all');
+  const categoryCheckbox = document.getElementById(`cat-${cat}`);
+  
+  if (cat === 'all') {
+    // Check "All Products" and uncheck others
+    if (allCheckbox) allCheckbox.checked = true;
+    document.querySelectorAll('.category-item input[type="checkbox"]:not(#cat-all)').forEach(cb => {
+      cb.checked = false;
+    });
+    FilterState.categories = [];
+  } else {
+    // Uncheck "All Products" and check specific category
+    if (allCheckbox) allCheckbox.checked = false;
+    if (categoryCheckbox) categoryCheckbox.checked = true;
+    FilterState.categories = [cat];
+  }
+  
+  // Apply filters
+  applyFilters();
 }
 
 function searchProducts() {
   const q = document.getElementById('prod-search')?.value?.trim()?.toLowerCase();
-  const grid = document.getElementById('products-grid');
-  if (!grid) return;
-  const filtered = q ? State.products.filter(p => p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q) || p.region.toLowerCase().includes(q)) : State.products;
-  grid.innerHTML = filtered.map(productCardHTML).join('');
-  if (q) toast(`🔍 ${filtered.length} result(s) for "${q}"`);
+  
+  // Add search query to filter state (we'll use this in filtering)
+  if (q) {
+    State.searchQuery = q;
+    toast(`🔍 Searching for "${q}"...`);
+  } else {
+    State.searchQuery = '';
+  }
+  
+  // Apply all filters including search
+  filterAndRenderProducts();
   initReveal();
 }
 
@@ -2036,4 +2058,435 @@ function homeSearch() {
 
 // ── START ──
 document.addEventListener('DOMContentLoaded', init);
+
+// ── E-COMMERCE SIDEBAR FUNCTIONS ──
+
+// Filter state management
+const FilterState = {
+  categories: [],
+  priceMin: 0,
+  priceMax: 5000,
+  rating: null,
+  inStock: true,
+  outOfStock: false,
+  freeShipping: false,
+  cashOnDelivery: false,
+  onSale: false,
+  sortBy: 'featured'
+};
+
+// Toggle sidebar on mobile
+function toggleSidebar() {
+  const sidebar = document.querySelector('.sidebar-card');
+  const overlay = document.createElement('div');
+  overlay.className = 'sidebar-overlay';
+  
+  if (sidebar.classList.contains('open')) {
+    sidebar.classList.remove('open');
+    document.querySelector('.sidebar-overlay')?.remove();
+  } else {
+    sidebar.classList.add('open');
+    document.body.appendChild(overlay);
+    overlay.onclick = () => toggleSidebar();
+  }
+}
+
+// Update price range slider
+function updatePriceSlider() {
+  const minSlider = document.getElementById('price-min-slider');
+  const maxSlider = document.getElementById('price-max-slider');
+  const minInput = document.getElementById('price-min');
+  const maxInput = document.getElementById('price-max');
+  const minDisplay = document.getElementById('price-display-min');
+  const maxDisplay = document.getElementById('price-display-max');
+  const range = document.getElementById('price-range');
+  
+  let minVal = parseInt(minSlider.value);
+  let maxVal = parseInt(maxSlider.value);
+  
+  // Ensure min <= max
+  if (minVal > maxVal) {
+    if (event.target.id === 'price-min-slider') {
+      minVal = maxVal;
+      minSlider.value = maxVal;
+    } else {
+      maxVal = minVal;
+      maxSlider.value = minVal;
+    }
+  }
+  
+  // Update inputs and displays
+  minInput.value = minVal;
+  maxInput.value = maxVal;
+  minDisplay.textContent = `${minVal} TND`;
+  maxDisplay.textContent = `${maxVal} TND`;
+  
+  // Update range visual
+  const minPercent = (minVal / 5000) * 100;
+  const maxPercent = (maxVal / 5000) * 100;
+  range.style.left = `${minPercent}%`;
+  range.style.right = `${100 - maxPercent}%`;
+  
+  // Update filter state and apply
+  FilterState.priceMin = minVal;
+  FilterState.priceMax = maxVal;
+  applyFilters();
+}
+
+// Set rating filter
+function setRatingFilter(rating) {
+  FilterState.rating = rating;
+  applyFilters();
+}
+
+// Apply all filters
+function applyFilters() {
+  // Update category filters
+  const categoryCheckboxes = document.querySelectorAll('.category-item input[type="checkbox"]');
+  FilterState.categories = [];
+  
+  categoryCheckboxes.forEach(checkbox => {
+    if (checkbox.checked && checkbox.value !== 'all') {
+      FilterState.categories.push(checkbox.value);
+    }
+  });
+  
+  // Handle "All Products" checkbox
+  const allCheckbox = document.getElementById('cat-all');
+  if (allCheckbox.checked) {
+    FilterState.categories = [];
+    // Uncheck other categories
+    categoryCheckboxes.forEach(cb => {
+      if (cb.value !== 'all') cb.checked = false;
+    });
+  } else {
+    // Uncheck "All Products" if any specific category is selected
+    if (FilterState.categories.length > 0) {
+      allCheckbox.checked = false;
+    }
+  }
+  
+  // Update availability filters
+  FilterState.inStock = document.getElementById('in-stock').checked;
+  FilterState.outOfStock = document.getElementById('out-of-stock').checked;
+  
+  // Update special offer filters
+  const offerCheckboxes = document.querySelectorAll('.offer-item input[type="checkbox"]');
+  FilterState.freeShipping = offerCheckboxes[0]?.checked || false;
+  FilterState.cashOnDelivery = offerCheckboxes[1]?.checked || false;
+  FilterState.onSale = offerCheckboxes[2]?.checked || false;
+  
+  // Update active filters display
+  updateActiveFiltersBar();
+  
+  // Apply filters to products
+  filterAndRenderProducts();
+}
+
+// Update active filters bar
+function updateActiveFiltersBar() {
+  const bar = document.getElementById('active-filters-bar');
+  const list = document.getElementById('active-filters-list');
+  const filterCount = document.getElementById('filter-count');
+  
+  const activeFilters = [];
+  
+  // Add category filters
+  FilterState.categories.forEach(cat => {
+    const catName = cat.charAt(0).toUpperCase() + cat.slice(1);
+    activeFilters.push({ type: 'category', value: cat, label: catName });
+  });
+  
+  // Add price range filter
+  if (FilterState.priceMin > 0 || FilterState.priceMax < 5000) {
+    activeFilters.push({
+      type: 'price',
+      value: `${FilterState.priceMin}-${FilterState.priceMax}`,
+      label: `${FilterState.priceMin}-${FilterState.priceMax} TND`
+    });
+  }
+  
+  // Add rating filter
+  if (FilterState.rating !== null) {
+    activeFilters.push({
+      type: 'rating',
+      value: FilterState.rating,
+      label: `${FilterState.rating}+ Stars`
+    });
+  }
+  
+  // Add availability filters
+  if (!FilterState.inStock) {
+    activeFilters.push({ type: 'availability', value: 'in-stock', label: 'In Stock' });
+  }
+  if (FilterState.outOfStock) {
+    activeFilters.push({ type: 'availability', value: 'out-of-stock', label: 'Out of Stock' });
+  }
+  
+  // Add special offer filters
+  if (FilterState.freeShipping) {
+    activeFilters.push({ type: 'offer', value: 'free-shipping', label: 'Free Shipping' });
+  }
+  if (FilterState.cashOnDelivery) {
+    activeFilters.push({ type: 'offer', value: 'cod', label: 'Cash on Delivery' });
+  }
+  if (FilterState.onSale) {
+    activeFilters.push({ type: 'offer', value: 'sale', label: 'On Sale' });
+  }
+  
+  // Update filter count
+  filterCount.textContent = activeFilters.length;
+  
+  // Show/hide active filters bar
+  if (activeFilters.length > 0) {
+    bar.style.display = 'flex';
+    
+    // Render filter tags
+    list.innerHTML = activeFilters.map(filter => `
+      <div class="active-filter-tag">
+        ${filter.label}
+        <button onclick="removeFilter('${filter.type}', '${filter.value}')">×</button>
+      </div>
+    `).join('');
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+// Remove individual filter
+function removeFilter(type, value) {
+  switch (type) {
+    case 'category':
+      const catCheckbox = document.getElementById(`cat-${value}`);
+      if (catCheckbox) catCheckbox.checked = false;
+      break;
+    case 'price':
+      document.getElementById('price-min').value = 0;
+      document.getElementById('price-max').value = 5000;
+      document.getElementById('price-min-slider').value = 0;
+      document.getElementById('price-max-slider').value = 5000;
+      FilterState.priceMin = 0;
+      FilterState.priceMax = 5000;
+      updatePriceSlider();
+      return;
+    case 'rating':
+      const ratingRadio = document.querySelector(`input[name="rating"][value="${value}"]`);
+      if (ratingRadio) ratingRadio.checked = false;
+      FilterState.rating = null;
+      break;
+    case 'availability':
+      if (value === 'in-stock') {
+        document.getElementById('in-stock').checked = true;
+      } else if (value === 'out-of-stock') {
+        document.getElementById('out-of-stock').checked = false;
+      }
+      break;
+    case 'offer':
+      const offerIndex = ['free-shipping', 'cod', 'sale'].indexOf(value);
+      const offerCheckbox = document.querySelectorAll('.offer-item input[type="checkbox"]')[offerIndex];
+      if (offerCheckbox) offerCheckbox.checked = false;
+      break;
+  }
+  
+  applyFilters();
+}
+
+// Clear all filters
+function clearAllFilters() {
+  // Reset checkboxes
+  document.querySelectorAll('.category-item input[type="checkbox"]').forEach(cb => {
+    cb.checked = cb.value === 'all';
+  });
+  
+  document.querySelectorAll('.offer-item input[type="checkbox"]').forEach(cb => {
+    cb.checked = false;
+  });
+  
+  document.querySelectorAll('input[name="rating"]').forEach(rb => {
+    rb.checked = false;
+  });
+  
+  // Reset availability
+  document.getElementById('in-stock').checked = true;
+  document.getElementById('out-of-stock').checked = false;
+  
+  // Reset price
+  document.getElementById('price-min').value = 0;
+  document.getElementById('price-max').value = 5000;
+  document.getElementById('price-min-slider').value = 0;
+  document.getElementById('price-max-slider').value = 5000;
+  
+  // Reset filter state
+  FilterState.categories = [];
+  FilterState.priceMin = 0;
+  FilterState.priceMax = 5000;
+  FilterState.rating = null;
+  FilterState.inStock = true;
+  FilterState.outOfStock = false;
+  FilterState.freeShipping = false;
+  FilterState.cashOnDelivery = false;
+  FilterState.onSale = false;
+  
+  updatePriceSlider();
+  applyFilters();
+}
+
+// Filter and render products
+function filterAndRenderProducts() {
+  let filteredProducts = [...State.products];
+  
+  // Search filter
+  if (State.searchQuery) {
+    filteredProducts = filteredProducts.filter(product => 
+      product.name.toLowerCase().includes(State.searchQuery) || 
+      product.brand.toLowerCase().includes(State.searchQuery) || 
+      (product.region && product.region.toLowerCase().includes(State.searchQuery)) ||
+      (product.category && product.category.toLowerCase().includes(State.searchQuery))
+    );
+  }
+  
+  // Category filter
+  if (FilterState.categories.length > 0) {
+    filteredProducts = filteredProducts.filter(product => 
+      FilterState.categories.includes(product.category || product.cat)
+    );
+  }
+  
+  // Price filter
+  filteredProducts = filteredProducts.filter(product => 
+    product.price >= FilterState.priceMin && product.price <= FilterState.priceMax
+  );
+  
+  // Rating filter
+  if (FilterState.rating !== null) {
+    filteredProducts = filteredProducts.filter(product => 
+      (product.rating || 0) >= FilterState.rating
+    );
+  }
+  
+  // Availability filter
+  if (FilterState.inStock && !FilterState.outOfStock) {
+    filteredProducts = filteredProducts.filter(product => product.inStock !== false);
+  } else if (!FilterState.inStock && FilterState.outOfStock) {
+    filteredProducts = filteredProducts.filter(product => product.inStock === false);
+  }
+  
+  // Special offers filters (mock implementation)
+  if (FilterState.freeShipping) {
+    filteredProducts = filteredProducts.filter(product => 
+      product.freeShipping || product.price >= 500
+    );
+  }
+  
+  if (FilterState.onSale) {
+    filteredProducts = filteredProducts.filter(product => 
+      product.oldPrice && product.oldPrice > product.price
+    );
+  }
+  
+  // Sort products
+  sortProductsArray(filteredProducts, FilterState.sortBy);
+  
+  // Update results count
+  const resultsCount = document.getElementById('results-count');
+  if (resultsCount) {
+    resultsCount.textContent = filteredProducts.length;
+  }
+  
+  // Render products
+  renderProductsGrid(filteredProducts);
+}
+
+// Sort products array
+function sortProductsArray(products, sortBy) {
+  switch (sortBy) {
+    case 'price-low':
+      products.sort((a, b) => a.price - b.price);
+      break;
+    case 'price-high':
+      products.sort((a, b) => b.price - a.price);
+      break;
+    case 'rating':
+      products.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      break;
+    case 'newest':
+      products.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+      break;
+    case 'featured':
+    default:
+      // Keep original order or implement featured logic
+      break;
+  }
+}
+
+// Sort products (called from dropdown)
+function sortProducts(sortBy) {
+  FilterState.sortBy = sortBy;
+  filterAndRenderProducts();
+}
+
+// Render products grid
+function renderProductsGrid(products) {
+  const grid = document.getElementById('products-grid');
+  if (!grid) return;
+  
+  if (products.length === 0) {
+    grid.innerHTML = `
+      <div style="grid-column: 1/-1; text-align: center; padding: 3rem;">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
+        <h3 style="color: var(--text-dark); margin-bottom: 0.5rem;">No products found</h3>
+        <p style="color: var(--text-muted);">Try adjusting your filters or search terms</p>
+        <button class="btn btn-outline" onclick="clearAllFilters()" style="margin-top: 1rem;">Clear All Filters</button>
+      </div>
+    `;
+    return;
+  }
+  
+  grid.innerHTML = products.map(product => createProductCard(product)).join('');
+  
+  // Add reveal animations
+  setTimeout(() => {
+    grid.querySelectorAll('.product-card').forEach((card, index) => {
+      setTimeout(() => {
+        card.classList.add('reveal', 'visible');
+      }, index * 50);
+    });
+  }, 100);
+}
+
+// Create product card HTML
+function createProductCard(product) {
+  const isInWishlist = State.wishlist.some(item => item.id === product.id);
+  const rating = product.rating || 0;
+  const stars = '★'.repeat(Math.floor(rating)) + '☆'.repeat(5 - Math.floor(rating));
+  
+  return `
+    <div class="product-card" onclick="showProductDetail(${product.id})">
+      <div class="product-img-wrap">
+        ${product.emoji ? `<div class="product-emoji">${product.emoji}</div>` : `<img src="${product.image || ''}" alt="${product.name}" style="width:100%;height:100%;object-fit:cover">`}
+        ${product.badge ? `<div class="product-badge">${product.badge}</div>` : ''}
+        ${product.verified ? `<div class="product-verified">✓ Verified</div>` : ''}
+        <div class="product-overlay">
+          <button class="btn btn-white btn-sm" onclick="event.stopPropagation(); quickView(${product.id})">👁️ Quick View</button>
+          <button class="btn btn-gold btn-sm" onclick="event.stopPropagation(); addToCart(${product.id})">🛒 Add to Cart</button>
+        </div>
+      </div>
+      <div class="product-body">
+        <div class="product-brand">${product.brand || 'Shopping'}</div>
+        <h3 class="product-name">${product.name}</h3>
+        <div class="product-rating">
+          <span class="stars">${stars}</span>
+          <span class="rating-num">(${product.reviews || 0})</span>
+        </div>
+        <div class="product-price-row">
+          <span class="price">${product.price} <span class="price-currency">TND</span></span>
+          ${product.oldPrice ? `<span class="price-old">${product.oldPrice} TND</span>` : ''}
+          <button class="wishlist-btn ${isInWishlist ? 'active' : ''}" onclick="event.stopPropagation(); toggleWishlist(${product.id})">
+            ${isInWishlist ? '♥' : '♡'}
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
 
