@@ -11,13 +11,17 @@ const State = {
   currentUser: null,
   cart: [],
   wishlist: [],
-  products: [],
+  products: STN.PRODUCTS_DATA, // Initialize products from data.js immediately
   orders: [],
+  notifications: [],
+  filters: {
+    category: 'all',
+    price: [0, 5000],
+    rating: 0,
+    search: '',
+    sort: 'name'
+  },
   reviews: [],
-  filterCat: 'all',
-  searchQuery: '',
-  cartOpen: false,
-  promoApplied: null,
   dashSection: 'overview',
   vendorSection: 'dashboard',
   selectedProduct: null,
