@@ -176,6 +176,7 @@ function showPage(id) {
     account: renderAccount,
     admin: renderAdmin,
     vendor: renderVendor,
+    'vendor-dashboard': renderVendorDashboard,
     loyalty: renderLoyalty,
     about: renderAbout,
   };
@@ -1670,6 +1671,37 @@ function unbanUser(userId) {
   switchAdmin(activeSection);
 }
 
+// ── VENDOR DASHBOARD (STANDALONE) ──
+function renderVendorDashboard() {
+  if (!State.currentUser || State.currentUser.role !== 'vendor') {
+    document.getElementById('page-vendor-dashboard').innerHTML = `
+      <div style="text-align:center;padding:4rem;color:#9ca3af">
+        <div style="font-size:3rem;margin-bottom:1rem">🔒</div>
+        <h2 style="margin-bottom:0.5rem;color:#1e0a4e">Vendor Access Required</h2>
+        <p style="margin-bottom:2rem;color:#6b7280">You need to be logged in as a vendor to access this dashboard.</p>
+        <button onclick="showPage('auth')" style="background:#7c3aed;color:white;border:none;padding:0.875rem 2rem;border-radius:8px;font-weight:600;cursor:pointer">Sign In as Vendor</button>
+      </div>
+    `;
+    return;
+  }
+  
+  // Build comprehensive vendor dashboard
+  document.getElementById('page-vendor-dashboard').innerHTML = buildVendorDashboardHTML();
+  
+  // Initialize dashboard asynchronously
+  initializeVendorDashboard().catch(error => {
+    console.error('Failed to initialize vendor dashboard:', error);
+    document.getElementById('page-vendor-dashboard').innerHTML = `
+      <div style="text-align:center;padding:4rem;color:#dc2626">
+        <div style="font-size:3rem;margin-bottom:1rem">⚠️</div>
+        <h2 style="margin-bottom:0.5rem;color:#dc2626">Dashboard Initialization Failed</h2>
+        <p style="margin-bottom:2rem;color:#dc2626">Unable to load vendor dashboard. Please try refreshing the page.</p>
+        <button onclick="location.reload()" style="background:#dc2626;color:white;border:none;padding:0.875rem 2rem;border-radius:8px;font-weight:600;cursor:pointer">🔄 Refresh Page</button>
+      </div>
+    `;
+  });
+}
+
 // ── VENDOR DASHBOARD ──
 function renderVendor() {
   if (!State.currentUser) { showPage('auth'); return; }
@@ -1685,6 +1717,7 @@ function buildVendorHTML() {
   var isVerified = u.verified;
   var tabs = [
     {id:'overview', label:'Overview'},
+    {id:'dashboard', label:'📊 Dashboard'},
     {id:'upload', label:'Upload Product'},
     {id:'inventory', label:'My Products'},
     {id:'orders', label:'My Orders'}
@@ -1921,6 +1954,9 @@ function switchVendorSection(section) {
       if (!btn) return;
       vendorConfirmOrder(btn.dataset.oid, btn.dataset.otrack);
     });
+  } else if (section === 'dashboard') {
+    // Redirect to the comprehensive vendor dashboard page
+    showPage('vendor-dashboard');
   }
 }
 
