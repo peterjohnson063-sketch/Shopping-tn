@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Vendor Dashboard Test</title>
+</head>
+<body>
+    <h1>Testing Vendor Dashboard Access</h1>
+    
+    <h2>Test Steps:</h2>
+    <ol>
+        <li><a href="index.html" target="_blank">1. Open Main Application</a></li>
+        <li>2. Login as vendor user</li>
+        <li>3. Go to vendor page</li>
+        <li>4. Click "📊 Dashboard" button</li>
+        <li>5. Check if dashboard loads</li>
+    </ol>
+    
+    <h2>Expected Results:</h2>
+    <ul>
+        <li>✅ Dashboard should load immediately</li>
+        <li>✅ All KPI cards should show data</li>
+        <li>✅ No loading stuck states</li>
+        <li>✅ Console should show "✅ Vendor dashboard loaded successfully"</li>
+    </ul>
+    
+    <h2>If Issues Persist:</h2>
+    <ul>
+        <li>❌ Check browser console for errors</li>
+        <li>❌ Look for "Tracking Prevention" errors</li>
+        <li>❌ Verify Leaflet loads from cdnjs.cloudflare.com</li>
+        <li>❌ Check if vendor-dashboard page exists</li>
+    </ul>
+    
+    <script>
+        console.log('Test page loaded - checking vendor dashboard functionality...');
+        
+        // Test if vendor dashboard page exists
+        fetch('index.html')
+            .then(response => response.text())
+            .then(html => {
+                if (html.includes('page-vendor-dashboard')) {
+                    console.log('✅ vendor-dashboard page found in HTML');
+                } else {
+                    console.log('❌ vendor-dashboard page NOT found in HTML');
+                }
+                
+                if (html.includes('renderVendorDashboard')) {
+                    console.log('✅ renderVendorDashboard function found');
+                } else {
+                    console.log('❌ renderVendorDashboard function NOT found');
+                }
+                
+                if (html.includes('vendor-dashboard')) {
+                    console.log('✅ vendor-dashboard routing found');
+                } else {
+                    console.log('❌ vendor-dashboard routing NOT found');
+                }
+            })
+            .catch(error => console.error('Error reading index.html:', error));
+    </script>
+</body>
+</html>

@@ -1673,7 +1673,10 @@ function unbanUser(userId) {
 
 // ── VENDOR DASHBOARD (STANDALONE) ──
 function renderVendorDashboard() {
+  console.log('🔄 renderVendorDashboard called');
+  
   if (!State.currentUser || State.currentUser.role !== 'vendor') {
+    console.log('❌ Vendor access check failed - current user:', State.currentUser);
     document.getElementById('page-vendor-dashboard').innerHTML = `
       <div style="text-align:center;padding:4rem;color:#9ca3af">
         <div style="font-size:3rem;margin-bottom:1rem">🔒</div>
@@ -1685,10 +1688,15 @@ function renderVendorDashboard() {
     return;
   }
   
+  console.log('✅ Vendor access check passed - user is vendor');
+  
   // Build comprehensive vendor dashboard
+  console.log('🔄 Building vendor dashboard HTML...');
   document.getElementById('page-vendor-dashboard').innerHTML = buildVendorDashboardHTML();
+  console.log('✅ Vendor dashboard HTML built');
   
   // Initialize dashboard asynchronously
+  console.log('🔄 Initializing vendor dashboard...');
   initializeVendorDashboard().catch(error => {
     console.error('Failed to initialize vendor dashboard:', error);
     document.getElementById('page-vendor-dashboard').innerHTML = `
@@ -2684,6 +2692,9 @@ function createProductCard(product) {
 // ── VENDOR DASHBOARD FUNCTIONS ──
 
 function buildVendorDashboardHTML() {
+  console.log('🔄 buildVendorDashboardHTML called');
+  console.log('Current user:', State.currentUser);
+  
   return `
     <div style="background:#f9fafb;min-height:100vh">
       <!-- Vendor Dashboard Header -->
