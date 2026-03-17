@@ -153,9 +153,16 @@ function updateNavUser() {
 
 // ── PAGE NAVIGATION ──
 function showPage(id) {
+  console.log('🔄 showPage called with:', id);
+  
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const page = document.getElementById('page-' + id);
-  if (!page) return;
+  if (!page) {
+    console.log('❌ Page element not found: page-' + id);
+    return;
+  }
+  
+  console.log('✅ Page element found:', page);
   page.classList.add('active');
   State.currentPage = id;
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -180,7 +187,16 @@ function showPage(id) {
     loyalty: renderLoyalty,
     about: renderAbout,
   };
-  if (renderers[id]) renderers[id]();
+  
+  console.log('🔄 Available renderers:', Object.keys(renderers));
+  console.log('🔄 Looking for renderer:', id);
+  
+  if (renderers[id]) {
+    console.log('✅ Found renderer, calling:', id);
+    renderers[id]();
+  } else {
+    console.log('❌ No renderer found for:', id);
+  }
 
   setTimeout(initReveal, 80);
   // Re-apply current language after page render
@@ -1783,6 +1799,13 @@ function switchVendorSection(section) {
   const orders = STN.DB.get('orders') || [];
   const myRevenue = myProds.reduce((s,p) => s + p.price, 0);
 
+  // Handle dashboard case first - redirect to standalone dashboard
+  if (section === 'dashboard') {
+    console.log('🔄 Dashboard section clicked, redirecting to vendor-dashboard page...');
+    showPage('vendor-dashboard');
+    return;
+  }
+
   if (section === 'overview') {
 
     var pendingOrds = orders.filter(function(o){ return o.status==='pending'; }).length;
@@ -1980,10 +2003,6 @@ function switchVendorSection(section) {
       if (!btn) return;
       vendorConfirmOrder(btn.dataset.oid, btn.dataset.otrack);
     });
-  } else if (section === 'dashboard') {
-    // Redirect to the comprehensive vendor dashboard page
-    console.log('🔄 Dashboard section clicked, redirecting to vendor-dashboard page...');
-    showPage('vendor-dashboard');
   }
 }
 
