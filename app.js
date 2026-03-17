@@ -1706,23 +1706,24 @@ function renderVendorDashboard() {
   
   console.log('✅ Vendor access check passed - user is vendor');
   
-  // Simple test - just show a success message first
-  document.getElementById('page-vendor-dashboard').innerHTML = `
-    <div style="text-align:center;padding:4rem;color:#059669">
-      <div style="font-size:3rem;margin-bottom:1rem">✅</div>
-      <h2 style="margin-bottom:0.5rem;color:#059669">Vendor Dashboard Working!</h2>
-      <p style="margin-bottom:2rem;color:#059669">The vendor dashboard page is loading correctly.</p>
-      <div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:1rem;border-radius:8px;margin:1rem 0">
-        <strong>Debug Info:</strong><br>
-        User: ${State.currentUser?.name || 'Unknown'}<br>
-        Role: ${State.currentUser?.role || 'Unknown'}<br>
-        Shop: ${State.currentUser?.shop_name || State.currentUser?.shopName || 'Unknown'}
-      </div>
-      <button onclick="showPage('vendor')" style="background:#7c3aed;color:white;border:none;padding:0.875rem 2rem;border-radius:8px;font-weight:600;cursor:pointer">← Back to Vendor Page</button>
-    </div>
-  `;
+  // Build comprehensive vendor dashboard
+  console.log('🔄 Building vendor dashboard HTML...');
+  document.getElementById('page-vendor-dashboard').innerHTML = buildVendorDashboardHTML();
+  console.log('✅ Vendor dashboard HTML built');
   
-  console.log('✅ Simple vendor dashboard rendered successfully');
+  // Initialize dashboard asynchronously
+  console.log('🔄 Initializing vendor dashboard...');
+  initializeVendorDashboard().catch(error => {
+    console.error('Failed to initialize vendor dashboard:', error);
+    document.getElementById('page-vendor-dashboard').innerHTML = `
+      <div style="text-align:center;padding:4rem;color:#dc2626">
+        <div style="font-size:3rem;margin-bottom:1rem">⚠️</div>
+        <h2 style="margin-bottom:0.5rem;color:#dc2626">Dashboard Initialization Failed</h2>
+        <p style="margin-bottom:2rem;color:#dc2626">Unable to load vendor dashboard. Please try refreshing the page.</p>
+        <button onclick="location.reload()" style="background:#dc2626;color:white;border:none;padding:0.875rem 2rem;border-radius:8px;font-weight:600;cursor:pointer">🔄 Refresh Page</button>
+      </div>
+    `;
+  });
 }
 
 // ── VENDOR DASHBOARD ──
@@ -2931,8 +2932,9 @@ async function loadVendorKPIs() {
   // Ensure data is available
   if (!State.products || State.products.length === 0) {
     console.warn('Products not loaded, waiting...');
-    await new Promise(resolve => setTimeout(resolve, 500)); // Small delay
-    return loadVendorKPIs(); // Retry
+    // Don't recurse - just wait for data to be loaded
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return; // Exit instead of recursing
   }
 
   // Get vendor's orders and products
@@ -3047,8 +3049,9 @@ async function loadVendorOrdersSummary() {
   // Ensure data is available
   if (!State.products || State.products.length === 0) {
     console.warn('Products not loaded for orders, waiting...');
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return loadVendorOrdersSummary();
+    // Don't recurse - just wait for data to be loaded
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return; // Exit instead of recursing
   }
 
   const orders = STN.DB.get('orders') || [];
@@ -3107,8 +3110,9 @@ async function loadVendorInventorySummary() {
   // Ensure data is available
   if (!State.products || State.products.length === 0) {
     console.warn('Products not loaded for inventory, waiting...');
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return loadVendorInventorySummary();
+    // Don't recurse - just wait for data to be loaded
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return; // Exit instead of recursing
   }
 
   const products = State.products || [];
@@ -3164,8 +3168,9 @@ async function loadVendorAnalytics() {
   // Ensure data is available
   if (!State.products || State.products.length === 0) {
     console.warn('Products not loaded for analytics, waiting...');
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return loadVendorAnalytics();
+    // Don't recurse - just wait for data to be loaded
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return; // Exit instead of recursing
   }
 
   const orders = STN.DB.get('orders') || [];
@@ -3254,8 +3259,9 @@ async function loadVendorLogisticsMap() {
   // Ensure data is available
   if (!State.products || State.products.length === 0) {
     console.warn('Products not loaded for logistics, waiting...');
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return loadVendorLogisticsMap();
+    // Don't recurse - just wait for data to be loaded
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return; // Exit instead of recursing
   }
 
   // Simple logistics visualization

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopping Tunisia - Test Version</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <link rel="stylesheet" href="styles.css?v=1772987503">
+    <link rel="manifest" href="manifest.json?v=1772987503">
+</head>
+<body>
+    <!-- Include console capture first -->
+    <script src="console-capture.js"></script>
+    
+    <!-- CURSOR -->
+    <div id="cursor"></div>
+    <div id="cursor-ring"></div>
+
+    <!-- BACKGROUND -->
+    <div class="bg-mesh">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+    <div class="grain"></div>
+
+    <!-- NAVIGATION -->
+    <nav id="main-nav">
+        <a class="nav-logo" onclick="showPage('home')">
+            <div style="position:relative;width:38px;height:38px;flex-shrink:0">
+                <!-- Animated ring -->
+                <svg style="position:absolute;top:0;left:0;animation:spin 8s linear infinite" width="38" height="38" viewBox="0 0 38 38" fill="none">
+                    <circle cx="19" cy="19" r="17" stroke="url(#ringGrad)" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.6"/>
+                    <defs>
+                        <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+                            <stop offset="0%" stop-color="#7c3aed"/>
+                            <stop offset="100%" stop-color="#c084fc"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <!-- Bag circle -->
+                <div style="position:absolute;inset:4px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#9b72f0);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(124,58,237,0.35)">
+                    <svg width="18" height="18" viewBox="0 0 58 58" fill="none">
+                        <path d="M19 22 C19 14 39 14 39 22 C19 22 39 22 19 22 C19 14 39 14 39 22" stroke="white" stroke-width="4" stroke-linecap="round" fill="none"/>
+                        <circle cx="29" cy="37" r="3" fill="rgba(124,58,237,0.5)"/>
+                    </svg>
+                </div>
+            </div>
+            <div style="display:flex;flex-direction:column;line-height:1">
+                <span style="font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:600;background:linear-gradient(90deg,#1e0a4e,#7c3aed);-webkit-background-clip:text;background-clip:text;text-fill-color:transparent;color:transparent;letter-spacing:0.05em">Shopping</span>
+                <span style="font-size:0.45rem;letter-spacing:0.25em;text-transform:uppercase;color:#7b72a8">Tunisia's Digital Mall</span>
+            </div>
+        </a>
+        <ul class="nav-links">
+            <li><button class="nav-btn" id="navbtn-home" onclick="showPage('home')">Home</button></li>
+            <li><button class="nav-btn" id="navbtn-products" onclick="showPage('products')">Collections</button></li>
+            <li><button class="nav-btn" id="navbtn-carpenter" onclick="showPage('carpenter')">Sur Mesure</button></li>
+            <li><button class="nav-btn" id="navbtn-track" onclick="showPage('track')">Track</button></li>
+            <li><button class="nav-btn" id="navbtn-loyalty" onclick="showPage('loyalty')">Rewards</button></li>
+            <li><button class="nav-btn" id="navbtn-about" onclick="showPage('about')">About</button></li>
+        </ul>
+        <div class="nav-actions">
+            <div class="lang-wrap">
+                <button class="lang-btn" id="lang-ar" onclick="setLang('ar')">AR</button>
+                <button class="lang-btn active" id="lang-fr" onclick="setLang('fr')">FR</button>
+                <button class="lang-btn" id="lang-en" onclick="setLang('en')">EN</button>
+            </div>
+            <button class="nav-icon-btn" onclick="showPage('wishlist')" title="Wishlist">
+                ♡ <span class="badge wishlist-badge">0</span>
+            </button>
+            <button class="nav-icon-btn" onclick="openCart()" title="Cart">
+                🛒 <span class="badge cart-badge">0</span>
+            </button>
+            <div id="nav-user-area"></div>
+        </div>
+    </nav>
+
+    <!-- TOAST -->
+    <div id="toast-container"></div>
+
+    <!-- FLOAT CART -->
+    <button id="float-cart" onclick="openCart()">🛒<span id="float-cart-count" style="display:none" class="badge">0</span></button>
+
+    <!-- PAGES -->
+    <div class="page active" id="page-home">
+        <div style="background:#f9fafb;min-height:100vh;padding:2rem">
+            <h1 style="font-size:1.5rem;font-weight:700;color:#1e0a4e;margin-bottom:1rem">🧪 Vendor Dashboard Test</h1>
+            <p style="color:#6b7280;font-size:0.9rem;margin-bottom:2rem">This is a test version to verify vendor dashboard fixes.</p>
+            
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.5rem;margin-bottom:2rem">
+                <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.5rem">
+                    <h3 style="font-size:1.1rem;font-weight:600;color:#1e0a4e;margin-bottom:1rem">🏠 Test Vendor Dashboard</h3>
+                    <p>Click below to test the vendor dashboard with all fixes applied.</p>
+                    <button onclick="testVendorDashboardFlow()" style="background:#7c3aed;color:white;border:none;padding:0.75rem 1.5rem;border-radius:8px;font-weight:600;cursor:pointer;margin-top:1rem">🧪 Test Vendor Dashboard</button>
+                </div>
+                
+                <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.5rem">
+                    <h3 style="font-size:1.1rem;font-weight:600;color:#1e0a4e;margin-bottom:1rem">📋 View Console Logs</h3>
+                    <p>View detailed console output from vendor dashboard loading.</p>
+                    <button onclick="showConsoleLogs()" style="background:#2563eb;color:white;border:none;padding:0.75rem 1.5rem;border-radius:8px;font-weight:600;cursor:pointer;margin-top:1rem">📋 Show Console</button>
+                </div>
+                
+                <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.5rem">
+                    <h3 style="font-size:1.1rem;font-weight:600;color:#1e0a4e;margin-bottom:1rem">🔍 Double-Check Verification</h3>
+                    <p>Run comprehensive verification of all fixes.</p>
+                    <button onclick="window.open('DOUBLE_CHECK_VENDOR_DASHBOARD.html', '_blank')" style="background:#059669;color:white;border:none;padding:0.75rem 1.5rem;border-radius:8px;font-weight:600;cursor:pointer;margin-top:1rem">🔍 Run Verification</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- All other pages (hidden) -->
+    <div class="page" id="page-vendor"></div>
+    <div class="page" id="page-vendor-dashboard"></div>
+    <div class="page" id="page-products"></div>
+    <div class="page" id="page-carpenter"></div>
+    <div class="page" id="page-track"></div>
+    <div class="page" id="page-wishlist"></div>
+    <div class="page" id="page-auth"></div>
+    <div class="page" id="page-account"></div>
+    <div class="page" id="page-admin"></div>
+    <div class="page" id="page-loyalty"></div>
+    <div class="page" id="page-about"></div>
+
+    <!-- Console Display -->
+    <div id="console-display" style="display:none;position:fixed;top:10px;right:10px;background:#1e1e1e;color:white;padding:15px;border-radius:8px;max-width:400px;max-height:300px;overflow:auto;z-index:10000;font-family:monospace;font-size:0.8rem;box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <strong>🖥️ Console Output</strong>
+            <button onclick="document.getElementById('console-display').style.display='none'" style="background:#dc2626;color:white;border:none;padding:5px 10px;border-radius:4px;cursor:pointer;font-size:0.7rem;">✕</button>
+        </div>
+        <div id="console-content" style="white-space:pre-wrap;"></div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="supabase.js"></script>
+    <script src="data.js?v=FRESH002"></script>
+    <script src="app.js?v=FRESH004"></script>
+    <script src="yasmine.js?v=FRESH001"></script>
+    
+    <script>
+        // Test vendor dashboard flow
+        function testVendorDashboardFlow() {
+            console.log('🧪 Starting vendor dashboard test...');
+            
+            // Set up test vendor user
+            if (typeof State !== 'undefined') {
+                State.currentUser = {
+                    id: 1,
+                    name: 'Test Vendor',
+                    role: 'vendor',
+                    shop_name: 'Test Shop',
+                    verified: true
+                };
+                console.log('✅ Test vendor user set:', State.currentUser);
+            } else {
+                console.log('❌ State object not available');
+                return;
+            }
+            
+            // Test vendor dashboard navigation
+            console.log('🔄 Testing vendor dashboard navigation...');
+            showPage('vendor');
+            
+            setTimeout(() => {
+                // Test dashboard button click
+                console.log('🔄 Testing dashboard button click...');
+                const dashboardBtn = document.querySelector('button[onclick*="dashboard"]');
+                if (dashboardBtn) {
+                    dashboardBtn.click();
+                } else {
+                    console.log('❌ Dashboard button not found');
+                }
+            }, 2000);
+        }
+        
+        // Show console logs
+        function showConsoleLogs() {
+            const display = document.getElementById('console-display');
+            const content = document.getElementById('console-content');
+            
+            if (display.style.display === 'none') {
+                display.style.display = 'block';
+                
+                // Get logs from main window
+                if (window.getConsoleLogs) {
+                    const logs = window.getConsoleLogs();
+                    content.textContent = logs.map(log => `[${log.timestamp}] ${log.type.toUpperCase()}: ${log.message}`).join('\n');
+                } else {
+                    content.textContent = 'Console capture not available';
+                }
+            } else {
+                display.style.display = 'none';
+            }
+        }
+        
+        // Listen for console messages
+        window.addEventListener('message', function(event) {
+            if (event.data.action === 'consoleLog') {
+                const display = document.getElementById('console-display');
+                const content = document.getElementById('console-content');
+                
+                if (display && content) {
+                    const existingContent = content.textContent;
+                    content.textContent = existingContent + '\n' + event.data.log;
+                    content.scrollTop = content.scrollHeight;
+                }
+            }
+        });
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🧪 Vendor Dashboard Test page loaded');
+        });
+    </script>
+
+    <!-- Leaflet JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+</body>
+</html>

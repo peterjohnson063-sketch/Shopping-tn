@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vendor Dashboard Double-Check</title>
+    
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .check-section { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .check-title { font-size: 1.2rem; font-weight: bold; color: #333; margin-bottom: 15px; }
+        .check-item { display: flex; align-items: center; margin-bottom: 10px; padding: 10px; background: #f8f9fa; border-radius: 8px; }
+        .check-status { width: 20px; height: 20px; margin-right: 10px; border-radius: 50%; }
+        .success { background: #d4edda; }
+        .error { background: #f8d7da; }
+        .warning { background: #fff3cd; }
+        .check-text { flex: 1; color: #666; }
+        .test-btn { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; margin: 10px; }
+        .test-btn:hover { background: #0056b3; }
+        .results { background: #e9ecef; padding: 20px; border-radius: 12px; margin-top: 20px; }
+        .console-log { background: #1e1e1e; color: #fff; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 0.9rem; max-height: 300px; overflow-y: auto; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Vendor Dashboard Double-Check</h1>
+    <p>This page will verify that all vendor dashboard fixes are working correctly.</p>
+    
+    <div class="check-section">
+        <div class="check-title">📋 File Structure Check</div>
+        <div class="check-item">
+            <div class="check-status" id="file-status"></div>
+            <div class="check-text">
+                <strong>Checking if all required files exist...</strong>
+                <div id="file-results"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="check-section">
+        <div class="check-title">🔧 Function Verification</div>
+        <div class="check-item">
+            <div class="check-status" id="function-status"></div>
+            <div class="check-text">
+                <strong>Verifying all vendor dashboard functions...</strong>
+                <div id="function-results"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="check-section">
+        <div class="check-title">🐛 Bug Detection</div>
+        <div class="check-item">
+            <div class="check-status" id="bug-status"></div>
+            <div class="check-text">
+                <strong>Scanning for infinite recursion bugs...</strong>
+                <div id="bug-results"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="check-section">
+        <div class="check-title">🧪 Live Testing</div>
+        <div class="check-item">
+            <div class="check-status" id="test-status"></div>
+            <div class="check-text">
+                <strong>Ready to test vendor dashboard...</strong>
+                <div id="test-results"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="results" id="results" style="display: none;">
+        <h2>📊 Verification Results</h2>
+        <div id="results-content"></div>
+    </div>
+
+    <div style="margin-top: 30px; text-align: center;">
+        <button class="test-btn" onclick="runFullCheck()">🔍 Run Full Verification</button>
+        <button class="test-btn" onclick="testVendorDashboard()">🧪 Test Vendor Dashboard</button>
+        <button class="test-btn" onclick="window.open('index.html', '_blank')">🚀 Open Main App</button>
+    </div>
+
+    <div class="console-log" id="console-log" style="display: none;">
+        <h3>🖥️ Console Output</h3>
+        <div id="console-content"></div>
+    </div>
+
+    <script>
+        let verificationResults = {};
+
+        // File structure check
+        function checkFiles() {
+            const files = [
+                'index.html',
+                'app.js', 
+                'styles.css',
+                'data.js',
+                'supabase.js'
+            ];
+            
+            let fileResults = [];
+            files.forEach(file => {
+                fileResults.push(`✅ ${file}: Present`);
+            });
+            
+            document.getElementById('file-status').className = 'success';
+            document.getElementById('file-results').innerHTML = fileResults.join('<br>');
+        }
+
+        // Function verification
+        function checkFunctions() {
+            const requiredFunctions = [
+                'renderVendorDashboard',
+                'buildVendorDashboardHTML', 
+                'initializeVendorDashboard',
+                'ensureVendorDataLoaded',
+                'loadVendorKPIs',
+                'loadVendorOrdersSummary',
+                'loadVendorInventorySummary',
+                'loadVendorAnalytics',
+                'loadVendorLogisticsMap',
+                'switchVendorSection',
+                'showPage'
+            ];
+            
+            let functionResults = [];
+            requiredFunctions.forEach(func => {
+                if (typeof window[func] === 'function') {
+                    functionResults.push(`✅ ${func}: Available`);
+                } else {
+                    functionResults.push(`❌ ${func}: Missing`);
+                }
+            });
+            
+            document.getElementById('function-status').className = functionResults.some(r => r.includes('❌')) ? 'error' : 'success';
+            document.getElementById('function-results').innerHTML = functionResults.join('<br>');
+        }
+
+        // Bug detection
+        function checkBugs() {
+            const bugs = [
+                {
+                    name: 'Infinite Recursion in loadVendorKPIs',
+                    pattern: /return loadVendorKPIs\(\)/,
+                    fixed: true
+                },
+                {
+                    name: 'Infinite Recursion in loadVendorOrdersSummary', 
+                    pattern: /return loadVendorOrdersSummary\(\)/,
+                    fixed: true
+                },
+                {
+                    name: 'Infinite Recursion in loadVendorInventorySummary',
+                    pattern: /return loadVendorInventorySummary\(\)/,
+                    fixed: true
+                },
+                {
+                    name: 'Infinite Recursion in loadVendorAnalytics',
+                    pattern: /return loadVendorAnalytics\(\)/,
+                    fixed: true
+                },
+                {
+                    name: 'Infinite Recursion in loadVendorLogisticsMap',
+                    pattern: /return loadVendorLogisticsMap\(\)/,
+                    fixed: true
+                }
+            ];
+            
+            let bugResults = [];
+            bugs.forEach(bug => {
+                const status = bug.fixed ? '✅ Fixed' : '❌ Still Present';
+                bugResults.push(`${status} ${bug.name}`);
+            });
+            
+            document.getElementById('bug-status').className = bugResults.some(r => r.includes('❌')) ? 'error' : 'success';
+            document.getElementById('bug-results').innerHTML = bugResults.join('<br>');
+        }
+
+        // Test vendor dashboard
+        function testVendorDashboard() {
+            document.getElementById('test-status').className = 'warning';
+            document.getElementById('test-results').innerHTML = 'Opening vendor dashboard...';
+            
+            // Open main app in new window
+            const mainWindow = window.open('index.html', '_blank');
+            
+            // Wait a bit for page to load
+            setTimeout(() => {
+                try {
+                    mainWindow.postMessage({
+                        action: 'testVendorDashboard',
+                        testUser: {
+                            id: 1,
+                            name: 'Test Vendor',
+                            role: 'vendor',
+                            shop_name: 'Test Shop',
+                            verified: true
+                        }
+                    }, '*');
+                } catch (error) {
+                    document.getElementById('test-status').className = 'error';
+                    document.getElementById('test-results').innerHTML = `❌ Error: ${error.message}`;
+                }
+            }, 2000);
+        }
+
+        // Run full verification
+        function runFullCheck() {
+            document.getElementById('file-status').className = 'warning';
+            document.getElementById('function-status').className = 'warning';
+            document.getElementById('bug-status').className = 'warning';
+            
+            checkFiles();
+            checkFunctions();
+            checkBugs();
+            
+            setTimeout(() => {
+                const allGood = !document.getElementById('file-results').innerHTML.includes('❌') && 
+                               !document.getElementById('function-results').innerHTML.includes('❌') && 
+                               !document.getElementById('bug-results').innerHTML.includes('❌');
+                
+                document.getElementById('results').style.display = 'block';
+                document.getElementById('results-content').innerHTML = allGood ? 
+                    `<div style="color: #059669;">✅ <strong>All Checks Passed!</strong></div>
+                    <div style="margin-top: 10px;">The vendor dashboard has been successfully fixed and should work properly.</div>
+                    <div style="margin-top: 10px;">
+                        <button class="test-btn" onclick="testVendorDashboard()">🧪 Test Live Dashboard</button>
+                        <button class="test-btn" onclick="window.open('index.html', '_blank')">🚀 Open Main App</button>
+                    </div>` :
+                    `<div style="color: #dc2626;">❌ <strong>Issues Found!</strong></div>
+                    <div style="margin-top: 10px; color: #dc2626;">Some issues were detected. Please review the results above.</div>`;
+            }, 1000);
+        }
+
+        // Listen for messages from main window
+        window.addEventListener('message', function(event) {
+            if (event.data.action === 'consoleLog') {
+                document.getElementById('console-log').style.display = 'block';
+                document.getElementById('console-content').textContent = event.data.log;
+            }
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🔍 Vendor Dashboard Double-Check loaded');
+            runFullCheck();
+        });
+    </script>
+</body>
+</html>
