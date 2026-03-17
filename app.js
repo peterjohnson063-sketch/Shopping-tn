@@ -30,7 +30,10 @@ function init() {
   State.currentUser = STN.DB.get('currentUser');
   State.cart = STN.DB.get('cart') || [];
   State.wishlist = STN.DB.get('wishlist') || [];
-  State.products = STN.DB.get('products') || STN.PRODUCTS_DATA;
+  
+  // Initialize products from Supabase or fallback to local data
+  initializeProducts();
+  
   State.orders = STN.DB.get('orders') || [];
   State.reviews = STN.DB.get('reviews') || [];
 
@@ -55,6 +58,28 @@ function init() {
   State.currentPage = 'home';
   renderHome();
   setTimeout(initReveal, 80);
+}
+
+// Initialize products from Supabase
+async function initializeProducts() {
+  try {
+    // Try to fetch from Supabase first
+    const supabaseProducts = await SB.getProducts();
+    if (supabaseProducts && supabaseProducts.length > 0) {
+      State.products = supabaseProducts;
+      STN.DB.set('products', State.products);
+      console.log('✅ Products loaded from Supabase:', supabaseProducts.length);
+    } else {
+      // Fallback to local data
+      State.products = STN.DB.get('products') || STN.PRODUCTS_DATA;
+      console.log('⚠️ Using fallback local products data');
+    }
+  } catch (error) {
+    console.error('Error fetching products from Supabase:', error);
+    // Fallback to local data
+    State.products = STN.DB.get('products') || STN.PRODUCTS_DATA;
+    console.log('⚠️ Using fallback local products data due to error');
+  }
 }
 
 // ── CURSOR ──
@@ -1211,6 +1236,7 @@ function buildAdminHTML() {
   var tabs = [
     {id:'overview', label:'&#128202; Overview'},
     {id:'orders', label:'&#129534; Orders'},
+    {id:'logistics', label:'🗺️ Logistics Map'},
     {id:'users', label:'&#128101; Customers'},
     {id:'vendors', label:'&#127978; Vendors'}
   ];
@@ -1442,7 +1468,62 @@ function switchAdmin(section) {
       else if (btn.dataset.action === 'timeout') timeoutUser(id);
       else if (btn.dataset.action === 'unban') unbanUser(id);
     });
-    } else if (section === 'vendors') {
+    } else if (section === 'logistics') {
+    content.innerHTML = `
+      <div>
+        <div style="margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <h1 style="font-size:1.5rem;font-weight:700;color:#111827">🗺️ Live Logistics Map</h1>
+            <p style="color:#6b7280;font-size:0.875rem">Real-time order tracking and delivery management</p>
+          </div>
+          <div style="display:flex;gap:0.5rem">
+            <button onclick="refreshLogisticsMap()" style="background:#7c3aed;color:white;border:none;padding:0.6rem 1rem;border-radius:8px;font-size:0.8rem;cursor:pointer;font-weight:600">🔄 Refresh</button>
+            <button onclick="centerOnDriver()" style="background:#059669;color:white;border:none;padding:0.6rem 1rem;border-radius:8px;font-size:0.8rem;cursor:pointer;font-weight:600">📍 Center on Driver</button>
+          </div>
+        </div>
+        
+        <!-- Map Container -->
+        <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.08)">
+          <!-- Map Controls -->
+          <div style="background:#f8f9fa;border-bottom:1px solid #e5e7eb;padding:1rem;display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;gap:1rem;align-items:center">
+              <span style="font-size:0.85rem;font-weight:600;color:#374151">Orders:</span>
+              <span id="logistics-order-count" style="background:#7c3aed;color:white;padding:0.3rem 0.8rem;border-radius:20px;font-size:0.75rem;font-weight:600">0</span>
+            </div>
+            <div style="display:flex;gap:1rem;align-items:center">
+              <span style="font-size:0.85rem;font-weight:600;color:#374151">Active:</span>
+              <span id="logistics-active-count" style="background:#059669;color:white;padding:0.3rem 0.8rem;border-radius:20px;font-size:0.75rem;font-weight:600">0</span>
+            </div>
+          </div>
+          
+          <!-- Map -->
+          <div id="logistics-map" style="height:500px;position:relative;background:#f0f4f8">
+            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:#9ca3af">
+              <div style="font-size:2rem;margin-bottom:0.5rem">🗺️</div>
+              <p style="font-size:0.9rem;">Loading interactive map...</p>
+              <p style="font-size:0.75rem;color:#6b7280;margin-top:0.5rem">Orders with coordinates will appear here</p>
+            </div>
+          </div>
+          
+          <!-- Order List -->
+          <div style="background:#f8f9fa;border-top:1px solid #e5e7eb;padding:1rem;max-height:300px;overflow-y:auto">
+            <h3 style="font-size:0.95rem;font-weight:600;color:#111827;margin-bottom:1rem">Active Deliveries</h3>
+            <div id="logistics-order-list" style="display:flex;flex-direction:column;gap:0.75rem">
+              <div style="text-align:center;padding:2rem;color:#9ca3af">
+                <div style="font-size:2rem;margin-bottom:0.5rem">📦</div>
+                <p style="font-weight:500;margin-bottom:0.5rem">No active deliveries</p>
+                <p style="font-size:0.875rem;">Orders with delivery coordinates will appear here</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Initialize map after DOM is ready
+    setTimeout(() => initializeLogisticsMap(), 100);
+    
+  } else if (section === 'vendors') {
     var vendorRows = vendors.length === 0
       ? '<tr><td colspan="7" style="text-align:center;padding:3rem;color:#9ca3af">No vendors yet</td></tr>'
       : vendors.map(function(v) {
@@ -1910,14 +1991,29 @@ function uploadToCloudinary(input) {
   });
 }
 
-function deleteVendorProduct(productId) {
-  State.products = State.products.filter(p => p.id !== productId);
-  STN.DB.set('products', State.products);
-  toast('Product deleted!', 'success');
-  switchVendorSection('inventory');
+async function deleteVendorProduct(productId) {
+  try {
+    // Delete from Supabase first
+    await SB.deleteProduct(productId);
+    
+    // Update local state
+    State.products = State.products.filter(p => p.id !== productId);
+    STN.DB.set('products', State.products);
+    
+    toast('Product deleted successfully!', 'success');
+    switchVendorSection('inventory');
+    
+    // Refresh products display if on products page
+    if (State.currentPage === 'products') {
+      filterAndRenderProducts();
+    }
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    toast('⚠️ Failed to delete product. Please try again.', 'error');
+  }
 }
 
-function uploadProduct() {
+async function uploadProduct() {
   const title = document.getElementById('vp-title')?.value?.trim();
   const brand = document.getElementById('vp-brand')?.value?.trim();
   const desc = document.getElementById('vp-desc')?.value?.trim();
@@ -1928,30 +2024,58 @@ function uploadProduct() {
 
   if (!title || !brand || !desc || !price || !stock) { toast('⚠️ Please fill all required fields', 'error'); return; }
 
-  const emojis = {sofa:'🛋️',rug:'🏺',lighting:'💡',ceramic:'🏺',bedroom:'🛏️',outdoor:'🌿',fragrance:'🧴',decor:'🎭',furniture:'🪑'};
+  const emojis = {sofa:'🛋️',rug:'🏺',lighting:'💡',ceramic:'🏺',bedroom:'🛏️',outdoor:'🌿',fragrance:'🧴',decor:'🎨',furniture:'🪑'};
+  
   const newProduct = {
-    id: Date.now(),
     name: title,
     brand: State.currentUser?.shop_name || State.currentUser?.shopName || brand,
     vendorId: State.currentUser?.id,
     region: State.currentUser?.wilaya || 'Tunisia',
-    cat,
+    category: cat,
     price,
     oldPrice: parseFloat(document.getElementById('vp-old-price')?.value) || null,
     rating: 0,
     reviews: 0,
     badge: badge || null,
-    emoji: emojis[cat] || '🎁',
+    emoji: emojis[cat] || '📦',
     image: document.getElementById('vp-image-url')?.value || null,
-    verified: true,
+    verified: false, // Will be verified by admin
     stock,
-    desc
+    description: desc,
+    created_at: new Date().toISOString()
   };
 
-  State.products.push(newProduct);
-  STN.DB.set('products', State.products);
-  toast('Product uploaded and live in collections!', 'success');
-  switchVendorSection('inventory');
+  try {
+    // Save to Supabase first
+    const savedProduct = await SB.createProduct(newProduct);
+    
+    // Update local state with the returned product (includes Supabase ID)
+    State.products.push(savedProduct);
+    STN.DB.set('products', State.products);
+    
+    // Clear form
+    document.getElementById('vp-title').value = '';
+    document.getElementById('vp-brand').value = '';
+    document.getElementById('vp-desc').value = '';
+    document.getElementById('vp-price').value = '';
+    document.getElementById('vp-old-price').value = '';
+    document.getElementById('vp-stock').value = '';
+    document.getElementById('vp-badge').value = '';
+    document.getElementById('vp-image-url').value = '';
+    document.getElementById('vp-cat').selectedIndex = 0;
+    
+    toast('✦ Product uploaded successfully! Pending admin verification.', 'success');
+    switchVendorSection('inventory');
+    
+    // Refresh products display if on products page
+    if (State.currentPage === 'products') {
+      filterAndRenderProducts();
+    }
+    
+  } catch (error) {
+    console.error('Error uploading product:', error);
+    toast('⚠️ Failed to upload product. Please try again.', 'error');
+  }
 }
 
 // ── CARPENTER ──
@@ -2488,5 +2612,256 @@ function createProductCard(product) {
       </div>
     </div>
   `;
+}
+
+// ── LOGISTICS MAP FUNCTIONS ──
+let logisticsMap = null;
+let orderMarkers = [];
+let driverMarker = null;
+
+// Initialize logistics map
+function initializeLogisticsMap() {
+  const mapContainer = document.getElementById('logistics-map');
+  if (!mapContainer) return;
+  
+  // Initialize Leaflet map (using OpenStreetMap tiles for free usage)
+  try {
+    logisticsMap = L.map('logistics-map').setView([33.8869, 9.5375], 8); // Center on Tunisia
+    
+    // Add tile layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 18,
+    }).addTo(logisticsMap);
+    
+    // Load orders and display markers
+    loadOrderMarkers();
+    
+    // Update map every 30 seconds
+    setInterval(loadOrderMarkers, 30000);
+    
+  } catch (error) {
+    console.error('Error initializing map:', error);
+    mapContainer.innerHTML = `
+      <div style="padding:2rem;text-align:center;color:#9ca3af">
+        <div style="font-size:2rem;margin-bottom:1rem">⚠️</div>
+        <h3 style="margin-bottom:0.5rem">Map Loading Error</h3>
+        <p>Unable to load interactive map. Please check your internet connection.</p>
+      </div>
+    `;
+  }
+}
+
+// Load order markers on map
+function loadOrderMarkers() {
+  if (!logisticsMap) return;
+  
+  // Clear existing markers
+  orderMarkers.forEach(marker => logisticsMap.removeLayer(marker));
+  orderMarkers = [];
+  
+  // Get orders with coordinates
+  const orders = STN.DB.get('orders') || [];
+  const ordersWithCoords = orders.filter(order => {
+    // Mock coordinates for demo - in real app, these would come from delivery tracking
+    if (order.status === 'shipped' || order.status === 'processing') {
+      // Assign mock coordinates based on wilaya for demo
+      const wilayaCoords = {
+        'Tunis': [36.8065, 10.1815],
+        'Sfax': [34.7406, 10.7603],
+        'Sousse': [35.8256, 10.6369],
+        'Kairouan': [35.6781, 10.0963],
+        'Bizerte': [37.2744, 9.8739],
+        'Ariana': [36.8625, 10.1956],
+        'Monastir': [35.7643, 10.8113]
+      };
+      order.lat = wilayaCoords[order.wilaya]?.[0] || 35.8256;
+      order.lng = wilayaCoords[order.wilaya]?.[1] || 10.6369;
+      return true;
+    }
+    return false;
+  });
+  
+  // Update counts
+  document.getElementById('logistics-order-count').textContent = ordersWithCoords.length;
+  document.getElementById('logistics-active-count').textContent = ordersWithCoords.filter(o => o.status === 'shipped').length;
+  
+  // Create custom purple marker for Everest branding
+  const createEverestMarker = (order) => {
+    return L.divIcon({
+      html: `
+        <div style="
+          background: linear-gradient(135deg, #7c3aed, #4a1fa8);
+          color: white;
+          width: 32px;
+          height: 32px;
+          border-radius: 50% 50% 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 14px;
+          font-weight: bold;
+          box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
+          border: 2px solid white;
+        ">
+          📦
+        </div>
+      `,
+      className: 'everest-marker',
+      iconSize: [32, 32],
+      iconAnchor: [16, 32]
+    });
+  };
+  
+  // Add markers for orders
+  ordersWithCoords.forEach(order => {
+    if (order.lat && order.lng) {
+      const marker = L.marker([order.lat, order.lng], {
+        icon: createEverestMarker(order)
+      }).addTo(logisticsMap);
+      
+      // Add popup with order details
+      const popupContent = `
+        <div style="min-width: 200px; font-family: Outfit, sans-serif;">
+          <h4 style="margin: 0 0 8px 0; color: #1e0a4e; font-size: 14px;">
+            Order #${order.tracking_number || order.id}
+          </h4>
+          <div style="font-size: 12px; color: #374151; line-height: 1.4;">
+            <div><strong>Customer:</strong> ${order.phone || 'Guest'}</div>
+            <div><strong>Location:</strong> ${order.wilaya || 'Tunisia'}</div>
+            <div><strong>Status:</strong> <span style="
+              background: ${order.status === 'delivered' ? '#dcfce7' : order.status === 'shipped' ? '#dbeafe' : '#fef9c3'};
+              color: ${order.status === 'delivered' ? '#166534' : order.status === 'shipped' ? '#1d4ed8' : '#92400e'};
+              padding: 2px 6px;
+              border-radius: 12px;
+              font-size: 11px;
+              font-weight: 600;
+            ">${order.status || 'pending'}</span></div>
+            <div><strong>Total:</strong> ${(order.total || 0).toLocaleString()} TND</div>
+          </div>
+        </div>
+      `;
+      
+      marker.bindPopup(popupContent);
+      orderMarkers.push(marker);
+    }
+  });
+  
+  // Update order list
+  updateOrderList(ordersWithCoords);
+}
+
+// Update order list in logistics panel
+function updateOrderList(orders) {
+  const listContainer = document.getElementById('logistics-order-list');
+  if (!listContainer) return;
+  
+  if (orders.length === 0) {
+    listContainer.innerHTML = `
+      <div style="text-align:center;padding:2rem;color:#9ca3af">
+        <div style="font-size:2rem;margin-bottom:0.5rem">📦</div>
+        <p style="font-weight:500;margin-bottom:0.5rem">No active deliveries</p>
+        <p style="font-size:0.875rem;">Orders with delivery coordinates will appear here</p>
+      </div>
+    `;
+    return;
+  }
+  
+  listContainer.innerHTML = orders.map(order => {
+    const statusColor = order.status === 'delivered' ? '#dcfce7' : order.status === 'shipped' ? '#dbeafe' : '#fef9c3';
+    const statusTextColor = order.status === 'delivered' ? '#166534' : order.status === 'shipped' ? '#1d4ed8' : '#92400e';
+    
+    return `
+      <div style="
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1rem;
+        cursor: pointer;
+        transition: all 0.2s;
+      " onmouseover="this.style.borderColor='#7c3aed';this.style.boxShadow='0 2px 8px rgba(124,58,237,0.1)'" 
+         onmouseout="this.style.borderColor='#e5e7eb';this.style.boxShadow=''">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+          <div>
+            <div style="font-weight: 600; color: #1e0a4e; font-size: 14px;">
+              #${order.tracking_number || order.id}
+            </div>
+            <div style="font-size: 12px; color: #6b7280;">
+              ${order.phone || 'Guest'} · ${order.wilaya || 'Tunisia'}
+            </div>
+          </div>
+          <div style="
+            background: ${statusColor};
+            color: ${statusTextColor};
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+          ">
+            ${order.status === 'delivered' ? '✓ Delivered' : order.status === 'shipped' ? '🚚 Shipped' : '⏳ Processing'}
+          </div>
+        </div>
+        <div style="font-size: 12px; color: #374151;">
+          <div><strong>Total:</strong> ${(order.total || 0).toLocaleString()} TND</div>
+          ${order.address ? `<div><strong>Address:</strong> ${order.address}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Refresh logistics map
+function refreshLogisticsMap() {
+  if (logisticsMap) {
+    loadOrderMarkers();
+    toast('🔄 Map refreshed with latest order data', 'success');
+  }
+}
+
+// Center on driver (mock implementation)
+function centerOnDriver() {
+  if (!logisticsMap) {
+    toast('⚠️ Map not loaded yet', 'error');
+    return;
+  }
+  
+  // Mock driver location - in real app, this would come from GPS tracking
+  const driverLocation = [36.8065, 10.1815]; // Tunis coordinates
+  
+  // Add/update driver marker
+  if (driverMarker) {
+    logisticsMap.removeLayer(driverMarker);
+  }
+  
+  const driverIcon = L.divIcon({
+    html: `
+      <div style="
+        background: linear-gradient(135deg, #059669, #047857);
+        color: white;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        box-shadow: 0 3px 10px rgba(5, 150, 105, 0.4);
+        border: 3px solid white;
+        animation: pulse 2s infinite;
+      ">
+        🚚
+      </div>
+    `,
+    className: 'driver-marker',
+    iconSize: [40, 40],
+    iconAnchor: [20, 40]
+  });
+  
+  driverMarker = L.marker(driverLocation, { icon: driverIcon }).addTo(logisticsMap);
+  
+  // Center map on driver
+  logisticsMap.setView(driverLocation, 12);
+  
+  toast('📍 Centered on driver location', 'success');
 }
 
