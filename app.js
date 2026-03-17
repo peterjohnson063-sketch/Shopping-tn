@@ -2624,29 +2624,130 @@ function initializeLogisticsMap() {
   const mapContainer = document.getElementById('logistics-map');
   if (!mapContainer) return;
   
-  // Initialize Leaflet map (using OpenStreetMap tiles for free usage)
+  // Use lightweight static map approach for better performance
   try {
-    logisticsMap = L.map('logistics-map').setView([33.8869, 9.5375], 8); // Center on Tunisia
+    // Create simple Tunisia map using SVG instead of heavy Leaflet
+    mapContainer.innerHTML = `
+      <div style="width:100%;height:100%;position:relative;background:#f0f4f8;overflow:hidden">
+        <!-- Static Tunisia Map SVG -->
+        <svg viewBox="5 30 15 15" style="width:100%;height:100%;position:absolute;top:0;left:0">
+          <!-- Tunisia outline (simplified) -->
+          <path d="M 8 35 L 12 33 L 15 34 L 18 36 L 17 38 L 14 39 L 11 38 L 8 36 Z" 
+                fill="url(#tunisiaGradient)" stroke="#7c3aed" stroke-width="0.2" opacity="0.9"/>
+          
+          <!-- Major cities -->
+          <circle cx="10.5" cy="36.8" r="0.3" fill="#1e0a4e" opacity="0.8"/>
+          <text x="10.5" y="37.3" font-size="0.8" fill="#1e0a4e" text-anchor="middle" font-weight="600">Tunis</text>
+          
+          <circle cx="10.2" cy="35.5" r="0.3" fill="#1e0a4e" opacity="0.8"/>
+          <text x="10.2" y="36.0" font-size="0.7" fill="#1e0a4e" text-anchor="middle">Ariana</text>
+          
+          <circle cx="9.8" cy="37.2" r="0.3" fill="#1e0a4e" opacity="0.8"/>
+          <text x="9.8" y="37.7" font-size="0.7" fill="#1e0a4e" text-anchor="middle">Bizerte</text>
+          
+          <circle cx="11.5" cy="36.0" r="0.3" fill="#1e0a4e" opacity="0.8"/>
+          <text x="11.5" y="36.5" font-size="0.7" fill="#1e0a4e" text-anchor="middle">Nabeul</text>
+          
+          <circle cx="13.0" cy="36.5" r="0.3" fill="#1e0a4e" opacity="0.8"/>
+          <text x="13.0" y="37.0" font-size="0.7" fill="#1e0a4e" text-anchor="middle">Sousse</text>
+          
+          <circle cx="14.5" cy="35.8" r="0.3" fill="#1e0a4e" opacity="0.8"/>
+          <text x="14.5" y="36.3" font-size="0.7" fill="#1e0a4e" text-anchor="middle">Monastir</text>
+          
+          <circle cx="16.0" cy="35.2" r="0.3" fill="#1e0a4e" opacity="0.8"/>
+          <text x="16.0" y="35.7" font-size="0.7" fill="#1e0a4e" text-anchor="middle">Mahdia</text>
+          
+          <circle cx="16.5" cy="36.8" r="0.3" fill="#1e0a4e" opacity="0.8"/>
+          <text x="16.5" y="37.3" font-size="0.7" fill="#1e0a4e" text-anchor="middle">Sfax</text>
+          
+          <!-- Gradient definition -->
+          <defs>
+            <linearGradient id="tunisiaGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#f5f2ff;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#ede8ff;stop-opacity:1" />
+            </linearGradient>
+          </defs>
+        </svg>
+        
+        <!-- Order markers container -->
+        <div id="order-markers" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none"></div>
+        
+        <!-- Driver marker container -->
+        <div id="driver-marker" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;display:none">
+          <div style="
+            position:absolute;
+            width:24px;
+            height:24px;
+            background:linear-gradient(135deg,#059669,#047857);
+            border-radius:50%;
+            border:2px solid white;
+            box-shadow:0 2px 8px rgba(5,150,105,0.4);
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:12px;
+            color:white;
+            transform:translate(-50%,-50%);
+            animation:pulse 2s infinite;
+          ">🚚</div>
+        </div>
+      </div>
+      
+      <style>
+        @keyframes pulse {
+          0%,100% { transform: translate(-50%,-50%) scale(1); }
+          50% { transform: translate(-50%,-50%) scale(1.1); }
+        }
+        .order-marker {
+          position:absolute;
+          width:20px;
+          height:20px;
+          background:linear-gradient(135deg,#7c3aed,#4a1fa8);
+          border-radius:50% 50% 0;
+          border:2px solid white;
+          box-shadow:0 2px 8px rgba(124,58,237,0.3);
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          font-size:10px;
+          color:white;
+          transform:translate(-50%,-50%);
+          cursor:pointer;
+          pointer-events:auto;
+          transition:transform 0.2s;
+        }
+        .order-marker:hover {
+          transform:translate(-50%,-50%) scale(1.1);
+        }
+        .order-popup {
+          position:absolute;
+          background:white;
+          border:1px solid #e5e7eb;
+          border-radius:8px;
+          padding:8px;
+          box-shadow:0 4px 12px rgba(0,0,0,0.1);
+          font-size:11px;
+          min-width:150px;
+          z-index:1000;
+          transform:translate(-50%,-100%);
+          margin-top:-10px;
+        }
+      </style>
+    `;
     
-    // Add tile layer
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors',
-      maxZoom: 18,
-    }).addTo(logisticsMap);
-    
-    // Load orders and display markers
+    // Load order markers
     loadOrderMarkers();
     
-    // Update map every 30 seconds
+    // Update markers every 30 seconds (much lighter than full map reload)
     setInterval(loadOrderMarkers, 30000);
     
   } catch (error) {
-    console.error('Error initializing map:', error);
+    console.error('Error initializing lightweight map:', error);
     mapContainer.innerHTML = `
       <div style="padding:2rem;text-align:center;color:#9ca3af">
         <div style="font-size:2rem;margin-bottom:1rem">⚠️</div>
         <h3 style="margin-bottom:0.5rem">Map Loading Error</h3>
-        <p>Unable to load interactive map. Please check your internet connection.</p>
+        <p>Unable to load map. Please check your internet connection.</p>
       </div>
     `;
   }
@@ -2654,11 +2755,11 @@ function initializeLogisticsMap() {
 
 // Load order markers on map
 function loadOrderMarkers() {
-  if (!logisticsMap) return;
+  const markersContainer = document.getElementById('order-markers');
+  if (!markersContainer) return;
   
   // Clear existing markers
-  orderMarkers.forEach(marker => logisticsMap.removeLayer(marker));
-  orderMarkers = [];
+  markersContainer.innerHTML = '';
   
   // Get orders with coordinates
   const orders = STN.DB.get('orders') || [];
@@ -2666,17 +2767,19 @@ function loadOrderMarkers() {
     // Mock coordinates for demo - in real app, these would come from delivery tracking
     if (order.status === 'shipped' || order.status === 'processing') {
       // Assign mock coordinates based on wilaya for demo
-      const wilayaCoords = {
-        'Tunis': [36.8065, 10.1815],
-        'Sfax': [34.7406, 10.7603],
-        'Sousse': [35.8256, 10.6369],
-        'Kairouan': [35.6781, 10.0963],
-        'Bizerte': [37.2744, 9.8739],
-        'Ariana': [36.8625, 10.1956],
-        'Monastir': [35.7643, 10.8113]
+      const cityCoords = {
+        'Tunis': { x: 52, y: 68 },
+        'Ariana': { x: 51, y: 55 },
+        'Bizerte': { x: 48, y: 72 },
+        'Nabeul': { x: 58, y: 60 },
+        'Sousse': { x: 65, y: 65 },
+        'Monastir': { x: 72, y: 63 },
+        'Mahdia': { x: 80, y: 52 },
+        'Sfax': { x: 85, y: 68 }
       };
-      order.lat = wilayaCoords[order.wilaya]?.[0] || 35.8256;
-      order.lng = wilayaCoords[order.wilaya]?.[1] || 10.6369;
+      const coords = cityCoords[order.wilaya] || { x: 65, y: 65 };
+      order.x = coords.x;
+      order.y = coords.y;
       return true;
     }
     return false;
@@ -2686,69 +2789,71 @@ function loadOrderMarkers() {
   document.getElementById('logistics-order-count').textContent = ordersWithCoords.length;
   document.getElementById('logistics-active-count').textContent = ordersWithCoords.filter(o => o.status === 'shipped').length;
   
-  // Create custom purple marker for Everest branding
-  const createEverestMarker = (order) => {
-    return L.divIcon({
-      html: `
-        <div style="
-          background: linear-gradient(135deg, #7c3aed, #4a1fa8);
-          color: white;
-          width: 32px;
-          height: 32px;
-          border-radius: 50% 50% 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 14px;
-          font-weight: bold;
-          box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
-          border: 2px solid white;
-        ">
-          📦
-        </div>
-      `,
-      className: 'everest-marker',
-      iconSize: [32, 32],
-      iconAnchor: [16, 32]
+  // Create order markers
+  ordersWithCoords.forEach((order, index) => {
+    const marker = document.createElement('div');
+    marker.className = 'order-marker';
+    marker.style.left = order.x + '%';
+    marker.style.top = order.y + '%';
+    marker.innerHTML = '📦';
+    marker.title = `Order #${order.tracking_number || order.id}`;
+    
+    // Add click event for popup
+    marker.addEventListener('click', function(e) {
+      e.stopPropagation();
+      showOrderPopup(order, marker);
     });
-  };
-  
-  // Add markers for orders
-  ordersWithCoords.forEach(order => {
-    if (order.lat && order.lng) {
-      const marker = L.marker([order.lat, order.lng], {
-        icon: createEverestMarker(order)
-      }).addTo(logisticsMap);
-      
-      // Add popup with order details
-      const popupContent = `
-        <div style="min-width: 200px; font-family: Outfit, sans-serif;">
-          <h4 style="margin: 0 0 8px 0; color: #1e0a4e; font-size: 14px;">
-            Order #${order.tracking_number || order.id}
-          </h4>
-          <div style="font-size: 12px; color: #374151; line-height: 1.4;">
-            <div><strong>Customer:</strong> ${order.phone || 'Guest'}</div>
-            <div><strong>Location:</strong> ${order.wilaya || 'Tunisia'}</div>
-            <div><strong>Status:</strong> <span style="
-              background: ${order.status === 'delivered' ? '#dcfce7' : order.status === 'shipped' ? '#dbeafe' : '#fef9c3'};
-              color: ${order.status === 'delivered' ? '#166534' : order.status === 'shipped' ? '#1d4ed8' : '#92400e'};
-              padding: 2px 6px;
-              border-radius: 12px;
-              font-size: 11px;
-              font-weight: 600;
-            ">${order.status || 'pending'}</span></div>
-            <div><strong>Total:</strong> ${(order.total || 0).toLocaleString()} TND</div>
-          </div>
-        </div>
-      `;
-      
-      marker.bindPopup(popupContent);
-      orderMarkers.push(marker);
-    }
+    
+    markersContainer.appendChild(marker);
   });
   
   // Update order list
   updateOrderList(ordersWithCoords);
+}
+
+// Show order popup
+function showOrderPopup(order, marker) {
+  // Remove existing popups
+  document.querySelectorAll('.order-popup').forEach(p => p.remove());
+  
+  const popup = document.createElement('div');
+  popup.className = 'order-popup';
+  popup.innerHTML = `
+    <div style="font-family:Outfit,sans-serif">
+      <h4 style="margin:0 0 8px 0;color:#1e0a4e;font-size:14px">
+        Order #${order.tracking_number || order.id}
+      </h4>
+      <div style="font-size:12px;color:#374151;line-height:1.4">
+        <div><strong>Customer:</strong> ${order.phone || 'Guest'}</div>
+        <div><strong>Location:</strong> ${order.wilaya || 'Tunisia'}</div>
+        <div><strong>Status:</strong> <span style="
+          background:${order.status === 'delivered' ? '#dcfce7' : order.status === 'shipped' ? '#dbeafe' : '#fef9c3'};
+          color:${order.status === 'delivered' ? '#166534' : order.status === 'shipped' ? '#1d4ed8' : '#92400e'};
+          padding:2px 6px;
+          border-radius:12px;
+          font-size:11px;
+          font-weight:600;
+        ">${order.status || 'pending'}</span></div>
+        <div><strong>Total:</strong> ${(order.total || 0).toLocaleString()} TND</div>
+      </div>
+    </div>
+  `;
+  
+  // Position popup above marker
+  const markerRect = marker.getBoundingClientRect();
+  const containerRect = marker.parentElement.getBoundingClientRect();
+  popup.style.left = (markerRect.left - containerRect.left + markerRect.width/2) + 'px';
+  popup.style.top = (markerRect.top - containerRect.top - 10) + 'px';
+  
+  marker.parentElement.appendChild(popup);
+  
+  // Remove popup when clicking elsewhere
+  setTimeout(() => {
+    document.addEventListener('click', function removePopup() {
+      popup.remove();
+      document.removeEventListener('click', removePopup);
+    });
+  }, 100);
 }
 
 // Update order list in logistics panel
@@ -2812,55 +2917,47 @@ function updateOrderList(orders) {
 
 // Refresh logistics map
 function refreshLogisticsMap() {
-  if (logisticsMap) {
+  const markersContainer = document.getElementById('order-markers');
+  if (markersContainer) {
     loadOrderMarkers();
     toast('🔄 Map refreshed with latest order data', 'success');
+  } else {
+    toast('⚠️ Map not loaded yet', 'error');
   }
 }
 
 // Center on driver (mock implementation)
 function centerOnDriver() {
-  if (!logisticsMap) {
+  const driverMarker = document.getElementById('driver-marker');
+  const markersContainer = document.getElementById('order-markers');
+  
+  if (!driverMarker || !markersContainer) {
     toast('⚠️ Map not loaded yet', 'error');
     return;
   }
   
-  // Mock driver location - in real app, this would come from GPS tracking
-  const driverLocation = [36.8065, 10.1815]; // Tunis coordinates
-  
-  // Add/update driver marker
-  if (driverMarker) {
-    logisticsMap.removeLayer(driverMarker);
-  }
-  
-  const driverIcon = L.divIcon({
-    html: `
-      <div style="
-        background: linear-gradient(135deg, #059669, #047857);
-        color: white;
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 18px;
-        box-shadow: 0 3px 10px rgba(5, 150, 105, 0.4);
-        border: 3px solid white;
-        animation: pulse 2s infinite;
-      ">
-        🚚
-      </div>
-    `,
-    className: 'driver-marker',
-    iconSize: [40, 40],
-    iconAnchor: [20, 40]
-  });
-  
-  driverMarker = L.marker(driverLocation, { icon: driverIcon }).addTo(logisticsMap);
-  
-  // Center map on driver
-  logisticsMap.setView(driverLocation, 12);
+  // Show driver marker at Tunis coordinates
+  driverMarker.style.display = 'block';
+  driverMarker.innerHTML = `
+    <div style="
+      position:absolute;
+      left:52%;
+      top:68%;
+      width:24px;
+      height:24px;
+      background:linear-gradient(135deg,#059669,#047857);
+      border-radius:50%;
+      border:2px solid white;
+      box-shadow:0 3px 10px rgba(5,150,105,0.4);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:12px;
+      color:white;
+      transform:translate(-50%,-50%);
+      animation:pulse 2s infinite;
+    ">🚚</div>
+  `;
   
   toast('📍 Centered on driver location', 'success');
 }
