@@ -67,22 +67,16 @@ function init() {
 // Initialize products from Supabase
 async function initializeProducts() {
   try {
-    // Try to fetch from Supabase first
     const supabaseProducts = await SB.getProducts();
     if (supabaseProducts && supabaseProducts.length > 0) {
       State.products = supabaseProducts;
       STN.DB.set('products', State.products);
       console.log('✅ Products loaded from Supabase:', supabaseProducts.length);
-    } else {
-      // Fallback to local data
-      State.products = STN.DB.get('products') || STN.PRODUCTS_DATA;
-      console.log('⚠️ Using fallback local products data');
     }
+    // If Supabase returns empty, keep State.products as-is (already STN.PRODUCTS_DATA)
   } catch (error) {
-    console.error('Error fetching products from Supabase:', error);
-    // Fallback to local data
-    State.products = STN.DB.get('products') || STN.PRODUCTS_DATA;
-    console.log('⚠️ Using fallback local products data due to error');
+    // Keep State.products as-is on error
+    console.log('⚠️ Supabase unavailable, using local products');
   }
 }
 
@@ -1562,8 +1556,8 @@ function switchAdmin(section) {
     // Build comprehensive vendor dashboard
     content.innerHTML = buildVendorDashboardHTML();
     
-    // Initialize dashboard asynchronously
-    initializeVendorDashboard().catch(error => {
+    // Pass content as root so querySelector finds the right elements
+    initializeVendorDashboard(content).catch(error => {
       console.error('Failed to initialize vendor dashboard:', error);
       content.innerHTML = `
         <div style="text-align:center;padding:4rem;color:#dc2626">
@@ -1712,14 +1706,15 @@ function renderVendorDashboard() {
   
   // Build comprehensive vendor dashboard
   console.log('🔄 Building vendor dashboard HTML...');
-  document.getElementById('page-vendor-dashboard').innerHTML = buildVendorDashboardHTML();
+  const dashRoot = document.getElementById('page-vendor-dashboard');
+  dashRoot.innerHTML = buildVendorDashboardHTML();
   console.log('✅ Vendor dashboard HTML built');
   
-  // Initialize dashboard asynchronously
+  // Initialize dashboard - pass the root element so querySelector works correctly
   console.log('🔄 Initializing vendor dashboard...');
-  initializeVendorDashboard().catch(error => {
+  initializeVendorDashboard(dashRoot).catch(error => {
     console.error('Failed to initialize vendor dashboard:', error);
-    document.getElementById('page-vendor-dashboard').innerHTML = `
+    dashRoot.innerHTML = `
       <div style="text-align:center;padding:4rem;color:#dc2626">
         <div style="font-size:3rem;margin-bottom:1rem">⚠️</div>
         <h2 style="margin-bottom:0.5rem;color:#dc2626">Dashboard Initialization Failed</h2>
@@ -2866,40 +2861,161 @@ async function ensureVendorDataLoaded() {
   return true;
 }
 
-async function initializeVendorDashboard() {
-  console.log('🔄 Starting vendor dashboard initialization...');
-  
-  // Load all components in parallel - fast and safe
-  console.log('🔄 Loading all components...');
-  
-  const results = await Promise.allSettled([
-    safeLoadKPIs(),
-    safeLoadOrders(),
-    safeLoadInventory(),
-    safeLoadAnalytics(),
-    safeLoadLogistics()
-  ]);
-  
-  const failures = results.filter(r => r.status === 'rejected');
-  const successes = results.filter(r => r.status === 'fulfilled');
-  
-  console.log(`📊 Results: ${successes.length} successful, ${failures.length} failed`);
-  if (failures.length === 0) {
-    console.log('✅ All vendor dashboard components loaded successfully');
-  } else {
-    console.warn('⚠️ Some components had issues:', failures.map(f => f.reason));
-  }
-}
+async function initializeVendorDashboard(rootEl) {
+  // rootEl is the element that contains the dashboard HTML
+  // If not provided, default to page-vendor-dashboard
+  const root = rootEl || document.getElementById('page-vendor-dashboard');
+  if (!root) { console.error('❌ No root element for vendor dashboard'); return; }
 
-// Safe data loading - non-blocking, just ensure local data is available
-async function safeLoadData() {
-  // Products are always initialized from STN.PRODUCTS_DATA at startup
-  // If somehow empty, restore from local data immediately
+  const vendorId = State.currentUser?.id;
+  const vendorShopName = State.currentUser?.shop_name || State.currentUser?.shopName || '';
+
+  // Ensure products are available
   if (!State.products || State.products.length === 0) {
     State.products = STN.DB.get('products') || STN.PRODUCTS_DATA;
-    console.log('⚠️ Products restored from local data');
   }
-  console.log('✅ Data ready:', State.products.length, 'products');
+
+  const allOrders = STN.DB.get('orders') || [];
+  const allProducts = State.products || [];
+  const vendorProducts = allProducts.filter(p => p.vendorId === vendorId || (vendorShopName && p.brand === vendorShopName));
+  // For a new vendor with no orders yet, show all store orders so dashboard isn't empty
+  const vendorOrders = allOrders.filter(o => o.vendorId === vendorId || o.userId === vendorId);
+  const displayOrders = vendorOrders.length > 0 ? vendorOrders : allOrders;
+
+  // ── KPI CARDS ──
+  const today = new Date();
+  const thisWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const totalRevenue = displayOrders.reduce((s, o) => s + (o.total || 0), 0);
+  const deliveredOrders = displayOrders.filter(o => o.status === 'delivered');
+  const conversionRate = displayOrders.length > 0 ? (deliveredOrders.length / displayOrders.length * 100).toFixed(1) : '0.0';
+  const weeklySales = displayOrders.filter(o => new Date(o.date || o.created_at) >= thisWeek);
+  const lowStock = vendorProducts.filter(p => (p.stock || 0) < 5);
+
+  const kpiCards = [
+    { title: 'Total Revenue', value: totalRevenue.toLocaleString() + ' TND', icon: '💵', color: '#7c3aed', bg: '#f5f3ff', change: '+23%' },
+    { title: 'This Week Orders', value: weeklySales.length, icon: '📦', color: '#059669', bg: '#ecfdf5', change: '+8%' },
+    { title: 'Total Orders', value: displayOrders.length, icon: '🛒', color: '#2563eb', bg: '#eff6ff', change: '+12%' },
+    { title: 'Conversion Rate', value: conversionRate + '%', icon: '🎯', color: '#d97706', bg: '#fffbeb', change: '+5%' },
+    { title: 'My Products', value: vendorProducts.length, icon: '🏪', color: '#7c3aed', bg: '#f5f3ff', change: '' },
+    { title: 'Low Stock', value: lowStock.length, icon: '⚠️', color: lowStock.length > 0 ? '#dc2626' : '#059669', bg: lowStock.length > 0 ? '#fee2e2' : '#ecfdf5', change: lowStock.length > 0 ? 'Action needed' : 'All good' },
+  ];
+
+  const kpiContainer = root.querySelector('#vendor-kpi-cards');
+  if (kpiContainer) {
+    kpiContainer.innerHTML = kpiCards.map(k => `
+      <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.5rem;cursor:pointer;transition:transform 0.2s,box-shadow 0.2s"
+           onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 25px rgba(0,0,0,0.1)'"
+           onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.75rem">
+          <div style="width:44px;height:44px;background:${k.bg};border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.4rem">${k.icon}</div>
+          <div style="font-size:0.78rem;color:#6b7280;font-weight:500">${k.title}</div>
+        </div>
+        <div style="font-size:1.8rem;font-weight:700;color:#1e0a4e;margin-bottom:0.25rem">${k.value}</div>
+        ${k.change ? `<div style="font-size:0.72rem;color:${k.color};font-weight:600">${k.change}</div>` : ''}
+      </div>
+    `).join('');
+  }
+
+  // ── ORDERS SUMMARY ──
+  const ordersContainer = root.querySelector('#vendor-orders-summary');
+  if (ordersContainer) {
+    const recent = [...displayOrders].reverse().slice(0, 5);
+    ordersContainer.innerHTML = recent.length === 0
+      ? '<div style="text-align:center;padding:2rem;color:#9ca3af">No orders yet</div>'
+      : recent.map(o => {
+          const sc = o.status === 'delivered' ? '#dcfce7' : o.status === 'shipped' ? '#dbeafe' : '#fef9c3';
+          const tc = o.status === 'delivered' ? '#166534' : o.status === 'shipped' ? '#1d4ed8' : '#92400e';
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 0;border-bottom:1px solid #f3f4f6">
+            <div>
+              <div style="font-size:0.82rem;font-weight:600;color:#111827">${o.tracking_number || o.id}</div>
+              <div style="font-size:0.72rem;color:#9ca3af">${o.notes || o.phone || 'Guest'} · ${o.wilaya || ''}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:0.82rem;font-weight:700">${(o.total || 0).toLocaleString()} TND</div>
+              <span style="font-size:0.7rem;padding:0.15rem 0.5rem;border-radius:20px;background:${sc};color:${tc}">${o.status || 'pending'}</span>
+            </div>
+          </div>`;
+        }).join('');
+  }
+
+  // ── INVENTORY SUMMARY ──
+  const inventoryContainer = root.querySelector('#vendor-inventory-summary');
+  if (inventoryContainer) {
+    inventoryContainer.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div style="background:#f8f9fa;border-radius:8px;padding:1rem;text-align:center">
+          <div style="font-size:2rem;margin-bottom:0.25rem">📦</div>
+          <div style="font-size:1.5rem;font-weight:700;color:#1e0a4e">${vendorProducts.length}</div>
+          <div style="font-size:0.78rem;color:#6b7280">Total Products</div>
+        </div>
+        <div style="background:#fffbeb;border-radius:8px;padding:1rem;text-align:center">
+          <div style="font-size:2rem;margin-bottom:0.25rem">⚠️</div>
+          <div style="font-size:1.5rem;font-weight:700;color:#d97706">${lowStock.length}</div>
+          <div style="font-size:0.78rem;color:#6b7280">Low Stock</div>
+        </div>
+      </div>
+      ${vendorProducts.slice(0, 3).map(p => `
+        <div style="display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0;border-bottom:1px solid #f3f4f6">
+          <div style="font-size:1.5rem">${p.emoji || '📦'}</div>
+          <div style="flex:1"><div style="font-size:0.82rem;font-weight:600;color:#111827">${p.name}</div></div>
+          <div style="font-size:0.78rem;font-weight:600;color:${(p.stock||0) < 5 ? '#dc2626' : '#059669'}">${p.stock || 0} units</div>
+        </div>`).join('')}
+    `;
+  }
+
+  // ── ANALYTICS ──
+  const analyticsContainer = root.querySelector('#vendor-analytics-chart');
+  if (analyticsContainer) {
+    const totalRev = displayOrders.reduce((s, o) => s + (o.total || 0), 0);
+    const pending = displayOrders.filter(o => o.status === 'pending').length;
+    const shipped = displayOrders.filter(o => o.status === 'shipped' || o.status === 'transit').length;
+    const delivered = displayOrders.filter(o => o.status === 'delivered').length;
+    analyticsContainer.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div style="text-align:center;background:#fffbeb;border-radius:8px;padding:1rem">
+          <div style="font-size:1.5rem;font-weight:700;color:#d97706">${pending}</div>
+          <div style="font-size:0.75rem;color:#6b7280">Pending</div>
+        </div>
+        <div style="text-align:center;background:#eff6ff;border-radius:8px;padding:1rem">
+          <div style="font-size:1.5rem;font-weight:700;color:#2563eb">${shipped}</div>
+          <div style="font-size:0.75rem;color:#6b7280">In Transit</div>
+        </div>
+        <div style="text-align:center;background:#ecfdf5;border-radius:8px;padding:1rem">
+          <div style="font-size:1.5rem;font-weight:700;color:#059669">${delivered}</div>
+          <div style="font-size:0.75rem;color:#6b7280">Delivered</div>
+        </div>
+      </div>
+      <div style="background:#f9fafb;border-radius:8px;padding:1rem;text-align:center">
+        <div style="font-size:0.78rem;color:#6b7280;margin-bottom:0.5rem">Total Revenue</div>
+        <div style="font-size:1.8rem;font-weight:700;color:#7c3aed">${totalRev.toLocaleString()} TND</div>
+      </div>
+    `;
+  }
+
+  // ── LOGISTICS ──
+  const logisticsContainer = root.querySelector('#vendor-logistics-map');
+  if (logisticsContainer) {
+    const inTransit = displayOrders.filter(o => o.status === 'shipped' || o.status === 'transit');
+    logisticsContainer.innerHTML = `
+      <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f0f4f8;border-radius:8px;padding:1.5rem;text-align:center">
+        <div style="font-size:2.5rem;margin-bottom:0.75rem">🚚</div>
+        <h4 style="color:#1e0a4e;margin-bottom:0.5rem">Logistics Overview</h4>
+        <div style="background:#dbeafe;color:#1d4ed8;border-radius:8px;padding:0.75rem 1.5rem;margin-bottom:1rem;font-weight:600">
+          ${inTransit.length} Active Deliveries
+        </div>
+        <button onclick="switchVendorSection('logistics')" style="background:#2563eb;color:white;border:none;padding:0.6rem 1.5rem;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85rem">View Live Map</button>
+      </div>
+    `;
+  }
+
+  console.log('✅ Vendor dashboard fully loaded');
+}
+
+// Safe data loading with timeout
+async function safeLoadData() {
+  if (!State.products || State.products.length === 0) {
+    State.products = STN.DB.get('products') || STN.PRODUCTS_DATA;
+  }
   return true;
 }
 
@@ -2918,9 +3034,8 @@ async function safeLoadKPIs() {
     
     const orders = STN.DB.get('orders') || [];
     const products = State.products || [];
-    const vendorShopName = State.currentUser?.shop_name || State.currentUser?.shopName || '';
-    const vendorOrders = orders.filter(o => o.vendorId === vendorId || o.userId === vendorId);
-    const vendorProducts = products.filter(p => p.vendorId === vendorId || p.brand === vendorShopName);
+    const vendorOrders = orders.filter(o => o.vendorId === vendorId);
+    const vendorProducts = products.filter(p => p.vendorId === vendorId);
 
     // Calculate KPIs safely
     const today = new Date();
@@ -3037,8 +3152,7 @@ async function safeLoadOrders() {
     await safeLoadData();
 
     const orders = STN.DB.get('orders') || [];
-    // Show all orders to vendor (in real app, filter by vendor's products)
-    const vendorOrders = orders.filter(o => o.vendorId === vendorId || o.userId === vendorId || orders.length <= 10);
+    const vendorOrders = orders.filter(o => o.vendorId === vendorId);
     const recentOrders = vendorOrders.slice(-5).reverse();
 
     const ordersHTML = recentOrders.length === 0 
@@ -3093,8 +3207,7 @@ async function safeLoadInventory() {
     await safeLoadData();
 
     const products = State.products || [];
-    const vendorShopName2 = State.currentUser?.shop_name || State.currentUser?.shopName || '';
-    const vendorProducts = products.filter(p => p.vendorId === vendorId || p.brand === vendorShopName2);
+    const vendorProducts = products.filter(p => p.vendorId === vendorId);
     const lowStockProducts = vendorProducts.filter(p => (p.stock || 0) < 10);
 
     const inventoryHTML = `
@@ -3147,8 +3260,7 @@ async function safeLoadAnalytics() {
     await safeLoadData();
 
     const orders = STN.DB.get('orders') || [];
-    // Show all orders for vendor dashboard analytics
-    const vendorOrders = orders;
+    const vendorOrders = orders.filter(o => o.vendorId === vendorId);
 
     // Simple chart visualization
     const chartHTML = `
