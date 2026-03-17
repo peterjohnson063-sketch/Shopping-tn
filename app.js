@@ -3267,6 +3267,11 @@ function initializeLogisticsMap() {
   
   // Initialize Leaflet map with real Tunisia map data
   try {
+    // Check if Leaflet is available
+    if (typeof L === 'undefined') {
+      throw new Error('Leaflet library not loaded. Please check internet connection.');
+    }
+    
     logisticsMap = L.map('logistics-map').setView([33.8869, 9.5375], 7); // Center on Tunisia with better zoom
     
     // Add OpenStreetMap tiles (free alternative to Google Maps)
@@ -3294,6 +3299,7 @@ function initializeLogisticsMap() {
         <div style="font-size:2rem;margin-bottom:1rem">⚠️</div>
         <h3 style="margin-bottom:0.5rem">Map Loading Error</h3>
         <p>Unable to load interactive map. Please check your internet connection.</p>
+        <button onclick="location.reload()" style="background:#7c3aed;color:white;border:none;padding:0.5rem 1rem;border-radius:8px;margin-top:1rem;cursor:pointer">Retry</button>
       </div>
     `;
   }
