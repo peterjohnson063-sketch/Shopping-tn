@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quick Vendor Dashboard Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-step { background: #f0f0f0; padding: 15px; margin: 10px 0; border-radius: 8px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Vendor Dashboard Quick Test</h1>
+    
+    <div class="test-step">
+        <h3>Step 1: Open Main Application</h3>
+        <button onclick="window.open('index.html', '_blank')">🚀 Open Shopping App</button>
+        <p>Open the main shopping application in a new tab.</p>
+    </div>
+    
+    <div class="test-step">
+        <h3>Step 2: Open Developer Console</h3>
+        <p>In the shopping app tab, press <strong>F12</strong> and go to <strong>Console</strong> tab.</p>
+        <p>Clear the console by clicking the 🗑️ button.</p>
+    </div>
+    
+    <div class="test-step">
+        <h3>Step 3: Test Vendor Dashboard</h3>
+        <ol>
+            <li>Login with a vendor account (role: 'vendor')</li>
+            <li>Go to vendor page</li>
+            <li>Click <strong>"📊 Dashboard"</strong> button</li>
+            <li>Watch console for debug messages</li>
+        </ol>
+    </div>
+    
+    <div class="test-step">
+        <h3>Expected Console Output:</h3>
+        <div class="success">
+            <code>
+                🔄 renderVendor called<br>
+                ✅ User found: {id: ..., name: ..., role: "vendor", ...}<br>
+                🔄 Building vendor HTML...<br>
+                ✅ Vendor HTML built<br>
+                🔄 Switching to overview section...<br>
+                🔄 switchVendorSection called with: overview<br>
+                <br>
+                <!-- When clicking Dashboard button --><br>
+                🔄 switchVendorSection called with: dashboard<br>
+                🔄 Dashboard section clicked, redirecting to vendor-dashboard page...<br>
+                🔄 renderVendorDashboard called<br>
+                ✅ Vendor access check passed - user is vendor<br>
+                ✅ Simple vendor dashboard rendered successfully
+            </code>
+        </div>
+    </div>
+    
+    <div class="test-step">
+        <h3>Expected Visual Result:</h3>
+        <div class="success">
+            ✅ Should see "Vendor Dashboard Working!" page<br>
+            ✅ Should show user info in green box<br>
+            ✅ Should have "← Back to Vendor Page" button
+        </div>
+    </div>
+    
+    <div class="test-step">
+        <h3>If It Still Doesn't Work:</h3>
+        <div class="error">
+            <strong>Check console for:</strong><br>
+            ❌ "No current user, redirecting to auth" - Need to login<br>
+            ❌ "Vendor access check failed" - User role is not 'vendor'<br>
+            ❌ "Vendor page element not found" - HTML issue<br>
+            ❌ Any red error messages - JavaScript error
+        </div>
+    </div>
+    
+    <script>
+        console.log('🧪 Quick test page loaded - ready to test vendor dashboard!');
+    </script>
+</body>
+</html>
