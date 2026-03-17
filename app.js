@@ -1540,7 +1540,19 @@ function switchAdmin(section) {
     
     // Build comprehensive vendor dashboard
     content.innerHTML = buildVendorDashboardHTML();
-    initializeVendorDashboard();
+    
+    // Initialize dashboard asynchronously
+    initializeVendorDashboard().catch(error => {
+      console.error('Failed to initialize vendor dashboard:', error);
+      content.innerHTML = `
+        <div style="text-align:center;padding:4rem;color:#dc2626">
+          <div style="font-size:3rem;margin-bottom:1rem">⚠️</div>
+          <h2 style="margin-bottom:0.5rem;color:#dc2626">Dashboard Initialization Failed</h2>
+          <p style="margin-bottom:2rem;color:#dc2626">Unable to load vendor dashboard. Please try refreshing the page.</p>
+          <button onclick="location.reload()" style="background:#dc2626;color:white;border:none;padding:0.875rem 2rem;border-radius:8px;font-weight:600;cursor:pointer">🔄 Refresh Page</button>
+        </div>
+      `;
+    });
     
   } else if (section === 'vendors') {
     var vendorRows = vendors.length === 0
@@ -2726,18 +2738,117 @@ function buildVendorDashboardHTML() {
   `;
 }
 
-function initializeVendorDashboard() {
-  // Load all vendor dashboard data
-  loadVendorKPIs();
-  loadVendorOrdersSummary();
-  loadVendorInventorySummary();
-  loadVendorAnalytics();
-  loadVendorLogisticsMap();
+// ── VENDOR DASHBOARD DATA LOADING ──
+
+async function ensureVendorDataLoaded() {
+  console.log('🔄 Ensuring vendor data is loaded...');
+  
+  // Check if products are loaded
+  if (!State.products || State.products.length === 0) {
+    console.log('📦 Products not loaded, loading from Supabase...');
+    try {
+      await loadProducts();
+    } catch (error) {
+      console.error('Failed to load products:', error);
+      throw new Error('Failed to load products data');
+    }
+  }
+  
+  // Check if orders are loaded
+  const orders = STN.DB.get('orders') || [];
+  if (orders.length === 0) {
+    console.log('📋 Orders not loaded, initializing...');
+    try {
+      // Try to load orders from Supabase if available
+      if (typeof SB !== 'undefined' && SB.getOrders) {
+        const supabaseOrders = await SB.getOrders();
+        if (supabaseOrders && supabaseOrders.length > 0) {
+          STN.DB.set('orders', supabaseOrders);
+          console.log('✅ Orders loaded from Supabase:', supabaseOrders.length);
+        }
+      }
+    } catch (error) {
+      console.warn('Could not load orders from Supabase, using local data');
+    }
+  }
+  
+  console.log('✅ Vendor data loading complete');
+  return true;
 }
 
-function loadVendorKPIs() {
+async function initializeVendorDashboard() {
+  // Show loading state first
+  const kpiContainer = document.getElementById('vendor-kpi-cards');
+  const ordersContainer = document.getElementById('vendor-orders-summary');
+  const inventoryContainer = document.getElementById('vendor-inventory-summary');
+  const analyticsContainer = document.getElementById('vendor-analytics-chart');
+  const logisticsContainer = document.getElementById('vendor-logistics-map');
+  
+  // Show loading indicators
+  if (kpiContainer) kpiContainer.innerHTML = '<div style="text-align:center;padding:2rem;color:#9ca3af">🔄 Loading KPIs...</div>';
+  if (ordersContainer) ordersContainer.innerHTML = '<div style="text-align:center;padding:2rem;color:#9ca3af">🔄 Loading orders...</div>';
+  if (inventoryContainer) inventoryContainer.innerHTML = '<div style="text-align:center;padding:2rem;color:#9ca3af">🔄 Loading inventory...</div>';
+  if (analyticsContainer) analyticsContainer.innerHTML = '<div style="text-align:center;padding:2rem;color:#9ca3af">🔄 Loading analytics...</div>';
+  if (logisticsContainer) logisticsContainer.innerHTML = '<div style="text-align:center;padding:2rem;color:#9ca3af">🔄 Loading logistics...</div>';
+  
+  // Load all vendor dashboard data with proper error handling
+  try {
+    // Ensure data is loaded first
+    await ensureVendorDataLoaded();
+    
+    // Load all dashboard components in parallel
+    await Promise.all([
+      loadVendorKPIs(),
+      loadVendorOrdersSummary(),
+      loadVendorInventorySummary(),
+      loadVendorAnalytics(),
+      loadVendorLogisticsMap()
+    ]);
+    
+    console.log('✅ Vendor dashboard loaded successfully');
+    
+    // Hide any loading states and show success
+    const allContainers = [kpiContainer, ordersContainer, inventoryContainer, analyticsContainer, logisticsContainer];
+    allContainers.forEach(container => {
+      if (container && container.innerHTML.includes('Loading')) {
+        console.log('Component loaded successfully');
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error loading vendor dashboard:', error);
+    
+    // Show error state
+    const errorMsg = `
+      <div style="text-align:center;padding:4rem;color:#dc2626">
+        <div style="font-size:3rem;margin-bottom:1rem">⚠️</div>
+        <h3 style="margin-bottom:0.5rem;color:#dc2626">Dashboard Loading Error</h3>
+        <p style="margin-bottom:2rem;color:#dc2626">Unable to load dashboard data: ${error.message || 'Unknown error'}</p>
+        <button onclick="location.reload()" style="background:#dc2626;color:white;border:none;padding:0.875rem 2rem;border-radius:8px;font-weight:600;cursor:pointer">🔄 Refresh Page</button>
+      </div>
+    `;
+    
+    if (kpiContainer) kpiContainer.innerHTML = errorMsg;
+    if (ordersContainer) ordersContainer.innerHTML = errorMsg;
+    if (inventoryContainer) inventoryContainer.innerHTML = errorMsg;
+    if (analyticsContainer) analyticsContainer.innerHTML = errorMsg;
+    if (logisticsContainer) logisticsContainer.innerHTML = errorMsg;
+  }
+}
+
+async function loadVendorKPIs() {
   const vendorId = State.currentUser?.id;
-  if (!vendorId) return;
+  if (!vendorId) {
+    console.warn('No vendor ID found');
+    return;
+  }
+
+  // Ensure data is available
+  if (!State.products || State.products.length === 0) {
+    console.warn('Products not loaded, waiting...');
+    await new Promise(resolve => setTimeout(resolve, 500)); // Small delay
+    return loadVendorKPIs(); // Retry
+  }
 
   // Get vendor's orders and products
   const orders = STN.DB.get('orders') || [];
@@ -2834,12 +2945,26 @@ function loadVendorKPIs() {
     </div>
   `).join('');
 
-  document.getElementById('vendor-kpi-cards').innerHTML = kpiHTML;
+  const kpiContainer = document.getElementById('vendor-kpi-cards');
+  if (kpiContainer) {
+    kpiContainer.innerHTML = kpiHTML;
+    console.log('✅ KPIs loaded:', vendorOrders.length, 'orders,', vendorProducts.length, 'products');
+  }
 }
 
-function loadVendorOrdersSummary() {
+async function loadVendorOrdersSummary() {
   const vendorId = State.currentUser?.id;
-  if (!vendorId) return;
+  if (!vendorId) {
+    console.warn('No vendor ID found for orders');
+    return;
+  }
+
+  // Ensure data is available
+  if (!State.products || State.products.length === 0) {
+    console.warn('Products not loaded for orders, waiting...');
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return loadVendorOrdersSummary();
+  }
 
   const orders = STN.DB.get('orders') || [];
   const vendorOrders = orders.filter(o => o.vendorId === vendorId);
@@ -2880,12 +3005,26 @@ function loadVendorOrdersSummary() {
         </div>
       `;
 
-  document.getElementById('vendor-orders-summary').innerHTML = ordersHTML;
+  const ordersContainer = document.getElementById('vendor-orders-summary');
+  if (ordersContainer) {
+    ordersContainer.innerHTML = ordersHTML;
+    console.log('✅ Orders summary loaded:', vendorOrders.length, 'orders');
+  }
 }
 
-function loadVendorInventorySummary() {
+async function loadVendorInventorySummary() {
   const vendorId = State.currentUser?.id;
-  if (!vendorId) return;
+  if (!vendorId) {
+    console.warn('No vendor ID found for inventory');
+    return;
+  }
+
+  // Ensure data is available
+  if (!State.products || State.products.length === 0) {
+    console.warn('Products not loaded for inventory, waiting...');
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return loadVendorInventorySummary();
+  }
 
   const products = State.products || [];
   const vendorProducts = products.filter(p => p.vendorId === vendorId);
@@ -2923,12 +3062,26 @@ function loadVendorInventorySummary() {
     </div>
   `;
 
-  document.getElementById('vendor-inventory-summary').innerHTML = inventoryHTML;
+  const inventoryContainer = document.getElementById('vendor-inventory-summary');
+  if (inventoryContainer) {
+    inventoryContainer.innerHTML = inventoryHTML;
+    console.log('✅ Inventory summary loaded:', vendorProducts.length, 'products,', lowStockProducts.length, 'low stock');
+  }
 }
 
-function loadVendorAnalytics() {
+async function loadVendorAnalytics() {
   const vendorId = State.currentUser?.id;
-  if (!vendorId) return;
+  if (!vendorId) {
+    console.warn('No vendor ID found for analytics');
+    return;
+  }
+
+  // Ensure data is available
+  if (!State.products || State.products.length === 0) {
+    console.warn('Products not loaded for analytics, waiting...');
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return loadVendorAnalytics();
+  }
 
   const orders = STN.DB.get('orders') || [];
   const vendorOrders = orders.filter(o => o.vendorId === vendorId);
@@ -2952,7 +3105,11 @@ function loadVendorAnalytics() {
     </div>
   `;
 
-  document.getElementById('vendor-analytics-chart').innerHTML = chartHTML;
+  const analyticsContainer = document.getElementById('vendor-analytics-chart');
+  if (analyticsContainer) {
+    analyticsContainer.innerHTML = chartHTML;
+    console.log('✅ Analytics loaded:', vendorOrders.length, 'orders analyzed');
+  }
 }
 
 function generateSimpleChart(orders) {
@@ -3002,12 +3159,22 @@ function calculateDailyAverage(orders) {
   return (orders.length / days).toFixed(1);
 }
 
-function loadVendorLogisticsMap() {
+async function loadVendorLogisticsMap() {
   const mapContainer = document.getElementById('vendor-logistics-map');
-  if (!mapContainer) return;
+  if (!mapContainer) {
+    console.warn('Logistics map container not found');
+    return;
+  }
+
+  // Ensure data is available
+  if (!State.products || State.products.length === 0) {
+    console.warn('Products not loaded for logistics, waiting...');
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return loadVendorLogisticsMap();
+  }
 
   // Simple logistics visualization
-  mapContainer.innerHTML = `
+  const logisticsHTML = `
     <div style="height:100%;background:#f0f4f8;border-radius:8px;display:flex;align-items:center;justify-content:center;position:relative">
       <div style="text-align:center;color:#6b7280">
         <div style="font-size:2rem;margin-bottom:1rem">🚚</div>
@@ -3019,6 +3186,9 @@ function loadVendorLogisticsMap() {
       </div>
     </div>
   `;
+
+  mapContainer.innerHTML = logisticsHTML;
+  console.log('✅ Logistics map loaded');
 }
 
 function switchVendorSection(section) {
@@ -3027,12 +3197,28 @@ function switchVendorSection(section) {
   toast(`🔄 Loading ${section} section...`, 'success');
 }
 
-function refreshVendorData() {
-  loadVendorKPIs();
-  loadVendorOrdersSummary();
-  loadVendorInventorySummary();
-  loadVendorAnalytics();
-  toast('🔄 Dashboard refreshed with latest data', 'success');
+async function refreshVendorData() {
+  try {
+    console.log('🔄 Refreshing vendor dashboard data...');
+    
+    // Reload data from Supabase first
+    await ensureVendorDataLoaded();
+    
+    // Reload all dashboard components
+    await Promise.all([
+      loadVendorKPIs(),
+      loadVendorOrdersSummary(),
+      loadVendorInventorySummary(),
+      loadVendorAnalytics(),
+      loadVendorLogisticsMap()
+    ]);
+    
+    toast('🔄 Dashboard refreshed with latest data', 'success');
+    console.log('✅ Vendor dashboard refreshed successfully');
+  } catch (error) {
+    console.error('❌ Error refreshing vendor dashboard:', error);
+    toast('⚠️ Failed to refresh dashboard. Please try again.', 'error');
+  }
 }
 let logisticsMap = null;
 let orderMarkers = [];
