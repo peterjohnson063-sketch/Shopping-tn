@@ -1894,31 +1894,468 @@ function renderVendorDashboard() {
   
   if (!State.currentUser || State.currentUser.role !== 'vendor') {
     console.log('❌ Vendor access check failed - current user:', State.currentUser);
-    document.getElementById('page-vendor-dashboard').innerHTML = `
-      <div style="text-align:center;padding:4rem;color:#9ca3af">
-        <div style="font-size:3rem;margin-bottom:1rem">🔒</div>
-        <h2 style="margin-bottom:0.5rem;color:#1e0a4e">Vendor Access Required</h2>
-        <p style="margin-bottom:2rem;color:#6b7280">You need to be logged in as a vendor to access this dashboard.</p>
-        <button onclick="showPage('auth')" style="background:#7c3aed;color:white;border:none;padding:0.875rem 2rem;border-radius:8px;font-weight:600;cursor:pointer">Sign In as Vendor</button>
-      </div>
-    `;
+    const page = document.getElementById('page-vendor-dashboard');
+    if (page) {
+      page.innerHTML = `
+        <div style="text-align:center;padding:4rem;background:white;border-radius:20px;margin:2rem">
+          <div style="font-size:4rem;margin-bottom:1rem">🔒</div>
+          <h2 style="color:#1e0a4e;font-size:2rem;margin-bottom:1rem">Vendor Access Required</h2>
+          <p style="color:#666;margin-bottom:2rem">Please sign in with your vendor account to access the dashboard.</p>
+          <button onclick="showPage('auth')" style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;padding:1rem 2rem;border-radius:10px;font-weight:600;cursor:pointer;font-size:1rem">Sign In as Vendor</button>
+        </div>
+      `;
+    }
     return;
   }
+
+  // Load professional dashboard
+  const page = document.getElementById('page-vendor-dashboard');
+  if (!page) return;
   
-  console.log('✅ Vendor access check passed - user is vendor');
+  page.innerHTML = buildProfessionalDashboardHTML();
+  initializeProfessionalDashboard();
+}
+
+function buildProfessionalDashboardHTML() {
+  return `
+    <div class="dashboard-container">
+      <!-- Header -->
+      <div class="dashboard-header">
+        <div>
+          <h1>🚀 Vendor Dashboard</h1>
+          <p>Manage your business in real-time</p>
+        </div>
+        <div class="header-info">
+          <div class="vendor-name" id="vendor-name">${State.currentUser?.shop_name || State.currentUser?.name || 'Vendor Shop'}</div>
+          <div class="vendor-status">✅ VERIFIED</div>
+        </div>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="kpi-grid" id="kpi-grid">
+        <div class="loading">
+          <div class="spinner"></div>
+          Loading dashboard...
+        </div>
+      </div>
+
+      <!-- Main Content -->
+      <div class="main-content">
+        <!-- Left Panel -->
+        <div class="left-panel">
+          <!-- Recent Orders -->
+          <div class="panel">
+            <div class="panel-header">
+              <h2 class="panel-title">📦 Recent Orders</h2>
+              <button class="btn btn-primary" onclick="viewAllOrders()">View All</button>
+            </div>
+            <div id="orders-list">
+              <div class="loading">
+                <div class="spinner"></div>
+                Loading orders...
+              </div>
+            </div>
+          </div>
+
+          <!-- Interactive Map -->
+          <div class="panel" style="margin-top: 30px;">
+            <div class="panel-header">
+              <h2 class="panel-title">🗺️ Live Logistics Map - Tunisia</h2>
+              <button class="btn btn-secondary" onclick="refreshMap()">Refresh</button>
+            </div>
+            <div id="vendor-map"></div>
+          </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="right-panel">
+          <!-- Inventory -->
+          <div class="panel">
+            <div class="panel-header">
+              <h2 class="panel-title">📊 Inventory Status</h2>
+              <button class="btn btn-primary" onclick="addProduct()">+ Add Product</button>
+            </div>
+            <div id="inventory-list">
+              <div class="loading">
+                <div class="spinner"></div>
+                Loading inventory...
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="panel" style="margin-top: 30px;">
+            <div class="panel-header">
+              <h2 class="panel-title">⚡ Quick Actions</h2>
+            </div>
+            <div class="quick-actions">
+              <button class="btn btn-primary" onclick="addProduct()">➕ Add New Product</button>
+              <button class="btn btn-secondary" onclick="viewAnalytics()">📈 View Analytics</button>
+              <button class="btn btn-secondary" onclick="viewSettings()">⚙️ Settings</button>
+              <button class="btn btn-secondary" onclick="exportData()">📥 Export Data</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function initializeProfessionalDashboard() {
+  console.log('🚀 Initializing Professional Dashboard...');
   
-  // Build comprehensive vendor dashboard
-  console.log('🔄 Building vendor dashboard HTML...');
-  const _dashRoot = document.getElementById('page-vendor-dashboard');
-  _dashRoot.innerHTML = buildVendorDashboardHTML();
-  console.log('✅ Vendor dashboard HTML built');
-  
-  // Initialize dashboard asynchronously with bulletproof system
-  console.log('🔄 Initializing vendor dashboard...');
-  initializeVendorDashboard(_dashRoot).catch(err => {
-    console.error('Dashboard init failed:', err);
-    _dashRoot.innerHTML = '<div style="text-align:center;padding:4rem;color:#dc2626"><div style="font-size:3rem;margin-bottom:1rem">⚠️</div><h2>Dashboard Error</h2><p>'+err.message+'</p><button onclick="location.reload()" style="background:#dc2626;color:white;border:none;padding:0.875rem 2rem;border-radius:8px;font-weight:600;cursor:pointer">🔄 Reload</button></div>';
-  });
+  try {
+    window.dashboard = new ProfessionalVendorDashboard();
+    await window.dashboard.init();
+    console.log('✅ Professional dashboard loaded successfully!');
+  } catch (error) {
+    console.error('❌ Dashboard initialization failed:', error);
+    document.getElementById('kpi-grid').innerHTML = `
+      <div class="error-message" style="grid-column: 1/-1;">
+        <strong>❌ Error:</strong> ${error.message}
+        <br><button onclick="location.reload()" style="background:#dc2626;color:white;border:none;padding:0.5rem 1rem;border-radius:5px;margin-top:10px;cursor:pointer">🔄 Reload</button>
+      </div>
+    `;
+  }
+}
+
+// Professional Vendor Dashboard Class
+class ProfessionalVendorDashboard {
+  constructor() {
+    this.vendorData = null;
+    this.orders = [];
+    this.products = [];
+    this.map = null;
+  }
+
+  async init() {
+    console.log('🚀 Initializing Professional Dashboard...');
+    
+    try {
+      // Get vendor data from current user
+      this.vendorData = State.currentUser;
+      
+      if (!this.vendorData || this.vendorData.role !== 'vendor') {
+        throw new Error('Vendor authentication required');
+      }
+
+      // Load data from Supabase
+      await this.loadData();
+      
+      // Render dashboard
+      this.renderDashboard();
+      
+      // Initialize map
+      this.initMap();
+      
+      console.log('✅ Dashboard loaded successfully!');
+    } catch (error) {
+      console.error('❌ Dashboard initialization failed:', error);
+      throw error;
+    }
+  }
+
+  async loadData() {
+    try {
+      console.log('📊 Loading data from Supabase...');
+      
+      // Load orders
+      try {
+        const allOrders = await SB.getOrders();
+        this.orders = allOrders ? allOrders.filter(o => o.vendorId === this.vendorData.id) : [];
+        console.log('📦 Loaded vendor orders:', this.orders.length);
+      } catch (error) {
+        console.warn('⚠️ Failed to load orders from Supabase:', error);
+        this.orders = STN.DB.get('orders') || [];
+      }
+
+      // Load products
+      try {
+        const allProducts = await SB.getProducts();
+        this.products = allProducts ? allProducts.filter(p => p.vendorId === this.vendorData.id) : [];
+        console.log('🛍️ Loaded vendor products:', this.products.length);
+      } catch (error) {
+        console.warn('⚠️ Failed to load products from Supabase:', error);
+        this.products = State.products || [];
+      }
+
+      console.log('📊 Final data state:', {
+        orders: this.orders.length,
+        products: this.products.length,
+        vendor: this.vendorData.name
+      });
+    } catch (error) {
+      console.error('❌ Data loading failed:', error);
+      throw error;
+    }
+  }
+
+  renderDashboard() {
+    this.renderHeader();
+    this.renderKPIs();
+    this.renderOrders();
+    this.renderInventory();
+  }
+
+  renderHeader() {
+    const vendorNameEl = document.getElementById('vendor-name');
+    if (vendorNameEl) {
+      vendorNameEl.textContent = this.vendorData.shop_name || this.vendorData.name || 'Vendor Shop';
+    }
+  }
+
+  renderKPIs() {
+    const kpiGrid = document.getElementById('kpi-grid');
+    
+    const totalRevenue = this.orders.reduce((sum, order) => sum + (order.total || order.amount || 0), 0);
+    const totalOrders = this.orders.length;
+    const deliveredOrders = this.orders.filter(o => o.status === 'delivered').length;
+    const lowStockProducts = this.products.filter(p => (p.stock || 0) < 5).length;
+
+    const kpis = [
+      {
+        icon: '💰',
+        value: totalRevenue.toLocaleString() + ' TND',
+        label: 'Total Revenue',
+        change: '+12%'
+      },
+      {
+        icon: '📦',
+        value: totalOrders,
+        label: 'Total Orders',
+        change: '+8%'
+      },
+      {
+        icon: '✅',
+        value: deliveredOrders,
+        label: 'Delivered',
+        change: '+15%'
+      },
+      {
+        icon: '⚠️',
+        value: lowStockProducts,
+        label: 'Low Stock Items',
+        change: lowStockProducts > 0 ? '-2' : '+0'
+      }
+    ];
+
+    kpiGrid.innerHTML = kpis.map(kpi => `
+      <div class="kpi-card">
+        <div class="kpi-icon">${kpi.icon}</div>
+        <div class="kpi-value">${kpi.value}</div>
+        <div class="kpi-label">${kpi.label}</div>
+        <div class="kpi-change">${kpi.change}</div>
+      </div>
+    `).join('');
+  }
+
+  renderOrders() {
+    const ordersList = document.getElementById('orders-list');
+    
+    if (this.orders.length === 0) {
+      ordersList.innerHTML = '<p style="text-align: center; color: #666;">No orders yet</p>';
+      return;
+    }
+
+    ordersList.innerHTML = this.orders.slice(0, 5).map(order => `
+      <div class="order-item">
+        <div class="order-info">
+          <div class="order-id">${order.tracking_number || order.id || 'ORD-' + Math.random().toString(36).substr(2, 9)}</div>
+          <div class="order-customer">${order.notes || order.phone || 'Guest Customer'}</div>
+        </div>
+        <div style="text-align: right;">
+          <div class="order-amount">${order.total || order.amount || 0} TND</div>
+          <span class="order-status status-${order.status || 'pending'}">${order.status || 'pending'}</span>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  renderInventory() {
+    const inventoryList = document.getElementById('inventory-list');
+    
+    if (this.products.length === 0) {
+      inventoryList.innerHTML = '<p style="text-align: center; color: #666;">No products yet</p>';
+      return;
+    }
+
+    inventoryList.innerHTML = this.products.slice(0, 5).map(product => `
+      <div class="product-item">
+        <div class="product-emoji">${product.emoji || '📦'}</div>
+        <div class="product-info">
+          <div class="product-name">${product.name}</div>
+          <div class="product-stock ${product.stock < 5 ? 'low-stock' : ''}">
+            Stock: ${product.stock || 0} units
+          </div>
+        </div>
+        <div style="text-align: right;">
+          <div style="font-weight: 600;">${product.price || 0} TND</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  initMap() {
+    const mapContainer = document.getElementById('vendor-map');
+    
+    if (!mapContainer) return;
+
+    try {
+      console.log('🗺️ Initializing Tunisia map...');
+      
+      // Initialize map centered on Sousse, Tunisia
+      this.map = L.map('vendor-map').setView([35.8256, 10.6084], 10);
+      
+      // Add tile layer
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(this.map);
+
+      // Add vendor location marker
+      L.marker([35.8256, 10.6084])
+        .addTo(this.map)
+        .bindPopup(`
+          <div style="text-align: center;">
+            <strong>🏪 ${this.vendorData.shop_name || this.vendorData.name}</strong><br>
+            ${this.vendorData.wilaya || 'Sousse'}<br>
+            ${this.products.length} Products<br>
+            ${this.orders.length} Orders
+          </div>
+        `)
+        .openPopup();
+
+      // Add delivery markers for shipped orders
+      this.orders.filter(o => o.status === 'shipped' || o.status === 'transit').forEach((order, index) => {
+        // Random locations around Tunisia for demo
+        const tunisiaLocations = [
+          [36.8065, 10.1815], // Tunis
+          [35.8256, 10.6084], // Sousse
+          [34.7406, 10.7603], // Sfax
+          [35.7643, 10.8113], // Monastir
+          [35.6781, 10.0963], // Kairouan
+          [33.8815, 10.0982], // Gabès
+        ];
+        
+        const location = tunisiaLocations[index % tunisiaLocations.length];
+        
+        L.marker(location, {
+          icon: L.divIcon({
+            html: '🚚',
+            className: 'custom-div-icon',
+            iconSize: [30, 30],
+            iconAnchor: [15, 15]
+          })
+        })
+        .addTo(this.map)
+        .bindPopup(`
+          <div style="text-align: center;">
+            <strong>🚚 Delivery</strong><br>
+            Order: ${order.tracking_number || order.id}<br>
+            Customer: ${order.notes || order.phone || 'Customer'}<br>
+            Status: ${order.status}
+          </div>
+        `);
+      });
+
+      // Add product location markers
+      this.products.forEach((product, index) => {
+        if (product.region || product.location) {
+          const coords = this.getTunisiaCoordinates(product.region || product.location);
+          if (coords) {
+            L.marker(coords)
+              .addTo(this.map)
+              .bindPopup(`
+                <div style="text-align: center;">
+                  <strong>${product.emoji || '📦'} ${product.name}</strong><br>
+                  ${product.region || product.location}<br>
+                  Stock: ${product.stock || 0}<br>
+                  Price: ${product.price || 0} TND
+                </div>
+              `);
+          }
+        }
+      });
+
+      console.log('✅ Tunisia map initialized successfully');
+    } catch (error) {
+      console.error('❌ Map initialization failed:', error);
+      mapContainer.innerHTML = `
+        <div style="height: 300px; display: flex; align-items: center; justify-content: center; background: #f0f4f8; border-radius: 15px;">
+          <div style="text-align: center; color: #666;">
+            <div style="font-size: 3rem; margin-bottom: 10px;">🗺️</div>
+            <p>Tunisia Map</p>
+            <p style="font-size: 0.8rem;">Showing vendor locations and deliveries</p>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  getTunisiaCoordinates(region) {
+    const coordinates = {
+      'Tunis': [36.8065, 10.1815],
+      'Sousse': [35.8256, 10.6084],
+      'Sfax': [34.7406, 10.7603],
+      'Monastir': [35.7643, 10.8113],
+      'Kairouan': [35.6781, 10.0963],
+      'Gabès': [33.8815, 10.0982],
+      'Ariana': [36.8625, 10.1956],
+      'Ben Arous': [36.7543, 10.2256],
+      'Manouba': [36.8053, 10.0589],
+      'Bizerte': [37.2746, 9.8739],
+      'Béja': [36.7256, 9.1817],
+      'Jendouba': [36.5039, 8.7807],
+      'Le Kef': [36.1756, 8.7122],
+      'Siliana': [36.0856, 9.3673],
+      'Kasserine': [35.1683, 8.8376],
+      'Gafsa': [34.4248, 8.7848],
+      'Tozeur': [33.9252, 8.1348],
+      'Kebili': [33.7048, 8.9705],
+      'Tataouine': [32.9296, 10.4535],
+      'Mahdia': [35.5049, 11.0622],
+      'Ksar Hellal': [35.6439, 10.8113],
+      'Moknine': [35.6347, 10.7889],
+      'Msaken': [35.7203, 10.5985],
+      'Kalaa Kebira': [35.6821, 10.0956],
+      'Enfidha': [36.1286, 10.3535],
+      'Hammamet': [36.3988, 10.6158],
+      'Nabeul': [36.4561, 10.7357],
+      'Zarzis': [33.5119, 11.0624],
+      'Médenine': [33.3540, 10.6179],
+      'Djerba': [33.8138, 10.8664],
+      'Tabarka': [36.9569, 8.7550]
+    };
+    
+    return coordinates[region] || [35.8256, 10.6084]; // Default to Sousse
+  }
+}
+
+// Global functions for buttons
+function viewAllOrders() {
+  switchVendorSection('orders');
+}
+
+function addProduct() {
+  switchVendorSection('upload');
+}
+
+function viewAnalytics() {
+  alert('📈 Analytics coming soon! This will show detailed sales charts and trends.');
+}
+
+function viewSettings() {
+  alert('⚙️ Settings coming soon! This will include shop configuration and preferences.');
+}
+
+function exportData() {
+  alert('📥 Export coming soon! This will allow you to download your business data.');
+}
+
+function refreshMap() {
+  if (window.dashboard && window.dashboard.map) {
+    window.dashboard.initMap();
+    alert('🗺️ Tunisia map refreshed!');
+  }
 }
 
 // ── VENDOR DASHBOARD ──
