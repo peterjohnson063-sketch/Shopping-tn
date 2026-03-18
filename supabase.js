@@ -2,32 +2,47 @@
 const SUPABASE_URL = 'https://kmwqffaphhcbzboiwosj.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imttd3FmZmFwaGhjYnpib2l3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNDEwNDgsImV4cCI6MjA4ODkxNzA0OH0.aaMK_w3SH8vHBOjjbcH5yO04Bxjgfn4azeePUzAUYjM';
 
-// Initialize Supabase client
-const { createClient } = supabase;
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+// Initialize Supabase client - FIXED: Wait for script to load
+let supabase;
+let SB;
 
-const SB = {
-  // ── GENERIC REQUEST ──
-  async req(method, table, body, query = '') {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}${query}`, {
-      method,
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json',
-        'Prefer': method === 'POST' ? 'return=representation' : ''
-      },
-      body: body ? JSON.stringify(body) : undefined
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.message || 'Supabase error');
-    }
-    return method === 'DELETE' ? null : res.json();
-  },
+// Initialize when script loads
+function initSupabase() {
+  try {
+    if (typeof supabase_js !== 'undefined') {
+      const { createClient } = supabase_js;
+      supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+      
+      SB = {
+        // ── GENERIC REQUEST ──
+        async req(method, table, body, query = '') {
+          const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}${query}`, {
+            method,
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': `Bearer ${SUPABASE_KEY}`,
+              'Content-Type': 'application/json',
+              'Prefer': method === 'POST' ? 'return=representation' : ''
+            },
+            body: body ? JSON.stringify(body) : undefined
+          });
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.message || 'Supabase error');
+          }
+          return method === 'DELETE' ? null : res.json();
+        },
 
-  // ── USERS ──
-  async getUser(email) {
+        // ── USERS ──
+        async getUser(email) {
+          const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', email)
+            .single();
+          if (error) throw error;
+          return data;
+        },
     const data = await this.req('GET', 'users', null, `?email=eq.${encodeURIComponent(email)}&limit=1`);
     return data[0] || null;
   },
