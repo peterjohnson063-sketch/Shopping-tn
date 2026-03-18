@@ -67,22 +67,16 @@ function init() {
 // Initialize products from Supabase
 async function initializeProducts() {
   try {
-    // Try to fetch from Supabase first
     const supabaseProducts = await SB.getProducts();
     if (supabaseProducts && supabaseProducts.length > 0) {
       State.products = supabaseProducts;
       STN.DB.set('products', State.products);
       console.log('✅ Products loaded from Supabase:', supabaseProducts.length);
-    } else {
-      // Fallback to local data
-      State.products = STN.DB.get('products') || STN.PRODUCTS_DATA;
-      console.log('⚠️ Using fallback local products data');
     }
+    // If Supabase empty/unavailable, keep State.products as STN.PRODUCTS_DATA
   } catch (error) {
-    console.error('Error fetching products from Supabase:', error);
-    // Fallback to local data
-    State.products = STN.DB.get('products') || STN.PRODUCTS_DATA;
-    console.log('⚠️ Using fallback local products data due to error');
+    // Keep existing products on error
+    console.log('⚠️ Supabase unavailable, using local products:', State.products.length);
   }
 }
 
@@ -1559,20 +1553,10 @@ function switchAdmin(section) {
       return;
     }
     
-    // Build comprehensive vendor dashboard
     content.innerHTML = buildVendorDashboardHTML();
-    
-    // Initialize dashboard asynchronously
-    initializeVendorDashboard().catch(error => {
-      console.error('Failed to initialize vendor dashboard:', error);
-      content.innerHTML = `
-        <div style="text-align:center;padding:4rem;color:#dc2626">
-          <div style="font-size:3rem;margin-bottom:1rem">⚠️</div>
-          <h2 style="margin-bottom:0.5rem;color:#dc2626">Dashboard Initialization Failed</h2>
-          <p style="margin-bottom:2rem;color:#dc2626">Unable to load vendor dashboard. Please try refreshing the page.</p>
-          <button onclick="location.reload()" style="background:#dc2626;color:white;border:none;padding:0.875rem 2rem;border-radius:8px;font-weight:600;cursor:pointer">🔄 Refresh Page</button>
-        </div>
-      `;
+    initializeVendorDashboard(content).catch(err => {
+      console.error('Dashboard init failed:', err);
+      content.innerHTML = '<div style="text-align:center;padding:4rem;color:#dc2626"><div style="font-size:3rem;margin-bottom:1rem">⚠️</div><h2>Dashboard Error</h2><p>'+err.message+'</p><button onclick="location.reload()" style="background:#dc2626;color:white;border:none;padding:0.875rem 2rem;border-radius:8px;font-weight:600;cursor:pointer">🔄 Reload</button></div>';
     });
     
   } else if (section === 'vendors') {
@@ -1712,21 +1696,15 @@ function renderVendorDashboard() {
   
   // Build comprehensive vendor dashboard
   console.log('🔄 Building vendor dashboard HTML...');
-  document.getElementById('page-vendor-dashboard').innerHTML = buildVendorDashboardHTML();
+  const _dashRoot = document.getElementById('page-vendor-dashboard');
+  _dashRoot.innerHTML = buildVendorDashboardHTML();
   console.log('✅ Vendor dashboard HTML built');
   
   // Initialize dashboard asynchronously with bulletproof system
   console.log('🔄 Initializing vendor dashboard...');
-  initializeVendorDashboard().catch(error => {
-    console.error('Failed to initialize vendor dashboard:', error);
-    document.getElementById('page-vendor-dashboard').innerHTML = `
-      <div style="text-align:center;padding:4rem;color:#dc2626">
-        <div style="font-size:3rem;margin-bottom:1rem">⚠️</div>
-        <h2 style="margin-bottom:0.5rem;color:#dc2626">Dashboard Initialization Failed</h2>
-        <p style="margin-bottom:2rem;color:#dc2626">Unable to load vendor dashboard. Please try refreshing the page.</p>
-        <button onclick="location.reload()" style="background:#dc2626;color:white;border:none;padding:0.875rem 2rem;border-radius:8px;font-weight:600;cursor:pointer">🔄 Refresh Page</button>
-      </div>
-    `;
+  initializeVendorDashboard(_dashRoot).catch(err => {
+    console.error('Dashboard init failed:', err);
+    _dashRoot.innerHTML = '<div style="text-align:center;padding:4rem;color:#dc2626"><div style="font-size:3rem;margin-bottom:1rem">⚠️</div><h2>Dashboard Error</h2><p>'+err.message+'</p><button onclick="location.reload()" style="background:#dc2626;color:white;border:none;padding:0.875rem 2rem;border-radius:8px;font-weight:600;cursor:pointer">🔄 Reload</button></div>';
   });
 }
 
@@ -1781,8 +1759,14 @@ function buildVendorHTML() {
 }
 
 function switchVendorSection(section) {
-  console.log('🔄 switchVendorSection called with:', section);
-  
+  console.log('🔄 switchVendorSection:', section);
+
+  // Guard: ensure products are always available
+  if (!State.products || !Array.isArray(State.products)) {
+    State.products = STN.DB.get('products') || STN.PRODUCTS_DATA || [];
+  }
+
+  // Highlight active tab
   document.querySelectorAll('[id^="vnd-nav-"]').forEach(function(el) {
     el.style.borderBottomColor = 'transparent';
     el.style.color = '#6b7280';
@@ -1797,63 +1781,67 @@ function switchVendorSection(section) {
     vActive.classList.add('vnd-active');
   }
 
-  const content = document.getElementById('vendor-content');
-  if (!content) return;
-  const u = State.currentUser;
-  const myProds = State.products.filter(p => p.vendorId === u.id || p.brand === (u.shopName||u.shop_name));
-  const orders = STN.DB.get('orders') || [];
-  const myRevenue = myProds.reduce((s,p) => s + p.price, 0);
-
-  // Handle dashboard case first - redirect to standalone dashboard
+  // Dashboard tab → go to full dashboard page
   if (section === 'dashboard') {
-    console.log('🔄 Dashboard section clicked, redirecting to vendor-dashboard page...');
     showPage('vendor-dashboard');
     return;
   }
 
-  if (section === 'overview') {
+  var content = document.getElementById('vendor-content');
+  if (!content) { console.warn('vendor-content not found'); return; }
 
+  var u = State.currentUser || {};
+  var shopName = u.shop_name || u.shopName || u.name || '';
+  var myProds = (State.products || []).filter(function(p) {
+    return p.vendorId === u.id || (shopName && p.brand === shopName);
+  });
+  var orders = STN.DB.get('orders') || [];
+
+  try {
+
+  if (section === 'overview') {
     var pendingOrds = orders.filter(function(o){ return o.status==='pending'; }).length;
     var totalRev = orders.reduce(function(s,o){ return s+(o.total||0); }, 0);
-    var recentOrds = [...orders].reverse().slice(0,5);
+    var recentOrds = orders.slice().reverse().slice(0,5);
     var today = new Date().toLocaleDateString('en-GB', {weekday:'long',day:'numeric',month:'long'});
-    var statusColor = u.verified ? '#059669' : '#d97706';
     var statusBg = u.verified ? 'linear-gradient(135deg,#059669,#047857)' : 'linear-gradient(135deg,#d97706,#b45309)';
     var statusText = u.verified ? '&#9989; Live' : '&#9203; Pending';
     var statusDesc = u.verified ? 'Products visible to customers' : 'Waiting for admin approval';
-    
+
     var recentHTML = recentOrds.length === 0
       ? '<p style="text-align:center;color:#9ca3af;padding:2rem">No orders yet</p>'
       : recentOrds.map(function(o){
-          var sc = o.status==='delivered'?'#dcfce7':o.status==='ready'?'#dbeafe':'#fef9c3';
-          var st = o.status==='delivered'?'#166534':o.status==='ready'?'#1d4ed8':'#92400e';
+          var sc = o.status==='delivered'?'#dcfce7':o.status==='shipped'?'#dbeafe':'#fef9c3';
+          var st = o.status==='delivered'?'#166534':o.status==='shipped'?'#1d4ed8':'#92400e';
           return '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 0;border-bottom:1px solid #f3f4f6">'
-            +'<div><div style="font-size:0.82rem;font-weight:600;color:#111827">'+(o.tracking_number||o.id)+'</div><div style="font-size:0.72rem;color:#9ca3af">'+(o.notes||o.phone||'Guest')+'</div></div>'
+            +'<div><div style="font-size:0.82rem;font-weight:600;color:#111827">'+(o.tracking_number||o.id||'—')+'</div>'
+            +'<div style="font-size:0.72rem;color:#9ca3af">'+(o.notes||o.phone||'Guest')+'</div></div>'
             +'<div style="text-align:right"><div style="font-size:0.82rem;font-weight:700">'+(o.total||0).toLocaleString()+' TND</div>'
             +'<span style="font-size:0.7rem;padding:0.15rem 0.5rem;border-radius:20px;background:'+sc+';color:'+st+'">'+(o.status||'pending')+'</span></div>'
             +'</div>';
         }).join('');
 
-    var html = '<div>'
-      +'<div style="margin-bottom:1.5rem"><h1 style="font-size:1.5rem;font-weight:700;color:#111827">Welcome back, '+(u.first_name||u.firstName||'Vendor')+'! &#128075;</h1>'
+    content.innerHTML = '<div>'
+      +'<div style="margin-bottom:1.5rem"><h1 style="font-size:1.5rem;font-weight:700;color:#111827">Welcome back, '+(u.first_name||u.firstName||u.name||'Vendor')+'! 👋</h1>'
       +'<p style="color:#6b7280;font-size:0.875rem">'+today+'</p></div>'
       +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem">'
-      +'<div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.25rem"><div style="font-size:0.78rem;color:#6b7280;margin-bottom:0.5rem">Products</div><div style="font-size:1.8rem;font-weight:700;color:#7c3aed">'+myProds.length+'</div></div>'
+      +'<div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.25rem"><div style="font-size:0.78rem;color:#6b7280;margin-bottom:0.5rem">My Products</div><div style="font-size:1.8rem;font-weight:700;color:#7c3aed">'+myProds.length+'</div></div>'
       +'<div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.25rem"><div style="font-size:0.78rem;color:#6b7280;margin-bottom:0.5rem">Total Orders</div><div style="font-size:1.8rem;font-weight:700;color:#2563eb">'+orders.length+'</div></div>'
       +'<div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.25rem"><div style="font-size:0.78rem;color:#6b7280;margin-bottom:0.5rem">Pending</div><div style="font-size:1.8rem;font-weight:700;color:#d97706">'+pendingOrds+'</div></div>'
       +'<div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.25rem"><div style="font-size:0.78rem;color:#6b7280;margin-bottom:0.5rem">Revenue</div><div style="font-size:1.4rem;font-weight:700;color:#059669">'+totalRev.toLocaleString()+' TND</div></div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 280px;gap:1.5rem">'
       +'<div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.5rem">'
-      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem"><h3 style="font-size:0.95rem;font-weight:600;color:#111827">Recent Orders</h3>'
-      +'<button data-action="view-orders" style="color:#7c3aed;background:none;border:none;font-size:0.8rem;cursor:pointer;font-weight:600">View All</button></div>'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">'
+      +'<h3 style="font-size:0.95rem;font-weight:600;color:#111827">Recent Orders</h3>'
+      +'<button onclick="switchVendorSection(\'orders\')" style="color:#7c3aed;background:none;border:none;font-size:0.8rem;cursor:pointer;font-weight:600">View All</button></div>'
       +recentHTML+'</div>'
       +'<div style="display:flex;flex-direction:column;gap:1rem">'
       +'<div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.25rem">'
       +'<h3 style="font-size:0.9rem;font-weight:600;color:#111827;margin-bottom:0.875rem">Quick Actions</h3>'
-      +'<button data-action="upload" style="width:100%;background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.65rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif;margin-bottom:0.5rem;display:block">+ Upload Product</button>'
-      +'<button data-action="view-orders" style="width:100%;background:#f5f3ff;color:#7c3aed;border:1px solid #e9d5ff;padding:0.65rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif;margin-bottom:0.5rem;display:block">View Orders</button>'
-      +'<button data-action="view-store" style="width:100%;background:#f9fafb;color:#374151;border:1px solid #e5e7eb;padding:0.65rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif;display:block">View Store</button>'
+      +'<button onclick="switchVendorSection(\'upload\')" style="width:100%;background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.65rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif;margin-bottom:0.5rem;display:block">+ Upload Product</button>'
+      +'<button onclick="switchVendorSection(\'orders\')" style="width:100%;background:#f5f3ff;color:#7c3aed;border:1px solid #e9d5ff;padding:0.65rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif;margin-bottom:0.5rem;display:block">View Orders</button>'
+      +'<button onclick="showPage(\'products\')" style="width:100%;background:#f9fafb;color:#374151;border:1px solid #e5e7eb;padding:0.65rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif;display:block">View Store</button>'
       +'</div>'
       +'<div style="background:'+statusBg+';border-radius:12px;padding:1.25rem;color:white">'
       +'<div style="font-size:0.72rem;opacity:0.8;margin-bottom:0.3rem">Shop Status</div>'
@@ -1861,16 +1849,6 @@ function switchVendorSection(section) {
       +'<div style="font-size:0.75rem;opacity:0.8">'+statusDesc+'</div>'
       +'</div>'
       +'</div></div></div>';
-    
-    content.innerHTML = html;
-    content.addEventListener('click', function(e) {
-      var btn = e.target.closest('[data-action]');
-      if (!btn) return;
-      var a = btn.dataset.action;
-      if (a === 'upload') switchVendorSection('upload');
-      else if (a === 'view-orders') switchVendorSection('orders');
-      else if (a === 'view-store') showPage('products');
-    });
 
   } else if (section === 'upload') {
     content.innerHTML = `
@@ -1880,37 +1858,35 @@ function switchVendorSection(section) {
           <p style="color:#6b7280;font-size:0.875rem">Add a new product to your shop</p>
         </div>
         <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:2rem;max-width:700px">
-          <!-- Image upload -->
           <div style="margin-bottom:1.5rem">
-            <label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.5rem">Product Image *</label>
-            <div id="upload-zone" onclick="document.getElementById('vp-image-file').click()" style="border:2px dashed #e9d5ff;border-radius:10px;padding:2rem;text-align:center;cursor:pointer;background:#fafafa;transition:all 0.2s" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f3ff'" onmouseout="this.style.borderColor='#e9d5ff';this.style.background='#fafafa'">
+            <label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.5rem">Product Image</label>
+            <div id="upload-zone" onclick="document.getElementById('vp-image-file').click()" style="border:2px dashed #e9d5ff;border-radius:10px;padding:2rem;text-align:center;cursor:pointer;background:#fafafa" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f3ff'" onmouseout="this.style.borderColor='#e9d5ff';this.style.background='#fafafa'">
               <div id="upload-preview" style="display:none;margin-bottom:1rem"><img id="upload-img-preview" style="max-height:150px;border-radius:8px;object-fit:cover" src=""/></div>
-              <div id="upload-placeholder"><div style="font-size:2rem;margin-bottom:0.5rem">📸</div><p style="color:#6b7280;margin-bottom:0.25rem;font-size:0.875rem;font-weight:500">Click to upload image</p><p style="font-size:0.75rem;color:#9ca3af">PNG, JPG up to 10MB</p></div>
+              <div id="upload-placeholder"><div style="font-size:2rem;margin-bottom:0.5rem">📸</div><p style="color:#6b7280;margin-bottom:0.25rem;font-size:0.875rem;font-weight:500">Click to upload image</p></div>
               <div id="upload-loading" style="display:none"><div style="font-size:1.5rem">⏳</div><p style="color:#7c3aed;font-size:0.85rem">Uploading...</p></div>
             </div>
             <input type="file" id="vp-image-file" accept="image/*" style="display:none" onchange="uploadToCloudinary(this)"/>
             <input type="hidden" id="vp-image-url"/>
           </div>
-          <!-- Fields -->
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Product Name *</label><input type="text" id="vp-title" placeholder="e.g. Velvet Sultan Sofa" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;color:#111827;font-family:inherit;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
-            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Brand Name *</label><input type="text" id="vp-brand" placeholder="Your brand" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;color:#111827;font-family:inherit;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
+            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Product Name *</label><input type="text" id="vp-title" placeholder="e.g. Velvet Sultan Sofa" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
+            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Brand Name *</label><input type="text" id="vp-brand" placeholder="Your brand" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
           </div>
-          <div style="margin-bottom:1rem"><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Description *</label><textarea id="vp-desc" placeholder="Describe your product..." style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;color:#111827;font-family:inherit;outline:none;min-height:100px;resize:vertical;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"></textarea></div>
+          <div style="margin-bottom:1rem"><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Description *</label><textarea id="vp-desc" placeholder="Describe your product..." style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;min-height:100px;resize:vertical;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"></textarea></div>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
-            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Price (TND) *</label><input type="number" id="vp-price" placeholder="1299" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;color:#111827;font-family:inherit;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
-            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Old Price</label><input type="number" id="vp-old-price" placeholder="1599" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;color:#111827;font-family:inherit;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
-            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Stock *</label><input type="number" id="vp-stock" placeholder="10" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;color:#111827;font-family:inherit;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
+            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Price (TND) *</label><input type="number" id="vp-price" placeholder="1299" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
+            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Old Price</label><input type="number" id="vp-old-price" placeholder="1599" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
+            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Stock *</label><input type="number" id="vp-stock" placeholder="10" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
             <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Category *</label>
-              <select id="vp-cat" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;color:#111827;font-family:inherit;outline:none;background:white;box-sizing:border-box">
+              <select id="vp-cat" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;background:white;outline:none;box-sizing:border-box">
                 <option value="sofa">Sofa / Furniture</option><option value="rug">Rugs / Kilim</option><option value="lighting">Lighting</option><option value="ceramic">Ceramics</option><option value="bedroom">Bedroom</option><option value="outdoor">Outdoor</option><option value="fragrance">Fragrance</option><option value="decor">Decor</option>
               </select>
             </div>
-            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Badge (optional)</label><input type="text" id="vp-badge" placeholder="New, Bestseller..." style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;color:#111827;font-family:inherit;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
+            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Badge (optional)</label><input type="text" id="vp-badge" placeholder="New, Bestseller..." style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
           </div>
-          <button onclick="uploadProduct()" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.875rem 2rem;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;width:100%">Upload Product →</button>
+          <button onclick="uploadProduct()" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.875rem 2rem;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer;width:100%">Upload Product →</button>
         </div>
       </div>`;
 
@@ -1918,68 +1894,54 @@ function switchVendorSection(section) {
     content.innerHTML = `
       <div>
         <div style="margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between">
-          <div>
-            <h1 style="font-size:1.5rem;font-weight:700;color:#111827">My Products</h1>
-            <p style="color:#6b7280;font-size:0.875rem">${myProds.length} products in your shop</p>
-          </div>
-          <button onclick="switchVendorSection('upload')" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.7rem 1.25rem;border-radius:8px;font-size:0.875rem;font-weight:600;cursor:pointer;font-family:inherit">+ Add Product</button>
+          <div><h1 style="font-size:1.5rem;font-weight:700;color:#111827">My Products</h1>
+          <p style="color:#6b7280;font-size:0.875rem">${myProds.length} products in your shop</p></div>
+          <button onclick="switchVendorSection('upload')" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.7rem 1.25rem;border-radius:8px;font-size:0.875rem;font-weight:600;cursor:pointer">+ Add Product</button>
         </div>
         <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
-          ${myProds.length===0?'<div style="text-align:center;padding:4rem;color:#9ca3af"><div style="font-size:3rem;margin-bottom:1rem">📦</div><p style="font-weight:500;margin-bottom:0.5rem">No products yet</p><p style="font-size:0.875rem">Upload your first product to start selling!</p></div>':`
-          <div style="overflow-x:auto">
-            <table style="width:100%;border-collapse:collapse">
-              <thead><tr style="background:#f9fafb">${['Product','Price','Stock','Status','Action'].map(h=>`<th style="text-align:left;padding:0.875rem 1rem;font-size:0.75rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em">${h}</th>`).join('')}</tr></thead>
-              <tbody>${myProds.map(p=>`
-                <tr style="border-top:1px solid #f3f4f6" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
-                  <td style="padding:0.875rem 1rem">
-                    <div style="display:flex;align-items:center;gap:0.75rem">
-                      <div style="width:40px;height:40px;background:#f5f3ff;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.3rem">${p.emoji}</div>
-                      <div><div style="font-size:0.82rem;font-weight:600;color:#111827">${p.name}</div><div style="font-size:0.72rem;color:#9ca3af">${p.cat}</div></div>
-                    </div>
-                  </td>
-                  <td style="padding:0.875rem 1rem;font-size:0.875rem;font-weight:600;color:#111827">${p.price.toLocaleString()} TND</td>
-                  <td style="padding:0.875rem 1rem;font-size:0.875rem"><span style="color:${p.stock>5?'#059669':'#dc2626'};font-weight:600">${p.stock} units</span></td>
-                  <td style="padding:0.875rem 1rem"><span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:${p.verified?'#dcfce7':'#fef9c3'};color:${p.verified?'#166534':'#92400e'}">${p.verified?'✓ Live':'⏳ Pending'}</span></td>
-                  <td style="padding:0.875rem 1rem"><button onclick="deleteVendorProduct(${p.id})" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;padding:0.3rem 0.8rem;border-radius:6px;font-size:0.75rem;cursor:pointer;font-weight:600">Delete</button></td>
-                </tr>`).join('')}
-              </tbody>
-            </table>
-          </div>`}
+          ${myProds.length === 0
+            ? '<div style="text-align:center;padding:4rem;color:#9ca3af"><div style="font-size:3rem;margin-bottom:1rem">📦</div><p style="font-weight:500;margin-bottom:0.5rem">No products yet</p><p style="font-size:0.875rem">Upload your first product to start selling!</p></div>'
+            : `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+                <thead><tr style="background:#f9fafb">${['Product','Price','Stock','Status','Action'].map(h=>`<th style="text-align:left;padding:0.875rem 1rem;font-size:0.75rem;font-weight:600;color:#6b7280;text-transform:uppercase">${h}</th>`).join('')}</tr></thead>
+                <tbody>${myProds.map(p=>`
+                  <tr style="border-top:1px solid #f3f4f6">
+                    <td style="padding:0.875rem 1rem"><div style="display:flex;align-items:center;gap:0.75rem">
+                      <div style="width:40px;height:40px;background:#f5f3ff;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.3rem">${p.emoji||'📦'}</div>
+                      <div><div style="font-size:0.82rem;font-weight:600;color:#111827">${p.name}</div><div style="font-size:0.72rem;color:#9ca3af">${p.cat||p.category||''}</div></div>
+                    </div></td>
+                    <td style="padding:0.875rem 1rem;font-size:0.875rem;font-weight:600;color:#111827">${(p.price||0).toLocaleString()} TND</td>
+                    <td style="padding:0.875rem 1rem;font-size:0.875rem"><span style="color:${(p.stock||0)>5?'#059669':'#dc2626'};font-weight:600">${p.stock||0} units</span></td>
+                    <td style="padding:0.875rem 1rem"><span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:${p.verified?'#dcfce7':'#fef9c3'};color:${p.verified?'#166534':'#92400e'}">${p.verified?'✓ Live':'⏳ Pending'}</span></td>
+                    <td style="padding:0.875rem 1rem"><button onclick="deleteVendorProduct(${p.id})" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;padding:0.3rem 0.8rem;border-radius:6px;font-size:0.75rem;cursor:pointer;font-weight:600">Delete</button></td>
+                  </tr>`).join('')}
+                </tbody></table></div>`}
         </div>
       </div>`;
 
   } else if (section === 'orders') {
-    var pendingOrders = orders.filter(function(o){ return o.status === 'pending'; });
-    var processingOrders = orders.filter(function(o){ return o.status === 'processing' || o.status === 'ready'; });
-    var doneOrders = orders.filter(function(o){ return o.status === 'shipped' || o.status === 'delivered'; });
+    var pendingO = orders.filter(function(o){ return o.status==='pending'; });
+    var processingO = orders.filter(function(o){ return o.status==='processing'||o.status==='ready'; });
+    var doneO = orders.filter(function(o){ return o.status==='shipped'||o.status==='delivered'; });
 
     var orderRows = orders.length === 0
       ? '<tr><td colspan="7" style="text-align:center;padding:3rem;color:#9ca3af"><div style="font-size:3rem;margin-bottom:1rem">📭</div><p>No orders yet</p></td></tr>'
-      : [...orders].reverse().map(function(o) {
-          var isPending = o.status === 'pending';
-          var isReady = o.status === 'ready';
-          var isProcessing = o.status === 'processing';
-          var isShipped = o.status === 'shipped' || o.status === 'delivered';
+      : orders.slice().reverse().map(function(o) {
+          var isPending = o.status==='pending';
+          var isShipped = o.status==='shipped'||o.status==='delivered';
+          var isReady = o.status==='ready';
           var statusBadge = isShipped
             ? '<span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:#dcfce7;color:#166534">✓ '+o.status+'</span>'
             : isReady
             ? '<span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:#dbeafe;color:#1d4ed8">📦 Ready</span>'
-            : isProcessing
-            ? '<span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:#ede9fe;color:#6d28d9">⚙️ Processing</span>'
-            : '<span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:#fef9c3;color:#92400e">⏳ New Order</span>';
-
+            : '<span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:#fef9c3;color:#92400e">⏳ New</span>';
           var actionBtn = isShipped
-            ? '<span style="color:#9ca3af;font-size:0.75rem">Completed</span>'
-            : isReady
-            ? '<span style="color:#1d4ed8;font-size:0.75rem;font-weight:600">Waiting pickup...</span>'
-            : '<button data-oid="'+o.id+'" data-otrack="'+(o.tracking_number||'')+'" class="vendor-confirm-btn" style="background:linear-gradient(135deg,#059669,#047857);color:white;border:none;padding:0.4rem 1rem;border-radius:8px;font-size:0.78rem;cursor:pointer;font-weight:600">✓ Confirm &amp; Ready</button>';
-
+            ? '<span style="color:#9ca3af;font-size:0.75rem">Done</span>'
+            : '<button data-oid="'+o.id+'" data-otrack="'+(o.tracking_number||'')+'" class="vendor-confirm-btn" style="background:linear-gradient(135deg,#059669,#047857);color:white;border:none;padding:0.4rem 1rem;border-radius:8px;font-size:0.78rem;cursor:pointer;font-weight:600">✓ Confirm</button>';
           var items = Array.isArray(o.items) ? o.items.map(function(i){ return i.name||'Item'; }).join(', ').substring(0,40) : '1 item';
-
           return '<tr style="border-top:1px solid #f3f4f6;'+(isPending?'background:#fffbeb':'')+'">'
-            +'<td style="padding:0.75rem 1rem;font-size:0.8rem;font-weight:600;color:#7c3aed">'+(o.tracking_number||o.id||'-')+'</td>'
-            +'<td style="padding:0.75rem 1rem"><div style="font-size:0.8rem;font-weight:600;color:#111827">'+(o.notes||o.phone||'Guest')+'</div><div style="font-size:0.72rem;color:#9ca3af">'+(o.phone||'')+'</div></td>'
-            +'<td style="padding:0.75rem 1rem;font-size:0.78rem;color:#374151">'+(o.wilaya||'-')+'</td>'
+            +'<td style="padding:0.75rem 1rem;font-size:0.8rem;font-weight:600;color:#7c3aed">'+(o.tracking_number||o.id||'—')+'</td>'
+            +'<td style="padding:0.75rem 1rem"><div style="font-size:0.8rem;font-weight:600;color:#111827">'+(o.notes||o.phone||'Guest')+'</div></td>'
+            +'<td style="padding:0.75rem 1rem;font-size:0.78rem;color:#374151">'+(o.wilaya||'—')+'</td>'
             +'<td style="padding:0.75rem 1rem;font-size:0.78rem;color:#374151;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+items+'</td>'
             +'<td style="padding:0.75rem 1rem;font-size:0.8rem;font-weight:700;color:#111827">'+(o.total||0).toLocaleString()+' TND</td>'
             +'<td style="padding:0.75rem 1rem">'+statusBadge+'</td>'
@@ -1989,25 +1951,35 @@ function switchVendorSection(section) {
 
     content.innerHTML = '<div>'
       +'<div style="margin-bottom:1.5rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">'
-      +'<div><h1 style="font-size:1.5rem;font-weight:700;color:#111827">My Orders</h1><p style="color:#6b7280;font-size:0.875rem">'+orders.length+' orders · <span style="color:#f59e0b;font-weight:600">'+pendingOrders.length+' new</span></p></div>'
+      +'<div><h1 style="font-size:1.5rem;font-weight:700;color:#111827">My Orders</h1>'
+      +'<p style="color:#6b7280;font-size:0.875rem">'+orders.length+' orders · <span style="color:#f59e0b;font-weight:600">'+pendingO.length+' new</span></p></div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem">'
-      +'<div style="background:white;border:1px solid #fde68a;border-radius:12px;padding:1.25rem;display:flex;align-items:center;gap:1rem"><div style="width:40px;height:40px;background:#fffbeb;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem">⏳</div><div><div style="font-size:1.5rem;font-weight:700;color:#92400e">'+pendingOrders.length+'</div><div style="font-size:0.78rem;color:#6b7280">New Orders</div></div></div>'
-      +'<div style="background:white;border:1px solid #c7d2fe;border-radius:12px;padding:1.25rem;display:flex;align-items:center;gap:1rem"><div style="width:40px;height:40px;background:#ede9fe;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem">📦</div><div><div style="font-size:1.5rem;font-weight:700;color:#6d28d9">'+processingOrders.length+'</div><div style="font-size:0.78rem;color:#6b7280">Processing</div></div></div>'
-      +'<div style="background:white;border:1px solid #bbf7d0;border-radius:12px;padding:1.25rem;display:flex;align-items:center;gap:1rem"><div style="width:40px;height:40px;background:#f0fdf4;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem">✓</div><div><div style="font-size:1.5rem;font-weight:700;color:#166534">'+doneOrders.length+'</div><div style="font-size:0.78rem;color:#6b7280">Completed</div></div></div>'
+      +'<div style="background:white;border:1px solid #fde68a;border-radius:12px;padding:1.25rem;display:flex;align-items:center;gap:1rem"><div style="width:40px;height:40px;background:#fffbeb;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem">⏳</div><div><div style="font-size:1.5rem;font-weight:700;color:#92400e">'+pendingO.length+'</div><div style="font-size:0.78rem;color:#6b7280">New Orders</div></div></div>'
+      +'<div style="background:white;border:1px solid #c7d2fe;border-radius:12px;padding:1.25rem;display:flex;align-items:center;gap:1rem"><div style="width:40px;height:40px;background:#ede9fe;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem">📦</div><div><div style="font-size:1.5rem;font-weight:700;color:#6d28d9">'+processingO.length+'</div><div style="font-size:0.78rem;color:#6b7280">Processing</div></div></div>'
+      +'<div style="background:white;border:1px solid #bbf7d0;border-radius:12px;padding:1.25rem;display:flex;align-items:center;gap:1rem"><div style="width:40px;height:40px;background:#f0fdf4;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem">✓</div><div><div style="font-size:1.5rem;font-weight:700;color:#166534">'+doneO.length+'</div><div style="font-size:0.78rem;color:#6b7280">Completed</div></div></div>'
       +'</div>'
       +'<div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">'
       +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">'
-      +'<thead><tr style="background:#f9fafb"><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Tracking</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Client</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Wilaya</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Items</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Total</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Status</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Action</th></tr></thead>'
+      +'<thead><tr style="background:#f9fafb"><th style="text-align:left;padding:0.875rem 1rem;font-size:0.75rem;font-weight:600;color:#6b7280;text-transform:uppercase">Order #</th><th style="text-align:left;padding:0.875rem 1rem;font-size:0.75rem;font-weight:600;color:#6b7280;text-transform:uppercase">Customer</th><th style="text-align:left;padding:0.875rem 1rem;font-size:0.75rem;font-weight:600;color:#6b7280;text-transform:uppercase">Region</th><th style="text-align:left;padding:0.875rem 1rem;font-size:0.75rem;font-weight:600;color:#6b7280;text-transform:uppercase">Items</th><th style="text-align:left;padding:0.875rem 1rem;font-size:0.75rem;font-weight:600;color:#6b7280;text-transform:uppercase">Total</th><th style="text-align:left;padding:0.875rem 1rem;font-size:0.75rem;font-weight:600;color:#6b7280;text-transform:uppercase">Status</th><th style="text-align:left;padding:0.875rem 1rem;font-size:0.75rem;font-weight:600;color:#6b7280;text-transform:uppercase">Action</th></tr></thead>'
       +'<tbody>'+orderRows+'</tbody></table></div></div></div>';
 
-    // Event delegation for confirm buttons
-    var tbl = content.querySelector('table');
-    if (tbl) tbl.addEventListener('click', function(e) {
-      var btn = e.target.closest('.vendor-confirm-btn');
-      if (!btn) return;
-      vendorConfirmOrder(btn.dataset.oid, btn.dataset.otrack);
+    // Bind confirm buttons
+    content.querySelectorAll('.vendor-confirm-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        if (typeof vendorConfirmOrder === 'function') vendorConfirmOrder(btn.dataset.oid, btn.dataset.otrack);
+      });
     });
+  }
+
+  } catch(err) {
+    console.error('switchVendorSection error:', err);
+    content.innerHTML = '<div style="text-align:center;padding:4rem;color:#dc2626">'
+      +'<div style="font-size:3rem;margin-bottom:1rem">⚠️</div>'
+      +'<h3 style="margin-bottom:0.5rem">Something went wrong</h3>'
+      +'<p style="margin-bottom:1.5rem;color:#6b7280">'+err.message+'</p>'
+      +'<button onclick="location.reload()" style="background:#7c3aed;color:white;border:none;padding:0.75rem 2rem;border-radius:8px;font-weight:600;cursor:pointer">🔄 Reload Page</button>'
+      +'</div>';
   }
 }
 
@@ -2866,21 +2838,13 @@ async function ensureVendorDataLoaded() {
   return true;
 }
 
-async function initializeVendorDashboard() {
-  console.log('🔄 Starting bulletproof vendor dashboard initialization...');
-  
-  // Check access first
-  if (!State.currentUser || State.currentUser.role !== 'vendor') {
-    console.log('❌ Vendor access check failed - current user:', State.currentUser);
-    document.getElementById('page-vendor-dashboard').innerHTML = `
-      <div style="text-align:center;padding:4rem;color:#9ca3af">
-        <div style="font-size:3rem;margin-bottom:1rem">🔒</div>
-        <h2 style="margin-bottom:0.5rem;color:#1e0a4e">Vendor Access Required</h2>
-        <p style="margin-bottom:2rem;color:#6b7280">You need to be logged in as a vendor to access this dashboard.</p>
-        <button onclick="showPage('auth')" style="background:#7c3aed;color:white;border:none;padding:0.875rem 2rem;border-radius:8px;font-weight:600;cursor:pointer">Sign In as Vendor</button>
-      </div>
-    `;
-    return;
+async function initializeVendorDashboard(rootEl) {
+  const root = rootEl || document.getElementById('page-vendor-dashboard');
+  if (!root) { console.error('No root for vendor dashboard'); return; }
+
+  // Ensure products available
+  if (!State.products || !Array.isArray(State.products) || State.products.length === 0) {
+    State.products = STN.DB.get('products') || STN.PRODUCTS_DATA || [];
   }
   
   console.log('✅ Vendor access check passed - user is vendor');
@@ -2966,28 +2930,13 @@ async function initializeVendorDashboard() {
   }
 }
 
+
 // Safe data loading with timeout
-async function safeLoadData(timeout = 10000) {
-  return new Promise((resolve) => {
-    const checkData = () => {
-      if (State.products && State.products.length > 0) {
-        console.log('✅ Data loaded successfully');
-        resolve(true);
-      } else {
-        console.log('🔄 Data not ready, waiting...');
-        setTimeout(checkData, 500);
-      }
-    };
-    
-    // Start checking
-    checkData();
-    
-    // Timeout protection
-    setTimeout(() => {
-      console.log('⏰ Data loading timeout, proceeding anyway');
-      resolve(false);
-    }, timeout);
-  });
+async function safeLoadData() {
+  if (!State.products || State.products.length === 0) {
+    State.products = STN.DB.get('products') || STN.PRODUCTS_DATA;
+  }
+  return true;
 }
 
 // Safe KPI loading
