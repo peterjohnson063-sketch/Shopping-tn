@@ -1888,9 +1888,10 @@ function unbanUser(userId) {
   switchAdmin(activeSection);
 }
 
-// ── VENDOR DASHBOARD (STANDALONE) ──
+// ── VENDOR DASHBOARD (PROFESSIONAL) ──
 function renderVendorDashboard() {
   console.log('🔄 renderVendorDashboard called');
+  console.log('📊 Current user:', State.currentUser);
   
   if (!State.currentUser || State.currentUser.role !== 'vendor') {
     console.log('❌ Vendor access check failed - current user:', State.currentUser);
@@ -1908,11 +1909,20 @@ function renderVendorDashboard() {
     return;
   }
 
+  console.log('✅ User authenticated as vendor:', State.currentUser.name);
+
   // Load professional dashboard
   const page = document.getElementById('page-vendor-dashboard');
-  if (!page) return;
+  if (!page) {
+    console.log('❌ Vendor dashboard page element not found');
+    return;
+  }
   
+  console.log('🔄 Building professional dashboard HTML...');
   page.innerHTML = buildProfessionalDashboardHTML();
+  console.log('✅ Dashboard HTML built');
+  
+  console.log('🔄 Initializing professional dashboard...');
   initializeProfessionalDashboard();
 }
 

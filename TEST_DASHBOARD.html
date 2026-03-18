@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚀 TEST Professional Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .dashboard-header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .dashboard-header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .dashboard-header p {
+            color: #666;
+            margin: 5px 0 0 0;
+        }
+
+        .header-info {
+            text-align: right;
+        }
+
+        .vendor-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .vendor-status {
+            display: inline-block;
+            padding: 5px 15px;
+            background: #10b981;
+            color: white;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .kpi-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .kpi-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+        }
+
+        .kpi-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .kpi-label {
+            font-size: 0.9rem;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .kpi-change {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            padding: 5px 10px;
+            background: #10b981;
+            color: white;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 30px;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .panel-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #333;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.3s ease;
+        }
+
+        .order-item:hover {
+            background: #f9fafb;
+            margin: 0 -15px;
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .order-info {
+            flex: 1;
+        }
+
+        .order-id {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .order-customer {
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .order-amount {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .order-status {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-shipped {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .status-delivered {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .product-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .product-emoji {
+            font-size: 2rem;
+            width: 50px;
+            text-align: center;
+        }
+
+        .product-info {
+            flex: 1;
+        }
+
+        .product-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .product-stock {
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .low-stock {
+            color: #dc2626;
+            font-weight: 600;
+        }
+
+        #vendor-map {
+            height: 300px;
+            border-radius: 15px;
+            margin-top: 20px;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            color: #666;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .success-message {
+            background: #d1fae5;
+            color: #065f46;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #10b981;
+        }
+
+        .error-message {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #dc2626;
+        }
+
+        .quick-actions {
+            display: grid;
+            gap: 10px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .kpi-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-header {
+                flex-direction: column;
+                text-align: center;
+                gap: 20px;
+            }
+            
+            .header-info {
+                text-align: center;
+            }
+            
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <div class="dashboard-header">
+            <div>
+                <h1>🚀 Vendor Dashboard</h1>
+                <p>Manage your business in real-time</p>
+            </div>
+            <div class="header-info">
+                <div class="vendor-name">Test Vendor Shop</div>
+                <div class="vendor-status">✅ VERIFIED</div>
+            </div>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="kpi-grid" id="kpi-grid">
+            <div class="loading">
+                <div class="spinner"></div>
+                Loading dashboard...
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Left Panel -->
+            <div class="left-panel">
+                <!-- Recent Orders -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">📦 Recent Orders</h2>
+                        <button class="btn btn-primary" onclick="viewAllOrders()">View All</button>
+                    </div>
+                    <div id="orders-list">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            Loading orders...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Interactive Map -->
+                <div class="panel" style="margin-top: 30px;">
+                    <div class="panel-header">
+                        <h2 class="panel-title">🗺️ Live Logistics Map - Tunisia</h2>
+                        <button class="btn btn-secondary" onclick="refreshMap()">Refresh</button>
+                    </div>
+                    <div id="vendor-map"></div>
+                </div>
+            </div>
+
+            <!-- Right Panel -->
+            <div class="right-panel">
+                <!-- Inventory -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">📊 Inventory Status</h2>
+                        <button class="btn btn-primary" onclick="addProduct()">+ Add Product</button>
+                    </div>
+                    <div id="inventory-list">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            Loading inventory...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="panel" style="margin-top: 30px;">
+                    <div class="panel-header">
+                        <h2 class="panel-title">⚡ Quick Actions</h2>
+                    </div>
+                    <div class="quick-actions">
+                        <button class="btn btn-primary" onclick="addProduct()">➕ Add New Product</button>
+                        <button class="btn btn-secondary" onclick="viewAnalytics()">📈 View Analytics</button>
+                        <button class="btn btn-secondary" onclick="viewSettings()">⚙️ Settings</button>
+                        <button class="btn btn-secondary" onclick="exportData()">📥 Export Data</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script src="supabase-fixed.js"></script>
+    
+    <script>
+        // Test Professional Dashboard
+        class TestProfessionalDashboard {
+            constructor() {
+                this.vendorData = {
+                    id: 1,
+                    name: 'Test Vendor Shop',
+                    email: 'test@shopping.tn',
+                    verified: true,
+                    region: 'Sousse',
+                    wilaya: 'Sousse'
+                };
+                this.orders = [];
+                this.products = [];
+                this.map = null;
+            }
+
+            async init() {
+                console.log('🚀 Initializing TEST Professional Dashboard...');
+                
+                try {
+                    // Load demo data
+                    await this.loadDemoData();
+                    
+                    // Render dashboard
+                    this.renderDashboard();
+                    
+                    // Initialize map
+                    this.initMap();
+                    
+                    console.log('✅ TEST Dashboard loaded successfully!');
+                } catch (error) {
+                    console.error('❌ TEST Dashboard initialization failed:', error);
+                    this.showError('Failed to load dashboard: ' + error.message);
+                }
+            }
+
+            async loadDemoData() {
+                console.log('🎭 Loading DEMO data for testing...');
+                
+                // Demo orders
+                this.orders = [
+                    {
+                        id: 'ORD-001',
+                        tracking_number: 'TN-001',
+                        customer: 'Mohamed Ali',
+                        amount: 250,
+                        status: 'delivered',
+                        date: new Date().toISOString(),
+                        vendorId: 1
+                    },
+                    {
+                        id: 'ORD-002', 
+                        tracking_number: 'TN-002',
+                        customer: 'Sarra Ben',
+                        amount: 180,
+                        status: 'shipped',
+                        date: new Date().toISOString(),
+                        vendorId: 1
+                    },
+                    {
+                        id: 'ORD-003',
+                        tracking_number: 'TN-003',
+                        customer: 'Youssef K',
+                        amount: 320,
+                        status: 'pending',
+                        date: new Date().toISOString(),
+                        vendorId: 1
+                    },
+                    {
+                        id: 'ORD-004',
+                        tracking_number: 'TN-004',
+                        customer: 'Leila M',
+                        amount: 450,
+                        status: 'transit',
+                        date: new Date().toISOString(),
+                        vendorId: 1
+                    }
+                ];
+
+                // Demo products
+                this.products = [
+                    {
+                        id: 1,
+                        name: 'Handcrafted Wooden Chair',
+                        emoji: '🪑',
+                        stock: 8,
+                        price: 150,
+                        vendorId: 1,
+                        region: 'Sousse'
+                    },
+                    {
+                        id: 2,
+                        name: 'Traditional Ceramic Vase',
+                        emoji: '🏺',
+                        stock: 3,
+                        price: 85,
+                        vendorId: 1,
+                        region: 'Nabeul'
+                    },
+                    {
+                        id: 3,
+                        name: 'Luxury Sofa Set',
+                        emoji: '🛋️',
+                        stock: 15,
+                        price: 450,
+                        vendorId: 1,
+                        region: 'Tunis'
+                    },
+                    {
+                        id: 4,
+                        name: 'Berber Rug',
+                        emoji: '🏺',
+                        stock: 2,
+                        price: 280,
+                        vendorId: 1,
+                        region: 'Kairouan'
+                    }
+                ];
+
+                console.log('📊 Demo data loaded:', {
+                    orders: this.orders.length,
+                    products: this.products.length
+                });
+            }
+
+            renderDashboard() {
+                this.renderHeader();
+                this.renderKPIs();
+                this.renderOrders();
+                this.renderInventory();
+            }
+
+            renderHeader() {
+                const vendorNameEl = document.getElementById('vendor-name');
+                if (vendorNameEl) {
+                    vendorNameEl.textContent = this.vendorData.name;
+                }
+            }
+
+            renderKPIs() {
+                const kpiGrid = document.getElementById('kpi-grid');
+                
+                const totalRevenue = this.orders.reduce((sum, order) => sum + (order.amount || 0), 0);
+                const totalOrders = this.orders.length;
+                const deliveredOrders = this.orders.filter(o => o.status === 'delivered').length;
+                const lowStockProducts = this.products.filter(p => p.stock < 5).length;
+
+                const kpis = [
+                    {
+                        icon: '💰',
+                        value: totalRevenue.toLocaleString() + ' TND',
+                        label: 'Total Revenue',
+                        change: '+12%'
+                    },
+                    {
+                        icon: '📦',
+                        value: totalOrders,
+                        label: 'Total Orders',
+                        change: '+8%'
+                    },
+                    {
+                        icon: '✅',
+                        value: deliveredOrders,
+                        label: 'Delivered',
+                        change: '+15%'
+                    },
+                    {
+                        icon: '⚠️',
+                        value: lowStockProducts,
+                        label: 'Low Stock Items',
+                        change: lowStockProducts > 0 ? '-2' : '+0'
+                    }
+                ];
+
+                kpiGrid.innerHTML = kpis.map(kpi => `
+                    <div class="kpi-card">
+                        <div class="kpi-icon">${kpi.icon}</div>
+                        <div class="kpi-value">${kpi.value}</div>
+                        <div class="kpi-label">${kpi.label}</div>
+                        <div class="kpi-change">${kpi.change}</div>
+                    </div>
+                `).join('');
+            }
+
+            renderOrders() {
+                const ordersList = document.getElementById('orders-list');
+                
+                if (this.orders.length === 0) {
+                    ordersList.innerHTML = '<p style="text-align: center; color: #666;">No orders yet</p>';
+                    return;
+                }
+
+                ordersList.innerHTML = this.orders.slice(0, 5).map(order => `
+                    <div class="order-item">
+                        <div class="order-info">
+                            <div class="order-id">${order.tracking_number || order.id}</div>
+                            <div class="order-customer">${order.customer}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div class="order-amount">${order.amount} TND</div>
+                            <span class="order-status status-${order.status}">${order.status}</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            renderInventory() {
+                const inventoryList = document.getElementById('inventory-list');
+                
+                if (this.products.length === 0) {
+                    inventoryList.innerHTML = '<p style="text-align: center; color: #666;">No products yet</p>';
+                    return;
+                }
+
+                inventoryList.innerHTML = this.products.slice(0, 5).map(product => `
+                    <div class="product-item">
+                        <div class="product-emoji">${product.emoji}</div>
+                        <div class="product-info">
+                            <div class="product-name">${product.name}</div>
+                            <div class="product-stock ${product.stock < 5 ? 'low-stock' : ''}">
+                                Stock: ${product.stock} units
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-weight: 600;">${product.price} TND</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            initMap() {
+                const mapContainer = document.getElementById('vendor-map');
+                
+                if (!mapContainer) return;
+
+                try {
+                    console.log('🗺️ Initializing Tunisia map...');
+                    
+                    // Initialize map centered on Sousse, Tunisia
+                    this.map = L.map('vendor-map').setView([35.8256, 10.6084], 10);
+                    
+                    // Add tile layer
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '© OpenStreetMap contributors'
+                    }).addTo(this.map);
+
+                    // Add vendor location marker
+                    L.marker([35.8256, 10.6084])
+                        .addTo(this.map)
+                        .bindPopup(`
+                            <div style="text-align: center;">
+                                <strong>🏪 ${this.vendorData.name}</strong><br>
+                                ${this.vendorData.wilaya}<br>
+                                ${this.products.length} Products<br>
+                                ${this.orders.length} Orders
+                            </div>
+                        `)
+                        .openPopup();
+
+                    // Add delivery markers for shipped orders
+                    this.orders.filter(o => o.status === 'shipped' || o.status === 'transit').forEach((order, index) => {
+                        const tunisiaLocations = [
+                            [36.8065, 10.1815], // Tunis
+                            [35.8256, 10.6084], // Sousse
+                            [34.7406, 10.7603], // Sfax
+                            [35.7643, 10.8113], // Monastir
+                            [35.6781, 10.0963], // Kairouan
+                            [33.8815, 10.0982], // Gabès
+                        ];
+                        
+                        const location = tunisiaLocations[index % tunisiaLocations.length];
+                        
+                        L.marker(location, {
+                            icon: L.divIcon({
+                                html: '🚚',
+                                className: 'custom-div-icon',
+                                iconSize: [30, 30],
+                                iconAnchor: [15, 15]
+                            })
+                        })
+                        .addTo(this.map)
+                        .bindPopup(`
+                            <div style="text-align: center;">
+                                <strong>🚚 Delivery</strong><br>
+                                Order: ${order.tracking_number}<br>
+                                Customer: ${order.customer}<br>
+                                Status: ${order.status}
+                            </div>
+                        `);
+                    });
+
+                    // Add product location markers
+                    this.products.forEach((product) => {
+                        const coords = this.getTunisiaCoordinates(product.region);
+                        if (coords) {
+                            L.marker(coords)
+                                .addTo(this.map)
+                                .bindPopup(`
+                                    <div style="text-align: center;">
+                                        <strong>${product.emoji} ${product.name}</strong><br>
+                                        ${product.region}<br>
+                                        Stock: ${product.stock}<br>
+                                        Price: ${product.price} TND
+                                    </div>
+                                `);
+                        }
+                    });
+
+                    console.log('✅ Tunisia map initialized successfully');
+                } catch (error) {
+                    console.error('❌ Map initialization failed:', error);
+                    mapContainer.innerHTML = `
+                        <div style="height: 300px; display: flex; align-items: center; justify-content: center; background: #f0f4f8; border-radius: 15px;">
+                            <div style="text-align: center; color: #666;">
+                                <div style="font-size: 3rem; margin-bottom: 10px;">🗺️</div>
+                                <p>Tunisia Map</p>
+                                <p style="font-size: 0.8rem;">Showing vendor locations and deliveries</p>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            getTunisiaCoordinates(region) {
+                const coordinates = {
+                    'Tunis': [36.8065, 10.1815],
+                    'Sousse': [35.8256, 10.6084],
+                    'Sfax': [34.7406, 10.7603],
+                    'Monastir': [35.7643, 10.8113],
+                    'Kairouan': [35.6781, 10.0963],
+                    'Gabès': [33.8815, 10.0982],
+                    'Nabeul': [36.4561, 10.7357],
+                    'Ariana': [36.8625, 10.1956],
+                    'Ben Arous': [36.7543, 10.2256],
+                    'Manouba': [36.8053, 10.0589],
+                    'Bizerte': [37.2746, 9.8739],
+                    'Béja': [36.7256, 9.1817],
+                    'Jendouba': [36.5039, 8.7807],
+                    'Le Kef': [36.1756, 8.7122],
+                    'Siliana': [36.0856, 9.3673],
+                    'Kasserine': [35.1683, 8.8376],
+                    'Gafsa': [34.4248, 8.7848],
+                    'Tozeur': [33.9252, 8.1348],
+                    'Kebili': [33.7048, 8.9705],
+                    'Tataouine': [32.9296, 10.4535],
+                    'Mahdia': [35.5049, 11.0622],
+                    'Ksar Hellal': [35.6439, 10.8113],
+                    'Moknine': [35.6347, 10.7889],
+                    'Msaken': [35.7203, 10.5985],
+                    'Kalaa Kebira': [35.6821, 10.0956],
+                    'Enfidha': [36.1286, 10.3535],
+                    'Hammamet': [36.3988, 10.6158],
+                    'Zarzis': [33.5119, 11.0624],
+                    'Médenine': [33.3540, 10.6179],
+                    'Djerba': [33.8138, 10.8664],
+                    'Tabarka': [36.9569, 8.7550]
+                };
+                
+                return coordinates[region] || [35.8256, 10.6084]; // Default to Sousse
+            }
+
+            showError(message) {
+                const kpiGrid = document.getElementById('kpi-grid');
+                kpiGrid.innerHTML = `
+                    <div class="error-message" style="grid-column: 1/-1;">
+                        <strong>❌ Error:</strong> ${message}
+                    </div>
+                `;
+            }
+        }
+
+        // Global functions for buttons
+        function viewAllOrders() {
+            alert('📦 Orders page coming soon!');
+        }
+
+        function addProduct() {
+            alert('➕ Add Product page coming soon!');
+        }
+
+        function viewAnalytics() {
+            alert('📈 Analytics page coming soon!');
+        }
+
+        function viewSettings() {
+            alert('⚙️ Settings page coming soon!');
+        }
+
+        function exportData() {
+            alert('📥 Export feature coming soon!');
+        }
+
+        function refreshMap() {
+            if (window.testDashboard && window.testDashboard.map) {
+                window.testDashboard.initMap();
+                alert('🗺️ Map refreshed!');
+            }
+        }
+
+        // Initialize dashboard when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 Loading TEST Professional Dashboard...');
+            window.testDashboard = new TestProfessionalDashboard();
+            window.testDashboard.init();
+        });
+    </script>
+</body>
+</html>
