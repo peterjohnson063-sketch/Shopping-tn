@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🔧 Diagnostic Test - What's Working?</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .test { background: white; padding: 20px; margin: 10px 0; border-radius: 8px; border-left: 4px solid #007bff; }
+        .success { border-left-color: #28a745; background: #d4edda; }
+        .error { border-left-color: #dc3545; background: #f8d7da; }
+        .warning { border-left-color: #ffc107; background: #fff3cd; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; font-family: monospace; }
+        .loading { background: #e3f2fd; }
+    </style>
+</head>
+<body>
+    <h1>🔧 DIAGNOSTIC TEST - What's Actually Working?</h1>
+    
+    <div class="test">
+        <h3>📊 Test 1: Supabase Connection</h3>
+        <button onclick="testSupabase()">Test Supabase Connection</button>
+        <div id="supabase-result" class="result"></div>
+    </div>
+    
+    <div class="test">
+        <h3>📦 Test 2: Load Products</h3>
+        <button onclick="testProducts()">Load Products from DB</button>
+        <div id="products-result" class="result"></div>
+    </div>
+    
+    <div class="test">
+        <h3>➕ Test 3: Add Product</h3>
+        <button onclick="testAddProduct()">Add Test Product</button>
+        <div id="add-result" class="result"></div>
+    </div>
+    
+    <div class="test">
+        <h3>🗺️ Test 4: Leaflet Map</h3>
+        <button onclick="testMap()">Test Interactive Map</button>
+        <div id="map-result" class="result"></div>
+        <div id="test-map" style="height: 300px; margin: 10px 0;"></div>
+    </div>
+    
+    <div class="test">
+        <h3>🎯 Test 5: Full App Launch</h3>
+        <button onclick="window.open('index.html', '_blank')">🚀 Open Main App</button>
+        <p>If the above tests work, the main app should work too!</p>
+    </div>
+
+    <!-- Include required libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <script>
+        // Supabase config (same as main app)
+        const SUPABASE_URL = 'https://kmwqffaphhcbzboiwosj.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imttd3FmZmFwaGhjYnpib2l3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNDEwNDgsImV4cCI6MjA4ODkxNzA0OH0.aaMK_w3SH8vHBOjjbcH5yO04Bxjgfn4azeePUzAUYjM';
+        const { createClient } = supabase;
+        const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        // Simple SB object (same as main app)
+        const SB = {
+            async req(method, table, body, query = '') {
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}${query}`, {
+                    method,
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': method === 'POST' ? 'return=representation' : ''
+                    },
+                    body: body ? JSON.stringify(body) : undefined
+                });
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.message || 'Supabase error');
+                }
+                return method === 'DELETE' ? null : res.json();
+            },
+            
+            async getProducts() {
+                return this.req('GET', 'products', null, '?order=created_at.desc');
+            },
+            
+            async createProduct(product) {
+                const data = await this.req('POST', 'products', product);
+                return data[0];
+            }
+        };
+        
+        // Test functions
+        async function testSupabase() {
+            const result = document.getElementById('supabase-result');
+            result.className = 'result loading';
+            result.innerHTML = '🔄 Testing Supabase connection...';
+            
+            try {
+                // Simple test - try to fetch products
+                const products = await SB.getProducts();
+                result.className = 'result success';
+                result.innerHTML = `✅ Supabase connection successful!<br>Found ${products.length} products in database`;
+            } catch (error) {
+                result.className = 'result error';
+                result.innerHTML = `❌ Supabase connection failed:<br>${error.message}`;
+            }
+        }
+        
+        async function testProducts() {
+            const result = document.getElementById('products-result');
+            result.className = 'result loading';
+            result.innerHTML = '🔄 Loading products...';
+            
+            try {
+                const products = await SB.getProducts();
+                result.className = 'result success';
+                result.innerHTML = `✅ Loaded ${products.length} products<br>` +
+                    (products.length > 0 ? 
+                        `First product: ${products[0].name || 'Unnamed'}<br>` +
+                        `Product IDs: ${products.map(p => p.id).join(', ')}` :
+                        'No products found in database');
+            } catch (error) {
+                result.className = 'result error';
+                result.innerHTML = `❌ Failed to load products:<br>${error.message}`;
+            }
+        }
+        
+        async function testAddProduct() {
+            const result = document.getElementById('add-result');
+            result.className = 'result loading';
+            result.innerHTML = '🔄 Adding test product...';
+            
+            try {
+                const testProduct = {
+                    name: 'Test Product - ' + new Date().getTime(),
+                    brand: 'Diagnostic Test',
+                    vendorId: 1,
+                    region: 'Sousse',
+                    category: 'furniture',
+                    price: 99.99,
+                    oldPrice: null,
+                    rating: 0,
+                    reviews: 0,
+                    badge: null,
+                    emoji: '🪑',
+                    image: null,
+                    verified: false,
+                    stock: 10,
+                    description: 'Test product for diagnostic purposes',
+                    created_at: new Date().toISOString()
+                };
+                
+                const savedProduct = await SB.createProduct(testProduct);
+                result.className = 'result success';
+                result.innerHTML = `✅ Product added successfully!<br>` +
+                    `ID: ${savedProduct.id}<br>` +
+                    `Name: ${savedProduct.name}<br>` +
+                    `Price: ${savedProduct.price} TND`;
+            } catch (error) {
+                result.className = 'result error';
+                result.innerHTML = `❌ Failed to add product:<br>${error.message}`;
+            }
+        }
+        
+        function testMap() {
+            const result = document.getElementById('map-result');
+            const mapContainer = document.getElementById('test-map');
+            
+            result.className = 'result loading';
+            result.innerHTML = '🔄 Loading map...';
+            
+            try {
+                // Clear previous map
+                mapContainer.innerHTML = '';
+                
+                // Create map
+                const map = L.map(mapContainer).setView([35.8256, 10.6084], 10);
+                
+                // Add tile layer
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(map);
+                
+                // Add test marker
+                L.marker([35.8256, 10.6084])
+                    .addTo(map)
+                    .bindPopup('🏪 Test Shop Location<br>Sousse, Tunisia')
+                    .openPopup();
+                
+                result.className = 'result success';
+                result.innerHTML = '✅ Interactive map loaded successfully!<br>Map shows Sousse, Tunisia';
+            } catch (error) {
+                result.className = 'result error';
+                result.innerHTML = `❌ Failed to load map:<br>${error.message}`;
+            }
+        }
+        
+        // Auto-run first test
+        window.onload = function() {
+            console.log('🔧 Diagnostic Test Loaded - Run tests to see what\'s working!');
+        };
+    </script>
+</body>
+</html>
