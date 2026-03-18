@@ -88,7 +88,12 @@ const SB = {
   },
 
   async getVendorOrders(vendorId) {
-    return this.req('GET', 'orders', null, `?vendor_id=eq.${vendorId}&order=created_at.desc`);
+    // Accept either `vendor_id` (snake_case) or `vendorId` (camelCase) schemas.
+    try {
+      const bySnake = await this.req('GET', 'orders', null, `?vendor_id=eq.${vendorId}&order=created_at.desc`);
+      if (Array.isArray(bySnake) && bySnake.length) return bySnake;
+    } catch (e) {}
+    return this.req('GET', 'orders', null, `?vendorId=eq.${vendorId}&order=created_at.desc`);
   },
 
   // ── ORDER TRACKING ──

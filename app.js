@@ -37,6 +37,27 @@ function init() {
   
   // Initialize products from Supabase or fallback to local data
   initializeProducts();
+
+  // Keep Shop (products page) and dashboards in sync when products change
+  if (!window.__productsChangedListenerInstalled) {
+    window.__productsChangedListenerInstalled = true;
+    window.addEventListener('products:changed', async () => {
+      try {
+        await initializeProducts();
+        if (State.currentPage === 'products') {
+          filterAndRenderProducts();
+        }
+        // Refresh vendor dashboard if it is open
+        if (State.currentPage === 'vendor-dashboard' || document.getElementById('page-vendor-dashboard')?.classList?.contains('active')) {
+          if (typeof refreshVendorData === 'function') {
+            refreshVendorData();
+          }
+        }
+      } catch (e) {
+        // Non-fatal: keep UI responsive
+      }
+    });
+  }
   
   State.orders = STN.DB.get('orders') || [];
   State.reviews = STN.DB.get('reviews') || [];
@@ -2752,6 +2773,9 @@ async function deleteVendorProduct(productId) {
     
     toast('Product deleted successfully!', 'success');
     switchVendorSection('inventory');
+
+    // Notify other parts of the app to refresh (Shop page, dashboards, etc.)
+    try { window.dispatchEvent(new CustomEvent('products:changed', { detail: { source: 'deleteVendorProduct', productId } })); } catch(e) {}
     
     // Refresh products display if on products page
     if (State.currentPage === 'products') {
@@ -2783,7 +2807,8 @@ async function uploadProduct() {
     brand: State.currentUser?.shop_name || State.currentUser?.shopName || brand,
     vendorId: State.currentUser?.id,
     region: State.currentUser?.wilaya || 'Tunisia',
-    category: cat,
+    // IMPORTANT: match our product schema (data.js uses `cat` + `desc`)
+    cat,
     price,
     oldPrice: parseFloat(document.getElementById('vp-old-price')?.value) || null,
     rating: 0,
@@ -2793,13 +2818,18 @@ async function uploadProduct() {
     image: document.getElementById('vp-image-url')?.value || null,
     verified: false, // Will be verified by admin
     stock,
-    description: desc,
+    desc,
     created_at: new Date().toISOString()
   };
 
   console.log('🔄 Attempting to save product to Supabase:', newProduct);
 
   try {
+    if (typeof SB === 'undefined' || !SB?.createProduct) {
+      throw new Error('Supabase client not ready (SB.createProduct missing)');
+    }
+
+    toast('⏳ Uploading product...', 'default');
     // Save to Supabase first
     const savedProduct = await SB.createProduct(newProduct);
     
@@ -2831,11 +2861,14 @@ async function uploadProduct() {
       await initializeProducts();
       filterAndRenderProducts();
     }
+
+    // Notify other parts of the app to refresh (Shop page, dashboards, etc.)
+    try { window.dispatchEvent(new CustomEvent('products:changed', { detail: { source: 'uploadProduct', productId: savedProduct?.id } })); } catch(e) {}
     
   } catch (error) {
     console.error('❌ Error uploading product to Supabase:', error);
     console.error('❌ Error details:', error.message);
-    toast('⚠️ Failed to upload product. Check console for details.', 'error');
+    toast('⚠️ Failed to upload product: ' + (error?.message || 'Unknown error'), 'error');
   }
 }
 
@@ -3610,9 +3643,60 @@ async function initializeVendorDashboard(rootEl) {
 
 // Safe data loading with timeout
 async function safeLoadData() {
-  if (!State.products || State.products.length === 0) {
+  const vendorId = State.currentUser?.id;
+
+  function normalizeProduct(p) {
+    if (!p || typeof p !== 'object') return p;
+    // Back-compat normalization: DB might use `category`/`description`
+    if (p.cat == null && p.category != null) p.cat = p.category;
+    if (p.desc == null && p.description != null) p.desc = p.description;
+    return p;
+  }
+
+  function normalizeOrder(o) {
+    if (!o || typeof o !== 'object') return o;
+    // Back-compat normalization: DB might use snake_case
+    if (o.vendorId == null && o.vendor_id != null) o.vendorId = o.vendor_id;
+    if (o.userId == null && o.user_id != null) o.userId = o.user_id;
+    return o;
+  }
+
+  // Always ensure products are present
+  if ((!State.products || State.products.length === 0) && (STN.DB.get('products') || STN.PRODUCTS_DATA)) {
     State.products = STN.DB.get('products') || STN.PRODUCTS_DATA;
   }
+
+  // Try to refresh from Supabase for production truth
+  if (typeof SB !== 'undefined' && SB?.getProducts) {
+    try {
+      const sp = await SB.getProducts();
+      if (Array.isArray(sp) && sp.length > 0) {
+        State.products = sp.map(normalizeProduct);
+        STN.DB.set('products', State.products);
+      }
+    } catch (e) {
+      // Non-fatal: keep whatever is in memory/local
+    }
+  }
+
+  if (typeof SB !== 'undefined') {
+    try {
+      let ords = null;
+      if (vendorId && SB.getVendorOrders) {
+        ords = await SB.getVendorOrders(vendorId);
+      } else if (SB.getOrders) {
+        ords = await SB.getOrders();
+      }
+
+      if (Array.isArray(ords) && ords.length > 0) {
+        const normalized = ords.map(normalizeOrder);
+        STN.DB.set('orders', normalized);
+      }
+    } catch (e) {
+      // Non-fatal
+    }
+  }
+
   return true;
 }
 
@@ -3677,6 +3761,27 @@ async function safeLoadKPIs() {
     
     const lowStockProducts = vendorProducts.filter(p => (p.stock || 0) < 10);
 
+    // Real change indicators (no fake +12% etc.)
+    function pctChange(curr, prev) {
+      if (!prev) return curr ? '+100%' : '0%';
+      const v = ((curr - prev) / prev) * 100;
+      const sign = v > 0 ? '+' : '';
+      return sign + v.toFixed(0) + '%';
+    }
+
+    const now = Date.now();
+    const prevDayStart = new Date(now - 48 * 60 * 60 * 1000);
+    const lastDayStart = new Date(now - 24 * 60 * 60 * 1000);
+    const prevWeekStart = new Date(now - 14 * 24 * 60 * 60 * 1000);
+    const lastWeekStart = new Date(now - 7 * 24 * 60 * 60 * 1000);
+
+    const prevDayOrders = vendorOrders.filter(o => new Date(o.created_at) >= prevDayStart && new Date(o.created_at) < lastDayStart);
+    const prevWeekOrders = vendorOrders.filter(o => new Date(o.created_at) >= prevWeekStart && new Date(o.created_at) < lastWeekStart);
+    const lastWeekOrders = vendorOrders.filter(o => new Date(o.created_at) >= lastWeekStart);
+
+    const prevWeekRevenue = prevWeekOrders.reduce((s, o) => s + (o.total || 0), 0);
+    const lastWeekRevenue = lastWeekOrders.reduce((s, o) => s + (o.total || 0), 0);
+
     console.log('💰 KPIs calculated:', {
       dailySales: dailySales.length,
       weeklySales: weeklySales.length,
@@ -3692,7 +3797,7 @@ async function safeLoadKPIs() {
       {
         title: 'Daily Sales',
         value: dailySales.length,
-        change: '+12%',
+        change: pctChange(dailySales.length, prevDayOrders.length),
         icon: '💰',
         color: '#7c3aed',
         bg: '#f5f3ff'
@@ -3700,7 +3805,7 @@ async function safeLoadKPIs() {
       {
         title: 'Weekly Sales',
         value: weeklySales.length,
-        change: '+8%',
+        change: pctChange(weeklySales.length, prevWeekOrders.length),
         icon: '📊',
         color: '#059669',
         bg: '#ecfdf5'
@@ -3708,7 +3813,7 @@ async function safeLoadKPIs() {
       {
         title: 'Total Revenue',
         value: totalRevenue.toLocaleString() + ' TND',
-        change: '+23%',
+        change: pctChange(lastWeekRevenue, prevWeekRevenue),
         icon: '💵',
         color: '#2563eb',
         bg: '#eff6ff'
@@ -3716,7 +3821,7 @@ async function safeLoadKPIs() {
       {
         title: 'Conversion Rate',
         value: conversionRate.toFixed(1) + '%',
-        change: '+5%',
+        change: 'Based on delivered / total',
         icon: '🎯',
         color: '#d97706',
         bg: '#fffbeb'
@@ -3724,7 +3829,7 @@ async function safeLoadKPIs() {
       {
         title: 'Avg Order Value',
         value: averageOrderValue.toFixed(0) + ' TND',
-        change: '+2%',
+        change: vendorOrders.length ? 'Live' : '—',
         icon: '📊',
         color: '#7c3aed',
         bg: '#f5f3ff'
@@ -3753,9 +3858,14 @@ async function safeLoadKPIs() {
             <div style="font-size:1.75rem;font-weight:700;color:#1e0a4e;line-height:1">${kpi.value}</div>
           </div>
         </div>
-        <div style="background:${kpi.change.startsWith('+') ? '#dcfce7' : '#fee2e2'};color:${kpi.change.startsWith('+') ? '#166534' : '#dc2626'};padding:0.25rem 0.75rem;border-radius:20px;font-size:0.7rem;font-weight:600">
-          ${kpi.change}
-        </div>
+        ${(() => {
+          const ch = String(kpi.change || '');
+          const isPct = /^[+-]?\d/.test(ch);
+          const isPositive = ch.startsWith('+');
+          const bg = !isPct ? '#f3f4f6' : (isPositive ? '#dcfce7' : '#fee2e2');
+          const fg = !isPct ? '#374151' : (isPositive ? '#166534' : '#dc2626');
+          return `<div style="background:${bg};color:${fg};padding:0.25rem 0.75rem;border-radius:20px;font-size:0.7rem;font-weight:600">${ch}</div>`;
+        })()}
       </div>
     `).join('');
 
@@ -3813,7 +3923,12 @@ async function safeLoadOrders() {
               </div>
               <div style="text-align:right">
                 <div style="font-size:0.82rem;font-weight:700">${(order.total || 0).toLocaleString()} TND</div>
-                <span style="font-size:0.7rem;padding:0.15rem 0.5rem;border-radius:20px;background:#dcfce7;color:#166534">${(order.status || 'pending')}</span>
+                ${(() => {
+                  const st = (order.status || 'pending').toLowerCase();
+                  const bg = st === 'delivered' ? '#dcfce7' : st === 'shipped' || st === 'transit' ? '#dbeafe' : st === 'ready' ? '#fef9c3' : '#fee2e2';
+                  const fg = st === 'delivered' ? '#166534' : st === 'shipped' || st === 'transit' ? '#1d4ed8' : st === 'ready' ? '#92400e' : '#991b1b';
+                  return `<span style="font-size:0.7rem;padding:0.15rem 0.5rem;border-radius:20px;background:${bg};color:${fg}">${st}</span>`;
+                })()}
               </div>
             </div>
           `).join('')}
@@ -3915,18 +4030,23 @@ async function safeLoadAnalytics() {
     const orders = STN.DB.get('orders') || [];
     const vendorOrders = orders.filter(o => o.vendorId === vendorId);
 
+    const days = parseInt(document.getElementById('analytics-period')?.value || '30', 10);
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const periodOrders = vendorOrders.filter(o => new Date(o.created_at) >= since);
+    const periodRevenue = periodOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+
     // Simple chart visualization
     const chartHTML = `
       <div style="height:100%;display:flex;flex-direction:column">
         <div style="flex:1;display:flex;align-items:end;justify-content:space-around;position:relative">
           <div style="text-align:center">
-            <div style="font-size:0.8rem;color:#6b7280;margin-bottom:1rem">Last 7 Days</div>
-            <div style="font-size:2rem;font-weight:700;color:#1e0a4e">${vendorOrders.length}</div>
+            <div style="font-size:0.8rem;color:#6b7280;margin-bottom:1rem">Last ${days} Days</div>
+            <div style="font-size:2rem;font-weight:700;color:#1e0a4e">${periodOrders.length}</div>
             <div style="font-size:0.8rem;color:#9ca3af">Orders</div>
           </div>
           <div style="text-align:center">
             <div style="font-size:0.8rem;color:#6b7280;margin-bottom:1rem">Total Revenue</div>
-            <div style="font-size:2rem;font-weight:700;color:#059669">${vendorOrders.reduce((sum, o) => sum + (o.total || 0), 0).toLocaleString()} TND</div>
+            <div style="font-size:2rem;font-weight:700;color:#059669">${periodRevenue.toLocaleString()} TND</div>
           </div>
         </div>
       </div>
@@ -3945,6 +4065,10 @@ async function safeLoadAnalytics() {
   }
 }
 
+function updateVendorAnalytics() {
+  safeLoadAnalytics().catch(() => {});
+}
+
 // Safe logistics loading
 async function safeLoadLogistics() {
   try {
@@ -3957,6 +4081,7 @@ async function safeLoadLogistics() {
 
     // Get vendor data
     const vendorId = State.currentUser?.id;
+    await safeLoadData();
     const orders = STN.DB.get('orders') || [];
     const products = State.products || [];
     
@@ -3997,7 +4122,7 @@ async function safeLoadLogistics() {
             .bindPopup(`
               <div style="text-align:center">
                 <strong>${product.name}</strong><br>
-                ${product.emoji} ${product.category}<br>
+                ${product.emoji} ${(product.cat || product.category || 'product')}<br>
                 Stock: ${product.stock || 0}<br>
                 Price: ${product.price} TND
               </div>
@@ -4009,13 +4134,19 @@ async function safeLoadLogistics() {
 
     // Add delivery locations from orders
     vendorOrders.forEach(order => {
-      if (order.status === 'shipped' || order.status === 'transit') {
-        // Use customer location or default to Sousse
-        const coords = order.location ? getTunisiaCoordinates(order.location) : [35.8256, 10.6084];
+      // Show all "current" orders as live markers (different icons per status)
+      const coords = order.location ? getTunisiaCoordinates(order.location) : [35.8256, 10.6084];
+      if (coords) {
+        const status = (order.status || 'pending').toLowerCase();
+        const iconEmoji =
+          status === 'delivered' ? '✅' :
+          status === 'shipped' || status === 'transit' ? '🚚' :
+          status === 'ready' ? '📦' :
+          '🕐';
         if (coords) {
           const marker = L.marker(coords, {
             icon: L.divIcon({
-              html: '🚚',
+              html: iconEmoji,
               className: 'custom-div-icon',
               iconSize: [30, 30],
               iconAnchor: [15, 15]
@@ -4057,6 +4188,17 @@ async function safeLoadLogistics() {
     }
 
     console.log('✅ Logistics map loaded successfully with', markers.length, 'markers');
+
+    // Keep it live: refresh orders periodically while dashboard is visible
+    if (!window.__vendorLogisticsInterval) {
+      window.__vendorLogisticsInterval = setInterval(() => {
+        const dashEl = document.getElementById('page-vendor-dashboard');
+        const isVisible = dashEl && dashEl.classList && dashEl.classList.contains('active');
+        if (isVisible) {
+          safeLoadLogistics().catch(() => {});
+        }
+      }, 15000);
+    }
     
     return true;
   } catch (error) {
@@ -4125,7 +4267,10 @@ function getTunisiaCoordinates(region) {
 
 // REMOVED: Duplicate loadVendorLogisticsMap function - using safeLoadLogistics instead
 
-function switchVendorSection(section) {
+// NOTE: This file historically had two `switchVendorSection` implementations.
+// The earlier one (near the top vendor page) is the canonical one.
+// Keep this legacy version callable without overriding the canonical function.
+function switchVendorSection_legacy(section) {
   console.log('🔄 switchVendorSection called with:', section);
   
   document.querySelectorAll('[id^="vnd-nav-"]').forEach(function(el) {
