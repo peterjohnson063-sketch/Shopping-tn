@@ -153,6 +153,11 @@ function updateNavUser() {
 function showPage(id) {
   console.log('🔄 showPage called with:', id);
   
+  // Stop real-time tracking when navigating away from tracking page
+  if (State.currentPage !== 'track' && id !== 'track') {
+    stopRealtimeTracking();
+  }
+  
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const page = document.getElementById('page-' + id);
   if (!page) {
@@ -1044,6 +1049,10 @@ function searchProducts() {
 // ── TRACK ──
 async function renderTrack() {
   initReveal();
+  
+  // Add test button for development
+  addTestButton();
+  
   // If user is logged in, show their orders automatically
   if (State.currentUser && State.currentUser.id) {
     const trackInput = document.getElementById('track-num');
@@ -1090,6 +1099,11 @@ async function renderTrack() {
   if (result) result.style.display = 'none';
 }
 
+// Real-time tracking state
+let currentTrackingOrder = null;
+let trackingSubscription = null;
+let trackingUpdateInterval = null;
+
 async function trackOrder() {
   const num = document.getElementById('track-num')?.value?.trim().toUpperCase();
   if (!num) { toast('⚠️ Please enter a tracking number', 'error'); return; }
@@ -1111,64 +1125,263 @@ async function trackOrder() {
       return;
     }
 
-    const tracking = await SB.getTracking(order.id);
-    const steps = [
-      { key: 'pending', label: '🕐 Order Received', desc: 'Your order has been received' },
-      { key: 'confirmed', label: '✅ Confirmed', desc: 'Artisan is preparing your order' },
-      { key: 'processing', label: '🔨 Crafting', desc: 'Being handcrafted with care' },
-      { key: 'shipped', label: '🚚 Shipped', desc: 'On the way to you' },
-      { key: 'delivered', label: '🎉 Delivered', desc: 'Enjoy your purchase!' }
-    ];
-    const currentStepIndex = steps.findIndex(s => s.key === order.status);
-    const statusColors = { pending: '#f59e0b', confirmed: '#3b82f6', processing: '#8b5cf6', shipped: '#06b6d4', delivered: '#10b981' };
-    const statusColor = statusColors[order.status] || '#7c3aed';
+    // Store current order for real-time updates
+    currentTrackingOrder = order;
 
-    resultDiv.innerHTML = `
-      <div style="padding:2rem;background:white;border-radius:20px;border:1px solid rgba(107,63,212,0.15);box-shadow:0 4px 24px rgba(74,31,168,0.08);margin-bottom:1.5rem">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;margin-bottom:2rem;padding-bottom:1.5rem;border-bottom:1px solid rgba(107,63,212,0.1)">
-          <div>
-            <p style="font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;color:#7b72a8;margin-bottom:0.3rem">Tracking Number</p>
-            <p style="font-family:'Cormorant Garamond',serif;font-size:1.4rem;color:#1e0a4e;font-weight:600">${order.tracking_number}</p>
-          </div>
-          <span style="background:${statusColor}20;color:${statusColor};padding:0.4rem 1rem;border-radius:20px;font-size:0.75rem;font-weight:600;text-transform:uppercase">● ${order.status}</span>
-        </div>
+    // Start real-time tracking
+    startRealtimeTracking(order);
 
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:2rem">
-          <div style="text-align:center;padding:1rem;background:#f8f7ff;border-radius:12px">
-            <p style="font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;color:#7b72a8;margin-bottom:0.3rem">Date</p>
-            <p style="font-size:0.85rem;color:#1e0a4e;font-weight:500">${new Date(order.created_at).toLocaleDateString('fr-TN')}</p>
-          </div>
-          <div style="text-align:center;padding:1rem;background:#f8f7ff;border-radius:12px">
-            <p style="font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;color:#7b72a8;margin-bottom:0.3rem">Items</p>
-            <p style="font-size:0.85rem;color:#1e0a4e;font-weight:500">${order.items ? order.items.length : 0}</p>
-          </div>
-          <div style="text-align:center;padding:1rem;background:#f8f7ff;border-radius:12px">
-            <p style="font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;color:#7b72a8;margin-bottom:0.3rem">Total</p>
-            <p style="font-size:0.85rem;color:#1e0a4e;font-weight:500">${Number(order.total).toLocaleString()} TND</p>
-          </div>
-        </div>
+    // Render initial tracking UI
+    await renderTrackingUI(order);
 
-        <!-- Timeline -->
-        <div style="position:relative;padding-left:2rem">
-          <div style="position:absolute;left:0.45rem;top:0;bottom:0;width:2px;background:linear-gradient(to bottom,#7c3aed,#e8e4ff)"></div>
-          ${steps.map((step, i) => {
-            const done = i <= currentStepIndex;
-            const active = i === currentStepIndex;
-            const trackEvent = tracking.find(t => t.status === step.key);
-            return `<div style="position:relative;margin-bottom:1.5rem;opacity:${done ? '1' : '0.4'}">
-              <div style="position:absolute;left:-1.6rem;top:0.2rem;width:14px;height:14px;border-radius:50%;background:${active ? '#7c3aed' : done ? '#9b72f0' : '#e8e4ff'};border:2px solid ${done ? '#7c3aed' : '#d4d0f0'};${active ? 'box-shadow:0 0 0 4px rgba(124,58,237,0.15)' : ''}"></div>
-              <p style="font-size:0.85rem;font-weight:600;color:#1e0a4e;margin-bottom:0.2rem">${step.label}</p>
-              <p style="font-size:0.75rem;color:#7b72a8">${trackEvent ? trackEvent.message : step.desc}</p>
-              ${trackEvent ? `<p style="font-size:0.68rem;color:#b0a8d4;margin-top:0.2rem">${new Date(trackEvent.created_at).toLocaleString('fr-TN')}${trackEvent.location ? ' · ' + trackEvent.location : ''}</p>` : ''}
-            </div>`;
-          }).join('')}
-        </div>
-      </div>`;
-    resultDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch(e) {
     resultDiv.style.display = 'none';
     emptyDiv.style.display = 'block';
     toast('⚠️ Error fetching order. Try again.', 'error');
+  }
+}
+
+function startRealtimeTracking(order) {
+  // Clean up existing subscriptions
+  if (trackingSubscription) {
+    SB.unsubscribe(`tracking_${order.id}`);
+  }
+  if (trackingUpdateInterval) {
+    clearInterval(trackingUpdateInterval);
+  }
+
+  // Subscribe to real-time updates for this order
+  trackingSubscription = SB.subscribeToOrders(async (payload) => {
+    if (payload.new && payload.new.id === order.id) {
+      console.log('🔄 Order status updated:', payload.new);
+      currentTrackingOrder = payload.new;
+      await renderTrackingUI(payload.new);
+      toast('📦 Order status updated!', 'success');
+    }
+  });
+
+  // Also subscribe to tracking events
+  SB.subscribeToTracking(order.id, async (payload) => {
+    console.log('📍 Tracking event updated:', payload);
+    if (currentTrackingOrder) {
+      await renderTrackingUI(currentTrackingOrder);
+    }
+  });
+
+  // Fallback polling every 30 seconds
+  trackingUpdateInterval = setInterval(async () => {
+    try {
+      const updatedOrder = await SB.getOrder(order.tracking_number);
+      if (updatedOrder && updatedOrder.status !== currentTrackingOrder.status) {
+        currentTrackingOrder = updatedOrder;
+        await renderTrackingUI(updatedOrder);
+        toast('📦 Order status updated!', 'success');
+      }
+    } catch(e) {
+      console.log('⚠️ Polling update failed:', e);
+    }
+  }, 30000);
+}
+
+async function renderTrackingUI(order) {
+  const resultDiv = document.getElementById('track-result');
+  if (!resultDiv) return;
+
+  const tracking = await SB.getTracking(order.id);
+  const steps = [
+    { key: 'pending', label: '🕐 Order Received', desc: 'Your order has been received' },
+    { key: 'confirmed', label: '✅ Confirmed', desc: 'Artisan is preparing your order' },
+    { key: 'processing', label: '🔨 Crafting', desc: 'Being handcrafted with care' },
+    { key: 'shipped', label: '🚚 Shipped', desc: 'On the way to you' },
+    { key: 'delivered', label: '🎉 Delivered', desc: 'Enjoy your purchase!' }
+  ];
+  const currentStepIndex = steps.findIndex(s => s.key === order.status);
+  const statusColors = { pending: '#f59e0b', confirmed: '#3b82f6', processing: '#8b5cf6', shipped: '#06b6d4', delivered: '#10b981' };
+  const statusColor = statusColors[order.status] || '#7c3aed';
+
+  resultDiv.innerHTML = `
+    <div style="padding:2rem;background:white;border-radius:20px;border:1px solid rgba(107,63,212,0.15);box-shadow:0 4px 24px rgba(74,31,168,0.08);margin-bottom:1.5rem">
+      <!-- Real-time indicator -->
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1.5rem;padding:0.75rem;background:#f0fdf4;border-radius:12px;border:1px solid #dcfce7">
+        <div style="width:8px;height:8px;background:#10b981;border-radius:50%;animation:pulse 2s infinite"></div>
+        <span style="font-size:0.75rem;color:#059669;font-weight:600">🔴 LIVE TRACKING</span>
+        <span style="font-size:0.7rem;color:#6b7280;margin-left:auto">Updates automatically</span>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;margin-bottom:2rem;padding-bottom:1.5rem;border-bottom:1px solid rgba(107,63,212,0.1)">
+        <div>
+          <p style="font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;color:#7b72a8;margin-bottom:0.3rem">Tracking Number</p>
+          <p style="font-family:'Cormorant Garamond',serif;font-size:1.4rem;color:#1e0a4e;font-weight:600">${order.tracking_number}</p>
+        </div>
+        <span style="background:${statusColor}20;color:${statusColor};padding:0.4rem 1rem;border-radius:20px;font-size:0.75rem;font-weight:600;text-transform:uppercase">● ${order.status}</span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:2rem">
+        <div style="text-align:center;padding:1rem;background:#f8f7ff;border-radius:12px">
+          <p style="font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;color:#7b72a8;margin-bottom:0.3rem">Date</p>
+          <p style="font-size:0.85rem;color:#1e0a4e;font-weight:500">${new Date(order.created_at).toLocaleDateString('fr-TN')}</p>
+        </div>
+        <div style="text-align:center;padding:1rem;background:#f8f7ff;border-radius:12px">
+          <p style="font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;color:#7b72a8;margin-bottom:0.3rem">Items</p>
+          <p style="font-size:0.85rem;color:#1e0a4e;font-weight:500">${order.items ? order.items.length : 0}</p>
+        </div>
+        <div style="text-align:center;padding:1rem;background:#f8f7ff;border-radius:12px">
+          <p style="font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;color:#7b72a8;margin-bottom:0.3rem">Total</p>
+          <p style="font-size:0.85rem;color:#1e0a4e;font-weight:500">${Number(order.total).toLocaleString()} TND</p>
+        </div>
+      </div>
+
+      <!-- Real-time Timeline -->
+      <div style="position:relative;padding-left:2rem">
+        <div style="position:absolute;left:0.45rem;top:0;bottom:0;width:2px;background:linear-gradient(to bottom,#7c3aed,#e8e4ff)"></div>
+        ${steps.map((step, i) => {
+          const done = i <= currentStepIndex;
+          const active = i === currentStepIndex;
+          const trackEvent = tracking.find(t => t.status === step.key);
+          return `<div style="position:relative;margin-bottom:1.5rem;opacity:${done ? '1' : '0.4'}${active ? ';animation:fadeIn 0.5s ease-in' : ''}">
+            <div style="position:absolute;left:-1.6rem;top:0.2rem;width:14px;height:14px;border-radius:50%;background:${active ? '#7c3aed' : done ? '#9b72f0' : '#e8e4ff'};border:2px solid ${done ? '#7c3aed' : '#d4d0f0'};${active ? 'box-shadow:0 0 0 4px rgba(124,58,237,0.15);animation:pulse 2s infinite' : ''}"></div>
+            <p style="font-size:0.85rem;font-weight:600;color:#1e0a4e;margin-bottom:0.2rem">${step.label}</p>
+            <p style="font-size:0.75rem;color:#7b72a8">${trackEvent ? trackEvent.message : step.desc}</p>
+            ${trackEvent ? `<p style="font-size:0.68rem;color:#b0a8d4;margin-top:0.2rem">${new Date(trackEvent.created_at).toLocaleString('fr-TN')}${trackEvent.location ? ' · ' + trackEvent.location : ''}</p>` : ''}
+            ${active ? `<div style="margin-top:0.5rem;padding:0.4rem 0.8rem;background:#f0f9ff;border-radius:8px;display:inline-block">
+              <span style="font-size:0.65rem;color:#1d4ed8;font-weight:600">⚡ IN PROGRESS</span>
+            </div>` : ''}
+          </div>`;
+        }).join('')}
+      </div>
+
+      <!-- Refresh button -->
+      <div style="margin-top:2rem;text-align:center">
+        <button onclick="refreshTracking()" style="background:#f0f9ff;color:#1d4ed8;border:1px solid #0ea5e9;padding:0.6rem 1.5rem;border-radius:8px;font-size:0.75rem;font-weight:600;cursor:pointer">🔄 Refresh Status</button>
+      </div>
+    </div>`;
+  
+  resultDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function refreshTracking() {
+  if (currentTrackingOrder) {
+    renderTrackingUI(currentTrackingOrder);
+    toast('🔄 Tracking refreshed', 'default');
+  }
+}
+
+function stopRealtimeTracking() {
+  if (trackingSubscription) {
+    SB.unsubscribe(`tracking_${currentTrackingOrder?.id}`);
+    trackingSubscription = null;
+  }
+  if (trackingUpdateInterval) {
+    clearInterval(trackingUpdateInterval);
+    trackingUpdateInterval = null;
+  }
+  currentTrackingOrder = null;
+}
+
+// ── TESTING FUNCTIONS ──
+// Test function to simulate real-time order status updates
+async function testRealtimeTracking() {
+  console.log('🧪 Starting real-time tracking test...');
+  
+  // Get a sample order for testing
+  const testTrackingNum = 'STN-TEST123';
+  
+  try {
+    // Create a test order if it doesn't exist
+    let testOrder = await SB.getOrder(testTrackingNum);
+    
+    if (!testOrder) {
+      // Create a sample test order
+      testOrder = await SB.createOrder({
+        user_id: 1,
+        items: [{ id: 1, name: 'Test Product', price: 100, quantity: 1 }],
+        total: 100,
+        notes: 'Test order for real-time tracking',
+        phone: '+21612345678',
+        status: 'pending'
+      });
+      
+      // Update tracking number to our test value
+      await SB.updateOrderStatus(testOrder.id, 'pending');
+      testOrder.tracking_number = testTrackingNum;
+      console.log('✅ Test order created:', testOrder);
+    } else {
+      console.log('✅ Using existing test order:', testOrder);
+    }
+    
+    // Simulate status changes every 5 seconds
+    const statuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
+    const messages = [
+      '🕐 Order received — being prepared by artisan',
+      '✅ Order confirmed — artisan starting work',
+      '🔨 Crafting your item with care',
+      '🚚 On the way to your location',
+      '🎉 Delivered successfully!'
+    ];
+    const locations = [
+      'Ksar Hellal Workshop',
+      'Ksar Hellal Workshop', 
+      'Ksar Hellal Workshop',
+      'In Transit - Sahel Region',
+      'Delivered - Customer Address'
+    ];
+    
+    let currentStatusIndex = statuses.indexOf(testOrder.status);
+    
+    const statusInterval = setInterval(async () => {
+      if (currentStatusIndex < statuses.length - 1) {
+        currentStatusIndex++;
+        const newStatus = statuses[currentStatusIndex];
+        const message = messages[currentStatusIndex];
+        const location = locations[currentStatusIndex];
+        
+        console.log(`🔄 Updating order status to: ${newStatus}`);
+        
+        // Update order status
+        await SB.updateOrderStatus(testOrder.id, newStatus);
+        
+        // Add tracking event
+        await SB.addTracking(testOrder.id, newStatus, message, location);
+        
+        // Show notification
+        toast(`📦 Order status updated to: ${newStatus}`, 'success');
+        
+        if (newStatus === 'delivered') {
+          clearInterval(statusInterval);
+          console.log('🎉 Test completed! Order delivered.');
+        }
+      } else {
+        clearInterval(statusInterval);
+      }
+    }, 5000);
+    
+    // Start tracking the test order
+    document.getElementById('track-num').value = testTrackingNum;
+    await trackOrder();
+    
+    toast('🧪 Real-time tracking test started! Watch for updates...', 'default');
+    
+  } catch(error) {
+    console.error('❌ Test failed:', error);
+    toast('⚠️ Test failed. Check console for details.', 'error');
+  }
+}
+
+// Add test button to tracking page (for development)
+function addTestButton() {
+  const trackPage = document.getElementById('page-track');
+  if (trackPage && !document.getElementById('test-tracking-btn')) {
+    const testBtn = document.createElement('button');
+    testBtn.id = 'test-tracking-btn';
+    testBtn.textContent = '🧪 Test Real-time Updates';
+    testBtn.style.cssText = 'background:#f0f9ff;color:#1d4ed8;border:1px solid #0ea5e9;padding:0.6rem 1.5rem;border-radius:8px;font-size:0.75rem;font-weight:600;cursor:pointer;margin:1rem;display:block;width:max-content;';
+    testBtn.onclick = testRealtimeTracking;
+    
+    // Insert before the tracking form
+    const form = trackPage.querySelector('form');
+    if (form) {
+      form.parentNode.insertBefore(testBtn, form);
+    }
   }
 }
 
@@ -2095,6 +2308,8 @@ async function deleteVendorProduct(productId) {
     
     // Refresh products display if on products page
     if (State.currentPage === 'products') {
+      // Re-fetch from Supabase to get the latest data
+      await initializeProducts();
       filterAndRenderProducts();
     }
   } catch (error) {
@@ -2135,13 +2350,19 @@ async function uploadProduct() {
     created_at: new Date().toISOString()
   };
 
+  console.log('🔄 Attempting to save product to Supabase:', newProduct);
+
   try {
     // Save to Supabase first
     const savedProduct = await SB.createProduct(newProduct);
     
+    console.log('✅ Product saved to Supabase successfully:', savedProduct);
+    
     // Update local state with the returned product (includes Supabase ID)
     State.products.push(savedProduct);
     STN.DB.set('products', State.products);
+    
+    console.log('📦 Local state updated. Total products:', State.products.length);
     
     // Clear form
     document.getElementById('vp-title').value = '';
@@ -2159,12 +2380,15 @@ async function uploadProduct() {
     
     // Refresh products display if on products page
     if (State.currentPage === 'products') {
+      // Re-fetch from Supabase to get the latest data
+      await initializeProducts();
       filterAndRenderProducts();
     }
     
   } catch (error) {
-    console.error('Error uploading product:', error);
-    toast('⚠️ Failed to upload product. Please try again.', 'error');
+    console.error('❌ Error uploading product to Supabase:', error);
+    console.error('❌ Error details:', error.message);
+    toast('⚠️ Failed to upload product. Check console for details.', 'error');
   }
 }
 
@@ -2809,7 +3033,8 @@ async function ensureVendorDataLoaded() {
   if (!State.products || State.products.length === 0) {
     console.log('📦 Products not loaded, loading from Supabase...');
     try {
-      await loadProducts();
+      await initializeProducts();
+      console.log('✅ Products loaded from Supabase:', State.products.length);
     } catch (error) {
       console.error('Failed to load products:', error);
       throw new Error('Failed to load products data');
@@ -2835,6 +3060,11 @@ async function ensureVendorDataLoaded() {
   }
   
   console.log('✅ Vendor data loading complete');
+  console.log('📊 Final data state:', {
+    products: State.products.length,
+    orders: (STN.DB.get('orders') || []).length,
+    vendorId: State.currentUser?.id
+  });
   return true;
 }
 
@@ -3278,29 +3508,172 @@ async function safeLoadLogistics() {
       return null;
     }
 
-    // Simple logistics visualization
-    const logisticsHTML = `
-      <div style="height:100%;background:#f0f4f8;border-radius:8px;display:flex;align-items:center;justify-content:center;position:relative">
-        <div style="text-align:center;color:#6b7280">
-          <div style="font-size:2rem;margin-bottom:1rem">🚚</div>
-          <h4 style="margin-bottom:0.5rem;color:#1e0a4e">Live Logistics Tracking</h4>
-          <p style="margin-bottom:1.5rem">Track your deliveries in real-time</p>
-          <div style="background:#e0f2fe;border:1px solid #0ea5e9;border-radius:8px;padding:1rem;margin-bottom:1rem">
-            <div style="font-size:0.9rem;color:#1e0a4e">📍 Active Deliveries: 0</div>
-          </div>
-          <button onclick="switchVendorSection('logistics')" style="background:#2563eb;color:white;border:none;padding:0.75rem 1.5rem;border-radius:8px;font-weight:600;cursor:pointer">View Map</button>
-        </div>
-      </div>
+    // Get vendor data
+    const vendorId = State.currentUser?.id;
+    const orders = STN.DB.get('orders') || [];
+    const products = State.products || [];
+    
+    // Filter vendor orders and products
+    const vendorOrders = orders.filter(o => o.vendorId === vendorId);
+    const vendorProducts = products.filter(p => p.vendorId === vendorId);
+    
+    console.log('🗺️ Loading logistics map with:', {
+      vendorOrders: vendorOrders.length,
+      vendorProducts: vendorProducts.length
+    });
+
+    // Create real Leaflet map
+    const mapId = 'vendor-logistics-leaflet-map-' + Date.now();
+    mapContainer.innerHTML = `
+      <div id="${mapId}" style="height:100%;width:100%;border-radius:8px"></div>
     `;
 
-    mapContainer.innerHTML = logisticsHTML;
-    console.log('✅ Logistics loaded successfully');
+    // Initialize map - center on Sousse, Tunisia
+    const map = L.map(mapId).setView([35.8256, 10.6084], 10);
+    
+    // Add tile layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Add markers for products with locations
+    const markers = [];
+    
+    // Add product locations
+    vendorProducts.forEach(product => {
+      if (product.region || product.location) {
+        // Simple geocoding for Tunisian regions
+        const coords = getTunisiaCoordinates(product.region || product.location);
+        if (coords) {
+          const marker = L.marker(coords)
+            .addTo(map)
+            .bindPopup(`
+              <div style="text-align:center">
+                <strong>${product.name}</strong><br>
+                ${product.emoji} ${product.category}<br>
+                Stock: ${product.stock || 0}<br>
+                Price: ${product.price} TND
+              </div>
+            `);
+          markers.push(marker);
+        }
+      }
+    });
+
+    // Add delivery locations from orders
+    vendorOrders.forEach(order => {
+      if (order.status === 'shipped' || order.status === 'transit') {
+        // Use customer location or default to Sousse
+        const coords = order.location ? getTunisiaCoordinates(order.location) : [35.8256, 10.6084];
+        if (coords) {
+          const marker = L.marker(coords, {
+            icon: L.divIcon({
+              html: '🚚',
+              className: 'custom-div-icon',
+              iconSize: [30, 30],
+              iconAnchor: [15, 15]
+            })
+          })
+            .addTo(map)
+            .bindPopup(`
+              <div style="text-align:center">
+                <strong>Delivery</strong><br>
+                Order: ${order.tracking_number}<br>
+                Status: ${order.status}<br>
+                Customer: ${order.notes || 'N/A'}
+              </div>
+            `);
+          markers.push(marker);
+        }
+      }
+    });
+
+    // If no markers, add a default marker for the vendor location
+    if (markers.length === 0) {
+      L.marker([35.8256, 10.6084])
+        .addTo(map)
+        .bindPopup(`
+          <div style="text-align:center">
+            <strong>Your Shop Location</strong><br>
+            Sousse, Tunisia<br>
+            ${vendorProducts.length} Products<br>
+            ${vendorOrders.length} Orders
+          </div>
+        `)
+        .openPopup();
+    }
+
+    // Fit map to show all markers if there are any
+    if (markers.length > 0) {
+      const group = new L.featureGroup(markers);
+      map.fitBounds(group.getBounds().pad(0.1));
+    }
+
+    console.log('✅ Logistics map loaded successfully with', markers.length, 'markers');
     
     return true;
   } catch (error) {
     console.error('❌ Error loading logistics:', error);
+    // Fallback to simple view if map fails
+    const mapContainer = document.getElementById('vendor-logistics-map');
+    if (mapContainer) {
+      mapContainer.innerHTML = `
+        <div style="height:100%;background:#f0f4f8;border-radius:8px;display:flex;align-items:center;justify-content:center">
+          <div style="text-align:center;color:#6b7280">
+            <div style="font-size:2rem;margin-bottom:1rem">🚚</div>
+            <h4 style="margin-bottom:0.5rem;color:#1e0a4e">Logistics Overview</h4>
+            <p style="margin-bottom:1.5rem">Map temporarily unavailable</p>
+            <div style="background:#e0f2fe;border:1px solid #0ea5e9;border-radius:8px;padding:1rem">
+              <div style="font-size:0.9rem;color:#1e0a4e">📍 Active Deliveries: ${vendorOrders.filter(o => o.status === 'shipped' || o.status === 'transit').length}</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
     return false;
   }
+}
+
+// Helper function to get coordinates for Tunisian regions
+function getTunisiaCoordinates(region) {
+  const coordinates = {
+    'Tunis': [36.8065, 10.1815],
+    'Sousse': [35.8256, 10.6084],
+    'Sfax': [34.7406, 10.7603],
+    'Monastir': [35.7643, 10.8113],
+    'Kairouan': [35.6781, 10.0963],
+    'Gabès': [33.8815, 10.0982],
+    'Ariana': [36.8625, 10.1956],
+    'Ben Arous': [36.7543, 10.2256],
+    'Manouba': [36.8053, 10.0589],
+    'Bizerte': [37.2746, 9.8739],
+    'Béja': [36.7256, 9.1817],
+    'Jendouba': [36.5039, 8.7807],
+    'Le Kef': [36.1756, 8.7122],
+    'Siliana': [36.0856, 9.3673],
+    'Kasserine': [35.1683, 8.8376],
+    'Gafsa': [34.4248, 8.7848],
+    'Tozeur': [33.9252, 8.1348],
+    'Kebili': [33.7048, 8.9705],
+    'Tataouine': [32.9296, 10.4535],
+    'Mahdia': [35.5049, 11.0622],
+    'Ksar Hellal': [35.6439, 10.8113],
+    'Moknine': [35.6347, 10.7889],
+    'Msaken': [35.7203, 10.5985],
+    'Kalaa Kebira': [35.6821, 10.0956],
+    'Enfidha': [36.1286, 10.3535],
+    'Hammamet': [36.3988, 10.6158],
+    'Nabeul': [36.4561, 10.7357],
+    'Zarzis': [33.5119, 11.0624],
+    'Médenine': [33.3540, 10.6179],
+    'Djerba': [33.8138, 10.8664],
+    'Tabarka': [36.9569, 8.7550],
+    'El Kef': [36.1756, 8.7122],
+    'Kebili': [33.7048, 8.9705]
+  };
+  
+  // Return coordinates if found, otherwise default to Sousse
+  return coordinates[region] || [35.8256, 10.6084];
 }
 
 // REMOVED: Duplicate loadVendorLogisticsMap function - using safeLoadLogistics instead

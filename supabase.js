@@ -2,6 +2,10 @@
 const SUPABASE_URL = 'https://kmwqffaphhcbzboiwosj.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imttd3FmZmFwaGhjYnpib2l3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNDEwNDgsImV4cCI6MjA4ODkxNzA0OH0.aaMK_w3SH8vHBOjjbcH5yO04Bxjgfn4azeePUzAUYjM';
 
+// Initialize Supabase client
+const { createClient } = supabase;
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
 const SB = {
   // ── GENERIC REQUEST ──
   async req(method, table, body, query = '') {
@@ -74,7 +78,75 @@ const SB = {
   },
   async getTracking(orderId) {
     return this.req('GET', 'order_tracking', null, `?order_id=eq.${orderId}&order=created_at.asc`);
+  },
+
+  // ── REALTIME SUBSCRIPTIONS ──
+  subscriptions: new Map(),
+  
+  subscribeToOrders(callback) {
+    const channelName = 'orders_changes';
+    
+    // Clean up existing subscription
+    if (this.subscriptions.has(channelName)) {
+      this.subscriptions.get(channelName).unsubscribe();
+    }
+    
+    // Create new subscription
+    const channel = this.realtime.channel(channelName)
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'orders' }, 
+        (payload) => {
+          console.log('📦 Real-time order update:', payload);
+          callback(payload);
+        }
+      )
+      .subscribe((status) => {
+        console.log('📡 Orders subscription status:', status);
+      });
+    
+    this.subscriptions.set(channelName, channel);
+    return channel;
+  },
+  
+  subscribeToTracking(orderId, callback) {
+    const channelName = `tracking_${orderId}`;
+    
+    // Clean up existing subscription
+    if (this.subscriptions.has(channelName)) {
+      this.subscriptions.get(channelName).unsubscribe();
+    }
+    
+    // Create new subscription
+    const channel = this.realtime.channel(channelName)
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'order_tracking', filter: `order_id=eq.${orderId}` }, 
+        (payload) => {
+          console.log('📍 Real-time tracking update:', payload);
+          callback(payload);
+        }
+      )
+      .subscribe((status) => {
+        console.log('📡 Tracking subscription status:', status);
+      });
+    
+    this.subscriptions.set(channelName, channel);
+    return channel;
+  },
+  
+  unsubscribe(channelName) {
+    if (this.subscriptions.has(channelName)) {
+      this.subscriptions.get(channelName).unsubscribe();
+      this.subscriptions.delete(channelName);
+    }
+  },
+  
+  unsubscribeAll() {
+    this.subscriptions.forEach(channel => channel.unsubscribe());
+    this.subscriptions.clear();
   }
 };
 
-console.log('✅ Supabase connected!');
+// Initialize Supabase Realtime client
+SB.realtime = supabase.realtime;
+
+console.log('✅ Supabase connected with Realtime support!');
