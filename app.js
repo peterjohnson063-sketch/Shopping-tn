@@ -1715,7 +1715,7 @@ function renderVendorDashboard() {
   document.getElementById('page-vendor-dashboard').innerHTML = buildVendorDashboardHTML();
   console.log('✅ Vendor dashboard HTML built');
   
-  // Initialize dashboard asynchronously
+  // Initialize dashboard asynchronously with bulletproof system
   console.log('🔄 Initializing vendor dashboard...');
   initializeVendorDashboard().catch(error => {
     console.error('Failed to initialize vendor dashboard:', error);
