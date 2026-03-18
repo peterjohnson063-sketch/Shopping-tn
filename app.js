@@ -2884,6 +2884,12 @@ async function initializeVendorDashboard() {
   }
   
   console.log('✅ Vendor access check passed - user is vendor');
+  console.log('🔍 Vendor user details:', {
+    id: State.currentUser.id,
+    email: State.currentUser.email,
+    role: State.currentUser.role,
+    firstName: State.currentUser.firstName
+  });
   
   // Show loading states
   const kpiContainer = document.getElementById('vendor-kpi-cards');
@@ -2900,8 +2906,18 @@ async function initializeVendorDashboard() {
   if (logisticsContainer) logisticsContainer.innerHTML = '<div style="text-align:center;padding:2rem;color:#9ca3af">🔄 Loading logistics...</div>';
   
   try {
-    // Load components sequentially with error handling
     console.log('🔄 Loading all components...');
+    
+    // Add timeout to prevent infinite loading
+    const loadingTimeout = setTimeout(() => {
+      console.warn('⏰ Dashboard loading timeout - showing partial results');
+      const containers = [kpiContainer, ordersContainer, inventoryContainer, analyticsContainer, logisticsContainer];
+      containers.forEach(container => {
+        if (container && container.innerHTML.includes('Loading')) {
+          container.innerHTML = '<div style="text-align:center;padding:2rem;color:#dc2626">⚠️ Loading timeout - please refresh</div>';
+        }
+      });
+    }, 10000); // 10 second timeout
     
     const results = await Promise.allSettled([
       safeLoadKPIs(),
@@ -2910,6 +2926,8 @@ async function initializeVendorDashboard() {
       safeLoadAnalytics(),
       safeLoadLogistics()
     ]);
+    
+    clearTimeout(loadingTimeout);
     
     // Check results
     const failures = results.filter(r => r.status === 'rejected');
@@ -2937,18 +2955,14 @@ async function initializeVendorDashboard() {
     console.error('❌ Critical error initializing vendor dashboard:', error);
     
     // Show error state
-    const errorMsg = `
+    document.getElementById('page-vendor-dashboard').innerHTML = `
       <div style="text-align:center;padding:4rem;color:#dc2626">
         <div style="font-size:3rem;margin-bottom:1rem">⚠️</div>
-        <h3 style="margin-bottom:0.5rem;color:#dc2626">Dashboard Loading Error</h3>
-        <p style="margin-bottom:2rem;color:#dc2626">Unable to load dashboard data: ${error.message || 'Unknown error'}</p>
+        <h2 style="margin-bottom:0.5rem;color:#dc2626">Dashboard Initialization Failed</h2>
+        <p style="margin-bottom:2rem;color:#dc2626">Unable to load vendor dashboard. Please try refreshing the page.</p>
         <button onclick="location.reload()" style="background:#dc2626;color:white;border:none;padding:0.875rem 2rem;border-radius:8px;font-weight:600;cursor:pointer">🔄 Refresh Page</button>
       </div>
     `;
-    
-    [kpiContainer, ordersContainer, inventoryContainer, analyticsContainer, logisticsContainer].forEach(container => {
-      if (container) container.innerHTML = errorMsg;
-    });
   }
 }
 
@@ -2981,8 +2995,11 @@ async function safeLoadKPIs() {
   try {
     console.log('🔄 Loading KPIs...');
     const vendorId = State.currentUser?.id;
+    console.log('🔍 Fetching products for Vendor:', vendorId);
+    console.log('🔍 Current user:', State.currentUser);
+    
     if (!vendorId) {
-      console.warn('No vendor ID found');
+      console.error('❌ No vendor ID found - State.currentUser:', State.currentUser);
       return null;
     }
 
@@ -2991,8 +3008,32 @@ async function safeLoadKPIs() {
     
     const orders = STN.DB.get('orders') || [];
     const products = State.products || [];
+    console.log('📊 Total products in database:', products.length);
+    console.log('📊 Total orders in database:', orders.length);
+    
     const vendorOrders = orders.filter(o => o.vendorId === vendorId);
     const vendorProducts = products.filter(p => p.vendorId === vendorId);
+    
+    console.log('📦 Vendor products found:', vendorProducts.length);
+    console.log('📋 Vendor orders found:', vendorOrders.length);
+    console.log('📦 Vendor product IDs:', vendorProducts.map(p => ({id: p.id, name: p.name})));
+
+    // If no products found, show empty state
+    if (vendorProducts.length === 0) {
+      console.warn('⚠️ No products found for vendor', vendorId);
+      const kpiContainer = document.getElementById('vendor-kpi-cards');
+      if (kpiContainer) {
+        kpiContainer.innerHTML = `
+          <div style="text-align:center;padding:3rem;color:#9ca3af">
+            <div style="font-size:3rem;margin-bottom:1rem">📦</div>
+            <h3 style="margin-bottom:0.5rem;color:#1e0a4e">No Products Found</h3>
+            <p style="margin-bottom:1.5rem">You haven't added any products yet.</p>
+            <button onclick="switchVendorSection('upload')" style="background:#7c3aed;color:white;border:none;padding:0.75rem 1.5rem;border-radius:8px;font-weight:600;cursor:pointer">Add Your First Product</button>
+          </div>
+        `;
+      }
+      return true;
+    }
 
     // Calculate KPIs safely
     const today = new Date();
@@ -3009,6 +3050,16 @@ async function safeLoadKPIs() {
     const conversionRate = vendorOrders.length > 0 ? (deliveredOrders.length / vendorOrders.length * 100) : 0;
     
     const lowStockProducts = vendorProducts.filter(p => (p.stock || 0) < 10);
+
+    console.log('💰 KPIs calculated:', {
+      dailySales: dailySales.length,
+      weeklySales: weeklySales.length,
+      monthlySales: monthlySales.length,
+      totalRevenue,
+      averageOrderValue,
+      conversionRate,
+      lowStockProducts: lowStockProducts.length
+    });
 
     // Generate KPI cards
     const kpiCards = [
@@ -3100,8 +3151,10 @@ async function safeLoadOrders() {
   try {
     console.log('🔄 Loading orders...');
     const vendorId = State.currentUser?.id;
+    console.log('🔍 Fetching orders for Vendor:', vendorId);
+    
     if (!vendorId) {
-      console.warn('No vendor ID found for orders');
+      console.error('❌ No vendor ID found for orders');
       return null;
     }
 
@@ -3109,7 +3162,11 @@ async function safeLoadOrders() {
     await safeLoadData();
 
     const orders = STN.DB.get('orders') || [];
+    console.log('📊 Total orders in database:', orders.length);
+    
     const vendorOrders = orders.filter(o => o.vendorId === vendorId);
+    console.log('📋 Vendor orders found:', vendorOrders.length);
+    
     const recentOrders = vendorOrders.slice(-5).reverse();
 
     const ordersHTML = recentOrders.length === 0 
@@ -3155,8 +3212,10 @@ async function safeLoadInventory() {
   try {
     console.log('🔄 Loading inventory...');
     const vendorId = State.currentUser?.id;
+    console.log('🔍 Fetching inventory for Vendor:', vendorId);
+    
     if (!vendorId) {
-      console.warn('No vendor ID found for inventory');
+      console.error('❌ No vendor ID found for inventory');
       return null;
     }
 
@@ -3164,8 +3223,14 @@ async function safeLoadInventory() {
     await safeLoadData();
 
     const products = State.products || [];
+    console.log('📊 Total products in database:', products.length);
+    
     const vendorProducts = products.filter(p => p.vendorId === vendorId);
     const lowStockProducts = vendorProducts.filter(p => (p.stock || 0) < 10);
+    
+    console.log('📦 Vendor products found:', vendorProducts.length);
+    console.log('⚠️ Low stock products:', lowStockProducts.length);
+    console.log('📦 Vendor product details:', vendorProducts.map(p => ({id: p.id, name: p.name, stock: p.stock})));
 
     const inventoryHTML = `
       <div style="margin-bottom:1rem">
@@ -3187,6 +3252,11 @@ async function safeLoadInventory() {
             <div style="font-size:0.8rem;color:#6b7280">Low Stock Items</div>
           </div>
         </div>
+        ${vendorProducts.length === 0 ? `
+          <div style="text-align:center;padding:2rem;color:#9ca3af">
+            <p>No products in inventory. <a href="#" onclick="switchVendorSection('upload')" style="color:#7c3aed;text-decoration:underline">Add your first product</a></p>
+          </div>
+        ` : ''}
       </div>
     `;
 

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URGENT Vendor Dashboard Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        .warning { background: #fff3cd; border-color: #ffeaa7; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+        .console-output { background: #1e1e1e; color: #fff; padding: 15px; border-radius: 5px; font-family: monospace; max-height: 400px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <h1>🚨 URGENT Vendor Dashboard Test</h1>
+    <p><strong>For tomorrow's launch - Testing vendor dashboard loading issues</strong></p>
+
+    <div class="test-section">
+        <h2>🧪 Quick Test Steps</h2>
+        <ol>
+            <li><button onclick="testVendorLogin()">Login as Vendor</button></li>
+            <li><button onclick="testVendorDashboard()">Go to Vendor Dashboard</button></li>
+            <li><button onclick="checkConsoleLogs()">Check Console Logs</button></li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Expected Console Output</h2>
+        <div class="console-output" id="console-output">
+            <div style="color: #888;">Console logs will appear here...</div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔍 Debug Information</h2>
+        <div id="debug-info">
+            <p>Click the test buttons to see debug information...</p>
+        </div>
+    </div>
+
+    <div class="test-section warning">
+        <h2>⚠️ If Dashboard Stuck on Loading</h2>
+        <ul>
+            <li>Check console for "🔍 Fetching products for Vendor: X" logs</li>
+            <li>Look for "📦 Vendor products found: Y" results</li>
+            <li>If products found = 0, vendor has no products assigned</li>
+            <li>If vendor ID is undefined, login issue detected</li>
+            <li>10-second timeout will show "⚠️ Loading timeout" message</li>
+        </ul>
+    </div>
+
+    <script>
+        // Mock console output capture
+        const originalLog = console.log;
+        const originalWarn = console.warn;
+        const originalError = console.error;
+        
+        function addToConsole(message, type = 'log') {
+            const output = document.getElementById('console-output');
+            const color = type === 'error' ? '#ff6b6b' : type === 'warn' ? '#feca57' : '#4ecdc4';
+            const time = new Date().toLocaleTimeString();
+            output.innerHTML += `<div style="color: ${color}">[${time}] ${message}</div>`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addToConsole(args.join(' '), 'log');
+        };
+
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            addToConsole(args.join(' '), 'warn');
+        };
+
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addToConsole(args.join(' '), 'error');
+        };
+
+        function testVendorLogin() {
+            console.log('🧪 Testing vendor login...');
+            
+            // Simulate vendor login
+            if (typeof STN !== 'undefined' && STN.DB) {
+                const vendorUser = {
+                    id: 2,
+                    firstName: 'Ahmed',
+                    lastName: 'Maalej',
+                    email: 'vendor@shopping',
+                    role: 'vendor',
+                    verified: true
+                };
+                
+                STN.DB.set('currentUser', vendorUser);
+                if (typeof State !== 'undefined') {
+                    State.currentUser = vendorUser;
+                }
+                
+                console.log('✅ Vendor login simulated:', vendorUser);
+                updateDebugInfo();
+            } else {
+                console.error('❌ STN or State not available - make sure data.js and app.js are loaded');
+            }
+        }
+
+        function testVendorDashboard() {
+            console.log('🧪 Testing vendor dashboard...');
+            
+            if (typeof renderVendorDashboard === 'function') {
+                try {
+                    renderVendorDashboard();
+                    console.log('✅ renderVendorDashboard() called successfully');
+                } catch (error) {
+                    console.error('❌ Error calling renderVendorDashboard():', error.message);
+                }
+            } else {
+                console.error('❌ renderVendorDashboard function not found');
+            }
+        }
+
+        function checkConsoleLogs() {
+            console.log('🧪 Checking for critical logs...');
+            console.log('📋 Look for these key indicators:');
+            console.log('   - "🔄 Starting bulletproof vendor dashboard initialization..."');
+            console.log('   - "✅ Vendor access check passed - user is vendor"');
+            console.log('   - "🔍 Fetching products for Vendor: X"');
+            console.log('   - "📦 Vendor products found: Y"');
+            console.log('   - "✅ All vendor dashboard components loaded successfully"');
+        }
+
+        function updateDebugInfo() {
+            const debugDiv = document.getElementById('debug-info');
+            let html = '<h3>Current State:</h3>';
+            
+            if (typeof State !== 'undefined' && State.currentUser) {
+                html += `<p><strong>Current User:</strong> ${JSON.stringify(State.currentUser, null, 2)}</p>`;
+            } else {
+                html += '<p style="color: red;">❌ No user logged in</p>';
+            }
+            
+            if (typeof STN !== 'undefined' && STN.DB) {
+                const products = STN.DB.get('products') || [];
+                const orders = STN.DB.get('orders') || [];
+                html += `<p><strong>Products in DB:</strong> ${products.length}</p>`;
+                html += `<p><strong>Orders in DB:</strong> ${orders.length}</p>`;
+                
+                if (State.currentUser && State.currentUser.role === 'vendor') {
+                    const vendorProducts = products.filter(p => p.vendorId === State.currentUser.id);
+                    const vendorOrders = orders.filter(o => o.vendorId === State.currentUser.id);
+                    html += `<p><strong>Vendor Products:</strong> ${vendorProducts.length}</p>`;
+                    html += `<p><strong>Vendor Orders:</strong> ${vendorOrders.length}</p>`;
+                }
+            }
+            
+            debugDiv.innerHTML = html;
+        }
+
+        // Auto-update debug info every 2 seconds
+        setInterval(updateDebugInfo, 2000);
+        
+        // Initial debug info
+        updateDebugInfo();
+    </script>
+
+    <!-- Load the actual application files -->
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
