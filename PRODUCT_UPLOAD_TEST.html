@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Everest Dashboard - Product Upload Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #e8e4ff 100%);
+            min-height: 100vh;
+        }
+        .everest-gradient {
+            background: linear-gradient(135deg, #7c3aed, #6b3fd4);
+        }
+        .everest-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .everest-input {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 0.65rem 0.875rem;
+            font-size: 0.875rem;
+            outline: none;
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+        }
+        .everest-input:focus {
+            border-color: #7c3aed;
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+        }
+        .everest-btn {
+            background: linear-gradient(135deg, #7c3aed, #6b3fd4);
+            color: white;
+            border: none;
+            padding: 0.875rem 2rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .everest-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(124, 58, 237, 0.3);
+        }
+        .everest-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .upload-zone {
+            border: 2px dashed #e9d5ff;
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            background: #fafafa;
+            transition: all 0.3s ease;
+        }
+        .upload-zone:hover {
+            border-color: #7c3aed;
+            background: #f5f3ff;
+        }
+        .upload-zone.success {
+            border-color: #10b981;
+            background: #f0fdf4;
+        }
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+        .everest-toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #7c3aed, #6b3fd4);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(124, 58, 237, 0.3);
+            z-index: 9999;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            animation: slideInRight 0.5s ease, pulse 2s infinite;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container mx-auto p-6 max-w-4xl">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-900 mb-2">🏔️ Everest Dashboard</h1>
+            <p class="text-gray-600">Product Upload Form - Enhanced Version</p>
+        </div>
+
+        <!-- Upload Form -->
+        <div class="everest-card p-8">
+            <h2 class="text-xl font-bold text-gray-900 mb-6">Upload New Product</h2>
+            
+            <!-- Image Upload -->
+            <div class="mb-6">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Product Image</label>
+                <div id="upload-zone" onclick="document.getElementById('vp-image-file').click()" class="upload-zone">
+                    <div id="upload-preview" style="display:none;margin-bottom:1rem">
+                        <img id="upload-img-preview" style="max-height:150px;border-radius:8px;object-fit:cover" src=""/>
+                    </div>
+                    <div id="upload-placeholder">
+                        <div class="text-2xl mb-2">📸</div>
+                        <p class="text-gray-600 text-sm font-medium mb-1">Click to upload image</p>
+                        <p class="text-gray-500 text-xs">PNG, JPG up to 5MB</p>
+                    </div>
+                    <div id="upload-loading" style="display:none">
+                        <div class="text-xl">⏳</div>
+                        <p class="text-purple-600 text-sm">Uploading...</p>
+                    </div>
+                </div>
+                <input type="file" id="vp-image-file" accept="image/png, image/jpeg, image/jpg" style="display:none" onchange="handleImageUpload(this)"/>
+                <input type="hidden" id="vp-image-url"/>
+            </div>
+
+            <!-- Product Name & Brand -->
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Product Name *</label>
+                    <input type="text" id="vp-title" placeholder="e.g. Velvet Sultan Sofa" class="everest-input w-full"/>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Brand Name</label>
+                    <input type="text" id="vp-brand" placeholder="Your brand" class="everest-input w-full"/>
+                </div>
+            </div>
+
+            <!-- Description -->
+            <div class="mb-4">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+                <textarea id="vp-desc" placeholder="Describe your product..." class="everest-input w-full" rows="3"></textarea>
+            </div>
+
+            <!-- Price, Old Price, Stock -->
+            <div class="grid grid-cols-3 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Price (TND) *</label>
+                    <input type="number" id="vp-price" placeholder="1299" class="everest-input w-full"/>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Old Price</label>
+                    <input type="number" id="vp-old-price" placeholder="1599" class="everest-input w-full"/>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Stock</label>
+                    <input type="number" id="vp-stock" placeholder="10" class="everest-input w-full"/>
+                </div>
+            </div>
+
+            <!-- Category & Badge -->
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Category</label>
+                    <div class="relative">
+                        <select id="vp-cat" onchange="handleCategoryChange(this.value)" class="everest-input w-full">
+                            <option value="">Select Category</option>
+                            <option value="sofa">Sofa / Furniture</option>
+                            <option value="rug">Rugs / Kilim</option>
+                            <option value="lighting">Lighting</option>
+                            <option value="ceramic">Ceramics</option>
+                            <option value="bedroom">Bedroom</option>
+                            <option value="outdoor">Outdoor</option>
+                            <option value="fragrance">Fragrance</option>
+                            <option value="decor">Decor</option>
+                            <option value="custom">+ Add New Category</option>
+                        </select>
+                        <div id="new-category-input" style="display:none;position:absolute;top:0;left:0;width:100%">
+                            <input type="text" id="vp-new-category" placeholder="Enter new category..." class="everest-input w-full" style="border-color: #7c3aed;" onblur="confirmNewCategory()" onkeypress="if(event.key==='Enter')confirmNewCategory()"/>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Badge (optional)</label>
+                    <input type="text" id="vp-badge" placeholder="New, Bestseller..." class="everest-input w-full"/>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <button onclick="handleProductUpload()" id="upload-btn" class="everest-btn w-full">
+                Upload Product →
+            </button>
+        </div>
+
+        <!-- Test Results -->
+        <div class="mt-8 everest-card p-6">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">🧪 Test Results</h3>
+            <div id="test-results" class="space-y-2 text-sm">
+                <p class="text-gray-600">Upload a product to see test results...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mock State for testing
+        const State = {
+            currentUser: {
+                id: 'test-vendor-123',
+                shop_name: 'Everest Test Shop',
+                wilaya: 'Tunis'
+            },
+            products: []
+        };
+
+        // Mock STN for testing
+        const STN = {
+            DB: {
+                set: (key, value) => {
+                    localStorage.setItem(key, JSON.stringify(value));
+                    console.log('💾 Saved to localStorage:', key, value);
+                }
+            }
+        };
+
+        // Mock SB for testing
+        const SB = {
+            createProduct: async (product) => {
+                console.log('🔄 Mock saving to Supabase:', product);
+                // Simulate API delay
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                return { ...product, id: 'prod_' + Date.now() };
+            }
+        };
+
+        // Form Handlers
+        function handleCategoryChange(value) {
+            const select = document.getElementById('vp-cat');
+            const newCategoryInput = document.getElementById('new-category-input');
+            
+            if (value === 'custom') {
+                select.style.display = 'none';
+                newCategoryInput.style.display = 'block';
+                document.getElementById('vp-new-category').focus();
+            } else {
+                select.style.display = 'block';
+                newCategoryInput.style.display = 'none';
+            }
+        }
+
+        function confirmNewCategory() {
+            const newCategoryInput = document.getElementById('vp-new-category');
+            const select = document.getElementById('vp-cat');
+            const newCategoryValue = newCategoryInput.value.trim();
+            
+            if (newCategoryValue) {
+                const newOption = document.createElement('option');
+                newOption.value = newCategoryValue.toLowerCase().replace(/\s+/g, '-');
+                newOption.textContent = newCategoryValue;
+                select.insertBefore(newOption, select.lastElementChild);
+                
+                select.value = newOption.value;
+                
+                newCategoryInput.style.display = 'none';
+                select.style.display = 'block';
+                
+                newCategoryInput.value = '';
+                
+                addTestResult('✅ New category added: ' + newCategoryValue);
+            }
+        }
+
+        function handleImageUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            const validTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+            if (!validTypes.includes(file.type)) {
+                showEverestErrorToast('⚠️ Please upload a PNG or JPG image');
+                input.value = '';
+                return;
+            }
+            
+            if (file.size > 5 * 1024 * 1024) {
+                showEverestErrorToast('⚠️ Image size must be less than 5MB');
+                input.value = '';
+                return;
+            }
+            
+            document.getElementById('upload-placeholder').style.display = 'none';
+            document.getElementById('upload-preview').style.display = 'none';
+            document.getElementById('upload-loading').style.display = 'block';
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById('upload-img-preview');
+                img.src = e.target.result;
+                
+                setTimeout(() => {
+                    document.getElementById('upload-loading').style.display = 'none';
+                    document.getElementById('upload-preview').style.display = 'block';
+                    document.getElementById('upload-zone').classList.add('success');
+                }, 1000);
+            };
+            reader.readAsDataURL(file);
+            
+            addTestResult('📸 Image uploaded: ' + file.name + ' (' + (file.size / 1024).toFixed(2) + ' KB)');
+        }
+
+        async function handleProductUpload() {
+            const title = document.getElementById('vp-title')?.value?.trim();
+            const brand = document.getElementById('vp-brand')?.value?.trim();
+            const desc = document.getElementById('vp-desc')?.value?.trim();
+            const price = parseFloat(document.getElementById('vp-price')?.value);
+            const stock = parseInt(document.getElementById('vp-stock')?.value);
+            const cat = document.getElementById('vp-cat')?.value || 'default';
+            const badge = document.getElementById('vp-badge')?.value?.trim();
+            
+            // Validation - only Product Name and Price are mandatory
+            if (!title) {
+                showEverestErrorToast('⚠️ Product Name is required');
+                document.getElementById('vp-title').focus();
+                return;
+            }
+            
+            if (!price || price <= 0) {
+                showEverestErrorToast('⚠️ Price is required and must be greater than 0');
+                document.getElementById('vp-price').focus();
+                return;
+            }
+            
+            const uploadBtn = document.getElementById('upload-btn');
+            const originalText = uploadBtn.textContent;
+            uploadBtn.textContent = '⏳ Uploading...';
+            uploadBtn.style.background = '#9ca3af';
+            uploadBtn.disabled = true;
+            
+            try {
+                let imageUrl = null;
+                const imageFile = document.getElementById('vp-image-file').files[0];
+                
+                if (imageFile) {
+                    imageUrl = document.getElementById('upload-img-preview').src;
+                }
+                
+                const emojis = {
+                    sofa: '🛋️', rug: '🏺', lighting: '💡', ceramic: '🏺', 
+                    bedroom: '🛏️', outdoor: '🌿', fragrance: '🧴', 
+                    decor: '🎨', furniture: '🪑', default: '📦'
+                };
+                
+                const newProduct = {
+                    name: title,
+                    brand: brand || State.currentUser?.shop_name || 'Everest Vendor',
+                    vendorId: State.currentUser?.id,
+                    region: State.currentUser?.wilaya || 'Tunisia',
+                    cat: cat,
+                    price: price,
+                    oldPrice: parseFloat(document.getElementById('vp-old-price')?.value) || null,
+                    rating: 0,
+                    reviews: 0,
+                    badge: badge || null,
+                    emoji: emojis[cat] || '📦',
+                    image: imageUrl || `https://picsum.photos/seed/${title}${Date.now()}/400/300.jpg`,
+                    verified: false,
+                    stock: stock || 10,
+                    desc: desc || 'Beautiful product from Tunisia',
+                    created_at: new Date().toISOString()
+                };
+
+                const savedProduct = await SB.createProduct(newProduct);
+                State.products.push(savedProduct);
+                STN.DB.set('products', State.products);
+                
+                showEverestSuccessToast('🎉 Product uploaded successfully!');
+                addTestResult('✅ Product saved: ' + JSON.stringify(savedProduct, null, 2));
+                
+                clearUploadForm();
+                
+                setTimeout(() => {
+                    addTestResult('📦 Total products in database: ' + State.products.length);
+                }, 500);
+                
+            } catch (error) {
+                console.error('❌ Error uploading product:', error);
+                showEverestErrorToast('⚠️ Failed to upload product: ' + (error?.message || 'Unknown error'));
+                addTestResult('❌ Error: ' + error.message);
+            } finally {
+                uploadBtn.textContent = originalText;
+                uploadBtn.style.background = 'linear-gradient(135deg,#7c3aed,#6b3fd4)';
+                uploadBtn.disabled = false;
+            }
+        }
+
+        function clearUploadForm() {
+            document.getElementById('vp-title').value = '';
+            document.getElementById('vp-brand').value = '';
+            document.getElementById('vp-desc').value = '';
+            document.getElementById('vp-price').value = '';
+            document.getElementById('vp-old-price').value = '';
+            document.getElementById('vp-stock').value = '';
+            document.getElementById('vp-badge').value = '';
+            document.getElementById('vp-image-url').value = '';
+            document.getElementById('vp-cat').selectedIndex = 0;
+            
+            document.getElementById('upload-placeholder').style.display = 'block';
+            document.getElementById('upload-preview').style.display = 'none';
+            document.getElementById('upload-loading').style.display = 'none';
+            document.getElementById('upload-zone').classList.remove('success');
+            document.getElementById('vp-image-file').value = '';
+        }
+
+        function showEverestSuccessToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'everest-toast';
+            toast.innerHTML = `
+                <div style="font-size: 1.5rem;">🏔️</div>
+                <div>
+                    <div style="font-weight: 700; margin-bottom: 0.25rem;">Everest Success!</div>
+                    <div style="font-size: 0.85rem; opacity: 0.9;">${message}</div>
+                </div>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideInRight 0.5s ease reverse';
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 500);
+            }, 4000);
+        }
+
+        function showEverestErrorToast(message) {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(135deg, #dc2626, #b91c1c);
+                color: white;
+                padding: 1rem 1.5rem;
+                border-radius: 12px;
+                box-shadow: 0 10px 25px rgba(220, 38, 38, 0.3);
+                z-index: 9999;
+                font-family: 'Outfit', sans-serif;
+                font-weight: 600;
+                font-size: 0.95rem;
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                animation: slideInRight 0.5s ease;
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            `;
+            
+            toast.innerHTML = `
+                <div style="font-size: 1.5rem;">⚠️</div>
+                <div>
+                    <div style="font-weight: 700; margin-bottom: 0.25rem;">Error!</div>
+                    <div style="font-size: 0.85rem; opacity: 0.9;">${message}</div>
+                </div>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideInRight 0.5s ease reverse';
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 500);
+            }, 3000);
+        }
+
+        function addTestResult(message) {
+            const resultsDiv = document.getElementById('test-results');
+            const timestamp = new Date().toLocaleTimeString();
+            const resultItem = document.createElement('div');
+            resultItem.className = 'p-2 bg-gray-50 rounded border-l-4 border-blue-500';
+            resultItem.innerHTML = `<span class="text-gray-500 text-xs">[${timestamp}]</span> ${message}`;
+            resultsDiv.appendChild(resultItem);
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            addTestResult('🚀 Everest Product Upload Form initialized');
+            addTestResult('✅ Form validation: Only Product Name & Price required');
+            addTestResult('✅ Category: Dynamic dropdown with "Add New Category" option');
+            addTestResult('✅ Image upload: PNG/JPG support, 5MB limit, preview');
+            addTestResult('✅ Success toast: Beautiful Everest-style notification');
+        });
+    </script>
+</body>
+</html>
