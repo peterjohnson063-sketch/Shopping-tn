@@ -2583,6 +2583,7 @@ function switchVendorSection(section) {
             <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Badge (optional)</label><input type="text" id="vp-badge" placeholder="New, Bestseller..." style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
           </div>
           <button onclick="handleProductUpload()" id="upload-btn" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.875rem 2rem;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer;width:100%;transition:all 0.3s ease">Upload Product →</button>
+          <div id="upload-error" style="margin-top:1rem;color:#dc2626;font-size:0.875rem;display:none"></div>
         </div>
       </div>`;
 
@@ -2885,43 +2886,65 @@ function handleImageUpload(input) {
 }
 
 async function handleProductUpload() {
-  const title = document.getElementById('vp-title')?.value?.trim();
-  const brand = document.getElementById('vp-brand')?.value?.trim();
-  const desc = document.getElementById('vp-desc')?.value?.trim();
-  const price = parseFloat(document.getElementById('vp-price')?.value);
-  const stock = parseInt(document.getElementById('vp-stock')?.value);
-  const cat = document.getElementById('vp-cat')?.value || 'default';
-  const badge = document.getElementById('vp-badge')?.value?.trim();
-  
-  // Validation - only Product Name and Price are mandatory
-  if (!title) {
-    showToast('⚠️ Product Name is required', 'error');
-    document.getElementById('vp-title').focus();
-    return;
-  }
-  
-  if (!price || price <= 0) {
-    showToast('⚠️ Price is required and must be greater than 0', 'error');
-    document.getElementById('vp-price').focus();
-    return;
-  }
-  
-  // Show loading state on button
-  const uploadBtn = document.getElementById('upload-btn');
-  const originalText = uploadBtn.textContent;
-  uploadBtn.textContent = '⏳ Uploading...';
-  uploadBtn.style.background = '#9ca3af';
-  uploadBtn.disabled = true;
+  console.log('🚀 handleProductUpload called');
   
   try {
+    const title = document.getElementById('vp-title')?.value?.trim();
+    const brand = document.getElementById('vp-brand')?.value?.trim();
+    const desc = document.getElementById('vp-desc')?.value?.trim();
+    const price = parseFloat(document.getElementById('vp-price')?.value);
+    const stock = parseInt(document.getElementById('vp-stock')?.value);
+    const cat = document.getElementById('vp-cat')?.value || 'default';
+    const badge = document.getElementById('vp-badge')?.value?.trim();
+    
+    console.log('📝 Form data:', { title, brand, desc, price, stock, cat, badge });
+    
+    // Hide any previous errors
+    const errorDiv = document.getElementById('upload-error');
+    if (errorDiv) errorDiv.style.display = 'none';
+    
+    // Validation - only Product Name and Price are mandatory
+    if (!title) {
+      const errorMsg = '⚠️ Product Name is required';
+      console.log(errorMsg);
+      if (errorDiv) {
+        errorDiv.textContent = errorMsg;
+        errorDiv.style.display = 'block';
+      }
+      document.getElementById('vp-title')?.focus();
+      return;
+    }
+    
+    if (!price || price <= 0) {
+      const errorMsg = '⚠️ Price is required and must be greater than 0';
+      console.log(errorMsg);
+      if (errorDiv) {
+        errorDiv.textContent = errorMsg;
+        errorDiv.style.display = 'block';
+      }
+      document.getElementById('vp-price')?.focus();
+      return;
+    }
+    
+    // Show loading state on button
+    const uploadBtn = document.getElementById('upload-btn');
+    if (!uploadBtn) {
+      console.error('❌ Upload button not found!');
+      return;
+    }
+    
+    const originalText = uploadBtn.textContent;
+    uploadBtn.textContent = '⏳ Uploading...';
+    uploadBtn.style.background = '#9ca3af';
+    uploadBtn.disabled = true;
+    
     // Handle image upload if present
     let imageUrl = null;
-    const imageFile = document.getElementById('vp-image-file').files[0];
+    const imageFile = document.getElementById('vp-image-file')?.files[0];
     
     if (imageFile) {
       // For demo purposes, use the preview as URL
-      // In production, this would upload to Cloudinary
-      imageUrl = document.getElementById('upload-img-preview').src;
+      imageUrl = document.getElementById('upload-img-preview')?.src;
     }
     
     const emojis = {
@@ -2949,10 +2972,11 @@ async function handleProductUpload() {
       created_at: new Date().toISOString()
     };
 
-    console.log('🔄 Attempting to save product to Supabase:', newProduct);
+    console.log('🔄 Attempting to save product:', newProduct);
 
-    // Save to Supabase
+    // Save to Supabase or fallback to local storage
     if (typeof SB !== 'undefined' && SB?.createProduct) {
+      console.log('💾 Saving to Supabase...');
       const savedProduct = await SB.createProduct(newProduct);
       console.log('✅ Product saved to Supabase successfully:', savedProduct);
       
@@ -2960,10 +2984,10 @@ async function handleProductUpload() {
       State.products.push(savedProduct);
       STN.DB.set('products', State.products);
     } else {
+      console.log('⚠️ Supabase not available, saving to local storage only');
       // Fallback to local storage only
       State.products.push(newProduct);
       STN.DB.set('products', State.products);
-      console.log('⚠️ Product saved to local storage only');
     }
     
     // Show beautiful success toast
@@ -2992,12 +3016,21 @@ async function handleProductUpload() {
     
   } catch (error) {
     console.error('❌ Error uploading product:', error);
-    showToast('⚠️ Failed to upload product: ' + (error?.message || 'Unknown error'), 'error');
+    const errorMsg = '⚠️ Failed to upload product: ' + (error?.message || 'Unknown error');
+    const errorDiv = document.getElementById('upload-error');
+    if (errorDiv) {
+      errorDiv.textContent = errorMsg;
+      errorDiv.style.display = 'block';
+    }
+    showToast(errorMsg, 'error');
   } finally {
     // Reset button state
-    uploadBtn.textContent = originalText;
-    uploadBtn.style.background = 'linear-gradient(135deg,#7c3aed,#6b3fd4)';
-    uploadBtn.disabled = false;
+    const uploadBtn = document.getElementById('upload-btn');
+    if (uploadBtn) {
+      uploadBtn.textContent = 'Upload Product →';
+      uploadBtn.style.background = 'linear-gradient(135deg,#7c3aed,#6b3fd4)';
+      uploadBtn.disabled = false;
+    }
   }
 }
 
@@ -3094,7 +3127,57 @@ function showToast(message, type = 'default') {
 
 async function uploadProduct() {
   // Keep original function for backward compatibility
+  console.log('🔄 uploadProduct called (legacy function)');
   return handleProductUpload();
+}
+
+// Quick test function for debugging
+function testUploadForm() {
+  console.log('🧪 Testing upload form...');
+  
+  // Check if all required elements exist
+  const elements = [
+    'vp-title', 'vp-price', 'vp-cat', 'upload-btn', 
+    'vp-brand', 'vp-desc', 'vp-stock', 'vp-badge'
+  ];
+  
+  let missing = [];
+  elements.forEach(id => {
+    const element = document.getElementById(id);
+    if (!element) {
+      missing.push(id);
+    } else {
+      console.log(`✅ Found element: ${id}`);
+    }
+  });
+  
+  if (missing.length > 0) {
+    console.error('❌ Missing elements:', missing);
+    return false;
+  }
+  
+  // Check if functions exist
+  const functions = [
+    'handleProductUpload', 'handleCategoryChange', 
+    'confirmNewCategory', 'showEverestSuccessToast'
+  ];
+  
+  let missingFunctions = [];
+  functions.forEach(fn => {
+    if (typeof window[fn] !== 'function') {
+      missingFunctions.push(fn);
+    } else {
+      console.log(`✅ Found function: ${fn}`);
+    }
+  });
+  
+  if (missingFunctions.length > 0) {
+    console.error('❌ Missing functions:', missingFunctions);
+    return false;
+  }
+  
+  console.log('✅ Upload form test passed!');
+  return true;
 }
 
 // ── CARPENTER ──

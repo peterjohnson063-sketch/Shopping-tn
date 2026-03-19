@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Form Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .debug-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Upload Form Debug</h1>
+    
+    <div class="debug-section">
+        <h3>Quick Tests</h3>
+        <button onclick="testUploadForm()">🧪 Test Upload Form</button>
+        <button onclick="checkConsole()">📋 Check Console</button>
+        <button onclick="simulateUpload()">🚀 Simulate Upload</button>
+    </div>
+    
+    <div class="debug-section">
+        <h3>Manual Form Test</h3>
+        <button onclick="openUploadForm()">📝 Open Upload Form</button>
+        <div id="form-container"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h3>Debug Results</h3>
+        <div id="debug-output">Click tests above to see results...</div>
+    </div>
+
+    <script>
+        // Mock required objects
+        window.State = {
+            currentUser: {
+                id: 'test-vendor',
+                shop_name: 'Test Shop',
+                wilaya: 'Tunis'
+            },
+            products: []
+        };
+        
+        window.STN = {
+            DB: {
+                set: (key, value) => console.log('💾 Saved to localStorage:', key, value)
+            }
+        };
+        
+        window.SB = {
+            createProduct: async (product) => {
+                console.log('🔄 Mock saving to Supabase:', product);
+                await new Promise(resolve => setTimeout(resolve, 500));
+                return { ...product, id: 'prod_' + Date.now() };
+            }
+        };
+        
+        // Copy the upload form HTML
+        function getUploadFormHTML() {
+            return `
+                <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:2rem;max-width:700px">
+                    <h2>Product Upload Form</h2>
+                    
+                    <div style="margin-bottom:1rem">
+                        <label>Product Name *</label>
+                        <input type="text" id="vp-title" placeholder="e.g. Velvet Sultan Sofa" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem"/>
+                    </div>
+                    
+                    <div style="margin-bottom:1rem">
+                        <label>Brand Name</label>
+                        <input type="text" id="vp-brand" placeholder="Your brand" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem"/>
+                    </div>
+                    
+                    <div style="margin-bottom:1rem">
+                        <label>Description</label>
+                        <textarea id="vp-desc" placeholder="Describe your product..." style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem;min-height:80px"></textarea>
+                    </div>
+                    
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+                        <div>
+                            <label>Price (TND) *</label>
+                            <input type="number" id="vp-price" placeholder="1299" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem"/>
+                        </div>
+                        <div>
+                            <label>Old Price</label>
+                            <input type="number" id="vp-old-price" placeholder="1599" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem"/>
+                        </div>
+                        <div>
+                            <label>Stock</label>
+                            <input type="number" id="vp-stock" placeholder="10" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem"/>
+                        </div>
+                    </div>
+                    
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+                        <div>
+                            <label>Category</label>
+                            <select id="vp-cat" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem">
+                                <option value="">Select Category</option>
+                                <option value="sofa">Sofa / Furniture</option>
+                                <option value="rug">Rugs / Kilim</option>
+                                <option value="lighting">Lighting</option>
+                                <option value="ceramic">Ceramics</option>
+                                <option value="bedroom">Bedroom</option>
+                                <option value="outdoor">Outdoor</option>
+                                <option value="fragrance">Fragrance</option>
+                                <option value="decor">Decor</option>
+                                <option value="custom">+ Add New Category</option>
+                            </select>
+                            <div id="new-category-input" style="display:none">
+                                <input type="text" id="vp-new-category" placeholder="Enter new category..." style="width:100%;border:1px solid #7c3aed;border-radius:8px;padding:0.65rem;margin-top:5px"/>
+                            </div>
+                        </div>
+                        <div>
+                            <label>Badge (optional)</label>
+                            <input type="text" id="vp-badge" placeholder="New, Bestseller..." style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem"/>
+                        </div>
+                    </div>
+                    
+                    <button onclick="handleProductUpload()" id="upload-btn" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.875rem 2rem;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer;width:100%">Upload Product →</button>
+                    <div id="upload-error" style="margin-top:1rem;color:#dc2626;font-size:0.875rem;display:none"></div>
+                </div>
+            `;
+        }
+        
+        // Copy the functions from app.js (simplified versions)
+        function handleCategoryChange(value) {
+            console.log('🔄 handleCategoryChange called with:', value);
+            const select = document.getElementById('vp-cat');
+            const newCategoryInput = document.getElementById('new-category-input');
+            
+            if (value === 'custom') {
+                select.style.display = 'none';
+                newCategoryInput.style.display = 'block';
+                document.getElementById('vp-new-category').focus();
+            } else {
+                select.style.display = 'block';
+                newCategoryInput.style.display = 'none';
+            }
+        }
+
+        function confirmNewCategory() {
+            console.log('🔄 confirmNewCategory called');
+            const newCategoryInput = document.getElementById('vp-new-category');
+            const select = document.getElementById('vp-cat');
+            const newCategoryValue = newCategoryInput.value.trim();
+            
+            if (newCategoryValue) {
+                const newOption = document.createElement('option');
+                newOption.value = newCategoryValue.toLowerCase().replace(/\s+/g, '-');
+                newOption.textContent = newCategoryValue;
+                select.insertBefore(newOption, select.lastElementChild);
+                
+                select.value = newOption.value;
+                
+                newCategoryInput.style.display = 'none';
+                select.style.display = 'block';
+                
+                newCategoryInput.value = '';
+            }
+        }
+
+        async function handleProductUpload() {
+            console.log('🚀 handleProductUpload called');
+            
+            try {
+                const title = document.getElementById('vp-title')?.value?.trim();
+                const price = parseFloat(document.getElementById('vp-price')?.value);
+                
+                const errorDiv = document.getElementById('upload-error');
+                if (errorDiv) errorDiv.style.display = 'none';
+                
+                if (!title) {
+                    const errorMsg = '⚠️ Product Name is required';
+                    if (errorDiv) {
+                        errorDiv.textContent = errorMsg;
+                        errorDiv.style.display = 'block';
+                    }
+                    return;
+                }
+                
+                if (!price || price <= 0) {
+                    const errorMsg = '⚠️ Price is required and must be greater than 0';
+                    if (errorDiv) {
+                        errorDiv.textContent = errorMsg;
+                        errorDiv.style.display = 'block';
+                    }
+                    return;
+                }
+                
+                const uploadBtn = document.getElementById('upload-btn');
+                const originalText = uploadBtn.textContent;
+                uploadBtn.textContent = '⏳ Uploading...';
+                uploadBtn.style.background = '#9ca3af';
+                uploadBtn.disabled = true;
+                
+                const newProduct = {
+                    name: title,
+                    price: price,
+                    created_at: new Date().toISOString()
+                };
+                
+                const savedProduct = await SB.createProduct(newProduct);
+                State.products.push(savedProduct);
+                
+                alert('✅ Product uploaded successfully!');
+                
+                // Clear form
+                document.getElementById('vp-title').value = '';
+                document.getElementById('vp-price').value = '';
+                
+            } catch (error) {
+                console.error('❌ Error:', error);
+                const errorDiv = document.getElementById('upload-error');
+                if (errorDiv) {
+                    errorDiv.textContent = '⚠️ Failed to upload product: ' + error.message;
+                    errorDiv.style.display = 'block';
+                }
+            } finally {
+                const uploadBtn = document.getElementById('upload-btn');
+                if (uploadBtn) {
+                    uploadBtn.textContent = 'Upload Product →';
+                    uploadBtn.style.background = 'linear-gradient(135deg,#7c3aed,#6b3fd4)';
+                    uploadBtn.disabled = false;
+                }
+            }
+        }
+
+        function showEverestSuccessToast(message) {
+            console.log('🎉 Success:', message);
+            alert('🏔️ Everest Success: ' + message);
+        }
+
+        function testUploadForm() {
+            const output = document.getElementById('debug-output');
+            
+            // Check elements
+            const elements = ['vp-title', 'vp-price', 'vp-cat', 'upload-btn'];
+            let missing = [];
+            let found = [];
+            
+            elements.forEach(id => {
+                const element = document.getElementById(id);
+                if (!element) {
+                    missing.push(id);
+                } else {
+                    found.push(id);
+                }
+            });
+            
+            // Check functions
+            const functions = ['handleProductUpload', 'handleCategoryChange', 'confirmNewCategory'];
+            let missingFunctions = [];
+            let foundFunctions = [];
+            
+            functions.forEach(fn => {
+                if (typeof window[fn] !== 'function') {
+                    missingFunctions.push(fn);
+                } else {
+                    foundFunctions.push(fn);
+                }
+            });
+            
+            let html = '<h4>Test Results:</h4>';
+            html += '<div class="' + (missing.length === 0 ? 'success' : 'error') + '">';
+            html += '<strong>Elements:</strong><br>';
+            html += '✅ Found: ' + found.join(', ') + '<br>';
+            if (missing.length > 0) {
+                html += '❌ Missing: ' + missing.join(', ') + '<br>';
+            }
+            html += '</div>';
+            
+            html += '<div class="' + (missingFunctions.length === 0 ? 'success' : 'error') + '">';
+            html += '<strong>Functions:</strong><br>';
+            html += '✅ Found: ' + foundFunctions.join(', ') + '<br>';
+            if (missingFunctions.length > 0) {
+                html += '❌ Missing: ' + missingFunctions.join(', ') + '<br>';
+            }
+            html += '</div>';
+            
+            output.innerHTML = html;
+        }
+
+        function checkConsole() {
+            const output = document.getElementById('debug-output');
+            output.innerHTML = '<h4>Console Check:</h4><p>Open browser console (F12) to see detailed logs. All functions should log their activity when called.</p>';
+        }
+
+        function simulateUpload() {
+            const output = document.getElementById('debug-output');
+            output.innerHTML = '<h4>Simulating Upload:</h4><p>Fill in the form below and click "Upload Product" to test the upload functionality.</p>';
+            openUploadForm();
+        }
+
+        function openUploadForm() {
+            const container = document.getElementById('form-container');
+            container.innerHTML = getUploadFormHTML();
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🔧 Debug page loaded');
+            console.log('📝 Available functions:', Object.keys(window).filter(k => typeof window[k] === 'function'));
+        });
+    </script>
+</body>
+</html>
