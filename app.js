@@ -1841,6 +1841,28 @@ async function doRegister() {
     var insertFallback = newUser._stnInsertFallbackLevel;
     if (insertFallback != null) delete newUser._stnInsertFallbackLevel;
     _regRateLimitRecordSuccess();
+    try {
+      var regUsers = STN.DB.get('users') || [];
+      var regSid = String(newUser.id);
+      var regIx = regUsers.findIndex(function (u) {
+        return String(u.id) === regSid;
+      });
+      var regSession = STN.userForSession({
+        ...newUser,
+        firstName: newUser.first_name,
+        lastName: newUser.last_name,
+      });
+      if (regIx === -1) {
+        regUsers.push(regSession);
+      } else if (
+        String(regUsers[regIx].email || '').toLowerCase() !== String(newUser.email || '').toLowerCase()
+      ) {
+        regUsers[regIx] = regSession;
+      } else {
+        Object.assign(regUsers[regIx], regSession);
+      }
+      STN.DB.set('users', regUsers);
+    } catch (regLocalErr) {}
     State.currentUser = STN.userForSession({ ...newUser, firstName: newUser.first_name, lastName: newUser.last_name });
     STN.DB.set('currentUser', State.currentUser);
     updateNavUser();
@@ -2401,6 +2423,14 @@ function renderAccount() {
 
 // ── ADMIN ──
 /** Merge demo/local users with Supabase so admin can verify drivers who registered online. */
+function _remoteUserRowForAdminMerge(r) {
+  var o = Object.assign({}, r);
+  delete o.password;
+  if (r.first_name != null && r.first_name !== '') o.firstName = r.first_name;
+  if (r.last_name != null && r.last_name !== '') o.lastName = r.last_name;
+  return o;
+}
+
 async function mergeLocalAndRemoteUsersForAdmin() {
   var local = STN.DB.get('users') || [];
   if (typeof SB === 'undefined' || typeof SB.getUsers !== 'function') {
@@ -2417,35 +2447,18 @@ async function mergeLocalAndRemoteUsersForAdmin() {
       if (!r || r.id == null) return;
       var id = String(r.id);
       var ex = byId.get(id);
-      var row = {
-        id: r.id,
-        email: r.email,
-        first_name: r.first_name,
-        last_name: r.last_name,
-        firstName: r.first_name,
-        lastName: r.last_name,
-        phone: r.phone,
-        wilaya: r.wilaya,
-        delegation: r.delegation,
-        role: r.role,
-        points: r.points,
-        verified: r.verified,
-        is_verified: r.is_verified,
-        banned: r.banned,
-        timeout_until: r.timeout_until,
-        shop_name: r.shop_name,
-        specialty: r.specialty,
-        id_card_number: r.id_card_number,
-        vehicle_plate_number: r.vehicle_plate_number,
-        vehicle_model: r.vehicle_model,
-        vehicle_color: r.vehicle_color,
-        cin_document_url: r.cin_document_url,
-        license_document_url: r.license_document_url,
-      };
+      var full = _remoteUserRowForAdminMerge(r);
       if (!ex) {
-        byId.set(id, row);
+        byId.set(id, full);
+        return;
+      }
+      var emLocal = String(ex.email || '').toLowerCase();
+      var emRemote = String(r.email || '').toLowerCase();
+      if (emLocal === emRemote) {
+        Object.assign(ex, full);
       } else {
-        Object.assign(ex, row);
+        // Demo seed id (e.g. 3) collided with next Supabase serial — keep server row only
+        byId.set(id, full);
       }
     });
     return Array.from(byId.values());

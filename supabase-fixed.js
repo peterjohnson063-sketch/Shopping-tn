@@ -185,8 +185,36 @@ function _sbUserInsertShouldRetrySchema(errMsg) {
   );
 }
 
+/**
+ * Driver sign-up: never fall back to a “minimal” row without CIN + vehicle fields
+ * (that made admin see only name/email/phone/wilaya).
+ */
+function _sbDriverUserInsertAttempts(body) {
+  var list = [];
+  function add(b) {
+    var json = JSON.stringify(b);
+    for (var i = 0; i < list.length; i++) {
+      if (JSON.stringify(list[i]) === json) return;
+    }
+    list.push(b);
+  }
+  add(body);
+  var a1 = Object.assign({}, body);
+  delete a1.is_verified;
+  add(a1);
+  var a2 = Object.assign({}, body);
+  delete a2.is_verified;
+  delete a2.cin_document_url;
+  delete a2.license_document_url;
+  add(a2);
+  return list;
+}
+
 /** Progressive shapes: full → drop is_verified → drop doc URLs → drop driver text → core columns only. */
 function _sbUniqueUserInsertAttempts(body) {
+  if (body && body.role === 'driver') {
+    return _sbDriverUserInsertAttempts(body);
+  }
   var list = [];
   function add(b) {
     var json = JSON.stringify(b);
