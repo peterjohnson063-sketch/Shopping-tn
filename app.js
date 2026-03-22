@@ -2460,14 +2460,47 @@ function _remoteUserRowForAdminMerge(r) {
   return o;
 }
 
+function _stnAdminRemovedUserIdsGet() {
+  try {
+    var arr = STN.DB.get('admin_removed_user_ids');
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function _stnAdminRemovedUserIdRemember(userId) {
+  var s = String(userId);
+  var arr = _stnAdminRemovedUserIdsGet();
+  if (arr.indexOf(s) === -1) {
+    arr.push(s);
+    STN.DB.set('admin_removed_user_ids', arr);
+  }
+}
+
+function _stnAdminRemovedUserIdForget(userId) {
+  var s = String(userId);
+  var arr = _stnAdminRemovedUserIdsGet().filter(function (x) {
+    return String(x) !== s;
+  });
+  STN.DB.set('admin_removed_user_ids', arr);
+}
+
+function _stnFilterRemovedUserIdsFromList(list) {
+  var removed = new Set(_stnAdminRemovedUserIdsGet().map(String));
+  return (Array.isArray(list) ? list : []).filter(function (u) {
+    return u == null || u.id == null || !removed.has(String(u.id));
+  });
+}
+
 async function mergeLocalAndRemoteUsersForAdmin() {
   var local = STN.DB.get('users') || [];
   if (typeof SB === 'undefined' || typeof SB.getUsers !== 'function') {
-    return local.slice();
+    return _stnFilterRemovedUserIdsFromList(local.slice());
   }
   try {
     var remote = await SB.getUsers(500);
-    if (!remote || !remote.length) return local.slice();
+    if (!remote || !remote.length) return _stnFilterRemovedUserIdsFromList(local.slice());
     var byId = new Map();
     local.forEach(function (u) {
       byId.set(String(u.id), Object.assign({}, u));
@@ -2479,6 +2512,7 @@ async function mergeLocalAndRemoteUsersForAdmin() {
         byId.delete(id);
         return;
       }
+      _stnAdminRemovedUserIdForget(r.id);
       var ex = byId.get(id);
       var full = _remoteUserRowForAdminMerge(r);
       if (!ex) {
@@ -2494,10 +2528,10 @@ async function mergeLocalAndRemoteUsersForAdmin() {
         byId.set(id, full);
       }
     });
-    return Array.from(byId.values());
+    return _stnFilterRemovedUserIdsFromList(Array.from(byId.values()));
   } catch (e) {
     if (typeof STNLog !== 'undefined') STNLog.warn('admin.mergeUsers', e && e.message);
-    return local.slice();
+    return _stnFilterRemovedUserIdsFromList(local.slice());
   }
 }
 
@@ -3446,6 +3480,7 @@ async function adminDeleteUserAccount(userId) {
     return String(u.id) !== String(userId);
   });
   STN.DB.set('users', next);
+  _stnAdminRemovedUserIdRemember(userId);
   if (State.currentUser && String(State.currentUser.id) === String(userId)) {
     State.currentUser = null;
     STN.DB.set('currentUser', null);

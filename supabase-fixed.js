@@ -382,7 +382,54 @@ const SB = {
   /** Hard-delete row in public.users (requires RLS DELETE policy for your API role). */
   async deleteUser(id) {
     if (id == null || id === '') throw new Error('Invalid user id');
-    return this.req('DELETE', 'users', null, `?id=eq.${_sbEq(id)}`);
+    _sbSafeTable('users');
+    const url = `${SUPABASE_URL}/rest/v1/users?id=eq.${_sbEq(id)}`;
+    const res = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        Prefer: 'return=representation',
+      },
+    });
+    if (!res.ok) {
+      let msg = 'Supabase error';
+      let detail = '';
+      try {
+        const errBody = await res.json();
+        if (Array.isArray(errBody) && errBody[0]) {
+          msg = errBody[0].message || errBody[0].error || msg;
+          detail = errBody[0].details || errBody[0].hint || '';
+        } else if (errBody && typeof errBody === 'object') {
+          msg = errBody.message || errBody.error_description || errBody.error || msg;
+          detail = errBody.details || errBody.hint || '';
+          if (detail && String(msg).indexOf(String(detail).slice(0, 24)) < 0) {
+            msg = msg + ' — ' + detail;
+          }
+        }
+      } catch (e) {}
+      const err = new Error(msg);
+      err.status = res.status;
+      err._stnLogged = true;
+      if (typeof window !== 'undefined' && window.STNLog) {
+        window.STNLog.error('SB.deleteUser.http', err, { status: res.status, id: String(id) });
+      }
+      throw err;
+    }
+    const text = await res.text();
+    if (res.status === 204 || !text || !String(text).trim()) {
+      throw new Error('No user row was deleted (check RLS DELETE policy or user id)');
+    }
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      throw new Error('Invalid delete response from server');
+    }
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error('No user row was deleted (check RLS DELETE policy or user id)');
+    }
+    return data[0];
   },
 
   /**
