@@ -22,12 +22,64 @@ const State = {
     sort: 'name'
   },
   reviews: [],
+  driverOrdersList: [],
   dashSection: 'overview',
   vendorSection: 'dashboard',
   selectedProduct: null,
   flashInterval: null,
   countdownInterval: null,
 };
+
+function _driverKycBucket() {
+  return (typeof window !== 'undefined' && window.STN_DRIVER_KYC_BUCKET) || 'driver-kyc';
+}
+
+function compressImageFileToJpegBlob(file, maxEdge, quality) {
+  return new Promise(function (resolve, reject) {
+    var img = new Image();
+    var u = URL.createObjectURL(file);
+    img.onload = function () {
+      URL.revokeObjectURL(u);
+      var w = img.naturalWidth || img.width;
+      var h = img.naturalHeight || img.height;
+      var m = Math.max(w, h);
+      var scale = m > maxEdge ? maxEdge / m : 1;
+      var cw = Math.max(1, Math.round(w * scale));
+      var ch = Math.max(1, Math.round(h * scale));
+      var c = document.createElement('canvas');
+      c.width = cw;
+      c.height = ch;
+      var ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0, cw, ch);
+      c.toBlob(
+        function (blob) {
+          if (blob) resolve(blob);
+          else reject(new Error('Could not compress image'));
+        },
+        'image/jpeg',
+        quality != null ? quality : 0.82
+      );
+    };
+    img.onerror = function () {
+      URL.revokeObjectURL(u);
+      reject(new Error('Invalid image file'));
+    };
+    img.src = u;
+  });
+}
+
+function blobToDataUrl(blob) {
+  return new Promise(function (resolve, reject) {
+    var r = new FileReader();
+    r.onload = function () {
+      resolve(String(r.result || ''));
+    };
+    r.onerror = function () {
+      reject(new Error('read failed'));
+    };
+    r.readAsDataURL(blob);
+  });
+}
 
 // ── INIT ──
 function init() {
@@ -187,6 +239,11 @@ function updateNavUser() {
       el.style.color = 'white';
       el.textContent = navLabelForHeader('My Dashboard', 'Dashboard');
       el.onclick = function(){ showPage('vendor'); };
+    } else if (role === 'driver') {
+      el.style.background = 'linear-gradient(135deg,#0ea5e9,#0369a1)';
+      el.style.color = 'white';
+      el.textContent = navLabelForHeader('My deliveries', 'Deliveries');
+      el.onclick = function(){ showPage('driver'); };
     } else {
       el.style.background = 'white';
       el.style.color = '#374151';
@@ -216,6 +273,8 @@ function updateNavUser() {
     btn.innerHTML = '';
     btn.appendChild(el2);
   }
+  var dli = document.getElementById('nav-drawer-driver-item');
+  if (dli) dli.style.display = State.currentUser && State.currentUser.role === 'driver' ? 'block' : 'none';
   syncBottomNavActive(State.currentPage || 'home');
 }
 
@@ -229,7 +288,10 @@ function showPage(id) {
   if (State.currentPage === 'track' && id !== 'track') {
     stopRealtimeTracking();
   }
-  
+  if (State.currentPage === 'driver' && id !== 'driver') {
+    if (typeof stopDriverGpsForDelivery === 'function') stopDriverGpsForDelivery();
+  }
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const page = document.getElementById('page-' + id);
   if (!page) {
@@ -259,6 +321,7 @@ function showPage(id) {
     admin: renderAdmin,
     vendor: renderVendor,
     'vendor-dashboard': renderVendorDashboard,
+    driver: renderDriver,
     loyalty: renderLoyalty,
     about: renderAbout,
   };
@@ -328,6 +391,7 @@ function mobileNavAccount() {
   var role = State.currentUser.role;
   if (role === 'admin') showPage('admin');
   else if (role === 'vendor') showPage('vendor');
+  else if (role === 'driver') showPage('driver');
   else showPage('account');
 }
 
@@ -336,7 +400,7 @@ function syncBottomNavActive(pageId) {
   if (!nav) return;
   nav.querySelectorAll('.bottom-nav__btn').forEach(function (b) { b.classList.remove('active'); });
   var map = { home: 'bottomnav-home', products: 'bottomnav-products', track: 'bottomnav-track' };
-  var accountPages = { account: 1, auth: 1, vendor: 1, admin: 1, 'vendor-dashboard': 1 };
+  var accountPages = { account: 1, auth: 1, vendor: 1, admin: 1, 'vendor-dashboard': 1, driver: 1 };
   if (accountPages[pageId]) {
     var acc = document.getElementById('bottomnav-account');
     if (acc) acc.classList.add('active');
@@ -347,6 +411,299 @@ function syncBottomNavActive(pageId) {
     var el = document.getElementById(bid);
     if (el) el.classList.add('active');
   }
+}
+
+// ── DELIVERY DRIVER APP ──
+var _driverGpsWatchId = null;
+var _driverGpsOrderKey = null;
+
+/** Drivers must be approved by admin (verified or is_verified true). */
+function isDriverVerified(u) {
+  if (!u || u.role !== 'driver') return true;
+  return u.verified === true || u.is_verified === true;
+}
+
+async function refreshCurrentUserFromRemote() {
+  var cur = State.currentUser;
+  if (!cur || cur.id == null || typeof SB === 'undefined' || !SB.getUserById) return;
+  try {
+    var row = await SB.getUserById(cur.id);
+    if (!row) return;
+    State.currentUser = STN.userForSession({
+      ...row,
+      firstName: row.first_name,
+      lastName: row.last_name,
+    });
+    STN.DB.set('currentUser', State.currentUser);
+    updateNavUser();
+  } catch (e) {}
+}
+
+function stopDriverGpsForDelivery() {
+  if (_driverGpsWatchId != null && navigator.geolocation) {
+    try { navigator.geolocation.clearWatch(_driverGpsWatchId); } catch (e) {}
+  }
+  _driverGpsWatchId = null;
+  _driverGpsOrderKey = null;
+}
+
+function driverOrderStopLabel(order) {
+  var a = order.address || order.delivery_address || '';
+  var w = order.wilaya || '';
+  return (a + ' ' + w).trim() || 'Customer address on file';
+}
+
+function driverOpenMapsByKey(key) {
+  var list = State.driverOrdersList || [];
+  var o = list.find(function (x) {
+    return String(x.tracking_number || '') === String(key) || String(x.id) === String(key);
+  });
+  if (!o) { toast('Stop not found — refresh', 'error'); return; }
+  var lat = o.delivery_lat != null ? o.delivery_lat : o.lat;
+  var lng = o.delivery_lng != null ? o.delivery_lng : o.lng;
+  var q = driverOrderStopLabel(o);
+  var url =
+    lat != null && lng != null && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))
+      ? 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(lat + ',' + lng)
+      : 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q || 'Tunisia');
+  window.open(url, '_blank');
+}
+
+async function patchDriverLocationOnOrder(orderKey, lat, lng) {
+  try {
+    if (typeof SB !== 'undefined' && SB.updateOrder) await SB.updateOrder(orderKey, { driver_lat: lat, driver_lng: lng });
+  } catch (e) {}
+  var orders = STN.DB.get('orders') || [];
+  var o = orders.find(function (x) {
+    return String(x.id) === String(orderKey) || x.tracking_number === orderKey;
+  });
+  if (o) {
+    o.driver_lat = lat;
+    o.driver_lng = lng;
+    STN.DB.set('orders', orders);
+  }
+}
+
+function startDriverGpsForOrder(orderKey) {
+  if (!isDriverVerified(State.currentUser)) {
+    toast('Your driver account is not verified yet', 'error');
+    return;
+  }
+  stopDriverGpsForDelivery();
+  if (!navigator.geolocation) {
+    toast('GPS not available on this device', 'error');
+    return;
+  }
+  _driverGpsOrderKey = orderKey;
+  _driverGpsWatchId = navigator.geolocation.watchPosition(
+    function (pos) {
+      patchDriverLocationOnOrder(orderKey, pos.coords.latitude, pos.coords.longitude);
+    },
+    function () {
+      toast('Allow location in browser settings to share GPS', 'error');
+    },
+    { enableHighAccuracy: true, maximumAge: 25000, timeout: 20000 }
+  );
+  toast('Live GPS on for this stop (updates while you drive)', 'success');
+}
+
+async function loadDriverOrdersList() {
+  var uid = State.currentUser && State.currentUser.id;
+  if (uid == null) return [];
+  if (!isDriverVerified(State.currentUser)) return [];
+  if (typeof SB !== 'undefined' && SB.getDriverOrders) {
+    try {
+      var remote = await SB.getDriverOrders(uid);
+      if (Array.isArray(remote) && remote.length) return remote;
+    } catch (e) {}
+  }
+  var orders = STN.DB.get('orders') || [];
+  return orders.filter(function (o) {
+    return String(o.driver_id) === String(uid) || String(o.driverId) === String(uid);
+  });
+}
+
+async function driverMarkOutForDelivery(orderKey) {
+  if (!isDriverVerified(State.currentUser)) {
+    toast('Your driver account is not verified yet', 'error');
+    return;
+  }
+  try {
+    if (typeof SB !== 'undefined' && SB.updateOrderStatus) await SB.updateOrderStatus(orderKey, 'out_for_delivery');
+  } catch (e) {}
+  var orders = STN.DB.get('orders') || [];
+  var o = orders.find(function (x) {
+    return String(x.id) === String(orderKey) || x.tracking_number === orderKey;
+  });
+  if (o) {
+    o.status = 'out_for_delivery';
+    STN.DB.set('orders', orders);
+  }
+  toast('Marked out for delivery', 'success');
+  renderDriver();
+}
+
+async function driverMarkDelivered(orderKey) {
+  if (!isDriverVerified(State.currentUser)) {
+    toast('Your driver account is not verified yet', 'error');
+    return;
+  }
+  stopDriverGpsForDelivery();
+  try {
+    if (typeof SB !== 'undefined' && SB.updateOrderStatus) await SB.updateOrderStatus(orderKey, 'delivered');
+  } catch (e) {}
+  var orders = STN.DB.get('orders') || [];
+  var o = orders.find(function (x) {
+    return String(x.id) === String(orderKey) || x.tracking_number === orderKey;
+  });
+  if (o) {
+    o.status = 'delivered';
+    STN.DB.set('orders', orders);
+  }
+  toast('Delivered — great job!', 'success');
+  renderDriver();
+}
+
+async function driverAcceptOrder(orderKey) {
+  if (!isDriverVerified(State.currentUser)) {
+    toast('Your driver account is not verified yet', 'error');
+    return;
+  }
+  var u = State.currentUser;
+  var plate = u.vehicle_plate_number || u.vehiclePlateNumber;
+  var model = u.vehicle_model || u.vehicleModel;
+  var color = u.vehicle_color || u.vehicleColor;
+  if (!plate || !model || !color) {
+    toast('Vehicle details missing on your profile — contact support', 'error');
+    return;
+  }
+  var body = {
+    driver_accepted_at: new Date().toISOString(),
+    delivery_vehicle_plate: String(plate).trim(),
+    delivery_vehicle_model: String(model).trim(),
+    delivery_vehicle_color: String(color).trim(),
+  };
+  try {
+    if (typeof SB !== 'undefined' && SB.updateOrder) await SB.updateOrder(orderKey, body);
+  } catch (e) {}
+  var orders = STN.DB.get('orders') || [];
+  var o = orders.find(function (x) {
+    return String(x.id) === String(orderKey) || x.tracking_number === orderKey;
+  });
+  if (o) {
+    Object.assign(o, body);
+    STN.DB.set('orders', orders);
+  }
+  toast('Delivery accepted — customer can see your vehicle', 'success');
+  renderDriver();
+}
+
+function renderDriver() {
+  if (!State.currentUser || State.currentUser.role !== 'driver') {
+    toast('Delivery app is for driver accounts only', 'error');
+    showPage('auth');
+    return;
+  }
+  var page = document.getElementById('page-driver');
+  if (!page) return;
+  page.innerHTML =
+    '<div class="s" style="padding-top:5.25rem;padding-bottom:6rem;max-width:560px;margin:0 auto">' +
+    '<div id="driver-app-head"></div>' +
+    '<div id="driver-orders-list"><p style="text-align:center;color:#94a3b8;padding:2rem">Loading…</p></div></div>';
+
+  refreshCurrentUserFromRemote().then(function () {
+    var head = document.getElementById('driver-app-head');
+    var list = document.getElementById('driver-orders-list');
+    if (!head || !list) return;
+
+    if (!isDriverVerified(State.currentUser)) {
+      head.innerHTML =
+        '<div style="background:linear-gradient(135deg,#fff7ed,#ffedd5);border:1px solid #fed7aa;border-radius:16px;padding:1.25rem 1.35rem;margin-bottom:1.25rem">' +
+        '<h1 style="font-family:var(--font-display,Georgia,serif);font-size:1.45rem;color:#9a3412;margin:0 0 0.5rem">⏳ Verification pending</h1>' +
+        '<p style="margin:0;font-size:0.88rem;color:#7c2d12;line-height:1.55">Your CIN and licence are being reviewed by Everest admin. You cannot view or accept deliveries until your account is approved.</p></div>' +
+        '<button type="button" class="btn btn-ghost btn-sm" onclick="renderDriver()">Refresh status</button>';
+      list.innerHTML = '';
+      State.driverOrdersList = [];
+      return;
+    }
+
+    head.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap">' +
+      '<div><h1 style="font-family:var(--font-display,Georgia,serif);font-size:1.65rem;color:#1e0a4e;font-weight:600;margin:0">🚚 Deliveries</h1>' +
+      '<p style="margin:0.35rem 0 0;font-size:0.82rem;color:#64748b">Accept a stop first so the customer sees your vehicle · Then navigate &amp; deliver</p></div>' +
+      '<button type="button" class="btn btn-ghost btn-sm" onclick="renderDriver()">Refresh</button></div>';
+
+    loadDriverOrdersList().then(function (orders) {
+      State.driverOrdersList = orders || [];
+      if (!orders.length) {
+        list.innerHTML =
+          '<div style="text-align:center;padding:3rem 1.5rem;background:#f8fafc;border-radius:16px;border:1px dashed #cbd5e1">' +
+          '<div style="font-size:2.5rem;margin-bottom:0.75rem">📭</div>' +
+          '<p style="color:#475569;font-size:0.95rem;margin:0">No assigned stops yet.<br/><span style="font-size:0.82rem;color:#94a3b8">Admin assigns verified drivers in <strong>Orders</strong> (<code style="background:#e2e8f0;padding:0.1rem 0.35rem;border-radius:4px">driver_id</code>).</span></p></div>';
+        return;
+      }
+      var html = orders
+        .map(function (o) {
+          var idKey = o.tracking_number || o.id;
+          var safeKey = String(idKey).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+          var status = (o.status || 'pending').replace(/_/g, ' ');
+          var items = Array.isArray(o.items)
+            ? o.items
+                .map(function (i) {
+                  return i.name || 'Item';
+                })
+                .join(' · ')
+            : '—';
+          var phone = o.phone || o.client_phone || '';
+          var canDeliver = o.status !== 'delivered' && o.status !== 'cancelled' && o.status !== 'canceled';
+          var showOut = canDeliver && (o.status === 'shipped' || o.status === 'processing' || o.status === 'ready');
+          var accepted = !!o.driver_accepted_at;
+          var showAccept = canDeliver && !accepted;
+          return (
+            '<article style="background:white;border:1px solid rgba(107,63,212,0.14);border-radius:16px;padding:1rem 1.1rem;margin-bottom:1rem;box-shadow:0 2px 12px rgba(74,31,168,0.05)">' +
+            '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.75rem;margin-bottom:0.5rem">' +
+            '<div><div style="font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#7c3aed">#' +
+            (o.tracking_number || o.id) +
+            '</div>' +
+            '<div style="font-size:0.95rem;font-weight:700;color:#1e0a4e;margin-top:0.2rem">' +
+            (o.client_name || o.userName || 'Customer') +
+            '</div>' +
+            (phone ? '<div style="font-size:0.8rem;color:#64748b;margin-top:0.15rem"><a href="tel:' + phone.replace(/\s/g, '') + '" style="color:#0369a1">' + phone + '</a></div>' : '') +
+            '<div style="font-size:0.78rem;color:#64748b;margin-top:0.35rem;line-height:1.4">' +
+            driverOrderStopLabel(o) +
+            '</div></div>' +
+            '<span style="font-size:0.65rem;font-weight:700;padding:0.28rem 0.55rem;border-radius:999px;background:#e0f2fe;color:#0369a1;white-space:nowrap;text-transform:capitalize">' +
+            status +
+            '</span></div>' +
+            (accepted
+              ? '<p style="font-size:0.72rem;color:#059669;margin:0 0 0.75rem;font-weight:600">✓ You accepted this delivery</p>'
+              : '') +
+            '<div style="font-size:0.76rem;color:#64748b;margin-bottom:1rem;line-height:1.45">' +
+            items +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:0.45rem">' +
+            (showAccept
+              ? '<button type="button" class="btn btn-gold btn-sm" onclick="driverAcceptOrder(\'' + safeKey + '\')">Accept delivery</button>'
+              : '') +
+            '<button type="button" class="btn btn-outline btn-sm" onclick="driverOpenMapsByKey(\'' +
+            safeKey +
+            '\')">Navigate</button>' +
+            (accepted && canDeliver
+              ? '<button type="button" class="btn btn-ghost btn-sm" onclick="startDriverGpsForOrder(\'' + safeKey + '\')">Share GPS</button>'
+              : '') +
+            (accepted && showOut
+              ? '<button type="button" class="btn btn-ghost btn-sm" onclick="driverMarkOutForDelivery(\'' + safeKey + '\')">Out for delivery</button>'
+              : '') +
+            (accepted && canDeliver
+              ? '<button type="button" class="btn btn-gold btn-sm" onclick="driverMarkDelivered(\'' + safeKey + '\')">Delivered</button>'
+              : '') +
+            '</div></article>'
+          );
+        })
+        .join('');
+      list.innerHTML = html;
+    });
+  });
 }
 
 async function showCelebrationOverlay() {
@@ -1144,8 +1501,14 @@ function renderAuth() {
         </div>
         <div class="form-group" style="margin-bottom:1.5rem;padding:1rem;background:#f5f2ff;border-radius:12px;border:1px solid rgba(107,63,212,0.2)">
           <label style="display:flex;align-items:center;gap:0.8rem;cursor:pointer">
-            <input type="checkbox" id="reg-is-vendor" onchange="document.getElementById('reg-vendor-fields').style.display=this.checked?'block':'none'" style="width:18px;height:18px;accent-color:#7c3aed"/>
+            <input type="checkbox" id="reg-is-vendor" onchange="var d=document.getElementById('reg-is-driver');var df=document.getElementById('reg-driver-fields');if(this.checked&&d)d.checked=false;if(df)df.style.display='none';document.getElementById('reg-vendor-fields').style.display=this.checked?'block':'none'" style="width:18px;height:18px;accent-color:#7c3aed"/>
             <span style="font-size:0.85rem;color:#1e0a4e;font-weight:500">🏪 I am an artisan/vendor — I want to sell on Everest</span>
+          </label>
+        </div>
+        <div class="form-group" style="margin-bottom:1.5rem;padding:1rem;background:#ecfeff;border-radius:12px;border:1px solid rgba(14,165,233,0.25)">
+          <label style="display:flex;align-items:center;gap:0.8rem;cursor:pointer">
+            <input type="checkbox" id="reg-is-driver" onchange="var v=document.getElementById('reg-is-vendor');var vf=document.getElementById('reg-vendor-fields');var df=document.getElementById('reg-driver-fields');if(this.checked&&v){v.checked=false;}if(vf)vf.style.display='none';if(df)df.style.display=this.checked?'block':'none';" style="width:18px;height:18px;accent-color:#0ea5e9"/>
+            <span style="font-size:0.85rem;color:#0c4a6e;font-weight:500">🚚 I am a delivery partner — I deliver Everest orders</span>
           </label>
         </div>
         <div id="reg-vendor-fields" style="display:none;margin-bottom:1.5rem;padding:1rem;background:#f8f7ff;border-radius:12px;border:1px solid rgba(107,63,212,0.15)">
@@ -1165,6 +1528,36 @@ function renderAuth() {
             </select>
           </div>
         </div>
+        <div id="reg-driver-fields" style="display:none;margin-bottom:1.5rem;padding:1.15rem;background:#f0f9ff;border-radius:12px;border:1px solid rgba(14,165,233,0.3)">
+          <p style="font-size:0.78rem;font-weight:700;color:#0c4a6e;margin-bottom:0.85rem">Delivery partner — documents &amp; vehicle (required)</p>
+          <div class="form-group" style="margin-bottom:0.85rem">
+            <label class="form-label">CIN (national ID number) *</label>
+            <input type="text" class="form-input" id="reg-driver-cin" placeholder="e.g. 12345678" maxlength="32"/>
+          </div>
+          <div class="form-row" style="margin-bottom:0.85rem">
+            <div class="form-group">
+              <label class="form-label">Vehicle plate *</label>
+              <input type="text" class="form-input" id="reg-driver-plate" placeholder="123 تونس 4567"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Vehicle model *</label>
+              <input type="text" class="form-input" id="reg-driver-vmodel" placeholder="Peugeot Partner"/>
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:0.85rem">
+            <label class="form-label">Vehicle colour *</label>
+            <input type="text" class="form-input" id="reg-driver-vcolor" placeholder="White"/>
+          </div>
+          <div class="form-group" style="margin-bottom:0.85rem">
+            <label class="form-label">Photo of CIN (identity card) *</label>
+            <input type="file" class="form-input" id="reg-driver-cin-file" accept="image/*"/>
+          </div>
+          <div class="form-group" style="margin-bottom:0.35rem">
+            <label class="form-label">Photo of driving licence *</label>
+            <input type="file" class="form-input" id="reg-driver-lic-file" accept="image/*"/>
+          </div>
+          <p style="font-size:0.68rem;color:#64748b;margin:0">JPEG or PNG, max 8 MB each. An admin must verify your documents before you can accept deliveries.</p>
+        </div>
         <button class="btn btn-gold btn-full btn-lg" onclick="doRegister()">Create Account →</button>
       </div>
     </div>
@@ -1180,7 +1573,25 @@ function switchAuthTab(tab) {
   setTimeout(() => {
     const cb = document.getElementById('reg-is-vendor');
     const fields = document.getElementById('reg-vendor-fields');
-    if (cb && fields) cb.onchange = () => fields.style.display = cb.checked ? 'block' : 'none';
+    const drv = document.getElementById('reg-is-driver');
+    if (cb && fields) {
+      cb.onchange = () => {
+        var df = document.getElementById('reg-driver-fields');
+        if (cb.checked && drv) drv.checked = false;
+        if (df) df.style.display = 'none';
+        fields.style.display = cb.checked ? 'block' : 'none';
+      };
+    }
+    if (drv && cb && fields) {
+      drv.onchange = () => {
+        var df = document.getElementById('reg-driver-fields');
+        if (drv.checked) {
+          cb.checked = false;
+          fields.style.display = 'none';
+        }
+        if (df) df.style.display = drv.checked ? 'block' : 'none';
+      };
+    }
   }, 100);
 }
 
@@ -1207,6 +1618,7 @@ async function doLogin() {
     toast(`✦ Welcome back, ${local.firstName}!`, 'success');
     if (local.role === 'admin') showPage('admin');
     else if (local.role === 'vendor') showPage('vendor');
+    else if (local.role === 'driver') showPage('driver');
     else showPage('home');
     return;
   }
@@ -1221,6 +1633,7 @@ async function doLogin() {
     toast(`✦ Welcome back, ${user.first_name}!`, 'success');
     if (user.role === 'admin') showPage('admin');
     else if (user.role === 'vendor') showPage('vendor');
+    else if (user.role === 'driver') showPage('driver');
     else showPage('home');
   } catch(e) {
     if (typeof STNLog !== 'undefined') STNLog.error('auth.login', e, { email });
@@ -1278,27 +1691,109 @@ async function doRegister() {
   if (users.find(u => u.email === email)) { toast('⚠️ Email already registered', 'error'); return; }
 
   const isVendor = document.getElementById('reg-is-vendor')?.checked;
+  const isDriver = document.getElementById('reg-is-driver')?.checked;
   const shopName = document.getElementById('reg-shop')?.value?.trim();
   const specialty = document.getElementById('reg-specialty')?.value;
+  if (isVendor && isDriver) { toast('⚠️ Choose either vendor or delivery partner, not both', 'error'); return; }
   if (isVendor && !shopName) { toast('⚠️ Please enter your shop name', 'error'); return; }
 
+  var cin = '';
+  var plate = '';
+  var vmodel = '';
+  var vcolor = '';
+  var fCin = null;
+  var fLic = null;
+  if (isDriver) {
+    cin = document.getElementById('reg-driver-cin')?.value?.trim() || '';
+    plate = document.getElementById('reg-driver-plate')?.value?.trim() || '';
+    vmodel = document.getElementById('reg-driver-vmodel')?.value?.trim() || '';
+    vcolor = document.getElementById('reg-driver-vcolor')?.value?.trim() || '';
+    fCin = document.getElementById('reg-driver-cin-file')?.files?.[0];
+    fLic = document.getElementById('reg-driver-lic-file')?.files?.[0];
+    if (!cin || !plate || !vmodel || !vcolor) {
+      toast('Fill all delivery partner and vehicle fields', 'error');
+      return;
+    }
+    if (!fCin || !fLic) {
+      toast('Upload photos of your CIN and driving licence', 'error');
+      return;
+    }
+    if (fCin.size > 8 * 1024 * 1024 || fLic.size > 8 * 1024 * 1024) {
+      toast('Each image must be under 8 MB', 'error');
+      return;
+    }
+  }
+
   try {
-    const newUser = await SB.createUser({
+    var regRole = 'customer';
+    if (isVendor) regRole = 'vendor';
+    else if (isDriver) regRole = 'driver';
+
+    var cinUrl = '';
+    var licUrl = '';
+    if (isDriver && typeof SB.uploadStorageObject === 'function') {
+      var cinBlob = await compressImageFileToJpegBlob(fCin, 1600, 0.82);
+      var licBlob = await compressImageFileToJpegBlob(fLic, 1600, 0.82);
+      var emailSlug = encodeURIComponent(String(email).replace(/[@.\s]/g, '_')).slice(0, 80);
+      var pathBase = emailSlug + '/' + Date.now();
+      try {
+        var up1 = await SB.uploadStorageObject(_driverKycBucket(), pathBase + '-cin.jpg', cinBlob, 'image/jpeg');
+        cinUrl = up1.publicUrl;
+      } catch (e1) {
+        var d1 = await blobToDataUrl(cinBlob);
+        if (d1.length > 650000) {
+          toast('CIN photo is too large without Storage — add bucket driver-kyc or use a smaller image', 'error');
+          return;
+        }
+        cinUrl = d1;
+      }
+      try {
+        var up2 = await SB.uploadStorageObject(_driverKycBucket(), pathBase + '-licence.jpg', licBlob, 'image/jpeg');
+        licUrl = up2.publicUrl;
+      } catch (e2) {
+        var d2 = await blobToDataUrl(licBlob);
+        if (d2.length > 650000) {
+          toast('Licence photo is too large without Storage — add bucket driver-kyc or use a smaller image', 'error');
+          return;
+        }
+        licUrl = d2;
+      }
+    } else if (isDriver) {
+      toast('Registration client is missing storage support', 'error');
+      return;
+    }
+
+    var userPayload = {
       email, password: pass,
       first_name: fname, last_name: lname,
       phone, wilaya, delegation,
-      role: isVendor ? 'vendor' : 'customer',
-      points: 100, verified: false,
-      avatar: isVendor ? '🏪' : '👤',
+      role: regRole,
+      points: 100,
+      verified: isVendor || isDriver ? false : true,
+      avatar: isVendor ? '🏪' : isDriver ? '🚚' : '👤',
       shop_name: shopName || null,
       specialty: specialty || null
-    });
+    };
+    if (isDriver) {
+      userPayload.id_card_number = cin;
+      userPayload.vehicle_plate_number = plate;
+      userPayload.vehicle_model = vmodel;
+      userPayload.vehicle_color = vcolor;
+      userPayload.cin_document_url = cinUrl;
+      userPayload.license_document_url = licUrl;
+      userPayload.verified = false;
+      userPayload.is_verified = false;
+    }
+    const newUser = await SB.createUser(userPayload);
     State.currentUser = STN.userForSession({ ...newUser, firstName: newUser.first_name, lastName: newUser.last_name });
     STN.DB.set('currentUser', State.currentUser);
     updateNavUser();
     if (isVendor) {
       toast(`✦ Welcome ${shopName}! Your vendor account is pending verification.`, 'success');
       showPage('vendor');
+    } else if (isDriver) {
+      toast(`✦ Welcome, ${fname}! Your documents are under review — you can accept deliveries after an admin verifies you.`, 'success');
+      showPage('driver');
     } else {
       toast(`✦ Welcome to Everest, ${fname}! You earned 100 bonus points!`, 'success');
       showPage('home');
@@ -1535,10 +2030,17 @@ function startRealtimeTracking(order) {
   trackingUpdateInterval = setInterval(async () => {
     try {
       const updatedOrder = await SB.getOrder(order.id);
-      if (updatedOrder && currentTrackingOrder && updatedOrder.status !== currentTrackingOrder.status) {
+      if (!updatedOrder || !currentTrackingOrder) return;
+      var statusCh = updatedOrder.status !== currentTrackingOrder.status;
+      var vehCh =
+        String(updatedOrder.driver_accepted_at || '') !== String(currentTrackingOrder.driver_accepted_at || '') ||
+        String(updatedOrder.delivery_vehicle_plate || '') !== String(currentTrackingOrder.delivery_vehicle_plate || '') ||
+        String(updatedOrder.delivery_vehicle_model || '') !== String(currentTrackingOrder.delivery_vehicle_model || '') ||
+        String(updatedOrder.delivery_vehicle_color || '') !== String(currentTrackingOrder.delivery_vehicle_color || '');
+      if (statusCh || vehCh) {
         currentTrackingOrder = updatedOrder;
         await renderTrackingUI(updatedOrder);
-        toast('📦 Order status updated!', 'success');
+        if (statusCh) toast('📦 Order status updated!', 'success');
       }
     } catch(e) {
       console.log('⚠️ Polling update failed:', e);
@@ -1567,6 +2069,9 @@ async function renderTrackingUI(order) {
   const currentStepIndex = steps.findIndex(s => s.key === order.status);
   const statusColors = { pending: '#f59e0b', confirmed: '#3b82f6', processing: '#8b5cf6', shipped: '#06b6d4', delivered: '#10b981' };
   const statusColor = statusColors[order.status] || '#7c3aed';
+  const showVehicle =
+    !!order.driver_accepted_at &&
+    !!(order.delivery_vehicle_plate || order.delivery_vehicle_model || order.delivery_vehicle_color);
 
   resultDiv.innerHTML = `
     <div style="padding:2rem;background:white;border-radius:20px;border:1px solid rgba(107,63,212,0.15);box-shadow:0 4px 24px rgba(74,31,168,0.08);margin-bottom:1.5rem">
@@ -1599,6 +2104,16 @@ async function renderTrackingUI(order) {
           <p style="font-size:0.85rem;color:#1e0a4e;font-weight:500">${Number(order.total).toLocaleString()} TND</p>
         </div>
       </div>
+
+      ${showVehicle ? `
+      <div style="padding:1.25rem;background:linear-gradient(135deg,#ecfeff,#f0f9ff);border-radius:14px;border:1px solid rgba(6,182,212,0.35);margin-bottom:1.75rem">
+        <p style="font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:#0e7490;font-weight:700;margin-bottom:0.75rem">Your delivery vehicle</p>
+        <div style="display:grid;gap:0.45rem;font-size:0.88rem;color:#164e63">
+          ${order.delivery_vehicle_plate ? `<div><span style="font-weight:600;color:#155e75">Plate:</span> ${_detailEscapeHtml(order.delivery_vehicle_plate)}</div>` : ''}
+          ${order.delivery_vehicle_model ? `<div><span style="font-weight:600;color:#155e75">Model:</span> ${_detailEscapeHtml(order.delivery_vehicle_model)}</div>` : ''}
+          ${order.delivery_vehicle_color ? `<div><span style="font-weight:600;color:#155e75">Colour:</span> ${_detailEscapeHtml(order.delivery_vehicle_color)}</div>` : ''}
+        </div>
+      </div>` : ''}
 
       <!-- Real-time Timeline -->
       <div style="position:relative;padding-left:2rem">
@@ -1952,6 +2467,9 @@ function switchAdmin(section) {
       </div>`;
 
   } else if (section === 'orders') {
+    var driverUsers = users.filter(function (u) {
+      return u.role === 'driver' && isDriverVerified(u);
+    });
     content.innerHTML = `
       <div>
         <div style="margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between">
@@ -1963,8 +2481,31 @@ function switchAdmin(section) {
         <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
           <div style="overflow-x:auto">
             <table style="width:100%;border-collapse:collapse">
-              <thead><tr style="background:#f9fafb">${['Tracking #','Client','Shop','Wilaya / Address','Items','Total','Status','Date','Action'].map(h=>`<th style="text-align:left;padding:0.75rem 0.875rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap">${h}</th>`).join('')}</tr></thead>
-              <tbody>${orders.length===0?'<tr><td colspan="9" style="text-align:center;padding:3rem;color:#9ca3af">No orders yet</td></tr>':[...orders].reverse().map(o=>`
+              <thead><tr style="background:#f9fafb">${['Tracking #','Client','Shop','Wilaya / Address','Items','Total','Status','Driver','Date','Action'].map(h=>`<th style="text-align:left;padding:0.75rem 0.875rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap">${h}</th>`).join('')}</tr></thead>
+              <tbody>${orders.length===0?'<tr><td colspan="10" style="text-align:center;padding:3rem;color:#9ca3af">No orders yet</td></tr>':[...orders].reverse().map(o=>{
+                var oid = o.id != null ? o.id : o.tracking_number;
+                var assignedDrv = o.driver_id || o.driverId;
+                var drvOpts = '<option value="">—</option>';
+                if (assignedDrv && !driverUsers.some(function (d) { return String(d.id) === String(assignedDrv); })) {
+                  drvOpts +=
+                    '<option value="' +
+                    assignedDrv +
+                    '" selected>Unverified driver #' +
+                    assignedDrv +
+                    '</option>';
+                }
+                drvOpts += driverUsers
+                  .map(function (d) {
+                    var sel = String(assignedDrv || '') === String(d.id) ? ' selected' : '';
+                    var nm = d.firstName || d.first_name || 'Driver';
+                    return '<option value="' + d.id + '"' + sel + '>' + nm + ' #' + d.id + '</option>';
+                  })
+                  .join('');
+                var st = o.status||'pending';
+                var stLabel = st==='delivered'?'✓ Delivered':st==='out_for_delivery'||st==='out-for-delivery'?'🚚 Out for delivery':st==='shipped'?'🚚 Shipped':st==='processing'?'⚙️ Processing':'⏳ Pending';
+                var stBg = st==='delivered'?'#dcfce7':st==='shipped'||st==='out_for_delivery'||st==='out-for-delivery'?'#dbeafe':st==='processing'?'#ede9fe':'#fef9c3';
+                var stFg = st==='delivered'?'#166534':st==='shipped'||st==='out_for_delivery'||st==='out-for-delivery'?'#1d4ed8':st==='processing'?'#6d28d9':'#92400e';
+                return `
                 <tr style="border-top:1px solid #f3f4f6" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
                   <td style="padding:0.75rem 0.875rem;font-size:0.78rem;font-weight:600;color:#7c3aed;white-space:nowrap">${o.tracking_number||o.id||'-'}</td>
                   <td style="padding:0.75rem 0.875rem">
@@ -1979,15 +2520,20 @@ function switchAdmin(section) {
                   <td style="padding:0.75rem 0.875rem;font-size:0.78rem;color:#374151">${Array.isArray(o.items)?o.items.map(i=>i.name||'Item').join(', ').substring(0,30)+(o.items.length>1?'...':''):'1 item'}</td>
                   <td style="padding:0.75rem 0.875rem;font-size:0.78rem;font-weight:700;color:#111827;white-space:nowrap">${(o.total||0).toLocaleString()} TND</td>
                   <td style="padding:0.75rem 0.875rem">
-                    <span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;white-space:nowrap;background:${o.status==='delivered'?'#dcfce7':o.status==='shipped'?'#dbeafe':o.status==='processing'?'#ede9fe':'#fef9c3'};color:${o.status==='delivered'?'#166534':o.status==='shipped'?'#1d4ed8':o.status==='processing'?'#6d28d9':'#92400e'}">
-                      ${o.status==='delivered'?'✓ Delivered':o.status==='shipped'?'🚚 Shipped':o.status==='processing'?'⚙️ Processing':'⏳ Pending'}
+                    <span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;white-space:nowrap;background:${stBg};color:${stFg}">
+                      ${stLabel}
                     </span>
+                  </td>
+                  <td style="padding:0.75rem 0.5rem;vertical-align:top">
+                    <select id="adm-drv-${oid}" style="font-size:0.68rem;max-width:118px;padding:0.2rem;border-radius:6px;border:1px solid #e5e7eb">${drvOpts}</select>
+                    <button type="button" onclick="assignOrderDriver('${oid}', document.getElementById('adm-drv-${oid}').value)" style="display:block;margin-top:0.35rem;background:#e0f2fe;color:#0369a1;border:none;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.65rem;cursor:pointer;font-weight:600">Assign</button>
                   </td>
                   <td style="padding:0.75rem 0.875rem;font-size:0.72rem;color:#9ca3af;white-space:nowrap">${o.created_at?new Date(o.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'Today'}</td>
                   <td style="padding:0.75rem 0.875rem">
-                    <button onclick="advanceOrder('${o.id||o.tracking_number}')" style="background:#f5f3ff;color:#7c3aed;border:1px solid #e9d5ff;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.72rem;cursor:pointer;font-weight:600;white-space:nowrap">Advance →</button>
+                    <button onclick="advanceOrder('${oid}')" style="background:#f5f3ff;color:#7c3aed;border:1px solid #e9d5ff;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.72rem;cursor:pointer;font-weight:600;white-space:nowrap">Advance →</button>
                   </td>
-                </tr>`).join('')}
+                </tr>`;
+              }).join('')}
               </tbody>
             </table>
           </div>
@@ -2040,12 +2586,40 @@ function switchAdmin(section) {
             : isTimedOut
             ? '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#fef3c7;color:#d97706">&#9203; '+timeoutLeft+'</span>'
             : '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#dcfce7;color:#166534">&#10003; Active</span>';
-          var roleColor = u.role==='admin'?'#92400e':u.role==='vendor'?'#6d28d9':'#374151';
-          var roleBg = u.role==='admin'?'#fef3c7':u.role==='vendor'?'#ede9fe':'#f3f4f6';
+          var roleColor = u.role==='admin'?'#92400e':u.role==='vendor'?'#6d28d9':u.role==='driver'?'#0369a1':'#374151';
+          var roleBg = u.role==='admin'?'#fef3c7':u.role==='vendor'?'#ede9fe':u.role==='driver'?'#e0f2fe':'#f3f4f6';
+          var cinL = u.cin_document_url || '';
+          var licL = u.license_document_url || '';
+          var docLinks =
+            u.role === 'driver'
+              ? '<div style="font-size:0.65rem;margin-bottom:0.4rem;line-height:1.45;max-width:200px">' +
+                (cinL
+                  ? '<a href="' +
+                    String(cinL).replace(/"/g, '%22') +
+                    '" target="_blank" rel="noopener" style="color:#0369a1;font-weight:600">CIN</a>'
+                  : '<span style="color:#9ca3af">No CIN</span>') +
+                ' · ' +
+                (licL
+                  ? '<a href="' +
+                    String(licL).replace(/"/g, '%22') +
+                    '" target="_blank" rel="noopener" style="color:#0369a1;font-weight:600">Permis</a>'
+                  : '<span style="color:#9ca3af">No licence</span>') +
+                (u.id_card_number ? '<br/><span style="color:#64748b">CIN: ' + String(u.id_card_number).replace(/</g, '') + '</span>' : '') +
+                '</div>'
+              : '';
+          var driverVerifyBtn =
+            u.role === 'driver' && !isDriverVerified(u)
+              ? '<button type="button" onclick="verifyDriverAccount(' +
+                JSON.stringify(String(u.id)) +
+                ')" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.25rem 0.55rem;border-radius:6px;font-size:0.68rem;cursor:pointer;font-weight:600;margin-bottom:0.35rem;display:inline-block">Verify driver</button><br/>'
+              : u.role === 'driver' && isDriverVerified(u)
+              ? '<span style="font-size:0.65rem;color:#059669;font-weight:600;display:inline-block;margin-bottom:0.35rem">Verified</span><br/>'
+              : '';
           var actions = u.role === 'admin' ? '<span style="color:#9ca3af;font-size:0.72rem">Admin</span>' : (
-            isBanned
+            docLinks + driverVerifyBtn +
+            (isBanned
               ? '<button data-action="unban" data-id="'+u.id+'" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;font-weight:600">Unban</button>'
-              : '<button data-action="timeout" data-id="'+u.id+'" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;font-weight:600;margin-right:0.3rem">&#9203; Timeout</button><button data-action="ban" data-id="'+u.id+'" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;font-weight:600">&#128683; Ban</button>'
+              : '<button data-action="timeout" data-id="'+u.id+'" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;font-weight:600;margin-right:0.3rem">&#9203; Timeout</button><button data-action="ban" data-id="'+u.id+'" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;font-weight:600">&#128683; Ban</button>')
           );
           return '<tr style="border-top:1px solid #f3f4f6'+(isBanned?';background:#fff5f5':'')+'">' +
             '<td style="padding:0.75rem 1rem"><div style="display:flex;align-items:center;gap:0.75rem"><div style="width:32px;height:32px;border-radius:50%;background:'+(isBanned?'#ef4444':'linear-gradient(135deg,#7c3aed,#9b72f0)')+';display:flex;align-items:center;justify-content:center;color:white;font-size:0.8rem;font-weight:700">'+((u.first_name||u.firstName||'?')[0].toUpperCase())+'</div><div><div style="font-size:0.82rem;font-weight:600;color:'+(isBanned?'#ef4444':'#111827')+'">'+(u.first_name||u.firstName||'')+' '+(u.last_name||u.lastName||'')+(isBanned?' &#128683;':'')+'</div>'+(isTimedOut?'<div style="font-size:0.68rem;color:#f59e0b">&#9203; '+timeoutLeft+'</div>':'')+'</div></div></td>' +
@@ -2195,6 +2769,70 @@ function advanceOrder(orderId) {
   STN.DB.set('orders', orders);
   toast('Order advanced to: ' + order.status, 'success');
   switchAdmin('orders');
+}
+
+async function assignOrderDriver(orderRef, driverUserId) {
+  if (!driverUserId) { toast('Choose a delivery partner', 'error'); return; }
+  try {
+    if (typeof SB !== 'undefined' && SB.getUserById) {
+      var drvRow = await SB.getUserById(driverUserId);
+      if (drvRow && drvRow.role === 'driver' && !isDriverVerified(drvRow)) {
+        toast('That driver is not verified yet — approve documents in Customers first', 'error');
+        return;
+      }
+    }
+  } catch (e) {}
+  var localUsers = STN.DB.get('users') || [];
+  var locDrv = localUsers.find(function (u) {
+    return String(u.id) === String(driverUserId);
+  });
+  if (locDrv && locDrv.role === 'driver' && !isDriverVerified(locDrv)) {
+    toast('That driver is not verified yet — approve documents first', 'error');
+    return;
+  }
+  var orders = STN.DB.get('orders') || [];
+  var o = orders.find(function (x) {
+    return String(x.id) === String(orderRef) || x.tracking_number === orderRef;
+  });
+  if (o) {
+    o.driver_id = driverUserId;
+    o.driverId = driverUserId;
+    STN.DB.set('orders', orders);
+  }
+  try {
+    if (typeof SB !== 'undefined' && SB.updateOrder) await SB.updateOrder(orderRef, { driver_id: driverUserId });
+  } catch (e) {
+    if (typeof STNLog !== 'undefined') STNLog.warn('assignOrderDriver', e && e.message);
+  }
+  toast('Driver assigned to order', 'success');
+  switchAdmin('orders');
+}
+
+async function verifyDriverAccount(userId) {
+  var users = STN.DB.get('users') || [];
+  var idx = users.findIndex(function (u) {
+    return String(u.id) === String(userId);
+  });
+  if (idx !== -1) {
+    users[idx].verified = true;
+    users[idx].is_verified = true;
+    STN.DB.set('users', users);
+  }
+  try {
+    if (typeof SB !== 'undefined' && SB.updateUser) {
+      await SB.updateUser(userId, { verified: true, is_verified: true });
+    }
+  } catch (e) {
+    if (typeof STNLog !== 'undefined') STNLog.warn('verifyDriverAccount', e && e.message);
+  }
+  if (State.currentUser && String(State.currentUser.id) === String(userId)) {
+    State.currentUser.verified = true;
+    State.currentUser.is_verified = true;
+    STN.DB.set('currentUser', State.currentUser);
+    updateNavUser();
+  }
+  toast('Driver verified — they can accept deliveries', 'success');
+  switchAdmin('users');
 }
 
 function verifyVendor(userId) {

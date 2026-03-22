@@ -108,13 +108,14 @@ const DB = {
 if (!DB.get('products')) DB.set('products', PRODUCTS_DATA);
 if (!DB.get('users')) DB.set('users', [
   { id:1, firstName:'Admin', lastName:'Everest', email:'admin@everest.tn', phone:'20000001', wilaya:'Monastir', delegation:'Monastir', password:'admin123', role:'admin', points:15000, verified:true, avatar:'👑' },
-  { id:2, firstName:'Ahmed', lastName:'Maalej', email:'vendor@everest.tn', phone:'20000002', wilaya:'Monastir', delegation:'Ksar Hellal', password:'vendor123', role:'vendor', points:5000, verified:true, avatar:'🧑‍🎨' }
+  { id:2, firstName:'Ahmed', lastName:'Maalej', email:'vendor@everest.tn', phone:'20000002', wilaya:'Monastir', delegation:'Ksar Hellal', password:'vendor123', role:'vendor', points:5000, verified:true, avatar:'🧑‍🎨' },
+  { id:3, firstName:'Sami', lastName:'Livreur', email:'driver@everest.tn', phone:'20000003', wilaya:'Tunis', delegation:'Tunis', password:'driver123', role:'driver', points:500, verified:true, avatar:'🚚' }
 ]);
 if (!DB.get('orders')) DB.set('orders', [
   { id:1, vendorId:1, userId:1, userName:'Ahmed Ben', phone:'55 123 456', items:[{id:1,name:'Velvet Sultan Sofa',price:3299,qty:1}], total:3299, status:'delivered', created_at:'2026-03-10T10:00:00', tracking_number:'TN1001' },
   { id:2, vendorId:1, userId:2, userName:'Sarra Ali', phone:'55 987 654', items:[{id:4,name:'Champagne Bedroom Suite',price:6800,qty:1}], total:6800, status:'ready', created_at:'2026-03-12T14:30:00', tracking_number:'TN1002' },
   { id:3, vendorId:1, userId:3, userName:'Moez K', phone:'55 456 789', items:[{id:7,name:'Rattan Garden Set',price:2100,qty:1}], total:2100, status:'pending', created_at:'2026-03-15T09:15:00', tracking_number:'TN1003' },
-  { id:4, vendorId:2, userId:4, userName:'Lila S', phone:'55 111 222', items:[{id:2,name:'Brass Moroccan Lantern',price:849,qty:2}], total:1698, status:'shipped', created_at:'2026-03-11T16:45:00', tracking_number:'TN1004' },
+  { id:4, vendorId:2, userId:4, userName:'Lila S', phone:'55 111 222', items:[{id:2,name:'Brass Moroccan Lantern',price:849,qty:2}], total:1698, status:'out_for_delivery', driver_id:3, delivery_lat:36.8065, delivery_lng:10.1815, address:'Lac 2, Tunis', wilaya:'Tunis', created_at:'2026-03-11T16:45:00', tracking_number:'TN1004' },
   { id:5, vendorId:2, userId:5, userName:'Karim M', phone:'55 333 444', items:[{id:5,name:'Hand-Painted Dinner Set',price:420,qty:1}], total:420, status:'delivered', created_at:'2026-03-08T11:20:00', tracking_number:'TN1005' },
   { id:6, vendorId:3, userId:6, userName:'Youssef T', phone:'55 777 888', items:[{id:3,name:'Antique Gold Mirror',price:1599,qty:1}], total:1599, status:'ready', created_at:'2026-03-14T13:10:00', tracking_number:'TN1006' }
 ]);

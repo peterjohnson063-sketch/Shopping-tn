@@ -17,6 +17,7 @@ function _sbEq(value) {
 
 const _ORDER_STATUSES = new Set([
   'pending', 'confirmed', 'processing', 'shipped', 'delivered', 'ready', 'cancelled', 'canceled', 'transit',
+  'out_for_delivery', 'out-for-delivery',
 ]);
 
 /**
@@ -231,6 +232,42 @@ const SB = {
     return data[0];
   },
 
+  /**
+   * Supabase Storage upload (public bucket). Create bucket `driver-kyc` + INSERT policy in dashboard.
+   */
+  async uploadStorageObject(bucket, objectPath, blob, contentType) {
+    const b = String(bucket || '').replace(/[^a-zA-Z0-9_-]/g, '');
+    const rawPath = String(objectPath || '').replace(/^\/+/, '');
+    if (!b || !rawPath || !blob) throw new Error('Invalid storage upload');
+    const pathEnc = rawPath
+      .split('/')
+      .map(function (seg) {
+        return encodeURIComponent(seg);
+      })
+      .join('/');
+    const url = `${SUPABASE_URL}/storage/v1/object/${b}/${pathEnc}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': contentType || 'application/octet-stream',
+        'x-upsert': 'true',
+      },
+      body: blob,
+    });
+    if (!res.ok) {
+      let msg = 'Storage upload failed';
+      try {
+        const j = await res.json();
+        msg = j.message || j.error || msg;
+      } catch (e) {}
+      throw new Error(msg);
+    }
+    const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${b}/${pathEnc}`;
+    return { bucket: b, path: rawPath, publicUrl: publicUrl };
+  },
+
   // ── PRODUCTS ──
   async getProducts() {
     const data = await this.req('GET', 'products', null, '?order=created_at.desc&limit=2000');
@@ -355,6 +392,17 @@ const SB = {
       if (Array.isArray(bySnake) && bySnake.length) return bySnake;
     } catch (e) {}
     return this.req('GET', 'orders', null, `?vendorId=eq.${v}&order=created_at.desc&limit=500`);
+  },
+
+  /** Orders assigned to this delivery user (`driver_id` column in DB). */
+  async getDriverOrders(driverUserId) {
+    const d = _sbEq(driverUserId);
+    try {
+      const rows = await this.req('GET', 'orders', null, `?driver_id=eq.${d}&order=created_at.desc&limit=200`);
+      return Array.isArray(rows) ? rows : [];
+    } catch (e) {
+      return [];
+    }
   },
 
   // ── ORDER TRACKING ──
