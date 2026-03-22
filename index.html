@@ -108,14 +108,14 @@ body.cursor-big #cursor-ring { width: 50px; height: 50px; }
 @keyframes orb-float { 0%,100% { transform: translate(0,0); } 50% { transform: translate(20px,-20px); } }
 
 /* NAV */
-#main-nav { position: fixed; top: 0; left: 0; right: 0; z-index: 900; display: flex; align-items: center; gap: 1.5rem; padding: 0 4%; height: 64px; background: rgba(255,255,255,0.93); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(107,63,212,0.12); box-shadow: 0 2px 8px rgba(74,31,168,0.07); transition: var(--transition); }
+#main-nav { position: fixed; top: 0; left: 0; right: 0; z-index: 900; display: flex; align-items: center; gap: 1.5rem; padding: 0 4%; height: 72px; background: rgba(255,255,255,0.93); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(107,63,212,0.12); box-shadow: 0 2px 8px rgba(74,31,168,0.07); transition: var(--transition); }
 #main-nav.scrolled { box-shadow: 0 4px 20px rgba(74,31,168,0.11); }
 .nav-logo { font-family: var(--font-display); font-size: 1.5rem; font-weight: 600; color: #1e0a4e; white-space: nowrap; cursor: none; }
 .nav-logo span { color: #7c3aed; }
 .nav-logo sub { font-size: 0.5rem; color: #7b72a8; vertical-align: super; letter-spacing: .12em; text-transform: uppercase; }
 .nav-logo svg { transition: transform 0.3s ease; } @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .nav-logo:hover svg { transform: scale(1.12) rotate(-5deg); }
-.nav-brand-logo { height: 54px; width: auto; max-width: min(268px, 52vw); object-fit: contain; object-position: left center; display: block; transition: transform 0.25s ease, filter 0.25s ease; }
+.nav-brand-logo { height: 62px; width: auto; max-width: min(300px, 58vw); object-fit: contain; object-position: left center; display: block; transition: transform 0.25s ease, filter 0.25s ease; }
 .nav-logo:hover .nav-brand-logo { transform: translateY(-1px); filter: drop-shadow(0 3px 10px rgba(124, 58, 237, 0.18)); }
 .nav-links { display: flex; gap: .1rem; flex: 1; justify-content: center; }
 .nav-btn { background: none; border: none; color: #7b72a8; font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; padding: .45rem .85rem; border-radius: 8px; transition: var(--transition); font-weight: 500; }
@@ -132,7 +132,7 @@ body.cursor-big #cursor-ring { width: 50px; height: 50px; }
 .lang-btn.active, .lang-btn:hover { border-color: rgba(107,63,212,0.35); color: #7c3aed; background: #f5f2ff; }
 
 /* PAGES */
-.page { display: none; min-height: 100vh; position: relative; z-index: 1; padding-top: 64px; width: 100%; max-width: 100%; box-sizing: border-box; overflow-x: clip; }
+.page { display: none; min-height: 100vh; position: relative; z-index: 1; padding-top: 72px; width: 100%; max-width: 100%; box-sizing: border-box; overflow-x: clip; }
 .page.active { display: block !important; width: 100% !important; min-height: 100vh; animation: page-in .35s ease; }
 @keyframes page-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -763,7 +763,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 
 <!-- Leaflet CSS for Interactive Map -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
-<link rel="stylesheet" href="styles.css?v=202503221300">
+<link rel="stylesheet" href="styles.css?v=202503221400">
 <link rel="manifest" href="manifest.json?v=202503221200">
 <style id="everest-mobile-shell">
 /* Must load after styles.css — fixes overflow + nav (cache-safe) */
@@ -807,9 +807,9 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     overflow: hidden !important;
   }
   #main-nav .nav-brand-logo {
-    max-height: 30px !important;
+    max-height: 40px !important;
     width: auto !important;
-    max-width: min(124px, 32vw) !important;
+    max-width: min(168px, 44vw) !important;
     object-fit: contain !important;
     margin: 0 auto !important;
     display: block !important;
@@ -885,8 +885,8 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 }
 @media (max-width: 380px) {
   #main-nav .nav-brand-logo {
-    max-width: min(102px, 30vw) !important;
-    max-height: 26px !important;
+    max-width: min(132px, 38vw) !important;
+    max-height: 34px !important;
   }
   #main-nav .nav-user-slot {
     max-width: min(104px, 34vw) !important;
