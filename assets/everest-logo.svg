@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 288 64" role="img" aria-label="Everest — Hit Your Dreams">
+  <defs>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#92400e"/>
+      <stop offset="50%" stop-color="#b45309"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <linearGradient id="brand" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1e0a4e"/>
+      <stop offset="55%" stop-color="#5b21b6"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+    <filter id="soft" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#5b21b6" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  <text x="4" y="36" font-family="Segoe UI, system-ui, -apple-system, BlinkMacSystemFont, sans-serif" font-size="30" font-weight="700" fill="url(#brand)" filter="url(#soft)" letter-spacing="-0.02em">Everest</text>
+  <!-- Larger, bolder tagline + light stroke so it reads on white -->
+  <text x="4" y="56" font-family="Segoe UI, system-ui, -apple-system, BlinkMacSystemFont, sans-serif" font-size="12" font-weight="700" fill="url(#gold)" stroke="#fffaf0" stroke-width="0.65" paint-order="stroke fill" stroke-opacity="0.95" stroke-linejoin="round" letter-spacing="0.12em">HIT YOUR DREAMS</text>
+</svg>

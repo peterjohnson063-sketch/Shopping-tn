@@ -126,9 +126,21 @@
           +'</div>';
       }
 
-      // Logistics
+      // Logistics — real Leaflet map from app.js (do not overwrite with static card)
       const logEl = root.querySelector('#vendor-logistics-map');
-      if (logEl) {
+      if (logEl && typeof safeLoadLogistics === 'function') {
+        setTimeout(function () {
+          safeLoadLogistics().catch(function (e) {
+            console.warn('safeLoadLogistics', e);
+            logEl.innerHTML =
+              '<div style="padding:2rem;text-align:center;color:#6b7280;background:#f0f4f8;border-radius:8px">'
+              + '<div style="font-size:2rem;margin-bottom:0.5rem">🗺️</div>'
+              + '<p style="margin:0 0 1rem;font-size:0.9rem">Map could not load.</p>'
+              + '<button type="button" onclick="typeof vendorLogisticsRefresh===\'function\'&&vendorLogisticsRefresh()" style="background:#7c3aed;color:white;border:none;padding:0.5rem 1rem;border-radius:8px;font-weight:600;cursor:pointer">Retry</button>'
+              + '</div>';
+          });
+        }, 50);
+      } else if (logEl) {
         logEl.innerHTML = '<div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:1.5rem;text-align:center;background:#f0f4f8;border-radius:8px">'
           +'<div style="font-size:3rem">🚚</div>'
           +'<h4 style="color:#1e0a4e;margin:0">Logistics Overview</h4>'

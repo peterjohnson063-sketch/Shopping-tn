@@ -1,6 +1,6 @@
 
 // ═══════════════════════════════════════════════
-// SHOPPING — MOCK DATABASE & STATE MANAGER
+// EVEREST — MOCK DATABASE & STATE MANAGER
 // ═══════════════════════════════════════════════
 const WILAYAS = {
   'Monastir': ['Monastir','Moknine','Ksar Hellal','Jemmal','Sayada','Bembla','Beni Hassen','Sahline','Zeramdine','Ouardanine','Téboulba'],
@@ -52,6 +52,51 @@ const LOYALTY_TIERS = [
   { name:'Platinum', min:15000, max:Infinity, color:'#1e0a4e', perks:['18% cashback','Dedicated account manager','All Gold perks','Annual luxury gift','Private sale events'] }
 ];
 
+// Canonical categories: same slugs as shop filters (index.html) + seed `cat` in PRODUCTS_DATA
+const PRODUCT_CATEGORIES = [
+  { slug: 'furniture', label: '🛋️ Furniture', emoji: '🛋' },
+  { slug: 'lighting', label: '💡 Lighting', emoji: '💡' },
+  { slug: 'decor', label: '🎨 Decor', emoji: '🪞' },
+  { slug: 'ceramics', label: '🏺 Ceramics', emoji: '🍽' },
+  { slug: 'bedroom', label: '🛏️ Bedroom', emoji: '🛏' },
+  { slug: 'outdoor', label: '🌿 Outdoor', emoji: '🪑' },
+  { slug: 'fragrance', label: '🧴 Fragrance', emoji: '🧴' },
+];
+
+const CATEGORY_SLUG_SET = new Set(PRODUCT_CATEGORIES.map(function (c) { return c.slug; }));
+
+/** Map legacy upload values / synonyms to a canonical slug. Returns null if unknown. */
+function resolveProductCategorySlug(input) {
+  if (input == null) return null;
+  var raw = String(input).trim().toLowerCase();
+  if (!raw) return null;
+  var aliases = {
+    sofa: 'furniture', wood: 'furniture', 'furniture_wood': 'furniture',
+    rug: 'decor', rugs: 'decor', kilim: 'decor', carpet: 'decor', tapestry: 'decor',
+    ceramic: 'ceramics', pottery: 'ceramics',
+    lamp: 'lighting', lights: 'lighting',
+    scent: 'fragrance', perfume: 'fragrance',
+  };
+  var s = aliases[raw] || raw;
+  return CATEGORY_SLUG_SET.has(s) ? s : null;
+}
+
+/** User-typed "other" category → safe slug (a–z, 0–9, underscore). */
+function slugifyCategoryInput(text) {
+  if (!text || typeof text !== 'string') return null;
+  var s = text.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '').replace(/_+/g, '_').replace(/^_|_$/g, '');
+  if (!s || s.length > 40) return null;
+  if (!/^[a-z][a-z0-9_]*$/.test(s)) return null;
+  return s;
+}
+
+function categoryEmoji(slug) {
+  for (var i = 0; i < PRODUCT_CATEGORIES.length; i++) {
+    if (PRODUCT_CATEGORIES[i].slug === slug) return PRODUCT_CATEGORIES[i].emoji;
+  }
+  return '📦';
+}
+
 // ── DB ──
 const DB = {
   get(key) { try { return JSON.parse(localStorage.getItem('stn_'+key)); } catch(e) { return null; } },
@@ -62,8 +107,8 @@ const DB = {
 // ── INIT DEFAULT DATA ──
 if (!DB.get('products')) DB.set('products', PRODUCTS_DATA);
 if (!DB.get('users')) DB.set('users', [
-  { id:1, firstName:'Admin', lastName:'Shopping', email:'admin@shopping', phone:'20000001', wilaya:'Monastir', delegation:'Monastir', password:'admin123', role:'admin', points:15000, verified:true, avatar:'👑' },
-  { id:2, firstName:'Ahmed', lastName:'Maalej', email:'vendor@shopping', phone:'20000002', wilaya:'Monastir', delegation:'Ksar Hellal', password:'vendor123', role:'vendor', points:5000, verified:true, avatar:'🧑‍🎨' }
+  { id:1, firstName:'Admin', lastName:'Everest', email:'admin@everest.tn', phone:'20000001', wilaya:'Monastir', delegation:'Monastir', password:'admin123', role:'admin', points:15000, verified:true, avatar:'👑' },
+  { id:2, firstName:'Ahmed', lastName:'Maalej', email:'vendor@everest.tn', phone:'20000002', wilaya:'Monastir', delegation:'Ksar Hellal', password:'vendor123', role:'vendor', points:5000, verified:true, avatar:'🧑‍🎨' }
 ]);
 if (!DB.get('orders')) DB.set('orders', [
   { id:1, vendorId:1, userId:1, userName:'Ahmed Ben', phone:'55 123 456', items:[{id:1,name:'Velvet Sultan Sofa',price:3299,qty:1}], total:3299, status:'delivered', created_at:'2026-03-10T10:00:00', tracking_number:'TN1001' },
@@ -82,6 +127,82 @@ if (!DB.get('cart')) DB.set('cart', []);
 if (!DB.get('wishlist')) DB.set('wishlist', []);
 if (!DB.get('currentUser')) DB.set('currentUser', null);
 
-window.STN = { DB, PRODUCTS_DATA, WILAYAS, PROMO_CODES, LOYALTY_TIERS };
-console.log('🛒 Shopping Data Layer Ready');
+/** Strip secrets before persisting session user to localStorage (passwords must not live in the browser store). */
+function userForSession(u) {
+  if (!u || typeof u !== 'object') return u;
+  const o = { ...u };
+  delete o.password;
+  delete o.pass;
+  delete o.apikey;
+  delete o.api_key;
+  return o;
+}
+
+// ── Structured logging (no secrets). Set window.STN_LOG_LEVEL = 'error' | 'warn' | 'info' | 'debug'
+(function initSTNLog() {
+  const LEVELS = { error: 0, warn: 1, info: 2, debug: 3 };
+  function levelNum() {
+    if (typeof window === 'undefined') return LEVELS.info;
+    const s = String(window.STN_LOG_LEVEL || 'info').toLowerCase();
+    return LEVELS[s] !== undefined ? LEVELS[s] : LEVELS.info;
+  }
+  const SECRET_KEY = /^(password|passphrase|secret|token|apikey|api_key|authorization|refresh_token|access_token)$/i;
+  function sanitize(val, depth) {
+    const d = depth == null ? 0 : depth;
+    if (d > 5) return '[…]';
+    if (val == null) return val;
+    if (typeof val !== 'object') return val;
+    if (val instanceof Error) return { name: val.name, message: val.message };
+    if (Array.isArray(val)) return val.map((v) => sanitize(v, d + 1));
+    const o = {};
+    for (const k of Object.keys(val)) {
+      if (SECRET_KEY.test(k)) {
+        o[k] = '[REDACTED]';
+        continue;
+      }
+      o[k] = sanitize(val[k], d + 1);
+    }
+    return o;
+  }
+  const ts = () => new Date().toISOString();
+  window.STNLog = {
+    sanitize,
+    error(tag, err, meta) {
+      const payload = {
+        level: 'error',
+        time: ts(),
+        tag,
+        error: err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : err,
+      };
+      if (meta != null) payload.meta = sanitize(meta);
+      console.error('[STN]', payload);
+    },
+    warn(tag, msg, meta) {
+      if (levelNum() < LEVELS.warn) return;
+      console.warn('[STN]', ts(), tag, msg, meta != null ? sanitize(meta) : '');
+    },
+    info(tag, msg, meta) {
+      if (levelNum() < LEVELS.info) return;
+      console.info('[STN]', ts(), tag, msg, meta != null ? sanitize(meta) : '');
+    },
+    debug(tag, msg, meta) {
+      if (levelNum() < LEVELS.debug) return;
+      console.log('[STN]', ts(), tag, msg, meta != null ? sanitize(meta) : '');
+    },
+  };
+})();
+
+window.STN = {
+  DB,
+  PRODUCTS_DATA,
+  WILAYAS,
+  PROMO_CODES,
+  LOYALTY_TIERS,
+  userForSession,
+  PRODUCT_CATEGORIES,
+  resolveProductCategorySlug,
+  slugifyCategoryInput,
+  categoryEmoji,
+};
+console.log('🛒 Everest data layer ready');
 

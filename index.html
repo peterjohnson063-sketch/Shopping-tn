@@ -3,8 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Shopping — Tunisia's Premium Digital Mall. Curated collections from Monastir, Ksar Hellal, and Sahel artisans.">
-<title>Shopping — Tunisia's Premium Digital Mall</title>
+<meta name="description" content="Everest — Hit Your Dreams. Tunisia's premium digital mall: curated artisans from Monastir, Ksar Hellal, and the Sahel.">
+<title>Everest — Hit Your Dreams | Tunisia</title>
+<link rel="icon" type="image/svg+xml" href="assets/everest-logo.svg"/>
+<link rel="alternate icon" type="image/png" href="assets/everest-logo.png"/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 
@@ -86,6 +88,8 @@ body.cursor-big #cursor-ring { width: 50px; height: 50px; }
 .nav-logo sub { font-size: 0.5rem; color: #7b72a8; vertical-align: super; letter-spacing: .12em; text-transform: uppercase; }
 .nav-logo svg { transition: transform 0.3s ease; } @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .nav-logo:hover svg { transform: scale(1.12) rotate(-5deg); }
+.nav-brand-logo { height: 54px; width: auto; max-width: min(268px, 52vw); object-fit: contain; object-position: left center; display: block; transition: transform 0.25s ease, filter 0.25s ease; }
+.nav-logo:hover .nav-brand-logo { transform: translateY(-1px); filter: drop-shadow(0 3px 10px rgba(124, 58, 237, 0.18)); }
 .nav-links { display: flex; gap: .1rem; flex: 1; justify-content: center; }
 .nav-btn { background: none; border: none; color: #7b72a8; font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; padding: .45rem .85rem; border-radius: 8px; transition: var(--transition); font-weight: 500; }
 .nav-btn:hover { color: #7c3aed; background: #f5f2ff; }
@@ -175,6 +179,8 @@ body.cursor-big #cursor-ring { width: 50px; height: 50px; }
 .product-card { background: white; border: 1px solid rgba(107,63,212,0.12); border-radius: 18px; overflow: hidden; transition: var(--transition); position: relative; }
 .product-card:hover { box-shadow: 0 12px 40px rgba(74,31,168,0.16); border-color: rgba(124,58,237,.25); transform: translateY(-4px); }
 .product-img-wrap { aspect-ratio: 4/3; position: relative; overflow: hidden; background: #f5f2ff; }
+.product-card-photo { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; transition: transform .45s ease; }
+.product-card:hover .product-card-photo { transform: scale(1.06); }
 .product-emoji { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 4rem; transition: transform .4s; }
 .product-card:hover .product-emoji { transform: scale(1.08); }
 .product-overlay { position: absolute; inset: 0; background: rgba(30,10,78,.87); display: flex; align-items: center; justify-content: center; gap: .7rem; opacity: 0; transition: opacity .3s; padding: 1rem; }
@@ -751,32 +757,9 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 <!-- NAVIGATION                       -->
 <!-- ════════════════════════════════ -->
 <nav id="main-nav">
-    <a class="nav-logo" onclick="showPage('home')" style="display:flex;align-items:center;gap:0.75rem;text-decoration:none;cursor:pointer">
-    <div style="position:relative;width:38px;height:38px;flex-shrink:0">
-      <!-- Animated ring -->
-      <svg style="position:absolute;top:0;left:0;animation:spin 8s linear infinite" width="38" height="38" viewBox="0 0 38 38" fill="none">
-        <circle cx="19" cy="19" r="17" stroke="url(#ringGrad)" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.6"/>
-        <defs>
-          <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#7c3aed"/>
-            <stop offset="100%" stop-color="#c084fc"/>
-          </linearGradient>
-        </defs>
-      </svg>
-      <!-- Bag circle -->
-      <div style="position:absolute;inset:4px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#9b72f0);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(124,58,237,0.35)">
-        <svg width="18" height="18" viewBox="0 0 58 58" fill="none">
-          <path d="M19 22 C19 14 39 14 39 22" stroke="white" stroke-width="4" stroke-linecap="round" fill="none"/>
-          <path d="M11 22 H47 L43 48 H15 Z" fill="white" opacity="0.95"/>
-          <circle cx="29" cy="37" r="3" fill="rgba(124,58,237,0.5)"/>
-        </svg>
-      </div>
-    </div>
-    <div style="display:flex;flex-direction:column;line-height:1">
-      <span style="font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:600;background:linear-gradient(90deg,#1e0a4e,#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;color:transparent;letter-spacing:0.05em">Shopping</span>
-      <span style="font-size:0.45rem;letter-spacing:0.25em;text-transform:uppercase;color:#7b72a8">Tunisia's Digital Mall</span>
-    </div>
-  </a>
+    <a class="nav-logo" onclick="showPage('home')" style="display:flex;align-items:center;gap:0.5rem;text-decoration:none;cursor:pointer" aria-label="Everest — Home">
+      <img class="nav-brand-logo" src="assets/everest-logo.svg" alt="Everest — Hit Your Dreams" width="288" height="64" decoding="async"/>
+    </a>
   <ul class="nav-links">
     <li><button class="nav-btn" id="navbtn-home" data-lang="nav-home" onclick="showPage('home')">Home</button></li>
     <li><button class="nav-btn" id="navbtn-products" data-lang="nav-products" onclick="showPage('products')">Collections</button></li>
@@ -1611,10 +1594,10 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 <div class="page" id="page-vendor"></div>
 
 <!-- ════════════════════════════════ -->
-<!-- PAGE: VENDOR DASHBOARD -->
-<div class="page" id="page-vendor-dashboard">
-  <!-- Professional Dashboard will be loaded here -->
-  <div style="padding:5rem 5% 4rem;text-align:center;background:white">
+<!-- PAGE: LOYALTY / REWARDS -->
+<div class="page" id="page-loyalty">
+  <div id="loyalty-promo-section" style="display:none" aria-hidden="true"></div>
+  <div style="padding:5rem 5% 4rem;text-align:center;background:white;min-height:60vh">
     <p style="font-size:0.75rem;letter-spacing:0.2em;text-transform:uppercase;color:#7c3aed;margin-bottom:1rem" data-lang="rewards-label">Programme Fidelite</p>
     <h1 style="font-family:'Cormorant Garamond',serif;font-size:3.5rem;color:#1e0a4e;font-weight:400;margin-bottom:1rem">Loyalty <em style="color:#7c3aed;font-style:italic">Rewards</em></h1>
     <p style="color:#3d3460;max-width:500px;margin:0 auto 2rem;font-size:1rem" data-lang="rewards-sub">Earn points on every purchase and unlock exclusive perks!</p>
@@ -1623,12 +1606,16 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
       <span style="font-size:0.78rem;color:#1e0a4e">1 TND spent = <strong style="color:#7c3aed">1 point</strong></span>
       <span style="font-size:0.78rem;color:#1e0a4e">100 points = <strong style="color:#7c3aed">1 TND off</strong></span>
     </div>
-    <div id="loyalty-tiers-grid" style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem"></div>
+    <div id="loyalty-tiers-grid" style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.5rem"></div>
     <div style="margin-top:3rem">
       <button onclick="showPage('products')" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.9rem 2.5rem;border-radius:50px;font-size:0.9rem;cursor:pointer;font-family:inherit">Start Earning Points →</button>
     </div>
   </div>
 </div>
+
+<!-- ════════════════════════════════ -->
+<!-- PAGE: VENDOR DASHBOARD -->
+<div class="page" id="page-vendor-dashboard"></div>
 
 <!-- ════════════════════════════════ -->
 <!-- PAGE: ABOUT                      -->
@@ -1637,9 +1624,9 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   <div style="padding:6rem 5% 4rem">
     <div style="text-align:center;margin-bottom:4rem">
       <p style="font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:#7c3aed;margin-bottom:1rem">قصتنا · Notre Histoire</p>
-      <h1 style="font-family:'Cormorant Garamond',serif;font-size:clamp(2.5rem,6vw,4rem);color:#1e0a4e;font-weight:400;margin-bottom:1.5rem">About <em style="color:#7c3aed;font-style:italic">Shopping</em></h1>
+      <h1 style="font-family:'Cormorant Garamond',serif;font-size:clamp(2.5rem,6vw,4rem);color:#1e0a4e;font-weight:400;margin-bottom:1.5rem">About <em style="color:#7c3aed;font-style:italic">Everest</em></h1>
       <div style="width:60px;height:2px;background:linear-gradient(90deg,#7c3aed,#9b72f0);margin:0 auto 2rem"></div>
-      <p style="color:#3d3460;max-width:600px;margin:0 auto;font-size:1rem;line-height:1.8">Born in the heart of Tunisia's Sahel region, Shopping was created to connect the world with the extraordinary craftsmanship of Monastir, Ksar Hellal, and beyond.</p>
+      <p style="color:#3d3460;max-width:600px;margin:0 auto;font-size:1rem;line-height:1.8">Born in the heart of Tunisia's Sahel region, Everest was created to connect the world with the extraordinary craftsmanship of Monastir, Ksar Hellal, and beyond.</p>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:3rem;margin-bottom:5rem;align-items:center;max-width:1100px;margin:0 auto 5rem">
@@ -1648,7 +1635,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
         <p style="font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:#7c3aed;margin-bottom:0.8rem">Our Mission</p>
         <h2 style="font-family:'Cormorant Garamond',serif;font-size:2.2rem;color:#1e0a4e;font-weight:400;margin-bottom:1rem">Sahel <em style="color:#7c3aed;font-style:italic">to the World</em></h2>
         <div style="width:40px;height:2px;background:#7c3aed;margin-bottom:1.5rem"></div>
-        <p style="color:#3d3460;line-height:1.8;margin-bottom:1rem">Tunisia's Sahel region has been producing world-class furniture and crafts for centuries. Shopping is building the digital bridge that connects these master artisans with customers across 50+ countries.</p>
+        <p style="color:#3d3460;line-height:1.8;margin-bottom:1rem">Tunisia's Sahel region has been producing world-class furniture and crafts for centuries. Everest is building the digital bridge that connects these master artisans with customers across 50+ countries.</p>
         <p style="color:#3d3460;line-height:1.8">Every purchase directly supports a Tunisian family, preserves a traditional craft, and keeps alive a 500-year-old heritage.</p>
       </div>
     </div>
@@ -1687,7 +1674,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
         <div style="width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,#4a1fa8,#6b3fd4);display:flex;align-items:center;justify-content:center;font-size:1.9rem;margin:0 auto 1rem">💻</div>
         <div style="font-size:0.95rem;color:#1e0a4e;font-weight:500;margin-bottom:0.2rem">Amina Trabelsi</div>
         <div style="font-size:0.72rem;color:#7c3aed;margin-bottom:0.5rem">CTO</div>
-        <p style="font-size:0.75rem;color:#7b72a8;line-height:1.6">Full-stack engineer from Ksar Hellal. Architected the Shopping platform.</p>
+        <p style="font-size:0.75rem;color:#7b72a8;line-height:1.6">Full-stack engineer from Ksar Hellal. Architected the Everest platform.</p>
       </div>
       <div style="background:white;border:1px solid rgba(107,63,212,0.15);border-radius:18px;padding:2rem;text-align:center;box-shadow:0 2px 12px rgba(74,31,168,0.08)">
         <div style="width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,#4a1fa8,#6b3fd4);display:flex;align-items:center;justify-content:center;font-size:1.9rem;margin:0 auto 1rem">🎨</div>
@@ -1895,7 +1882,7 @@ function filterAndGo(cat) {
     <div style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:1.2rem">✨</div>
     <div>
       <div style="color:white;font-weight:700;font-size:0.95rem;font-family:'Cormorant Garamond',serif">Yasmine</div>
-      <div style="color:rgba(255,255,255,0.8);font-size:0.7rem">AI Assistant · Shopping</div>
+      <div style="color:rgba(255,255,255,0.8);font-size:0.7rem">AI Assistant · Everest</div>
     </div>
     <button onclick="AI.toggle()" style="margin-left:auto;background:rgba(255,255,255,0.2);border:none;color:white;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1rem">×</button>
   </div>
@@ -2051,14 +2038,27 @@ function filterAndGo(cat) {
           +'</div>';
       }
 
-      // Logistics
+      // Logistics — real Leaflet map from app.js (must not overwrite with a static card)
       const logEl = root.querySelector('#vendor-logistics-map');
-      if (logEl) {
-        logEl.innerHTML = '<div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:1.5rem;text-align:center;background:#f0f4f8;border-radius:8px">'
-          +'<div style="font-size:3rem">🚚</div>'
-          +'<h4 style="color:#1e0a4e;margin:0">Logistics Overview</h4>'
-          +'<div style="background:#dbeafe;color:#1d4ed8;border-radius:8px;padding:0.75rem 1.5rem;font-weight:600">'+shipped.length+' Active Deliveries</div>'
-          +'</div>';
+      if (logEl && typeof safeLoadLogistics === 'function') {
+        setTimeout(function () {
+          safeLoadLogistics().catch(function (e) {
+            console.warn('safeLoadLogistics', e);
+            logEl.innerHTML =
+              '<div style="padding:2rem;text-align:center;color:#6b7280;background:#f0f4f8;border-radius:8px">'
+              + '<div style="font-size:2rem;margin-bottom:0.5rem">🗺️</div>'
+              + '<p style="margin:0 0 1rem;font-size:0.9rem">Map could not load.</p>'
+              + '<button type="button" onclick="typeof vendorLogisticsRefresh===\'function\'&&vendorLogisticsRefresh()" style="background:#7c3aed;color:white;border:none;padding:0.5rem 1rem;border-radius:8px;font-weight:600;cursor:pointer">Retry</button>'
+              + '</div>';
+          });
+        }, 50);
+      } else if (logEl) {
+        logEl.innerHTML =
+          '<div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:1.5rem;text-align:center;background:#f0f4f8;border-radius:8px">'
+          + '<div style="font-size:3rem">🚚</div>'
+          + '<h4 style="color:#1e0a4e;margin:0">Logistics Overview</h4>'
+          + '<div style="background:#dbeafe;color:#1d4ed8;border-radius:8px;padding:0.75rem 1.5rem;font-weight:600">' + shipped.length + ' Active Deliveries</div>'
+          + '</div>';
       }
 
       console.log('✅ Vendor dashboard patch: loaded');

@@ -1,16 +1,23 @@
 {
-  "name": "Shopping.TN",
-  "short_name": "Shopping.TN",
-  "description": "Tunisia's #1 Artisan Marketplace",
+  "name": "Everest — Hit Your Dreams",
+  "short_name": "Everest",
+  "description": "Everest — Tunisia's premium artisan marketplace",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#7c3aed",
+  "background_color": "#6200EE",
+  "theme_color": "#6200EE",
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛍</text></svg>",
+      "src": "assets/everest-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/everest-logo.png",
       "sizes": "192x192",
-      "type": "image/svg+xml"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

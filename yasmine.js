@@ -18,7 +18,7 @@ var TRANSLATIONS={
     'track-placeholder':'Enter tracking number...','track-btn':'Track',
     'rewards-label':'Loyalty Program','rewards-title':'Loyalty Rewards',
     'rewards-sub':'Earn points on every purchase and unlock exclusive perks!',
-    'about-label':'Our Story','about-title':'About Shopping',
+    'about-label':'Our Story','about-title':'About Everest',
     'add-cart':'Add to Cart','view-all':'View All','shop-now':'Shop Now',
     'sign-in':'Sign In','create-account':'Create Account','logout':'Sign Out'
   },
@@ -39,7 +39,7 @@ var TRANSLATIONS={
     'track-placeholder':'Entrez le numero de suivi...','track-btn':'Suivre',
     'rewards-label':'Programme Fidelite','rewards-title':'Recompenses',
     'rewards-sub':'Gagnez des points a chaque achat!',
-    'about-label':'Notre Histoire','about-title':'A Propos de Shopping',
+    'about-label':'Notre Histoire','about-title':'À propos d\'Everest',
     'add-cart':'Ajouter au Panier','view-all':'Voir Tout','shop-now':'Acheter',
     'sign-in':'Connexion','create-account':'Creer un Compte','logout':'Deconnexion'
   },
@@ -126,7 +126,7 @@ var AI = (function(){
   var currentLang = 'fr';
   var isOpen = false;
 
-  var SYSTEM = `You are Yasmine, the AI assistant for Shopping — Tunisias premium artisan marketplace. You help customers find products, answer questions about delivery, artisans, and orders. You speak Arabic, French, and English — auto-detect the language. Always be warm, helpful, and bring conversations back to Shopping naturally. Key facts: artisans from Monastir, Ksar Hellal, Sfax, Nabeul. Delivery 24-48h in Tunisia. Free shipping over 500 TND. Promo codes: SHOPPING10 (10% off), SAHEL20 (20% off), WELCOME50 (50 TND off). Products include furniture, ceramics, lighting, rugs, bedroom sets.`;
+  var SYSTEM = `You are Yasmine, the AI assistant for Everest — Hit Your Dreams — Tunisia's premium artisan marketplace. You help customers find products, answer questions about delivery, artisans, and orders. You speak Arabic, French, and English — auto-detect the language. Always be warm, helpful, and bring conversations back to Everest naturally. Key facts: artisans from Monastir, Ksar Hellal, Sfax, Nabeul. Delivery 24-48h in Tunisia. Free shipping over 500 TND. Promo codes: EVEREST10 (10% off), SAHEL20 (20% off), WELCOME50 (50 TND off). Products include furniture, ceramics, lighting, rugs, bedroom sets.`;
 
   function sendMessage(userMsg){
     if(!userMsg || !userMsg.trim()) return;
@@ -173,7 +173,7 @@ var AI = (function(){
 
     // Greetings
     if(m.match(/^(hi|hello|hey|salut|bonjour|bonsoir|مرحبا|السلام|هلا|coucou|slt)/))
-      return ar ? 'مرحبا! أنا ياسمين، مساعدتك في Shopping 🛍️ كيف يمكنني مساعدتك اليوم؟' : en ? 'Hi! I am Yasmine, your Shopping assistant 🛍️ How can I help you today?' : 'Bonjour! Je suis Yasmine, votre assistante Shopping 🛍️ Comment puis-je vous aider?';
+      return ar ? 'مرحبا! أنا ياسمين، مساعدتك في Everest 🛍️ كيف يمكنني مساعدتك اليوم؟' : en ? 'Hi! I am Yasmine, your Everest assistant 🛍️ How can I help you today?' : 'Bonjour! Je suis Yasmine, votre assistante Everest 🛍️ Comment puis-je vous aider?';
 
     // How are you
     if(m.includes('how are') || m.includes('comment tu') || m.includes('comment vas') || m.includes('كيف حالك'))
@@ -231,9 +231,9 @@ var AI = (function(){
     if(m.includes('product') || m.includes('produit') || m.includes('what do you') || m.includes('what you') || m.includes('منتج') || m.includes('ماذا عندك') || m.includes('collection'))
       return ar ? '🛍️ لدينا تشكيلة واسعة: أثاث فاخر، سجاد كيليم، إنارة نحاسية، سيراميك، عطور، ديكور، وأثاث حسب الطلب! كلها من حرفيين تونسيين.' : en ? '🛍️ We have: luxury furniture, kilim rugs, brass lighting, ceramics, fragrances, decor, and custom furniture! All from Tunisian artisans.' : '🛍️ Nous avons: meubles de luxe, tapis kilim, luminaires en laiton, céramiques, parfums, déco, et meubles sur mesure!';
 
-    // About shopping / what is
-    if(m.includes('what is shopping') || m.includes('about') || m.includes('qui etes') || m.includes('ما هو') || m.includes('من انتم'))
-      return ar ? '🇹🇳 Shopping هي منصة التسوق الأولى للحرف اليدوية التونسية! نربط حرفيي الصحل من المنستير وقصر هلال بالعالم. كل منتج قصة وإرث!' : en ? '🇹🇳 Shopping is Tunisias #1 artisan marketplace! We connect Sahel craftsmen from Monastir & Ksar Hellal with the world. Every product tells a story!' : '🇹🇳 Shopping est la 1ère marketplace artisanale de Tunisie! Nous connectons les artisans du Sahel avec le monde entier.';
+    // About Everest / what is
+    if(m.includes('what is everest') || m.includes('what is shopping') || m.includes('about') || m.includes('qui etes') || m.includes('ما هو') || m.includes('من انتم'))
+      return ar ? '🇹🇳 Everest هي منصة التسوق الأولى للحرف اليدوية التونسية! نربط حرفيي الصحل من المنستير وقصر هلال بالعالم. كل منتج قصة وإرث!' : en ? '🇹🇳 Everest is Tunisia\'s #1 artisan marketplace! We connect Sahel craftsmen from Monastir & Ksar Hellal with the world. Every product tells a story!' : '🇹🇳 Everest est la 1ère marketplace artisanale de Tunisie! Nous connectons les artisans du Sahel avec le monde entier.';
 
     // Default
     return ar ? 'مرحبا! 😊 أنا ياسمين. يمكنني مساعدتك في: المنتجات، التوصيل، الطلبات، الأسعار، الحرفيين. ماذا تريد أن تعرف؟' : en ? 'Hi! 😊 I am Yasmine. I can help with: products, delivery, orders, prices, artisans. What would you like to know?' : 'Bonjour! 😊 Je suis Yasmine. Je peux vous aider avec: produits, livraison, commandes, prix, artisans. Que souhaitez-vous savoir?';
@@ -279,4 +279,4 @@ var AI = (function(){
   };
 })();
 
-console.log('Shopping Data Layer Ready');
+console.log('Everest assistant layer ready');

@@ -1,6 +1,6 @@
 
 // ═══════════════════════════════════════════════
-// SHOPPING — MAIN APPLICATION ENGINE
+// EVEREST — MAIN APPLICATION ENGINE
 // ═══════════════════════════════════════════════
 
 'use strict';
@@ -32,6 +32,10 @@ const State = {
 // ── INIT ──
 function init() {
   State.currentUser = STN.DB.get('currentUser');
+  if (State.currentUser && State.currentUser.password) {
+    State.currentUser = STN.userForSession(State.currentUser);
+    STN.DB.set('currentUser', State.currentUser);
+  }
   State.cart = STN.DB.get('cart') || [];
   State.wishlist = STN.DB.get('wishlist') || [];
   
@@ -54,7 +58,7 @@ function init() {
           }
         }
       } catch (e) {
-        // Non-fatal: keep UI responsive
+        if (typeof STNLog !== 'undefined') STNLog.warn('products.changed', 'listener failed', { message: e && e.message });
       }
     });
   }
@@ -92,12 +96,11 @@ async function initializeProducts() {
     if (supabaseProducts && supabaseProducts.length > 0) {
       State.products = supabaseProducts;
       STN.DB.set('products', State.products);
-      console.log('✅ Products loaded from Supabase:', supabaseProducts.length);
+      if (typeof STNLog !== 'undefined') STNLog.info('products.init', 'Loaded from Supabase', { count: supabaseProducts.length });
     }
     // If Supabase empty/unavailable, keep State.products as STN.PRODUCTS_DATA
   } catch (error) {
-    // Keep existing products on error
-    console.log('⚠️ Supabase unavailable, using local products:', State.products.length);
+    if (typeof STNLog !== 'undefined') STNLog.warn('products.init', 'Supabase unavailable; using local/cache', { fallbackCount: State.products.length, err: error && error.message });
   }
 }
 
@@ -488,7 +491,7 @@ async function submitOrder() {
 
   try {
     // Get shop names from cart items
-    const shopNames = [...new Set(State.cart.map(i => i.brand || i.shopName || 'Shopping').filter(Boolean))].join(', ');
+    const shopNames = [...new Set(State.cart.map(i => i.brand || i.shopName || 'Everest').filter(Boolean))].join(', ');
     
     const order = await SB.createOrder({
       user_id: State.currentUser?.id || null,
@@ -527,6 +530,7 @@ async function submitOrder() {
     document.body.appendChild(successModal);
 
   } catch(e) {
+    if (typeof STNLog !== 'undefined') STNLog.error('checkout.submitOrder', e, {});
     toast('⚠️ Order failed. Try again.', 'error');
     const btn = document.querySelector('#checkout-modal button:last-child');
     if (btn) { btn.textContent = 'Place Order ✦'; btn.disabled = false; }
@@ -580,12 +584,31 @@ function setRating(id, val) {
 }
 
 // ── PRODUCT CARD HTML ──
+function _cardEscapeAttr(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+/** Listing / grid: real photo when vendor uploaded one (image_url), else gradient + emoji. */
+function productCardMediaHTML(p) {
+  const src = (p.image || p.image_url || '').toString().trim();
+  if (src) {
+    return `<img class="product-card-photo" src="${_cardEscapeAttr(src)}" alt="${_cardEscapeAttr(p.name || 'Product')}" loading="lazy" decoding="async" />`;
+  }
+  const from = p.bgFrom || '#2d1554';
+  const to = p.bgTo || '#4a2080';
+  return `<div class="product-emoji" style="background:linear-gradient(135deg,${from},${to})">${p.emoji || '📦'}</div>`;
+}
 function productCardHTML(p) {
   const isWished = State.wishlist.includes(p.id);
   return `
   <div class="product-card reveal" data-cat="${p.cat}">
     <div class="product-img-wrap">
-      <div class="product-emoji" style="background:linear-gradient(135deg,${p.bgFrom||'#2d1554'},${p.bgTo||'#4a2080'})">${p.emoji}</div>
+      ${productCardMediaHTML(p)}
       ${p.badge ? `<span class="product-badge">${p.badge}</span>` : ''}
       ${p.verified ? `<span class="product-verified">✓ Verified</span>` : ''}
       <div class="product-overlay">
@@ -611,25 +634,157 @@ function productCardHTML(p) {
 }
 
 // ── PRODUCT DETAIL MODAL ──
-function openProductDetail(productId) {
+function _detailEscapeHtml(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+function _detailEscapeAttr(s) {
+  return _detailEscapeHtml(s).replace(/'/g, '&#39;');
+}
+function _everestPartnerIconSmallHtml() {
+  return '<span class="everest-partner-icon" role="img" aria-label="Everest Partner" title="Everest Partner" style="font-size:1.35rem;line-height:1">⛰️</span>';
+}
+function _everestPartnerGalleryMainHtml() {
+  return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.75rem;height:100%;min-height:12rem;padding:2rem;background:linear-gradient(135deg,#ede9fe,#ddd6fe);border-radius:12px">
+    <span style="font-size:4rem;line-height:1" role="img" aria-label="Everest Partner">⛰️</span>
+    <span style="font-size:0.85rem;font-weight:600;letter-spacing:0.06em;color:#5b21b6;text-transform:uppercase">Everest Partner</span>
+  </div>`;
+}
+function _detailGalleryMainProductHtml(p) {
+  const src = p.image || p.image_url;
+  if (src) {
+    return `<img src="${_detailEscapeAttr(String(src))}" alt="" style="max-width:100%;max-height:100%;object-fit:contain"/>`;
+  }
+  return _detailEscapeHtml(p.emoji || '✨');
+}
+function bindProductDetailThumbs(p) {
+  const main = document.getElementById('gallery-main');
+  if (!main) return;
+  document.querySelectorAll('#product-modal-body .gallery-thumb').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('#product-modal-body .gallery-thumb').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      const kind = t.getAttribute('data-detail-kind');
+      if (kind === 'vendor') {
+        main.innerHTML = window.__detailVendorMainHtml || _everestPartnerGalleryMainHtml();
+      } else if (kind === 'product') {
+        const src = p.image || p.image_url;
+        if (src) main.innerHTML = _detailGalleryMainProductHtml(p);
+        else main.textContent = p.emoji || '';
+      } else if (kind === 'emoji') {
+        const em = t.getAttribute('data-emoji') || t.textContent;
+        main.textContent = em || '';
+      }
+    });
+  });
+}
+async function hydrateProductDetailVendor(p) {
+  const nameEl = document.getElementById('detail-vendor-name');
+  const wrap = document.getElementById('detail-vendor-logo-wrap');
+  const thumbInner = document.getElementById('detail-vendor-thumb-inner');
+  const fallbackName = p.brand || 'Everest Partner';
+
+  const setEverest = () => {
+    window.__detailVendorMainHtml = _everestPartnerGalleryMainHtml();
+    const inner = _everestPartnerIconSmallHtml();
+    if (wrap) wrap.innerHTML = inner;
+    if (thumbInner) thumbInner.innerHTML = inner;
+  };
+
+  const setFromUrl = (url) => {
+    const safe = _detailEscapeAttr(String(url));
+    const thumbImg = `<img src="${safe}" alt="" style="width:100%;height:100%;object-fit:cover"/>`;
+    const mainImg = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:1rem"><img src="${safe}" alt="" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:12px"/></div>`;
+    window.__detailVendorMainHtml = mainImg;
+    if (wrap) wrap.innerHTML = thumbImg;
+    if (thumbInner) thumbInner.innerHTML = thumbImg;
+  };
+
+  const refreshMainIfVendorThumbActive = () => {
+    const active = document.querySelector('#product-modal-body .gallery-thumb.active');
+    if (active && active.getAttribute('data-detail-kind') === 'vendor') {
+      const main = document.getElementById('gallery-main');
+      if (main) main.innerHTML = window.__detailVendorMainHtml || _everestPartnerGalleryMainHtml();
+    }
+  };
+
+  if (nameEl) nameEl.textContent = fallbackName;
+  setEverest();
+
+  const vid = p.vendorId != null ? p.vendorId : p.vendor_id;
+  if (vid == null || vid === '' || typeof SB === 'undefined' || typeof SB.getUserById !== 'function') {
+    refreshMainIfVendorThumbActive();
+    return;
+  }
+
+  try {
+    const u = await SB.getUserById(vid);
+    if (!u) {
+      refreshMainIfVendorThumbActive();
+      return;
+    }
+    const displayName =
+      u.shop_name ||
+      u.shopName ||
+      u.name ||
+      [u.first_name, u.last_name].filter(Boolean).join(' ') ||
+      [u.firstName, u.lastName].filter(Boolean).join(' ') ||
+      fallbackName;
+    if (nameEl) nameEl.textContent = displayName;
+
+    const rawLogo =
+      u.vendor_logo_url ||
+      u.logo_url ||
+      u.vendor_logo ||
+      u.avatar_url ||
+      (typeof u.avatar === 'string' && /^https?:\/\//i.test(u.avatar) ? u.avatar : null);
+    if (rawLogo) setFromUrl(rawLogo);
+    else setEverest();
+  } catch (e) {
+    if (typeof STNLog !== 'undefined') STNLog.warn('product.detail.vendor', 'fetch failed', { message: e && e.message });
+    setEverest();
+  }
+  refreshMainIfVendorThumbActive();
+}
+
+async function openProductDetail(productId) {
   const p = State.products.find(pr => pr.id === productId);
   if (!p) return;
   State.selectedProduct = p;
 
   const productReviews = State.reviews.filter(r => r.productId === productId);
-  const modal = document.getElementById('product-modal');
   const body = document.getElementById('product-modal-body');
+  const fallbackName = p.brand || 'Everest Partner';
+
+  const productSrc = p.image || p.image_url;
+  const productThumbInner = productSrc
+    ? `<img src="${_detailEscapeAttr(String(productSrc))}" alt="" style="width:100%;height:100%;object-fit:cover"/>`
+    : _detailEscapeHtml(p.emoji || '✨');
 
   body.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:2.5rem">
       <div>
-        <div class="gallery-main" id="gallery-main">${p.emoji}</div>
+        <div class="gallery-main" id="gallery-main">${_detailGalleryMainProductHtml(p)}</div>
         <div class="gallery-thumbs" style="margin-top:0.8rem">
-          ${[p.emoji,'🔍','📐','🎨'].map((e,i) => `<div class="gallery-thumb ${i===0?'active':''}" onclick="setGalleryMain('${e}',this)">${e}</div>`).join('')}
+          <div class="gallery-thumb" data-detail-kind="vendor" id="detail-vendor-thumb" style="padding:2px;overflow:hidden;border:2px solid rgba(124,58,237,0.2)">
+            <div id="detail-vendor-thumb-inner" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#ede9fe,#ddd6fe)">${_everestPartnerIconSmallHtml()}</div>
+          </div>
+          <div class="gallery-thumb active" data-detail-kind="product" style="padding:2px;overflow:hidden">${productThumbInner}</div>
+          ${['🔍', '📐', '🎨'].map(e => `<div class="gallery-thumb" data-detail-kind="emoji" data-emoji="${_detailEscapeAttr(e)}">${e}</div>`).join('')}
         </div>
       </div>
       <div>
         ${p.badge ? `<span class="product-badge" style="position:relative;top:auto;left:auto;display:inline-block;margin-bottom:0.8rem">${p.badge}</span>` : ''}
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem" id="detail-vendor-row">
+          <div id="detail-vendor-logo-wrap" style="width:56px;height:56px;border-radius:14px;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,#ede9fe,#ddd6fe);border:1px solid rgba(124,58,237,0.25);display:flex;align-items:center;justify-content:center" title="Everest Partner">${_everestPartnerIconSmallHtml()}</div>
+          <div>
+            <div style="font-size:0.8rem;color:var(--text-muted)"><span style="font-weight:600">Sold by: </span><span id="detail-vendor-name" style="font-weight:600;color:var(--champagne)">${_detailEscapeHtml(fallbackName)}</span></div>
+          </div>
+        </div>
         <div class="product-brand" style="margin-bottom:0.3rem">${p.brand} · ${p.region}</div>
         <h2 style="font-family:var(--font-display);font-size:1.8rem;font-weight:300;color:var(--champagne);margin-bottom:0.8rem">${p.name}</h2>
         <div class="product-rating" style="margin-bottom:1rem">
@@ -691,7 +846,10 @@ function openProductDetail(productId) {
       </div>` : `<p style="font-size:0.8rem;color:var(--text-muted);margin-top:1rem"><a href="#" onclick="showPage('auth')" style="color:var(--gold)">Sign in</a> to leave a review</p>`}
     </div>`;
 
+  window.__detailVendorMainHtml = _everestPartnerGalleryMainHtml();
   openModal('product-modal');
+  bindProductDetailThumbs(p);
+  hydrateProductDetailVendor(p);
 }
 
 let detailQty = 1;
@@ -699,12 +857,6 @@ function changeDetailQty(d) {
   detailQty = Math.max(1, detailQty + d);
   const el = document.getElementById('detail-qty');
   if (el) el.textContent = detailQty;
-}
-
-function setGalleryMain(emoji, thumb) {
-  document.getElementById('gallery-main').textContent = emoji;
-  document.querySelectorAll('.gallery-thumb').forEach(t => t.classList.remove('active'));
-  thumb.classList.add('active');
 }
 
 function submitReview(productId) {
@@ -746,7 +898,7 @@ function renderAuth() {
   page.innerHTML = `
   <div class="s" style="max-width:520px;margin:0 auto;padding-top:5rem">
     <div class="s-header">
-      <span class="eyebrow">Welcome to Shopping</span>
+      <span class="eyebrow">Welcome to Everest</span>
       <h1 class="display" style="font-size:3rem;margin-bottom:0.5rem">Your Account</h1>
       <div class="divider center"></div>
     </div>
@@ -769,7 +921,7 @@ function renderAuth() {
         <span style="font-size:0.75rem;color:var(--accent);cursor:pointer;text-decoration:underline" onclick="showForgotPassword()">Forgot password?</span>
       </div>
       <button class="btn btn-gold btn-full btn-lg" onclick="doLogin()">Sign In →</button>
-      <div style="margin-top:1.2rem;text-align:center;font-size:0.75rem;color:var(--text-muted)">Demo: admin@shopping / admin123</div>
+      <div style="margin-top:1.2rem;text-align:center;font-size:0.75rem;color:var(--text-muted)">Demo: admin@everest.tn / admin123</div>
     </div>
 
     <!-- REGISTER -->
@@ -819,7 +971,7 @@ function renderAuth() {
         <div class="form-group" style="margin-bottom:1.5rem;padding:1rem;background:#f5f2ff;border-radius:12px;border:1px solid rgba(107,63,212,0.2)">
           <label style="display:flex;align-items:center;gap:0.8rem;cursor:pointer">
             <input type="checkbox" id="reg-is-vendor" onchange="document.getElementById('reg-vendor-fields').style.display=this.checked?'block':'none'" style="width:18px;height:18px;accent-color:#7c3aed"/>
-            <span style="font-size:0.85rem;color:#1e0a4e;font-weight:500">🏪 I am an artisan/vendor — I want to sell on Shopping</span>
+            <span style="font-size:0.85rem;color:#1e0a4e;font-weight:500">🏪 I am an artisan/vendor — I want to sell on Everest</span>
           </label>
         </div>
         <div id="reg-vendor-fields" style="display:none;margin-bottom:1.5rem;padding:1rem;background:#f8f7ff;border-radius:12px;border:1px solid rgba(107,63,212,0.15)">
@@ -874,8 +1026,9 @@ async function doLogin() {
   // Check hardcoded admin/vendor first
   const local = (STN.DB.get('users') || []).find(u => u.email === email && u.password === pass);
   if (local) {
-    State.currentUser = local;
-    STN.DB.set('currentUser', local);
+    const sessionUser = STN.userForSession(local);
+    State.currentUser = sessionUser;
+    STN.DB.set('currentUser', sessionUser);
     updateNavUser();
     toast(`✦ Welcome back, ${local.firstName}!`, 'success');
     if (local.role === 'admin') showPage('admin');
@@ -888,7 +1041,7 @@ async function doLogin() {
   try {
     const user = await SB.getUser(email);
     if (!user || user.password !== pass) { toast('⚠️ Invalid email or password', 'error'); return; }
-    State.currentUser = { ...user, firstName: user.first_name, lastName: user.last_name };
+    State.currentUser = STN.userForSession({ ...user, firstName: user.first_name, lastName: user.last_name });
     STN.DB.set('currentUser', State.currentUser);
     updateNavUser();
     toast(`✦ Welcome back, ${user.first_name}!`, 'success');
@@ -896,6 +1049,7 @@ async function doLogin() {
     else if (user.role === 'vendor') showPage('vendor');
     else showPage('home');
   } catch(e) {
+    if (typeof STNLog !== 'undefined') STNLog.error('auth.login', e, { email });
     toast('⚠️ Login failed. Try again.', 'error');
   }
 }
@@ -965,17 +1119,18 @@ async function doRegister() {
       shop_name: shopName || null,
       specialty: specialty || null
     });
-    State.currentUser = { ...newUser, firstName: newUser.first_name, lastName: newUser.last_name };
+    State.currentUser = STN.userForSession({ ...newUser, firstName: newUser.first_name, lastName: newUser.last_name });
     STN.DB.set('currentUser', State.currentUser);
     updateNavUser();
     if (isVendor) {
       toast(`✦ Welcome ${shopName}! Your vendor account is pending verification.`, 'success');
       showPage('vendor');
     } else {
-      toast(`✦ Welcome to Shopping, ${fname}! You earned 100 bonus points!`, 'success');
+      toast(`✦ Welcome to Everest, ${fname}! You earned 100 bonus points!`, 'success');
       showPage('home');
     }
   } catch(e) {
+    if (typeof STNLog !== 'undefined') STNLog.error('auth.register', e, { email });
     if (e.message.includes('duplicate') || e.message.includes('unique')) {
       toast('⚠️ Email already registered!', 'error');
     } else {
@@ -1394,8 +1549,8 @@ async function testRealtimeTracking() {
     
     toast('🧪 Real-time tracking test started! Watch for updates...', 'default');
     
-  } catch(error) {
-    console.error('❌ Test failed:', error);
+  } catch (error) {
+    if (typeof STNLog !== 'undefined') STNLog.error('track.testRealtime', error, {});
     toast('⚠️ Test failed. Check console for details.', 'error');
   }
 }
@@ -1634,7 +1789,7 @@ function switchAdmin(section) {
                     <div style="font-size:0.78rem;font-weight:600;color:#111827">${o.client_name||o.phone||'Guest'}</div>
                     <div style="font-size:0.7rem;color:#9ca3af">${o.phone||''}</div>
                   </td>
-                  <td style="padding:0.75rem 0.875rem;font-size:0.78rem;color:#374151">${o.shop_names||'Shopping'}</td>
+                  <td style="padding:0.75rem 0.875rem;font-size:0.78rem;color:#374151">${o.shop_names||'Everest'}</td>
                   <td style="padding:0.75rem 0.875rem">
                     <div style="font-size:0.78rem;font-weight:600;color:#374151">${o.wilaya||'-'}</div>
                     <div style="font-size:0.7rem;color:#9ca3af;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.address||''}</div>
@@ -1801,7 +1956,7 @@ function switchAdmin(section) {
     
     content.innerHTML = buildVendorDashboardHTML();
     initializeVendorDashboard(content).catch(err => {
-      console.error('Dashboard init failed:', err);
+      if (typeof STNLog !== 'undefined') STNLog.error('vendor.dashboard.init', err, {});
       content.innerHTML = '<div style="text-align:center;padding:4rem;color:#dc2626"><div style="font-size:3rem;margin-bottom:1rem">⚠️</div><h2>Dashboard Error</h2><p>'+err.message+'</p><button onclick="location.reload()" style="background:#dc2626;color:white;border:none;padding:0.875rem 2rem;border-radius:8px;font-weight:600;cursor:pointer">🔄 Reload</button></div>';
     });
     
@@ -1923,11 +2078,10 @@ function unbanUser(userId) {
 
 // ── VENDOR DASHBOARD (PROFESSIONAL) ──
 function renderVendorDashboard() {
-  console.log('🔄 renderVendorDashboard called');
-  console.log('📊 Current user:', State.currentUser);
+  if (typeof STNLog !== 'undefined') STNLog.debug('vendor.dashboard', 'renderVendorDashboard', STNLog.sanitize(State.currentUser));
   
   if (!State.currentUser || State.currentUser.role !== 'vendor') {
-    console.log('❌ Vendor access check failed - current user:', State.currentUser);
+    if (typeof STNLog !== 'undefined') STNLog.warn('vendor.dashboard', 'access denied', STNLog.sanitize(State.currentUser));
     const page = document.getElementById('page-vendor-dashboard');
     if (page) {
       page.innerHTML = `
@@ -1942,20 +2096,16 @@ function renderVendorDashboard() {
     return;
   }
 
-  console.log('✅ User authenticated as vendor:', State.currentUser.name);
+  if (typeof STNLog !== 'undefined') STNLog.info('vendor.dashboard', 'authenticated', { id: State.currentUser.id, role: State.currentUser.role });
 
   // Load professional dashboard
   const page = document.getElementById('page-vendor-dashboard');
   if (!page) {
-    console.log('❌ Vendor dashboard page element not found');
+    if (typeof STNLog !== 'undefined') STNLog.warn('vendor.dashboard', 'page element missing', { id: 'page-vendor-dashboard' });
     return;
   }
   
-  console.log('🔄 Building professional dashboard HTML...');
   page.innerHTML = buildProfessionalDashboardHTML();
-  console.log('✅ Dashboard HTML built');
-  
-  console.log('🔄 Initializing professional dashboard...');
   initializeProfessionalDashboard();
 }
 
@@ -2045,14 +2195,14 @@ function buildProfessionalDashboardHTML() {
 }
 
 async function initializeProfessionalDashboard() {
-  console.log('🚀 Initializing Professional Dashboard...');
+  if (typeof STNLog !== 'undefined') STNLog.info('vendor.proDashboard', 'initializing', {});
   
   try {
     window.dashboard = new ProfessionalVendorDashboard();
     await window.dashboard.init();
-    console.log('✅ Professional dashboard loaded successfully!');
+    if (typeof STNLog !== 'undefined') STNLog.info('vendor.proDashboard', 'ready', {});
   } catch (error) {
-    console.error('❌ Dashboard initialization failed:', error);
+    if (typeof STNLog !== 'undefined') STNLog.error('vendor.proDashboard.init', error, {});
     document.getElementById('kpi-grid').innerHTML = `
       <div class="error-message" style="grid-column: 1/-1;">
         <strong>❌ Error:</strong> ${error.message}
@@ -2072,7 +2222,7 @@ class ProfessionalVendorDashboard {
   }
 
   async init() {
-    console.log('🚀 Initializing Professional Dashboard...');
+    if (typeof STNLog !== 'undefined') STNLog.debug('vendor.proDashboard', 'init start', {});
     
     try {
       // Get vendor data from current user
@@ -2091,24 +2241,24 @@ class ProfessionalVendorDashboard {
       // Initialize map
       this.initMap();
       
-      console.log('✅ Dashboard loaded successfully!');
+      if (typeof STNLog !== 'undefined') STNLog.info('vendor.proDashboard', 'init complete', {});
     } catch (error) {
-      console.error('❌ Dashboard initialization failed:', error);
+      if (typeof STNLog !== 'undefined') STNLog.error('vendor.proDashboard.classInit', error, {});
       throw error;
     }
   }
 
   async loadData() {
     try {
-      console.log('📊 Loading data from Supabase...');
+      if (typeof STNLog !== 'undefined') STNLog.debug('vendor.proDashboard', 'loadData start', {});
       
       // Load orders
       try {
         const allOrders = await SB.getOrders();
         this.orders = allOrders ? allOrders.filter(o => o.vendorId === this.vendorData.id) : [];
-        console.log('📦 Loaded vendor orders:', this.orders.length);
+        if (typeof STNLog !== 'undefined') STNLog.debug('vendor.proDashboard', 'orders loaded', { count: this.orders.length });
       } catch (error) {
-        console.warn('⚠️ Failed to load orders from Supabase:', error);
+        if (typeof STNLog !== 'undefined') STNLog.warn('vendor.proDashboard', 'orders fetch failed; using local', { message: error && error.message });
         this.orders = STN.DB.get('orders') || [];
       }
 
@@ -2116,19 +2266,19 @@ class ProfessionalVendorDashboard {
       try {
         const allProducts = await SB.getProducts();
         this.products = allProducts ? allProducts.filter(p => p.vendorId === this.vendorData.id) : [];
-        console.log('🛍️ Loaded vendor products:', this.products.length);
+        if (typeof STNLog !== 'undefined') STNLog.debug('vendor.proDashboard', 'products loaded', { count: this.products.length });
       } catch (error) {
-        console.warn('⚠️ Failed to load products from Supabase:', error);
+        if (typeof STNLog !== 'undefined') STNLog.warn('vendor.proDashboard', 'products fetch failed; using state', { message: error && error.message });
         this.products = State.products || [];
       }
 
-      console.log('📊 Final data state:', {
+      if (typeof STNLog !== 'undefined') STNLog.debug('vendor.proDashboard', 'loadData summary', {
         orders: this.orders.length,
         products: this.products.length,
-        vendor: this.vendorData.name
+        vendorId: this.vendorData && this.vendorData.id,
       });
     } catch (error) {
-      console.error('❌ Data loading failed:', error);
+      if (typeof STNLog !== 'undefined') STNLog.error('vendor.proDashboard.loadData', error, {});
       throw error;
     }
   }
@@ -2244,8 +2394,6 @@ class ProfessionalVendorDashboard {
     if (!mapContainer) return;
 
     try {
-      console.log('🗺️ Initializing Tunisia map...');
-      
       // Initialize map centered on Sousse, Tunisia
       this.map = L.map('vendor-map').setView([35.8256, 10.6084], 10);
       
@@ -2319,9 +2467,9 @@ class ProfessionalVendorDashboard {
         }
       });
 
-      console.log('✅ Tunisia map initialized successfully');
+      if (typeof STNLog !== 'undefined') STNLog.debug('vendor.map', 'initialized', {});
     } catch (error) {
-      console.error('❌ Map initialization failed:', error);
+      if (typeof STNLog !== 'undefined') STNLog.error('vendor.map', error, {});
       mapContainer.innerHTML = `
         <div style="height: 300px; display: flex; align-items: center; justify-content: center; background: #f0f4f8; border-radius: 15px;">
           <div style="text-align: center; color: #666;">
@@ -2403,27 +2551,21 @@ function refreshMap() {
 
 // ── VENDOR DASHBOARD ──
 function renderVendor() {
-  console.log('🔄 renderVendor called');
-  
-  if (!State.currentUser) { 
-    console.log('❌ No current user, redirecting to auth');
-    showPage('auth'); 
-    return; 
-  }
-  
-  console.log('✅ User found:', State.currentUser);
-  
-  const page = document.getElementById('page-vendor');
-  if (!page) {
-    console.log('❌ Vendor page element not found');
+  if (!State.currentUser) {
+    if (typeof STNLog !== 'undefined') STNLog.info('vendor.page', 'no session; redirect to auth', {});
+    showPage('auth');
     return;
   }
   
-  console.log('🔄 Building vendor HTML...');
-  page.innerHTML = buildVendorHTML();
-  console.log('✅ Vendor HTML built');
+  if (typeof STNLog !== 'undefined') STNLog.debug('vendor.page', 'render', STNLog.sanitize(State.currentUser));
   
-  console.log('🔄 Switching to overview section...');
+  const page = document.getElementById('page-vendor');
+  if (!page) {
+    if (typeof STNLog !== 'undefined') STNLog.warn('vendor.page', 'element missing', { id: 'page-vendor' });
+    return;
+  }
+  
+  page.innerHTML = buildVendorHTML();
   switchVendorSection('overview');
 }
 
@@ -2449,6 +2591,35 @@ function buildVendorHTML() {
     + '</div>'
     + '<div style="padding:2rem" id="vendor-content"></div>'
     + '</div>';
+}
+
+function buildVendorCategorySelectOptionsHTML() {
+  var cats = (typeof STN !== 'undefined' && STN.PRODUCT_CATEGORIES) ? STN.PRODUCT_CATEGORIES : [];
+  var parts = ['<option value="">— Select category —</option>'];
+  for (var i = 0; i < cats.length; i++) {
+    var c = cats[i];
+    parts.push('<option value="' + c.slug + '">' + c.label + '</option>');
+  }
+  parts.push('<option value="__new__">+ Other (new category)…</option>');
+  return parts.join('');
+}
+
+function onVendorCategoryChange(val) {
+  var wrap = document.getElementById('vp-cat-other-wrap');
+  var input = document.getElementById('vp-cat-other');
+  if (wrap) wrap.style.display = val === '__new__' ? 'block' : 'none';
+  if (input && val !== '__new__') input.value = '';
+}
+
+/** Drop optional UI fields when PostgREST reports missing columns (emoji, badge, etc.). */
+function vendorUploadSlimProductPayload(p) {
+  var o = Object.assign({}, p);
+  delete o.emoji;
+  delete o.badge;
+  delete o.verified;
+  delete o.reviews;
+  delete o.rating;
+  return o;
 }
 
 function switchVendorSection(section) {
@@ -2573,9 +2744,14 @@ function switchVendorSection(section) {
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
             <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Category *</label>
-              <select id="vp-cat" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;background:white;outline:none;box-sizing:border-box">
-                <option value="sofa">Sofa / Furniture</option><option value="rug">Rugs / Kilim</option><option value="lighting">Lighting</option><option value="ceramic">Ceramics</option><option value="bedroom">Bedroom</option><option value="outdoor">Outdoor</option><option value="fragrance">Fragrance</option><option value="decor">Decor</option>
+              <select id="vp-cat" onchange="onVendorCategoryChange(this.value)" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;background:white;outline:none;box-sizing:border-box">
+                ${buildVendorCategorySelectOptionsHTML()}
               </select>
+              <div id="vp-cat-other-wrap" style="display:none;margin-top:0.5rem">
+                <label style="display:block;font-size:0.75rem;font-weight:600;color:#374151;margin-bottom:0.35rem">New category (slug)</label>
+                <input type="text" id="vp-cat-other" placeholder="e.g. artisan_leather" autocomplete="off" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.5rem 0.75rem;font-size:0.875rem;box-sizing:border-box"/>
+                <p style="font-size:0.7rem;color:#6b7280;margin-top:0.35rem;line-height:1.35">Lowercase letters, numbers, underscores. We register it in the database when a <code style="font-size:0.65rem">categories</code> table exists; otherwise the product still saves with this category text.</p>
+              </div>
             </div>
             <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Badge (optional)</label><input type="text" id="vp-badge" placeholder="New, Bestseller..." style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
           </div>
@@ -2666,7 +2842,7 @@ function switchVendorSection(section) {
   }
 
   } catch(err) {
-    console.error('switchVendorSection error:', err);
+    if (typeof STNLog !== 'undefined') STNLog.error('vendor.switchSection', err, { section: typeof section !== 'undefined' ? section : '' });
     content.innerHTML = '<div style="text-align:center;padding:4rem;color:#dc2626">'
       +'<div style="font-size:3rem;margin-bottom:1rem">⚠️</div>'
       +'<h3 style="margin-bottom:0.5rem">Something went wrong</h3>'
@@ -2693,7 +2869,7 @@ function vendorConfirmOrder(orderId, trackingNum) {
   toast('Order confirmed! Ready for pickup.', 'success');
 
   var order = orders[idx] || {};
-  var msg = '*New Order Ready - Shopping*\n\n'
+  var msg = '*New Order Ready - Everest*\n\n'
     + 'Tracking: ' + (order.tracking_number || trackingNum || orderId) + '\n'
     + 'Client: ' + (order.notes || order.phone || 'Guest') + '\n'
     + 'Phone: ' + (order.phone || '-') + '\n'
@@ -2733,45 +2909,55 @@ function vendorConfirmOrder(orderId, trackingNum) {
 }
 
 
-function uploadToCloudinary(input) {
+async function uploadToCloudinary(input) {
   const file = input.files[0];
   if (!file) return;
-  const zone = document.getElementById('upload-zone');
   const placeholder = document.getElementById('upload-placeholder');
   const loading = document.getElementById('upload-loading');
   const preview = document.getElementById('upload-preview');
   const previewImg = document.getElementById('upload-img-preview');
+  const hiddenUrl = document.getElementById('vp-image-url');
+
+  if (!placeholder || !loading || !preview || !previewImg) {
+    toast('⚠️ Upload area not found. Open Upload Product again.', 'error');
+    return;
+  }
 
   placeholder.style.display = 'none';
   loading.style.display = 'block';
 
   const formData = new FormData();
   formData.append('file', file);
+  // Cloudinary preset name must match your Cloudinary dashboard (rename there to Everest if you prefer)
   formData.append('upload_preset', 'Shopping');
   formData.append('cloud_name', 'dzhnza3dn');
 
-  fetch('https://api.cloudinary.com/v1_1/dzhnza3dn/image/upload', {
-    method: 'POST',
-    body: formData
-  })
-  .then(r => r.json())
-  .then(data => {
+  try {
+    const r = await fetch('https://api.cloudinary.com/v1_1/dzhnza3dn/image/upload', {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await r.json().catch(function () { return {}; });
+    if (!r.ok) {
+      const msg = (data && (data.error && data.error.message)) || 'HTTP ' + r.status;
+      throw new Error(msg);
+    }
     if (data.secure_url) {
-      document.getElementById('vp-image-url').value = data.secure_url;
+      if (hiddenUrl) hiddenUrl.value = data.secure_url;
       previewImg.src = data.secure_url;
       preview.style.display = 'block';
       loading.style.display = 'none';
       placeholder.style.display = 'none';
       toast('✦ Image uploaded successfully!', 'success');
     } else {
-      throw new Error('Upload failed');
+      throw new Error('Upload failed: no secure_url');
     }
-  })
-  .catch(() => {
-    loading.style.display = 'none';
-    placeholder.style.display = 'block';
+  } catch (e) {
+    if (typeof STNLog !== 'undefined') STNLog.error('media.cloudinary', e, { fileName: file.name, fileSize: file.size });
+    if (loading) loading.style.display = 'none';
+    if (placeholder) placeholder.style.display = 'block';
     toast('⚠️ Upload failed. Check your internet connection.', 'error');
-  });
+  }
 }
 
 async function deleteVendorProduct(productId) {
@@ -2796,7 +2982,7 @@ async function deleteVendorProduct(productId) {
       filterAndRenderProducts();
     }
   } catch (error) {
-    console.error('Error deleting product:', error);
+    if (typeof STNLog !== 'undefined') STNLog.error('vendor.deleteProduct', error, { productId });
     toast('⚠️ Failed to delete product. Please try again.', 'error');
   }
 }
@@ -2806,35 +2992,117 @@ async function uploadProduct() {
   const brand = document.getElementById('vp-brand')?.value?.trim();
   const desc = document.getElementById('vp-desc')?.value?.trim();
   const price = parseFloat(document.getElementById('vp-price')?.value);
-  const stock = parseInt(document.getElementById('vp-stock')?.value);
-  const cat = document.getElementById('vp-cat')?.value;
+  const stock = parseInt(document.getElementById('vp-stock')?.value, 10);
   const badge = document.getElementById('vp-badge')?.value?.trim();
+  const imageUrl = document.getElementById('vp-image-url')?.value?.trim() || null;
+  var oldPriceField = document.getElementById('vp-old-price')?.value;
+  var oldPrice = null;
+  if (oldPriceField != null && String(oldPriceField).trim() !== '') {
+    var op = parseFloat(String(oldPriceField).trim().replace(',', '.'));
+    if (Number.isFinite(op)) oldPrice = op;
+  }
 
-  if (!title || !brand || !desc || !price || !stock) { toast('⚠️ Please fill all required fields', 'error'); return; }
+  const catSelect = document.getElementById('vp-cat');
+  if (!catSelect) {
+    toast('⚠️ Upload form is not ready. Open “Upload Product” again.', 'error');
+    return;
+  }
 
-  const emojis = {sofa:'🛋️',rug:'🏺',lighting:'💡',ceramic:'🏺',bedroom:'🛏️',outdoor:'🌿',fragrance:'🧴',decor:'🎨',furniture:'🪑'};
-  
+  const rawCat = (catSelect.value || '').trim();
+  if (!rawCat) {
+    toast('⚠️ Please select a category.', 'error');
+    return;
+  }
+
+  if (!title || !brand || !desc || !Number.isFinite(price) || !Number.isFinite(stock)) {
+    toast('⚠️ Please fill all required fields (name, brand, description, price, stock).', 'error');
+    return;
+  }
+
+  if (stock < 0) {
+    toast('⚠️ Stock cannot be negative.', 'error');
+    return;
+  }
+
+  if (!State.currentUser || State.currentUser.role !== 'vendor') {
+    toast('⚠️ You must be signed in as a vendor to upload.', 'error');
+    return;
+  }
+
+  if (State.currentUser.id == null || State.currentUser.id === '') {
+    toast('⚠️ Your vendor profile has no ID. Sign out and sign in again.', 'error');
+    return;
+  }
+
+  let catSlug = null;
+  if (rawCat === '__new__') {
+    const customRaw = document.getElementById('vp-cat-other')?.value?.trim() || '';
+    const customSlug = STN.slugifyCategoryInput(customRaw);
+    if (!customSlug) {
+      toast('⚠️ Enter a valid new category (e.g. handwoven_bags). Use letters, numbers, underscores only.', 'error');
+      return;
+    }
+    const asKnown = STN.resolveProductCategorySlug(customSlug);
+    if (asKnown) {
+      catSlug = asKnown;
+    } else {
+      var createdRow = null;
+      if (typeof SB !== 'undefined' && SB.ensureCategoryRecord) {
+        try {
+          createdRow = await SB.ensureCategoryRecord(customSlug, customRaw);
+        } catch (e) {
+          if (typeof STNLog !== 'undefined') STNLog.warn('vendor.uploadProduct', 'ensureCategoryRecord threw', { message: e && e.message });
+        }
+      }
+      catSlug = (createdRow && createdRow.slug) ? createdRow.slug : customSlug;
+      if (!createdRow) {
+        if (typeof STNLog !== 'undefined') STNLog.info('vendor.uploadProduct', 'using new slug without categories row (table missing or RLS)', { catSlug: catSlug });
+      }
+    }
+  } else {
+    catSlug = STN.resolveProductCategorySlug(rawCat);
+    if (!catSlug) {
+      toast('⚠️ Invalid category. Choose an option from the list.', 'error');
+      return;
+    }
+  }
+
+  var categoryRow = null;
+  try {
+    if (typeof SB !== 'undefined' && SB.ensureCategoryRecord) {
+      var labelHint = (STN.PRODUCT_CATEGORIES || []).find(function (c) { return c.slug === catSlug; });
+      categoryRow = await SB.ensureCategoryRecord(catSlug, labelHint ? labelHint.label : catSlug);
+    }
+  } catch (e) {
+    if (typeof STNLog !== 'undefined') STNLog.debug('vendor.uploadProduct', 'ensureCategoryRecord optional failed', { message: e && e.message });
+  }
+
   const newProduct = {
     name: title,
     brand: State.currentUser?.shop_name || State.currentUser?.shopName || brand,
     vendorId: State.currentUser?.id,
     region: State.currentUser?.wilaya || 'Tunisia',
-    // IMPORTANT: match our product schema (data.js uses `cat` + `desc`)
-    cat,
+    cat: catSlug,
+    category: catSlug,
     price,
-    oldPrice: parseFloat(document.getElementById('vp-old-price')?.value) || null,
+    oldPrice,
     rating: 0,
     reviews: 0,
     badge: badge || null,
-    emoji: emojis[cat] || '📦',
-    image: document.getElementById('vp-image-url')?.value || null,
-    verified: false, // Will be verified by admin
+    emoji: STN.categoryEmoji(catSlug),
+    image: imageUrl,
+    image_url: imageUrl,
+    verified: false,
     stock,
     desc,
-    created_at: new Date().toISOString()
+    created_at: new Date().toISOString(),
   };
 
-  console.log('🔄 Attempting to save product to Supabase:', newProduct);
+  if (categoryRow != null && categoryRow.id != null && categoryRow.id !== undefined) {
+    newProduct.category_id = categoryRow.id;
+  }
+
+  if (typeof STNLog !== 'undefined') STNLog.debug('vendor.uploadProduct', 'payload', STNLog.sanitize(newProduct));
 
   try {
     if (typeof SB === 'undefined' || !SB?.createProduct) {
@@ -2842,45 +3110,90 @@ async function uploadProduct() {
     }
 
     toast('⏳ Uploading product...', 'default');
-    // Save to Supabase first
-    const savedProduct = await SB.createProduct(newProduct);
-    
-    console.log('✅ Product saved to Supabase successfully:', savedProduct);
-    
-    // Update local state with the returned product (includes Supabase ID)
+    var errMsg = function (e) { return String(e && e.message ? e.message : e); };
+    var tryPayload = Object.assign({}, newProduct);
+    var tryOpts;
+    var slimmedUi = false;
+    var regionRemoved = false;
+    var savedProduct = null;
+    var maxAttempts = 8;
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        savedProduct = await SB.createProduct(tryPayload, tryOpts);
+        break;
+      } catch (tryErr) {
+        var m1 = errMsg(tryErr);
+        var recovered = false;
+        if (tryPayload.category_id != null && /category_id/i.test(m1) && /Could not find|column|schema|PGRST/i.test(m1)) {
+          delete tryPayload.category_id;
+          recovered = true;
+        } else if (
+          tryPayload.category_id != null &&
+          /Could not find.*'category'|Could not find the 'category'|schema cache/i.test(m1) &&
+          !/category_id/i.test(m1)
+        ) {
+          tryOpts = { omitCategorySlug: true };
+          recovered = true;
+        } else if (/Could not find.*'old_price'|Could not find the 'old_price'|column.*old_price/i.test(m1)) {
+          delete tryPayload.oldPrice;
+          delete tryPayload.old_price;
+          recovered = true;
+        } else if (!slimmedUi && /Could not find the '(emoji|badge|verified|reviews|rating)' column/i.test(m1)) {
+          tryPayload = vendorUploadSlimProductPayload(tryPayload);
+          slimmedUi = true;
+          recovered = true;
+        } else if (!regionRemoved && /Could not find the 'region' column/i.test(m1)) {
+          delete tryPayload.region;
+          regionRemoved = true;
+          recovered = true;
+        }
+        if (typeof STNLog !== 'undefined' && recovered) {
+          STNLog.warn('vendor.uploadProduct', 'retry after API/schema mismatch', { attempt: attempt + 1, snippet: m1.slice(0, 160) });
+        }
+        if (!recovered) throw tryErr;
+      }
+    }
+
+    if (!savedProduct) {
+      throw new Error('Upload failed after retries. Check Supabase columns and RLS policies.');
+    }
+
     State.products.push(savedProduct);
     STN.DB.set('products', State.products);
-    
-    console.log('📦 Local state updated. Total products:', State.products.length);
-    
-    // Clear form
-    document.getElementById('vp-title').value = '';
-    document.getElementById('vp-brand').value = '';
-    document.getElementById('vp-desc').value = '';
-    document.getElementById('vp-price').value = '';
-    document.getElementById('vp-old-price').value = '';
-    document.getElementById('vp-stock').value = '';
-    document.getElementById('vp-badge').value = '';
-    document.getElementById('vp-image-url').value = '';
-    document.getElementById('vp-cat').selectedIndex = 0;
-    
-    toast('✦ Product uploaded successfully! Pending admin verification.', 'success');
+
+    ['vp-title', 'vp-brand', 'vp-desc', 'vp-price', 'vp-old-price', 'vp-stock', 'vp-badge', 'vp-image-url'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    var prev = document.getElementById('upload-preview');
+    var ph = document.getElementById('upload-placeholder');
+    var img = document.getElementById('upload-img-preview');
+    if (prev) prev.style.display = 'none';
+    if (ph) ph.style.display = 'block';
+    if (img) img.removeAttribute('src');
+    if (catSelect) {
+      catSelect.value = '';
+      onVendorCategoryChange('');
+    }
+    var otherIn = document.getElementById('vp-cat-other');
+    if (otherIn) otherIn.value = '';
+
+    toast('✦ Success! Product saved with price, description, category, and image URL. Pending admin verification.', 'success');
     switchVendorSection('inventory');
-    
-    // Refresh products display if on products page
+
     if (State.currentPage === 'products') {
-      // Re-fetch from Supabase to get the latest data
       await initializeProducts();
       filterAndRenderProducts();
     }
 
-    // Notify other parts of the app to refresh (Shop page, dashboards, etc.)
     try { window.dispatchEvent(new CustomEvent('products:changed', { detail: { source: 'uploadProduct', productId: savedProduct?.id } })); } catch(e) {}
-    
   } catch (error) {
-    console.error('❌ Error uploading product to Supabase:', error);
-    console.error('❌ Error details:', error.message);
-    toast('⚠️ Failed to upload product: ' + (error?.message || 'Unknown error'), 'error');
+    if (typeof STNLog !== 'undefined') STNLog.error('vendor.uploadProduct', error, { catSlug: catSlug });
+    var hint = '';
+    if (error && error.message && /category_id|column|schema/i.test(error.message)) {
+      hint = ' If your `products` table has no category_id column, remove that column from the API or add it in Supabase.';
+    }
+    toast('⚠️ Failed to upload product: ' + (error?.message || 'Unknown error') + hint, 'error');
   }
 }
 
@@ -2969,7 +3282,7 @@ function subscribeNewsletter() {
   const email = document.getElementById('nl-email')?.value?.trim();
   if (!email) { toast('⚠️ Please enter your email', 'error'); return; }
   dismissNewsletter();
-  toast(`✦ Subscribed! Welcome to Shopping family 🇹🇳`, 'success');
+      toast(`✦ Subscribed! Welcome to the Everest family 🇹🇳`, 'success');
 }
 
 // ── HOME SEARCH ──
@@ -3393,7 +3706,7 @@ function createProductCard(product) {
   return `
     <div class="product-card" onclick="showProductDetail(${product.id})">
       <div class="product-img-wrap">
-        ${product.emoji ? `<div class="product-emoji">${product.emoji}</div>` : `<img src="${product.image || ''}" alt="${product.name}" style="width:100%;height:100%;object-fit:cover">`}
+        ${productCardMediaHTML(product)}
         ${product.badge ? `<div class="product-badge">${product.badge}</div>` : ''}
         ${product.verified ? `<div class="product-verified">✓ Verified</div>` : ''}
         <div class="product-overlay">
@@ -3402,7 +3715,7 @@ function createProductCard(product) {
         </div>
       </div>
       <div class="product-body">
-        <div class="product-brand">${product.brand || 'Shopping'}</div>
+        <div class="product-brand">${product.brand || 'Everest'}</div>
         <h3 class="product-name">${product.name}</h3>
         <div class="product-rating">
           <span class="stars">${stars}</span>
@@ -3423,8 +3736,7 @@ function createProductCard(product) {
 // ── VENDOR DASHBOARD FUNCTIONS ──
 
 function buildVendorDashboardHTML() {
-  console.log('🔄 buildVendorDashboardHTML called');
-  console.log('Current user:', State.currentUser);
+  if (typeof STNLog !== 'undefined') STNLog.debug('vendor.dashboard', 'buildVendorDashboardHTML', STNLog.sanitize(State.currentUser));
   
   return `
     <div style="background:#f9fafb;min-height:100vh">
@@ -3505,7 +3817,7 @@ function buildVendorDashboardHTML() {
                   <button onclick="switchVendorSection('logistics')" style="background:#2563eb;color:white;border:none;padding:0.5rem 1rem;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer">Live Map</button>
                 </div>
               </div>
-              <div id="vendor-logistics-map" style="height:300px;position:relative">
+              <div id="vendor-logistics-map" style="min-height:420px;position:relative">
                 <!-- Logistics map will be populated by JavaScript -->
               </div>
             </div>
@@ -3715,13 +4027,11 @@ async function safeLoadData() {
 // Safe KPI loading
 async function safeLoadKPIs() {
   try {
-    console.log('🔄 Loading KPIs...');
     const vendorId = State.currentUser?.id;
-    console.log('🔍 Fetching products for Vendor:', vendorId);
-    console.log('🔍 Current user:', State.currentUser);
+    if (typeof STNLog !== 'undefined') STNLog.debug('vendor.kpi', 'load', { vendorId });
     
     if (!vendorId) {
-      console.error('❌ No vendor ID found - State.currentUser:', State.currentUser);
+      if (typeof STNLog !== 'undefined') STNLog.warn('vendor.kpi', 'no vendor id', STNLog.sanitize(State.currentUser));
       return null;
     }
 
@@ -3730,15 +4040,12 @@ async function safeLoadKPIs() {
     
     const orders = STN.DB.get('orders') || [];
     const products = State.products || [];
-    console.log('📊 Total products in database:', products.length);
-    console.log('📊 Total orders in database:', orders.length);
+    if (typeof STNLog !== 'undefined') STNLog.debug('vendor.kpi', 'dataset sizes', { products: products.length, orders: orders.length });
     
     const vendorOrders = orders.filter(o => o.vendorId === vendorId);
     const vendorProducts = products.filter(p => p.vendorId === vendorId);
     
-    console.log('📦 Vendor products found:', vendorProducts.length);
-    console.log('📋 Vendor orders found:', vendorOrders.length);
-    console.log('📦 Vendor product IDs:', vendorProducts.map(p => ({id: p.id, name: p.name})));
+    if (typeof STNLog !== 'undefined') STNLog.debug('vendor.kpi', 'vendor slice', { vendorProducts: vendorProducts.length, vendorOrders: vendorOrders.length });
 
     // If no products found, show empty state
     if (vendorProducts.length === 0) {
@@ -4081,155 +4388,35 @@ function updateVendorAnalytics() {
   safeLoadAnalytics().catch(() => {});
 }
 
-// Safe logistics loading
+// Safe logistics loading — same stack as admin (Leaflet + OSM), scoped to vendor orders + live vehicle animation
 async function safeLoadLogistics() {
   try {
-    console.log('🔄 Loading logistics...');
     const mapContainer = document.getElementById('vendor-logistics-map');
     if (!mapContainer) {
       console.warn('Logistics map container not found');
       return null;
     }
-
-    // Get vendor data
-    const vendorId = State.currentUser?.id;
-    await safeLoadData();
-    const orders = STN.DB.get('orders') || [];
-    const products = State.products || [];
-    
-    // Filter vendor orders and products
-    const vendorOrders = orders.filter(o => o.vendorId === vendorId);
-    const vendorProducts = products.filter(p => p.vendorId === vendorId);
-    
-    console.log('🗺️ Loading logistics map with:', {
-      vendorOrders: vendorOrders.length,
-      vendorProducts: vendorProducts.length
-    });
-
-    // Create real Leaflet map
-    const mapId = 'vendor-logistics-leaflet-map-' + Date.now();
-    mapContainer.innerHTML = `
-      <div id="${mapId}" style="height:100%;width:100%;border-radius:8px"></div>
-    `;
-
-    // Initialize map - center on Sousse, Tunisia
-    const map = L.map(mapId).setView([35.8256, 10.6084], 10);
-    
-    // Add tile layer
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
-
-    // Add markers for products with locations
-    const markers = [];
-    
-    // Add product locations
-    vendorProducts.forEach(product => {
-      if (product.region || product.location) {
-        // Simple geocoding for Tunisian regions
-        const coords = getTunisiaCoordinates(product.region || product.location);
-        if (coords) {
-          const marker = L.marker(coords)
-            .addTo(map)
-            .bindPopup(`
-              <div style="text-align:center">
-                <strong>${product.name}</strong><br>
-                ${product.emoji} ${(product.cat || product.category || 'product')}<br>
-                Stock: ${product.stock || 0}<br>
-                Price: ${product.price} TND
-              </div>
-            `);
-          markers.push(marker);
-        }
-      }
-    });
-
-    // Add delivery locations from orders
-    vendorOrders.forEach(order => {
-      // Show all "current" orders as live markers (different icons per status)
-      const coords = order.location ? getTunisiaCoordinates(order.location) : [35.8256, 10.6084];
-      if (coords) {
-        const status = (order.status || 'pending').toLowerCase();
-        const iconEmoji =
-          status === 'delivered' ? '✅' :
-          status === 'shipped' || status === 'transit' ? '🚚' :
-          status === 'ready' ? '📦' :
-          '🕐';
-        if (coords) {
-          const marker = L.marker(coords, {
-            icon: L.divIcon({
-              html: iconEmoji,
-              className: 'custom-div-icon',
-              iconSize: [30, 30],
-              iconAnchor: [15, 15]
-            })
-          })
-            .addTo(map)
-            .bindPopup(`
-              <div style="text-align:center">
-                <strong>Delivery</strong><br>
-                Order: ${order.tracking_number}<br>
-                Status: ${order.status}<br>
-                Customer: ${order.notes || 'N/A'}
-              </div>
-            `);
-          markers.push(marker);
-        }
-      }
-    });
-
-    // If no markers, add a default marker for the vendor location
-    if (markers.length === 0) {
-      L.marker([35.8256, 10.6084])
-        .addTo(map)
-        .bindPopup(`
-          <div style="text-align:center">
-            <strong>Your Shop Location</strong><br>
-            Sousse, Tunisia<br>
-            ${vendorProducts.length} Products<br>
-            ${vendorOrders.length} Orders
-          </div>
-        `)
-        .openPopup();
-    }
-
-    // Fit map to show all markers if there are any
-    if (markers.length > 0) {
-      const group = new L.featureGroup(markers);
-      map.fitBounds(group.getBounds().pad(0.1));
-    }
-
-    console.log('✅ Logistics map loaded successfully with', markers.length, 'markers');
-
-    // Keep it live: refresh orders periodically while dashboard is visible
-    if (!window.__vendorLogisticsInterval) {
-      window.__vendorLogisticsInterval = setInterval(() => {
+    await renderVendorLogisticsMapCore(false);
+    if (!window.__vendorLogisticsSyncInterval) {
+      window.__vendorLogisticsSyncInterval = setInterval(function () {
         const dashEl = document.getElementById('page-vendor-dashboard');
-        const isVisible = dashEl && dashEl.classList && dashEl.classList.contains('active');
-        if (isVisible) {
-          safeLoadLogistics().catch(() => {});
-        }
-      }, 15000);
+        if (!dashEl || !dashEl.classList || !dashEl.classList.contains('active')) return;
+        renderVendorLogisticsMapCore(false).catch(function () {});
+      }, 40000);
     }
-    
     return true;
   } catch (error) {
     console.error('❌ Error loading logistics:', error);
-    // Fallback to simple view if map fails
     const mapContainer = document.getElementById('vendor-logistics-map');
     if (mapContainer) {
-      mapContainer.innerHTML = `
-        <div style="height:100%;background:#f0f4f8;border-radius:8px;display:flex;align-items:center;justify-content:center">
-          <div style="text-align:center;color:#6b7280">
-            <div style="font-size:2rem;margin-bottom:1rem">🚚</div>
-            <h4 style="margin-bottom:0.5rem;color:#1e0a4e">Logistics Overview</h4>
-            <p style="margin-bottom:1.5rem">Map temporarily unavailable</p>
-            <div style="background:#e0f2fe;border:1px solid #0ea5e9;border-radius:8px;padding:1rem">
-              <div style="font-size:0.9rem;color:#1e0a4e">📍 Active Deliveries: ${vendorOrders.filter(o => o.status === 'shipped' || o.status === 'transit').length}</div>
-            </div>
-          </div>
-        </div>
-      `;
+      mapContainer.innerHTML =
+        '<div style="height:100%;min-height:280px;background:#f0f4f8;border-radius:8px;display:flex;align-items:center;justify-content:center">' +
+        '<div style="text-align:center;color:#6b7280;padding:1.5rem">' +
+        '<div style="font-size:2rem;margin-bottom:1rem">🚚</div>' +
+        '<h4 style="margin-bottom:0.5rem;color:#1e0a4e">Live map unavailable</h4>' +
+        '<p style="margin-bottom:1rem;font-size:0.875rem">Check your connection and tap Refresh.</p>' +
+        '<button type="button" onclick="vendorLogisticsRefresh()" style="background:#7c3aed;color:white;border:none;padding:0.5rem 1rem;border-radius:8px;font-weight:600;cursor:pointer">Try again</button>' +
+        '</div></div>';
     }
     return false;
   }
@@ -4276,6 +4463,421 @@ function getTunisiaCoordinates(region) {
   // Return coordinates if found, otherwise default to Sousse
   return coordinates[region] || [35.8256, 10.6084];
 }
+
+/** Customer / drop-off point for map (GPS if present, else wilaya / delegation / first line item product region). */
+function resolveOrderDestinationLatLng(order) {
+  if (!order || typeof order !== 'object') return [35.8256, 10.6084];
+  const lat = order.delivery_lat != null ? order.delivery_lat : order.lat;
+  const lng = order.delivery_lng != null ? order.delivery_lng : order.lng;
+  if (lat != null && lng != null && !Number.isNaN(+lat) && !Number.isNaN(+lng)) {
+    return [+lat, +lng];
+  }
+  const wilaya = order.wilaya || order.shipping_wilaya || order.shippingWilaya;
+  if (wilaya) return getTunisiaCoordinates(String(wilaya).trim());
+  const loc = order.location || order.delegation || order.city || order.address_line;
+  if (loc) {
+    const parts = String(loc).split(/[,\s]+/).map(s => s.trim()).filter(Boolean);
+    for (let i = 0; i < parts.length; i++) {
+      const c = getTunisiaCoordinates(parts[i]);
+      if (c && (c[0] !== 35.8256 || parts.length === 1)) return c;
+    }
+  }
+  const items = order.items;
+  if (Array.isArray(items) && items.length && Array.isArray(State.products)) {
+    const pid = items[0].id != null ? items[0].id : items[0].product_id;
+    const prod = State.products.find(pr => String(pr.id) === String(pid));
+    if (prod && prod.region) return getTunisiaCoordinates(prod.region);
+  }
+  return getTunisiaCoordinates(order.region);
+}
+
+function resolveVendorHubLatLng(vendorId, vendorProducts) {
+  const prods = (vendorProducts || []).filter(p => String(p.vendorId) === String(vendorId));
+  const regions = [...new Set(prods.map(p => p.region).filter(Boolean))];
+  if (regions.length === 0) return [35.8256, 10.6084];
+  const coords = regions.map(r => getTunisiaCoordinates(r));
+  const lat = coords.reduce((s, c) => s + c[0], 0) / coords.length;
+  const lng = coords.reduce((s, c) => s + c[1], 0) / coords.length;
+  return [lat, lng];
+}
+
+function logisticsEverestPackageIcon() {
+  return L.divIcon({
+    html:
+      '<div style="background:linear-gradient(135deg,#7c3aed,#4a1fa8);color:white;width:32px;height:32px;border-radius:50% 50% 0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:bold;box-shadow:0 2px 8px rgba(124,58,237,0.35);border:2px solid white;transform:rotate(-45deg)"><span style="transform:rotate(45deg)">📦</span></div>',
+    className: 'everest-marker',
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+  });
+}
+
+function logisticsHubIcon() {
+  return L.divIcon({
+    html:
+      '<div style="background:#1e0a4e;color:#fff;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;border:3px solid #c4b5fd;box-shadow:0 2px 10px rgba(30,10,78,0.35)">🏪</div>',
+    className: 'vendor-hub-marker',
+    iconSize: [36, 36],
+    iconAnchor: [18, 36],
+  });
+}
+
+function logisticsVehicleIcon() {
+  return L.divIcon({
+    html:
+      '<div class="vendor-logistics-vehicle" style="background:linear-gradient(135deg,#059669,#047857);color:white;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 3px 12px rgba(5,150,105,0.45);border:3px solid white;animation:vendor-vehicle-pulse 2.2s ease-in-out infinite">🚚</div>',
+    className: 'vendor-logistics-vehicle-wrap',
+    iconSize: [40, 40],
+    iconAnchor: [20, 40],
+  });
+}
+
+function interpolateLatLng(a, b, t) {
+  const u = Math.min(1, Math.max(0, t));
+  return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u];
+}
+
+/** Progress 0–1 along hub→customer for live map (real GPS if provided; else time-based + small jitter). */
+function computeVendorDeliveryProgress(order) {
+  const st = String(order.status || 'pending').toLowerCase();
+  if (st === 'delivered') return 1;
+  if (st === 'cancelled' || st === 'canceled') return 0;
+  const gpsLat = order.driver_lat != null ? order.driver_lat : order.vehicle_lat;
+  const gpsLng = order.driver_lng != null ? order.driver_lng : order.vehicle_lng;
+  if (gpsLat != null && gpsLng != null && !Number.isNaN(+gpsLat) && !Number.isNaN(+gpsLng)) {
+    return { useGps: true, lat: +gpsLat, lng: +gpsLng };
+  }
+  const enRoute =
+    st === 'shipped' ||
+    st === 'transit' ||
+    st === 'processing' ||
+    st === 'out_for_delivery' ||
+    st === 'out-for-delivery';
+  if (!enRoute) return { useGps: false, t: 0 };
+  const t0 = new Date(order.updated_at || order.shipped_at || order.created_at || Date.now()).getTime();
+  const legMs = 10 * 60 * 1000;
+  const linear = Math.min(0.97, Math.max(0.06, (Date.now() - t0) / legMs));
+  const jitter = 0.014 * Math.sin(Date.now() / 2600);
+  return { useGps: false, t: Math.min(0.99, Math.max(0.03, linear + jitter)) };
+}
+
+function stopVendorLogisticsAnimation() {
+  const st = window.__vendorLogistics;
+  if (st && st.rafId != null) {
+    cancelAnimationFrame(st.rafId);
+    st.rafId = null;
+  }
+}
+
+function startVendorLogisticsAnimation() {
+  stopVendorLogisticsAnimation();
+  const st = window.__vendorLogistics;
+  if (!st || !st.map || !Array.isArray(st.animTargets)) return;
+
+  const frame = function () {
+    const s = window.__vendorLogistics;
+    const page = document.getElementById('page-vendor-dashboard');
+    if (!s || !s.map || !page || !page.classList.contains('active')) {
+      if (s) s.rafId = null;
+      return;
+    }
+    s.animTargets.forEach(function (row) {
+      const prog = computeVendorDeliveryProgress(row.order);
+      let latlng;
+      if (prog && prog.useGps) latlng = [prog.lat, prog.lng];
+      else if (prog && typeof prog.t === 'number') latlng = interpolateLatLng(row.hub, row.dest, prog.t);
+      else latlng = row.hub;
+      if (latlng && row.marker) row.marker.setLatLng(latlng);
+    });
+    s.rafId = requestAnimationFrame(frame);
+  };
+  st.rafId = requestAnimationFrame(frame);
+}
+
+function updateVendorLogisticsOrderList(vendorOrdersOnMap) {
+  const listContainer = document.getElementById('vendor-logistics-order-list');
+  if (!listContainer) return;
+  if (!vendorOrdersOnMap.length) {
+    listContainer.innerHTML =
+      '<div style="text-align:center;padding:1.5rem;color:#9ca3af"><div style="font-size:1.75rem;margin-bottom:0.5rem">📦</div><p style="font-weight:500;margin-bottom:0.35rem">No mapped orders yet</p><p style="font-size:0.8rem">Shipped or in-transit orders appear with live vehicle position</p></div>';
+    return;
+  }
+  listContainer.innerHTML = vendorOrdersOnMap
+    .map(function (order) {
+      const st = String(order.status || 'pending').toLowerCase();
+      const statusColor =
+        st === 'delivered' ? '#dcfce7' : st === 'shipped' || st === 'transit' ? '#dbeafe' : '#fef9c3';
+      const statusTextColor =
+        st === 'delivered' ? '#166534' : st === 'shipped' || st === 'transit' ? '#1d4ed8' : '#92400e';
+      const id = order.id != null ? order.id : order.tracking_number;
+      return (
+        '<div class="vendor-logistics-list-item" data-order-focus="' +
+        String(id).replace(/"/g, '&quot;') +
+        '" style="background:white;border:1px solid #e5e7eb;border-radius:8px;padding:0.85rem;cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor=\'#7c3aed\';this.style.boxShadow=\'0 2px 8px rgba(124,58,237,0.12)\'" onmouseout="this.style.borderColor=\'#e5e7eb\';this.style.boxShadow=\'\'">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.35rem">' +
+        '<div><div style="font-weight:600;color:#1e0a4e;font-size:0.88rem">#' +
+        (order.tracking_number || order.id) +
+        '</div>' +
+        '<div style="font-size:0.72rem;color:#6b7280">' +
+        (order.userName || order.phone || 'Customer') +
+        ' · ' +
+        (order.wilaya || order.location || 'TN') +
+        '</div></div>' +
+        '<span style="background:' +
+        statusColor +
+        ';color:' +
+        statusTextColor +
+        ';padding:0.2rem 0.65rem;border-radius:20px;font-size:0.65rem;font-weight:600">' +
+        (st === 'delivered' ? '✓ Delivered' : st === 'shipped' || st === 'transit' ? '🚚 En route' : '⏳ ' + st) +
+        '</span></div>' +
+        '<div style="font-size:0.72rem;color:#374151"><strong>Total:</strong> ' +
+        (order.total || 0).toLocaleString() +
+        ' TND</div></div>'
+      );
+    })
+    .join('');
+
+  listContainer.querySelectorAll('.vendor-logistics-list-item').forEach(function (el) {
+    el.addEventListener('click', function () {
+      const raw = el.getAttribute('data-order-focus');
+      focusVendorLogisticsOrder(raw);
+    });
+  });
+}
+
+function focusVendorLogisticsOrder(orderKey) {
+  const st = window.__vendorLogistics;
+  if (!st || !st.map || !st.orderDestinations) return;
+  const row = st.orderDestinations.find(function (o) {
+    return String(o.id) === String(orderKey) || String(o.tracking_number) === String(orderKey);
+  });
+  if (!row) return;
+  st.map.setView(row.dest, Math.max(st.map.getZoom(), 11), { animate: true });
+  if (row.destMarker && row.destMarker.openPopup) row.destMarker.openPopup();
+}
+
+async function renderVendorLogisticsMapCore(fromUserRefresh) {
+  const outer = document.getElementById('vendor-logistics-map');
+  if (!outer) return null;
+  if (typeof L === 'undefined') {
+    outer.innerHTML =
+      '<div style="padding:2rem;text-align:center;color:#9ca3af;border-radius:12px;background:#f8fafc">Map library unavailable. Check your connection and reload.</div>';
+    return false;
+  }
+
+  const vendorId = State.currentUser?.id;
+  await safeLoadData();
+  const orders = (STN.DB.get('orders') || []).map(function (o) {
+    if (o.vendorId == null && o.vendor_id != null) o.vendorId = o.vendor_id;
+    return o;
+  });
+  const products = State.products || [];
+  const vendorOrders = orders.filter(function (o) {
+    return String(o.vendorId) === String(vendorId);
+  });
+  const vendorProducts = products.filter(function (p) {
+    return String(p.vendorId) === String(vendorId);
+  });
+
+  if (!outer.querySelector('#vendor-logistics-leaflet-root')) {
+    outer.innerHTML =
+      '<div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.06)">' +
+      '<div style="background:#f8f9fa;border-bottom:1px solid #e5e7eb;padding:0.85rem 1rem;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0.75rem">' +
+      '<div style="display:flex;flex-wrap:wrap;gap:1rem;align-items:center;font-size:0.8rem;font-weight:600;color:#374151">' +
+      '<span>On map: <span id="vendor-logistics-order-count" style="background:#7c3aed;color:white;padding:0.2rem 0.65rem;border-radius:20px;font-size:0.72rem">0</span></span>' +
+      '<span>Live vehicles: <span id="vendor-logistics-active-count" style="background:#059669;color:white;padding:0.2rem 0.65rem;border-radius:20px;font-size:0.72rem">0</span></span>' +
+      '</div>' +
+      '<div style="display:flex;gap:0.5rem;flex-wrap:wrap">' +
+      '<button type="button" onclick="vendorLogisticsRefresh()" style="background:#7c3aed;color:white;border:none;padding:0.45rem 0.9rem;border-radius:8px;font-size:0.75rem;font-weight:600;cursor:pointer">🔄 Refresh</button>' +
+      '<button type="button" onclick="vendorLogisticsCenterActiveVehicle()" style="background:#059669;color:white;border:none;padding:0.45rem 0.9rem;border-radius:8px;font-size:0.75rem;font-weight:600;cursor:pointer">🚚 Follow vehicle</button>' +
+      '</div></div>' +
+      '<div id="vendor-logistics-leaflet-root" style="height:420px;width:100%;background:#e8eef4"></div>' +
+      '<div style="background:#f8f9fa;border-top:1px solid #e5e7eb;padding:0.75rem 1rem;max-height:240px;overflow-y:auto">' +
+      '<h4 style="font-size:0.82rem;font-weight:600;color:#111827;margin:0 0 0.65rem">Your deliveries</h4>' +
+      '<div id="vendor-logistics-order-list"></div></div></div>';
+  }
+
+  let st = window.__vendorLogistics;
+  const root = document.getElementById('vendor-logistics-leaflet-root');
+  if (!root) return false;
+
+  var mapDomStale = false;
+  if (st && st.map) {
+    try {
+      var mc = st.map.getContainer();
+      mapDomStale = !mc || !document.body.contains(mc);
+    } catch (e) {
+      mapDomStale = true;
+    }
+  }
+
+  if (!st || !st.map || st._containerId !== 'vendor-logistics-leaflet-root' || mapDomStale) {
+    stopVendorLogisticsAnimation();
+    if (st && st.map) {
+      try {
+        st.map.remove();
+      } catch (e) {}
+    }
+    st = {
+      map: L.map('vendor-logistics-leaflet-root').setView([33.8869, 9.5375], 7),
+      _containerId: 'vendor-logistics-leaflet-root',
+      routeLayer: L.featureGroup(),
+      destLayer: L.featureGroup(),
+      vehicleLayer: L.featureGroup(),
+      hubLayer: L.featureGroup(),
+      animTargets: [],
+      orderDestinations: [],
+      rafId: null,
+    };
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19,
+    }).addTo(st.map);
+    st.routeLayer.addTo(st.map);
+    st.hubLayer.addTo(st.map);
+    st.destLayer.addTo(st.map);
+    st.vehicleLayer.addTo(st.map);
+    window.__vendorLogistics = st;
+    setTimeout(function () {
+      try {
+        st.map.invalidateSize();
+      } catch (e) {}
+    }, 250);
+  }
+
+  st.routeLayer.clearLayers();
+  st.destLayer.clearLayers();
+  st.vehicleLayer.clearLayers();
+  st.hubLayer.clearLayers();
+  st.animTargets = [];
+  st.orderDestinations = [];
+
+  const hub = resolveVendorHubLatLng(vendorId, vendorProducts);
+  L.marker(hub, { icon: logisticsHubIcon() })
+    .bindPopup(
+      '<div style="min-width:170px;font-size:12px;line-height:1.45"><strong>Your dispatch hub</strong><br>Derived from your product regions. Vehicles depart from here toward customers.</div>'
+    )
+    .addTo(st.hubLayer);
+
+  const mapOrders = vendorOrders.filter(function (o) {
+    const s = String(o.status || '').toLowerCase();
+    return s !== 'cancelled' && s !== 'canceled';
+  });
+
+  let enRouteCount = 0;
+  mapOrders.forEach(function (order) {
+    const dest = resolveOrderDestinationLatLng(order);
+    const destMarker = L.marker(dest, { icon: logisticsEverestPackageIcon() }).bindPopup(
+      '<div style="min-width:200px;font-size:12px;line-height:1.45">' +
+        '<strong>#' +
+        (order.tracking_number || order.id) +
+        '</strong><br>' +
+        'Customer: ' +
+        (order.userName || order.phone || '—') +
+        '<br>Area: ' +
+        (order.wilaya || order.location || 'TN') +
+        '<br>Status: <b>' +
+        (order.status || '') +
+        '</b><br>Total: ' +
+        (order.total || 0).toLocaleString() +
+        ' TND</div>'
+    );
+    destMarker.addTo(st.destLayer);
+    st.orderDestinations.push({
+      id: order.id,
+      tracking_number: order.tracking_number,
+      dest: dest,
+      destMarker: destMarker,
+      order: order,
+    });
+
+    const stt = String(order.status || '').toLowerCase();
+    const live =
+      stt === 'shipped' ||
+      stt === 'transit' ||
+      stt === 'processing' ||
+      stt === 'out_for_delivery' ||
+      stt === 'out-for-delivery';
+    if (live) {
+      enRouteCount++;
+      L.polyline([hub, dest], {
+        color: '#7c3aed',
+        weight: 3,
+        opacity: 0.55,
+        dashArray: '10 8',
+      }).addTo(st.routeLayer);
+      const prog = computeVendorDeliveryProgress(order);
+      const startPos =
+        prog && prog.useGps
+          ? [prog.lat, prog.lng]
+          : interpolateLatLng(hub, dest, typeof prog.t === 'number' ? prog.t : 0.15);
+      const vMarker = L.marker(startPos, { icon: logisticsVehicleIcon() }).bindPopup(
+        '<div style="font-size:12px;line-height:1.45"><strong>Live vehicle</strong><br>Order #' +
+          (order.tracking_number || order.id) +
+          '<br><span style="color:#6b7280">Updates while order is en route. GPS from driver overrides simulated path when available.</span></div>'
+      );
+      vMarker.addTo(st.vehicleLayer);
+      st.animTargets.push({ marker: vMarker, hub: hub, dest: dest, order: order });
+    }
+  });
+
+  const countEl = document.getElementById('vendor-logistics-order-count');
+  const activeEl = document.getElementById('vendor-logistics-active-count');
+  if (countEl) countEl.textContent = String(mapOrders.length);
+  if (activeEl) activeEl.textContent = String(enRouteCount);
+
+  updateVendorLogisticsOrderList(mapOrders);
+
+  const fitGroup = L.featureGroup();
+  st.hubLayer.eachLayer(function (l) {
+    fitGroup.addLayer(l);
+  });
+  st.destLayer.eachLayer(function (l) {
+    fitGroup.addLayer(l);
+  });
+  if (fitGroup.getLayers().length) {
+    try {
+      st.map.fitBounds(fitGroup.getBounds().pad(0.14));
+    } catch (e) {
+      st.map.setView(hub, 9);
+    }
+  } else {
+    st.map.setView(hub, 9);
+  }
+
+  startVendorLogisticsAnimation();
+  if (fromUserRefresh) {
+    setTimeout(function () {
+      try {
+        st.map.invalidateSize();
+      } catch (e) {}
+    }, 120);
+  }
+  return true;
+}
+
+window.vendorLogisticsRefresh = async function () {
+  try {
+    await safeLoadData();
+    await renderVendorLogisticsMapCore(true);
+    toast('🔄 Live map updated', 'success');
+  } catch (e) {
+    toast('⚠️ Could not refresh map', 'error');
+  }
+};
+
+window.vendorLogisticsCenterActiveVehicle = function () {
+  const st = window.__vendorLogistics;
+  if (!st || !st.map || !st.animTargets || !st.animTargets.length) {
+    toast('⚠️ No active delivery vehicle on map', 'error');
+    return;
+  }
+  const first = st.animTargets[0];
+  const m = first.marker;
+  if (m && m.getLatLng) {
+    st.map.setView(m.getLatLng(), 12, { animate: true });
+    toast('📍 Following delivery vehicle', 'success');
+  }
+};
 
 // REMOVED: Duplicate loadVendorLogisticsMap function - using safeLoadLogistics instead
 
@@ -4574,83 +5176,29 @@ function loadOrderMarkers() {
   orderMarkers.forEach(marker => logisticsMap.removeLayer(marker));
   orderMarkers = [];
   
-  // Get orders with coordinates
   const orders = STN.DB.get('orders') || [];
-  const ordersWithCoords = orders.filter(order => {
-    // Mock coordinates for demo - in real app, these would come from delivery tracking
-    if (order.status === 'shipped' || order.status === 'processing') {
-      // Assign real coordinates based on wilaya for demo
-      const wilayaCoords = {
-        'Tunis': [36.8065, 10.1815],
-        'Ariana': [36.8625, 10.1956],
-        'Bizerte': [37.2744, 9.8739],
-        'Nabeul': [36.4514, 10.7358],
-        'Sousse': [35.8256, 10.6369],
-        'Monastir': [35.7643, 10.8113],
-        'Mahdia': [35.5047, 11.0621],
-        'Sfax': [34.7406, 10.7603],
-        'Kairouan': [35.6781, 10.0963],
-        'Gabès': [33.8815, 10.0982],
-        'Jendouba': [36.5039, 8.7806],
-        'Béja': [36.7276, 9.1818],
-        'Le Kef': [36.1667, 8.7000],
-        'Siliana': [36.0833, 9.3667],
-        'Kasserine': [35.1667, 8.8333],
-        'Sidi Bouzid': [35.0380, 9.4939],
-        'Gafsa': [34.4250, 8.7842],
-        'Tozeur': [33.9250, 8.1333],
-        'Kebili': [33.7042, 8.9667],
-        'Tataouine': [32.9298, 10.4523],
-        'Médenine': [33.3549, 10.5086],
-        'Zarzis': [33.7892, 11.0812],
-        'Djerba': [33.8144, 10.8593]
-      };
-      const coords = wilayaCoords[order.wilaya] || [35.8256, 10.6369]; // Default to Sousse
-      order.lat = coords[0];
-      order.lng = coords[1];
-      return true;
-    }
-    return false;
+  const ordersWithCoords = orders.filter(function (order) {
+    const st = String(order.status || '').toLowerCase();
+    return (
+      st === 'shipped' ||
+      st === 'processing' ||
+      st === 'transit' ||
+      st === 'out_for_delivery' ||
+      st === 'out-for-delivery'
+    );
   });
-  
-  // Update counts
+
   document.getElementById('logistics-order-count').textContent = ordersWithCoords.length;
-  document.getElementById('logistics-active-count').textContent = ordersWithCoords.filter(o => o.status === 'shipped').length;
-  
-  // Create custom purple marker for Everest branding
-  const createEverestMarker = (order) => {
-    return L.divIcon({
-      html: `
-        <div style="
-          background: linear-gradient(135deg, #7c3aed, #4a1fa8);
-          color: white;
-          width: 32px;
-          height: 32px;
-          border-radius: 50% 50% 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 14px;
-          font-weight: bold;
-          box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
-          border: 2px solid white;
-          transform: rotate(-45deg);
-        ">
-          <span style="transform: rotate(45deg);">📦</span>
-        </div>
-      `,
-      className: 'everest-marker',
-      iconSize: [32, 32],
-      iconAnchor: [16, 32]
-    });
-  };
-  
-  // Add markers for orders
-  ordersWithCoords.forEach(order => {
-    if (order.lat && order.lng) {
-      const marker = L.marker([order.lat, order.lng], {
-        icon: createEverestMarker(order)
-      }).addTo(logisticsMap);
+  document.getElementById('logistics-active-count').textContent = ordersWithCoords.filter(function (o) {
+    return String(o.status || '').toLowerCase() === 'shipped';
+  }).length;
+
+  ordersWithCoords.forEach(function (order) {
+    const pt = resolveOrderDestinationLatLng(order);
+    if (!pt || pt.length < 2) return;
+    const marker = L.marker([pt[0], pt[1]], {
+      icon: logisticsEverestPackageIcon(),
+    }).addTo(logisticsMap);
       
       // Add popup with order details
       const popupContent = `
@@ -4674,12 +5222,10 @@ function loadOrderMarkers() {
         </div>
       `;
       
-      marker.bindPopup(popupContent);
-      orderMarkers.push(marker);
-    }
+    marker.bindPopup(popupContent);
+    orderMarkers.push(marker);
   });
-  
-  // Update order list
+
   updateOrderList(ordersWithCoords);
 }
 
