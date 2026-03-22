@@ -101,6 +101,9 @@ function setLang(lang){
     var btn=document.getElementById('lang-'+l);
     if(btn) btn.classList.toggle('active', l===lang);
   });
+  document.querySelectorAll('[data-nav-lang]').forEach(function(b){
+    b.classList.toggle('active', b.getAttribute('data-nav-lang')===lang);
+  });
   document.documentElement.dir = lang==='ar' ? 'rtl' : 'ltr';
   var T = TRANSLATIONS[lang];
   if(!T) return;

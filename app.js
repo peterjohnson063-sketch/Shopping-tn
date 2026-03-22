@@ -134,6 +134,33 @@ function initNav() {
     const nav = document.getElementById('main-nav');
     if (nav) nav.classList.toggle('scrolled', window.scrollY > 40);
   });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.body.classList.contains('nav-drawer-open')) toggleNavDrawer(false);
+  });
+}
+
+/** Mobile hamburger drawer (Amazon-style menu) */
+function toggleNavDrawer(open) {
+  var openNext;
+  if (arguments.length === 0) {
+    openNext = !document.body.classList.contains('nav-drawer-open');
+  } else {
+    openNext = !!open;
+  }
+  document.body.classList.toggle('nav-drawer-open', openNext);
+  var overlay = document.getElementById('nav-drawer-overlay');
+  var drawer = document.getElementById('nav-drawer');
+  var btn = document.getElementById('nav-menu-btn');
+  if (overlay) {
+    overlay.classList.toggle('open', openNext);
+    overlay.setAttribute('aria-hidden', openNext ? 'false' : 'true');
+  }
+  if (drawer) {
+    drawer.classList.toggle('open', openNext);
+    drawer.setAttribute('aria-hidden', openNext ? 'false' : 'true');
+  }
+  if (btn) btn.setAttribute('aria-expanded', openNext ? 'true' : 'false');
+  document.body.style.overflow = openNext ? 'hidden' : '';
 }
 
 function updateNavUser() {
@@ -177,7 +204,9 @@ function updateNavUser() {
 // ── PAGE NAVIGATION ──
 function showPage(id) {
   console.log('🔄 showPage called with:', id);
-  
+
+  if (typeof toggleNavDrawer === 'function') toggleNavDrawer(false);
+
   // Stop tracking timers/subscriptions when leaving the track page
   if (State.currentPage === 'track' && id !== 'track') {
     stopRealtimeTracking();
