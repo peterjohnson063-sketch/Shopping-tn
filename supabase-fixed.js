@@ -310,6 +310,15 @@ const SB = {
     return data[0] || null;
   },
 
+  /** Admin / dashboards: list users (requires RLS SELECT on `users` for the anon key). */
+  async getUsers(limit) {
+    var lim = parseInt(String(limit == null ? 300 : limit), 10);
+    if (!Number.isFinite(lim) || lim < 1) lim = 300;
+    lim = Math.min(lim, 1000);
+    const data = await this.req('GET', 'users', null, `?order=created_at.desc&limit=${lim}`);
+    return Array.isArray(data) ? data : [];
+  },
+
   async createUser(user) {
     var body = _sbUserBodyFromInput(user);
     var attempts = _sbUniqueUserInsertAttempts(body);

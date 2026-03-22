@@ -2400,6 +2400,61 @@ function renderAccount() {
 }
 
 // ── ADMIN ──
+/** Merge demo/local users with Supabase so admin can verify drivers who registered online. */
+async function mergeLocalAndRemoteUsersForAdmin() {
+  var local = STN.DB.get('users') || [];
+  if (typeof SB === 'undefined' || typeof SB.getUsers !== 'function') {
+    return local.slice();
+  }
+  try {
+    var remote = await SB.getUsers(500);
+    if (!remote || !remote.length) return local.slice();
+    var byId = new Map();
+    local.forEach(function (u) {
+      byId.set(String(u.id), Object.assign({}, u));
+    });
+    remote.forEach(function (r) {
+      if (!r || r.id == null) return;
+      var id = String(r.id);
+      var ex = byId.get(id);
+      var row = {
+        id: r.id,
+        email: r.email,
+        first_name: r.first_name,
+        last_name: r.last_name,
+        firstName: r.first_name,
+        lastName: r.last_name,
+        phone: r.phone,
+        wilaya: r.wilaya,
+        delegation: r.delegation,
+        role: r.role,
+        points: r.points,
+        verified: r.verified,
+        is_verified: r.is_verified,
+        banned: r.banned,
+        timeout_until: r.timeout_until,
+        shop_name: r.shop_name,
+        specialty: r.specialty,
+        id_card_number: r.id_card_number,
+        vehicle_plate_number: r.vehicle_plate_number,
+        vehicle_model: r.vehicle_model,
+        vehicle_color: r.vehicle_color,
+        cin_document_url: r.cin_document_url,
+        license_document_url: r.license_document_url,
+      };
+      if (!ex) {
+        byId.set(id, row);
+      } else {
+        Object.assign(ex, row);
+      }
+    });
+    return Array.from(byId.values());
+  } catch (e) {
+    if (typeof STNLog !== 'undefined') STNLog.warn('admin.mergeUsers', e && e.message);
+    return local.slice();
+  }
+}
+
 function renderAdmin() {
   if (!State.currentUser || State.currentUser.role !== 'admin') {
     toast('Admin access required', 'error'); showPage('auth'); return;
@@ -2640,7 +2695,14 @@ function switchAdmin(section) {
       </div>`;
 
   } else if (section === 'users') {
-    var userRows = users.length === 0
+    content.innerHTML =
+      '<p style="padding:2rem;text-align:center;color:#64748b;font-size:0.9rem">Loading users…</p>';
+    mergeLocalAndRemoteUsersForAdmin().then(function (mergedUsers) {
+      var pane = document.getElementById('admin-content');
+      var navU = document.getElementById('adm-nav-users');
+      if (!pane || !navU || !navU.classList.contains('adm-active')) return;
+      var users = mergedUsers;
+      var userRows = users.length === 0
       ? '<tr><td colspan="7" style="text-align:center;padding:3rem;color:#9ca3af">No users yet</td></tr>'
       : users.map(function(u) {
           var isBanned = u.banned;
@@ -2696,17 +2758,28 @@ function switchAdmin(section) {
             '<td style="padding:0.75rem 1rem">'+actions+'</td>' +
             '</tr>';
         }).join('');
-    content.innerHTML = '<div><div style="margin-bottom:1.5rem"><h1 style="font-size:1.5rem;font-weight:700;color:#111827">Customers</h1><p style="color:#6b7280;font-size:0.875rem">'+users.length+' users &middot; '+users.filter(function(u){return u.banned;}).length+' banned</p></div><div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f9fafb"><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Customer</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Email</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Wilaya</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Role</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Points</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Status</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Actions</th></tr></thead><tbody>'+userRows+'</tbody></table></div></div></div>';
-    var tbl = content.querySelector('table');
-    if (tbl) tbl.addEventListener('click', function(e) {
-      var btn = e.target.closest('[data-action]');
-      if (!btn) return;
-      var id = btn.dataset.id;
-      if (btn.dataset.action === 'ban') banUser(id);
-      else if (btn.dataset.action === 'timeout') timeoutUser(id);
-      else if (btn.dataset.action === 'unban') unbanUser(id);
+      pane.innerHTML =
+        '<div><div style="margin-bottom:1.5rem"><h1 style="font-size:1.5rem;font-weight:700;color:#111827">Customers</h1><p style="color:#6b7280;font-size:0.875rem">' +
+        users.length +
+        ' users (incl. drivers) &middot; ' +
+        users.filter(function (u) {
+          return u.banned;
+        }).length +
+        ' banned · Use <strong>Verify driver</strong> to approve delivery partners, or <strong>Ban</strong> to block.</p></div><div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f9fafb"><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Customer</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Email</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Wilaya</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Role</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Points</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Status</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Actions</th></tr></thead><tbody>' +
+        userRows +
+        '</tbody></table></div></div></div>';
+      var tbl = pane.querySelector('table');
+      if (tbl)
+        tbl.addEventListener('click', function (e) {
+          var btn = e.target.closest('[data-action]');
+          if (!btn) return;
+          var id = btn.dataset.id;
+          if (btn.dataset.action === 'ban') banUser(id);
+          else if (btn.dataset.action === 'timeout') timeoutUser(id);
+          else if (btn.dataset.action === 'unban') unbanUser(id);
+        });
     });
-    } else if (section === 'logistics') {
+  } else if (section === 'logistics') {
     content.innerHTML = `
       <div>
         <div style="margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between">
@@ -2782,7 +2855,16 @@ function switchAdmin(section) {
     });
     
   } else if (section === 'vendors') {
-    var vendorRows = vendors.length === 0
+    content.innerHTML =
+      '<p style="padding:2rem;text-align:center;color:#64748b;font-size:0.9rem">Loading vendors…</p>';
+    mergeLocalAndRemoteUsersForAdmin().then(function (merged) {
+      var pane = document.getElementById('admin-content');
+      var navV = document.getElementById('adm-nav-vendors');
+      if (!pane || !navV || !navV.classList.contains('adm-active')) return;
+      var vendors = merged.filter(function (u) {
+        return u.role === 'vendor';
+      });
+      var vendorRows = vendors.length === 0
       ? '<tr><td colspan="7" style="text-align:center;padding:3rem;color:#9ca3af">No vendors yet</td></tr>'
       : vendors.map(function(v) {
           var isBanned = v.banned;
@@ -2808,18 +2890,25 @@ function switchAdmin(section) {
             +'<td style="padding:0.75rem 1rem">'+act+'</td>'
             +'</tr>';
         }).join('');
-    content.innerHTML = '<div><div style="margin-bottom:1.5rem"><h1 style="font-size:1.5rem;font-weight:700;color:#111827">Vendors</h1><p style="color:#6b7280;font-size:0.875rem">'+vendors.length+' vendors</p></div><div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f9fafb"><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Vendor</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Email</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Shop</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Wilaya</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Products</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Status</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Actions</th></tr></thead><tbody>'+vendorRows+'</tbody></table></div></div></div>';
-    var vtbl = content.querySelector('table');
-    if (vtbl) vtbl.addEventListener('click', function(e) {
-      var b = e.target.closest('[data-action]');
-      if (!b) return;
-      var id = b.dataset.id, action = b.dataset.action;
-      if (action==='approve') verifyVendor(id);
-      else if (action==='ban') banUser(id);
-      else if (action==='timeout') timeoutUser(id);
-      else if (action==='unban') unbanUser(id);
+      pane.innerHTML =
+        '<div><div style="margin-bottom:1.5rem"><h1 style="font-size:1.5rem;font-weight:700;color:#111827">Vendors</h1><p style="color:#6b7280;font-size:0.875rem">' +
+        vendors.length +
+        ' vendors · <strong>Approve</strong> pending shops, or <strong>Ban</strong> to reject.</p></div><div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f9fafb"><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Vendor</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Email</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Shop</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Wilaya</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Products</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Status</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Actions</th></tr></thead><tbody>' +
+        vendorRows +
+        '</tbody></table></div></div></div>';
+      var vtbl = pane.querySelector('table');
+      if (vtbl)
+        vtbl.addEventListener('click', function (e) {
+          var b = e.target.closest('[data-action]');
+          if (!b) return;
+          var id = b.dataset.id,
+            action = b.dataset.action;
+          if (action === 'approve') verifyVendor(id);
+          else if (action === 'ban') banUser(id);
+          else if (action === 'timeout') timeoutUser(id);
+          else if (action === 'unban') unbanUser(id);
+        });
     });
-  
   }
 }
 
@@ -2886,6 +2975,21 @@ async function verifyDriverAccount(userId) {
   try {
     if (typeof SB !== 'undefined' && SB.updateUser) {
       await SB.updateUser(userId, { verified: true, is_verified: true });
+      if (idx === -1 && SB.getUserById) {
+        var row = await SB.getUserById(userId);
+        if (row) {
+          users.push(
+            STN.userForSession({
+              ...row,
+              firstName: row.first_name,
+              lastName: row.last_name,
+              verified: true,
+              is_verified: true,
+            })
+          );
+          STN.DB.set('users', users);
+        }
+      }
     }
   } catch (e) {
     if (typeof STNLog !== 'undefined') STNLog.warn('verifyDriverAccount', e && e.message);
@@ -2900,10 +3004,20 @@ async function verifyDriverAccount(userId) {
   switchAdmin('users');
 }
 
-function verifyVendor(userId) {
+async function verifyVendor(userId) {
   const users = STN.DB.get('users') || [];
-  const idx = users.findIndex(u => u.id == userId);
-  if (idx !== -1) { users[idx].verified = true; STN.DB.set('users', users); }
+  const idx = users.findIndex(u => String(u.id) === String(userId));
+  if (idx !== -1) {
+    users[idx].verified = true;
+    STN.DB.set('users', users);
+  }
+  try {
+    if (typeof SB !== 'undefined' && SB.updateUser) {
+      await SB.updateUser(userId, { verified: true });
+    }
+  } catch (e) {
+    if (typeof STNLog !== 'undefined') STNLog.warn('verifyVendor', e && e.message);
+  }
   toast('Vendor approved!', 'success');
   switchAdmin('vendors');
 }
