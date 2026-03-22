@@ -11,7 +11,7 @@ const State = {
   currentUser: null,
   cart: [],
   wishlist: [],
-  products: STN.PRODUCTS_DATA, // Initialize products from data.js immediately
+  products: [], // Filled from Supabase in init (no demo catalog)
   orders: [],
   notifications: [],
   filters: {
@@ -190,7 +190,7 @@ function _stnInstallDiagOverlayIfQuery() {
 }
 
 // ── INIT ──
-function init() {
+async function init() {
   _stnInstallDiagOverlayIfQuery();
   State.currentUser = STN.DB.get('currentUser');
   if (State.currentUser && State.currentUser.password) {
@@ -199,9 +199,6 @@ function init() {
   }
   State.cart = STN.DB.get('cart') || [];
   State.wishlist = STN.DB.get('wishlist') || [];
-  
-  // Initialize products from Supabase or fallback to local data
-  initializeProducts();
 
   // Keep Shop (products page) and dashboards in sync when products change
   if (!window.__productsChangedListenerInstalled) {
@@ -209,10 +206,6 @@ function init() {
     window.addEventListener('products:changed', async () => {
       try {
         await initializeProducts();
-        if (State.currentPage === 'products') {
-          filterAndRenderProducts();
-        }
-        // Refresh vendor dashboard if it is open
         if (State.currentPage === 'vendor-dashboard' || document.getElementById('page-vendor-dashboard')?.classList?.contains('active')) {
           if (typeof refreshVendorData === 'function') {
             refreshVendorData();
@@ -223,7 +216,7 @@ function init() {
       }
     });
   }
-  
+
   State.orders = STN.DB.get('orders') || [];
   State.reviews = STN.DB.get('reviews') || [];
 
@@ -246,23 +239,50 @@ function init() {
   document.getElementById('page-home')?.classList.add('active');
   document.getElementById('navbtn-home')?.classList.add('active');
   State.currentPage = 'home';
+
+  await initializeProducts();
   renderHome();
   setTimeout(initReveal, 80);
 }
 
-// Initialize products from Supabase
+/** Re-render product-driven UI after catalog updates (home grids, shop grid). */
+function refreshProductViewsAfterCatalogLoad() {
+  try {
+    if (State.currentPage === 'home') renderHome();
+    if (State.currentPage === 'products') filterAndRenderProducts();
+    if (State.currentPage === 'wishlist') renderWishlist();
+  } catch (e) {
+    if (typeof STNLog !== 'undefined') STNLog.warn('products.refreshViews', e && e.message);
+  }
+}
+
+// Initialize products from Supabase only (empty array if none or offline without cache)
 async function initializeProducts() {
+  if (typeof SB === 'undefined' || typeof SB.getProducts !== 'function') {
+    State.products = Array.isArray(State.products) ? State.products : [];
+    refreshProductViewsAfterCatalogLoad();
+    return;
+  }
   try {
     const supabaseProducts = await SB.getProducts();
-    if (supabaseProducts && supabaseProducts.length > 0) {
+    if (Array.isArray(supabaseProducts)) {
       State.products = supabaseProducts;
       STN.DB.set('products', State.products);
-      if (typeof STNLog !== 'undefined') STNLog.info('products.init', 'Loaded from Supabase', { count: supabaseProducts.length });
+      if (typeof STNLog !== 'undefined') {
+        STNLog.info('products.init', 'Loaded from Supabase', { count: supabaseProducts.length });
+      }
+    } else {
+      State.products = [];
+      STN.DB.set('products', []);
     }
-    // If Supabase empty/unavailable, keep State.products as STN.PRODUCTS_DATA
   } catch (error) {
-    if (typeof STNLog !== 'undefined') STNLog.warn('products.init', 'Supabase unavailable; using local/cache', { fallbackCount: State.products.length, err: error && error.message });
+    if (typeof STNLog !== 'undefined') {
+      STNLog.warn('products.init', 'Supabase unavailable', { err: error && error.message });
+    }
+    var cached = STN.DB.get('products');
+    State.products = Array.isArray(cached) ? cached : [];
   }
+  refreshProductViewsAfterCatalogLoad();
 }
 
 // ── CURSOR ──
@@ -4157,7 +4177,7 @@ function switchVendorSection(section) {
 
   // Guard: ensure products are always available
   if (!State.products || !Array.isArray(State.products)) {
-    State.products = STN.DB.get('products') || STN.PRODUCTS_DATA || [];
+    State.products = STN.DB.get('products') || [];
   }
 
   // Highlight active tab
@@ -5459,7 +5479,7 @@ async function initializeVendorDashboard(rootEl) {
 
   // Ensure products available
   if (!State.products || !Array.isArray(State.products) || State.products.length === 0) {
-    State.products = STN.DB.get('products') || STN.PRODUCTS_DATA || [];
+    State.products = STN.DB.get('products') || [];
   }
   
   console.log('✅ Vendor access check passed - user is vendor');
@@ -5566,18 +5586,18 @@ async function safeLoadData() {
     return o;
   }
 
-  // Always ensure products are present
-  if ((!State.products || State.products.length === 0) && (STN.DB.get('products') || STN.PRODUCTS_DATA)) {
-    State.products = STN.DB.get('products') || STN.PRODUCTS_DATA;
+  if (!State.products || !Array.isArray(State.products) || State.products.length === 0) {
+    var cachedP = STN.DB.get('products');
+    if (Array.isArray(cachedP)) State.products = cachedP;
   }
 
-  // Try to refresh from Supabase for production truth
   if (typeof SB !== 'undefined' && SB?.getProducts) {
     try {
       const sp = await SB.getProducts();
-      if (Array.isArray(sp) && sp.length > 0) {
+      if (Array.isArray(sp)) {
         State.products = sp.map(normalizeProduct);
         STN.DB.set('products', State.products);
+        refreshProductViewsAfterCatalogLoad();
       }
     } catch (e) {
       // Non-fatal: keep whatever is in memory/local

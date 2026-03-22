@@ -14,22 +14,12 @@
     // ── PATCH 1: Safe products getter ──────────────────
     function getProducts() {
       if (!State.products || !Array.isArray(State.products) || State.products.length === 0) {
-        State.products = STN.DB.get('products') || STN.PRODUCTS_DATA || [];
+        State.products = STN.DB.get('products') || [];
       }
       return State.products;
     }
 
-    // ── PATCH 2: initializeProducts ────────────────────
-    window.initializeProducts = async function() {
-      try {
-        const sp = await SB.getProducts();
-        if (Array.isArray(sp) && sp.length > 0) {
-          State.products = sp;
-          STN.DB.set('products', sp);
-        }
-        // Never wipe products on empty/error
-      } catch(e) {}
-    };
+    // initializeProducts: use app.js (Supabase catalog, no demo merge)
 
     // ── PATCH 3: initializeVendorDashboard ─────────────
     window.initializeVendorDashboard = async function(rootEl) {
@@ -172,7 +162,7 @@
     window.switchVendorSection = function(section) {
       // Ensure products are always an array
       if (!State.products || !Array.isArray(State.products)) {
-        State.products = STN.DB.get('products') || STN.PRODUCTS_DATA || [];
+        State.products = STN.DB.get('products') || [];
       }
       try {
         _origSwitch.call(this, section);

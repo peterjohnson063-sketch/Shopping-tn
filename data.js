@@ -105,7 +105,16 @@ const DB = {
 };
 
 // ── INIT DEFAULT DATA ──
-if (!DB.get('products')) DB.set('products', PRODUCTS_DATA);
+// One-time: remove legacy demo catalog from localStorage so Supabase is the source of truth
+(function () {
+  try {
+    if (!localStorage.getItem('stn_demo_products_purged_v1')) {
+      localStorage.removeItem('stn_products');
+      localStorage.setItem('stn_demo_products_purged_v1', '1');
+    }
+  } catch (e) {}
+})();
+// Do not seed `products` — real rows come from Supabase via app.initializeProducts()
 if (!DB.get('users')) DB.set('users', [
   { id:1, firstName:'Admin', lastName:'Everest', email:'admin@everest.tn', phone:'20000001', wilaya:'Monastir', delegation:'Monastir', password:'admin123', role:'admin', points:15000, verified:true, avatar:'👑' },
   { id:2, firstName:'Ahmed', lastName:'Maalej', email:'vendor@everest.tn', phone:'20000002', wilaya:'Monastir', delegation:'Ksar Hellal', password:'vendor123', role:'vendor', points:5000, verified:true, avatar:'🧑‍🎨' },
