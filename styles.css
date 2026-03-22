@@ -633,8 +633,11 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     display: inline-flex !important;
   }
   
-  .page-products .s > div[style*="grid-template-columns:280px 1fr"] {
+  .products-layout-grid {
     grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
   }
 }
 

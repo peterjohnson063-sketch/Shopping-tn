@@ -763,8 +763,79 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 
 <!-- Leaflet CSS for Interactive Map -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
-<link rel="stylesheet" href="styles.css?v=1772987503">
-<link rel="manifest" href="manifest.json?v=1772987503">
+<link rel="stylesheet" href="styles.css?v=202503221200">
+<link rel="manifest" href="manifest.json?v=202503221200">
+<style id="everest-mobile-shell">
+/* Must load after styles.css — fixes overflow + nav (cache-safe) */
+@media (max-width: 1024px) {
+  .products-layout-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+@media (max-width: 768px) {
+  html, body {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    margin: 0 !important;
+  }
+  #main-nav {
+    display: grid !important;
+    grid-template-columns: 44px minmax(0, 1fr) auto !important;
+    grid-template-rows: auto auto !important;
+    grid-template-areas: "menu logo actions" "lang lang lang" !important;
+    height: auto !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0.4rem max(10px, env(safe-area-inset-left)) 0.45rem max(10px, env(safe-area-inset-right)) !important;
+    box-sizing: border-box !important;
+    align-items: center !important;
+    gap: 0.35rem 0.4rem !important;
+  }
+  #main-nav .nav-menu-btn { grid-area: menu !important; display: flex !important; }
+  #main-nav .nav-logo { grid-area: logo !important; min-width: 0 !important; justify-self: center !important; }
+  #main-nav .nav-links { display: none !important; }
+  #main-nav .nav-lang-bar {
+    grid-area: lang !important;
+    display: flex !important;
+    justify-content: center !important;
+    width: 100% !important;
+    flex-wrap: wrap !important;
+    gap: 0.35rem !important;
+    padding: 0.4rem 0 0 !important;
+    margin: 0 !important;
+    border-top: 1px solid rgba(107, 63, 212, 0.14) !important;
+    box-sizing: border-box !important;
+  }
+  #main-nav .nav-lang-bar .lang-btn {
+    min-height: 36px !important;
+    min-width: 44px !important;
+    font-size: 0.72rem !important;
+    font-weight: 700 !important;
+  }
+  #main-nav .nav-actions { grid-area: actions !important; margin-left: 0 !important; flex-shrink: 0 !important; }
+  .nav-hide-mobile-commerce { display: none !important; }
+  .page { padding-top: calc(5.65rem + env(safe-area-inset-top, 0px)) !important; max-width: 100% !important; overflow-x: hidden !important; }
+  #page-home .home-search-row { max-width: 100% !important; min-width: 0 !important; }
+  #home-featured-grid, #home-bestsellers-grid, #home-new-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+  #bottom-nav { max-width: 100% !important; left: 0 !important; right: 0 !important; box-sizing: border-box !important; }
+  #yasmine-toggle.yasmine-fab {
+    right: max(0.65rem, env(safe-area-inset-right)) !important;
+    bottom: calc(5.1rem + env(safe-area-inset-bottom, 0px)) !important;
+    z-index: 960 !important;
+  }
+}
+</style>
 </head>
 <body>
 
@@ -1100,7 +1171,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   </div>
 </div>
 
-<div class="page" id="page-products">
+<div class="page page-products" id="page-products">
   <div class="s page-products-s" style="padding-top:5rem">
     <div class="page-products-intro" style="margin-bottom:3rem">
       <span class="eyebrow reveal">كل المنتجات · All Products</span>
@@ -1121,7 +1192,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     </div>
     
     <!-- Amazon-style Layout: Sidebar + Main Content -->
-    <div style="display:grid;grid-template-columns:280px 1fr;gap:2rem;align-items:start">
+    <div class="products-layout-grid" style="display:grid;grid-template-columns:280px 1fr;gap:2rem;align-items:start;max-width:100%;min-width:0">
       
       <!-- SIDEBAR -->
       <aside id="ecom-sidebar" style="position:sticky;top:84px;z-index:10">
