@@ -763,7 +763,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 
 <!-- Leaflet CSS for Interactive Map -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
-<link rel="stylesheet" href="styles.css?v=202503221200">
+<link rel="stylesheet" href="styles.css?v=202503221300">
 <link rel="manifest" href="manifest.json?v=202503221200">
 <style id="everest-mobile-shell">
 /* Must load after styles.css — fixes overflow + nav (cache-safe) */
@@ -782,6 +782,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     width: 100% !important;
     max-width: 100% !important;
     overflow-x: hidden !important;
+    overscroll-behavior-x: none !important;
     margin: 0 !important;
   }
   #main-nav {
@@ -798,7 +799,21 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     gap: 0.35rem 0.4rem !important;
   }
   #main-nav .nav-menu-btn { grid-area: menu !important; display: flex !important; }
-  #main-nav .nav-logo { grid-area: logo !important; min-width: 0 !important; justify-self: center !important; }
+  #main-nav .nav-logo {
+    grid-area: logo !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    justify-self: center !important;
+    overflow: hidden !important;
+  }
+  #main-nav .nav-brand-logo {
+    max-height: 30px !important;
+    width: auto !important;
+    max-width: min(124px, 32vw) !important;
+    object-fit: contain !important;
+    margin: 0 auto !important;
+    display: block !important;
+  }
   #main-nav .nav-links { display: none !important; }
   #main-nav .nav-lang-bar {
     grid-area: lang !important;
@@ -818,7 +833,35 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     font-size: 0.72rem !important;
     font-weight: 700 !important;
   }
-  #main-nav .nav-actions { grid-area: actions !important; margin-left: 0 !important; flex-shrink: 0 !important; }
+  #main-nav .nav-actions {
+    grid-area: actions !important;
+    margin-left: 0 !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    justify-self: end !important;
+    flex-shrink: 1 !important;
+    overflow: visible !important;
+  }
+  #main-nav .nav-user-slot {
+    min-width: 0 !important;
+    max-width: min(118px, 36vw) !important;
+    display: flex !important;
+    justify-content: flex-end !important;
+  }
+  #main-nav .nav-header-user-btn {
+    padding: 0.4rem 0.5rem !important;
+    font-size: 0.62rem !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    box-sizing: border-box !important;
+  }
+  #main-nav .nav-user-ico {
+    flex-shrink: 0 !important;
+    margin-inline-end: 0.25rem !important;
+  }
   .nav-hide-mobile-commerce { display: none !important; }
   .page { padding-top: calc(5.65rem + env(safe-area-inset-top, 0px)) !important; max-width: 100% !important; overflow-x: hidden !important; }
   #page-home .home-search-row { max-width: 100% !important; min-width: 0 !important; }
@@ -830,9 +873,34 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   }
   #bottom-nav { max-width: 100% !important; left: 0 !important; right: 0 !important; box-sizing: border-box !important; }
   #yasmine-toggle.yasmine-fab {
-    right: max(0.65rem, env(safe-area-inset-right)) !important;
+    position: fixed !important;
+    left: auto !important;
+    right: max(0.5rem, env(safe-area-inset-right)) !important;
     bottom: calc(5.1rem + env(safe-area-inset-bottom, 0px)) !important;
+    width: 46px !important;
+    height: 46px !important;
+    box-sizing: border-box !important;
     z-index: 960 !important;
+  }
+}
+@media (max-width: 380px) {
+  #main-nav .nav-brand-logo {
+    max-width: min(102px, 30vw) !important;
+    max-height: 26px !important;
+  }
+  #main-nav .nav-user-slot {
+    max-width: min(104px, 34vw) !important;
+  }
+  #main-nav .nav-header-user-btn.guest-signin .nav-user-txt {
+    display: none !important;
+  }
+  #main-nav .nav-header-user-btn.guest-signin {
+    padding: 0.45rem !important;
+    min-width: 40px !important;
+    justify-content: center !important;
+  }
+  #main-nav .nav-header-user-btn.guest-signin .nav-user-ico {
+    margin-inline-end: 0 !important;
   }
 }
 </style>

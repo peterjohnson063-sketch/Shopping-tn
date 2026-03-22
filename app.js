@@ -200,9 +200,18 @@ function updateNavUser() {
     btn.appendChild(el);
   } else {
     var el2 = document.createElement('button');
-    el2.className = 'nav-header-user-btn';
-    el2.style.cssText = 'background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.5rem 1.2rem;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:Outfit,sans-serif;white-space:nowrap;';
-    el2.textContent = navLabelForHeader('Sign In', 'Sign in');
+    el2.className = 'nav-header-user-btn guest-signin';
+    el2.setAttribute('aria-label', navLabelForHeader('Sign in to your account', 'Sign in'));
+    el2.style.cssText = 'background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.5rem 1.2rem;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:Outfit,sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:0.35rem;';
+    var ico = document.createElement('span');
+    ico.className = 'nav-user-ico';
+    ico.setAttribute('aria-hidden', 'true');
+    ico.textContent = '👤';
+    var txt = document.createElement('span');
+    txt.className = 'nav-user-txt';
+    txt.textContent = navLabelForHeader('Sign In', 'Sign in');
+    el2.appendChild(ico);
+    el2.appendChild(txt);
     el2.onclick = function(){ showPage('auth'); };
     btn.innerHTML = '';
     btn.appendChild(el2);

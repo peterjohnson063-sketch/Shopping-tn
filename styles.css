@@ -1032,6 +1032,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     justify-content: center;
     justify-self: center;
     max-width: 100%;
+    overflow: hidden;
   }
 
   #main-nav .nav-links {
@@ -1066,8 +1067,9 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     grid-area: actions;
     margin-left: 0;
     gap: 0.25rem;
-    flex-shrink: 0;
+    min-width: 0;
     max-width: 100%;
+    justify-self: end;
   }
 
   .page {
@@ -1075,9 +1077,9 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   }
 
   .nav-brand-logo {
-    max-height: 34px !important;
+    max-height: 30px !important;
     width: auto !important;
-    max-width: min(180px, 52vw) !important;
+    max-width: min(124px, 32vw) !important;
   }
 
   .nav-hide-mobile-commerce {
@@ -1085,17 +1087,25 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   }
 
   .nav-user-slot {
-    max-width: none;
-    flex-shrink: 0;
+    min-width: 0;
+    max-width: min(118px, 36vw);
+    display: flex;
+    justify-content: flex-end;
   }
 
   .nav-user-slot button {
     max-width: 100%;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    padding: 0.45rem 0.65rem !important;
-    font-size: 0.7rem !important;
+    padding: 0.4rem 0.5rem !important;
+    font-size: 0.62rem !important;
+    box-sizing: border-box;
+  }
+
+  .nav-user-ico {
+    flex-shrink: 0;
   }
 
   /* Home — stack hero, tighten padding, 2-col product strips */
@@ -1406,6 +1416,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     right: max(0.65rem, env(safe-area-inset-right)) !important;
     width: auto !important;
     max-width: min(400px, calc(100vw - 1.3rem)) !important;
+    max-width: min(400px, calc(100dvw - 1.3rem)) !important;
     margin: 0 auto !important;
     box-sizing: border-box !important;
     bottom: calc(9.5rem + env(safe-area-inset-bottom, 0px)) !important;
