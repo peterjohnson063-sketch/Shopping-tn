@@ -1825,7 +1825,21 @@ async function doRegister() {
       userPayload.verified = false;
       userPayload.is_verified = false;
     }
+
+    var remoteExisting = null;
+    try {
+      if (typeof SB !== 'undefined' && SB.getUser) {
+        remoteExisting = await SB.getUser(email);
+      }
+    } catch (ignoreDupProbe) {}
+    if (remoteExisting) {
+      toast('⚠️ This email is already registered', 'error');
+      return;
+    }
+
     const newUser = await SB.createUser(userPayload);
+    var insertFallback = newUser._stnInsertFallbackLevel;
+    if (insertFallback != null) delete newUser._stnInsertFallbackLevel;
     _regRateLimitRecordSuccess();
     State.currentUser = STN.userForSession({ ...newUser, firstName: newUser.first_name, lastName: newUser.last_name });
     STN.DB.set('currentUser', State.currentUser);
@@ -1835,6 +1849,12 @@ async function doRegister() {
       showPage('vendor');
     } else if (isDriver) {
       toast(`✦ Welcome, ${fname}! Your documents are under review — you can accept deliveries after an admin verifies you.`, 'success');
+      if (insertFallback > 0) {
+        toast(
+          'Note: some driver fields could not be stored (database may need migrations). Ask an admin to update Supabase, then edit your profile if needed.',
+          'default'
+        );
+      }
       showPage('driver');
     } else {
       toast(`✦ Welcome to Everest, ${fname}! You earned 100 bonus points!`, 'success');
@@ -1842,10 +1862,13 @@ async function doRegister() {
     }
   } catch(e) {
     if (typeof STNLog !== 'undefined') STNLog.error('auth.register', e, { email });
-    if (e.message.includes('duplicate') || e.message.includes('unique')) {
+    var em = String(e && e.message ? e.message : 'Registration failed');
+    var low = em.toLowerCase();
+    if (low.indexOf('duplicate') >= 0 || low.indexOf('unique') >= 0) {
       toast('⚠️ Email already registered!', 'error');
     } else {
-      toast('⚠️ Registration failed. Try again.', 'error');
+      var short = em.length > 200 ? em.slice(0, 197) + '…' : em;
+      toast('⚠️ ' + short, 'error');
     }
   }
 }

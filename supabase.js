@@ -144,6 +144,81 @@ function _sbMapProductBodyForApi(product, options) {
   return body;
 }
 
+function _sbUserBodyFromInput(user) {
+  var body = {};
+  if (!user || typeof user !== 'object') return body;
+  Object.keys(user).forEach(function (k) {
+    if (user[k] !== undefined) body[k] = user[k];
+  });
+  return body;
+}
+
+function _sbUserInsertShouldRetrySchema(errMsg) {
+  var m = String(errMsg || '').toLowerCase();
+  if (m.indexOf('duplicate') >= 0 || m.indexOf('unique') >= 0) return false;
+  if (m.indexOf('permission denied') >= 0) return false;
+  if (m.indexOf('row-level security') >= 0 || m.indexOf('rls') >= 0) return false;
+  if (m.indexOf('jwt') >= 0) return false;
+  if (m.indexOf('not-null') >= 0 || m.indexOf('not null') >= 0) return false;
+  return (
+    m.indexOf('column') >= 0 ||
+    m.indexOf('schema cache') >= 0 ||
+    m.indexOf('could not find') >= 0 ||
+    m.indexOf('42703') >= 0 ||
+    m.indexOf('pgrst204') >= 0
+  );
+}
+
+function _sbUniqueUserInsertAttempts(body) {
+  var list = [];
+  function add(b) {
+    var json = JSON.stringify(b);
+    for (var i = 0; i < list.length; i++) {
+      if (JSON.stringify(list[i]) === json) return;
+    }
+    list.push(b);
+  }
+  add(body);
+  var a1 = Object.assign({}, body);
+  delete a1.is_verified;
+  add(a1);
+  var a2 = Object.assign({}, body);
+  delete a2.is_verified;
+  delete a2.cin_document_url;
+  delete a2.license_document_url;
+  add(a2);
+  var a3 = Object.assign({}, body);
+  delete a3.is_verified;
+  delete a3.cin_document_url;
+  delete a3.license_document_url;
+  delete a3.id_card_number;
+  delete a3.vehicle_plate_number;
+  delete a3.vehicle_model;
+  delete a3.vehicle_color;
+  add(a3);
+  var baseKeys = [
+    'email',
+    'password',
+    'first_name',
+    'last_name',
+    'phone',
+    'wilaya',
+    'delegation',
+    'role',
+    'points',
+    'verified',
+    'avatar',
+    'shop_name',
+    'specialty',
+  ];
+  var minimal = {};
+  baseKeys.forEach(function (k) {
+    if (Object.prototype.hasOwnProperty.call(body, k) && body[k] !== undefined) minimal[k] = body[k];
+  });
+  add(minimal);
+  return list;
+}
+
 // Initialize Supabase client - fetch API only (no library dependency)
 const SB = {
   // ── GENERIC REQUEST ──
@@ -163,11 +238,22 @@ const SB = {
       });
       if (!res.ok) {
         let msg = 'Supabase error';
+        let detail = '';
         try {
-          const err = await res.json();
-          msg = err.message || err.error_description || err.hint || msg;
+          const errBody = await res.json();
+          if (Array.isArray(errBody) && errBody[0]) {
+            msg = errBody[0].message || errBody[0].error || msg;
+            detail = errBody[0].details || errBody[0].hint || '';
+          } else if (errBody && typeof errBody === 'object') {
+            msg = errBody.message || errBody.error_description || errBody.error || msg;
+            detail = errBody.details || errBody.hint || '';
+            if (detail && String(msg).indexOf(String(detail).slice(0, 24)) < 0) {
+              msg = msg + ' — ' + detail;
+            }
+          }
         } catch (e) {}
         const err = new Error(msg);
+        err.status = res.status;
         err._stnLogged = true;
         if (typeof window !== 'undefined' && window.STNLog) {
           window.STNLog.error('SB.req.http', err, {
@@ -206,8 +292,30 @@ const SB = {
     return data[0] || null;
   },
   async createUser(user) {
-    const data = await this.req('POST', 'users', user);
-    return data[0];
+    var body = _sbUserBodyFromInput(user);
+    var attempts = _sbUniqueUserInsertAttempts(body);
+    var lastErr = null;
+    for (var i = 0; i < attempts.length; i++) {
+      try {
+        var data = await this.req('POST', 'users', attempts[i]);
+        if (!Array.isArray(data) || !data[0]) {
+          throw new Error(
+            'Sign-up may have succeeded but the server did not return your profile. Ask an admin to allow SELECT on users for inserts, or check Row Level Security.'
+          );
+        }
+        var row = data[0];
+        if (i > 0 && typeof window !== 'undefined' && window.STNLog) {
+          window.STNLog.warn('SB.createUser', 'fallback insert shape succeeded', { attempt: i });
+        }
+        if (i > 0) row._stnInsertFallbackLevel = i;
+        return row;
+      } catch (e) {
+        lastErr = e;
+        if (i === attempts.length - 1) break;
+        if (!_sbUserInsertShouldRetrySchema(e.message)) break;
+      }
+    }
+    throw lastErr;
   },
   async updateUser(id, updates) {
     const data = await this.req('PATCH', 'users', updates, `?id=eq.${_sbEq(id)}`);
