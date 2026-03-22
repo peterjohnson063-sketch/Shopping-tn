@@ -763,7 +763,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 
 <!-- Leaflet CSS for Interactive Map -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
-<link rel="stylesheet" href="styles.css?v=202503221600">
+<link rel="stylesheet" href="styles.css?v=202503222000">
 <link rel="manifest" href="manifest.json?v=202503221200">
 <style id="everest-mobile-shell">
 /* Must load after styles.css — fixes overflow + nav (cache-safe) */
@@ -2351,8 +2351,18 @@ function filterAndGo(cat) {
 <script>
 (function () {
   if (!('serviceWorker' in navigator)) return;
-  window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(function () {});
+  function registerSw() {
+    navigator.serviceWorker.register('./sw.js', { scope: './' }).then(function (reg) {
+      reg.update();
+    }).catch(function () {});
+  }
+  window.addEventListener('load', registerSw);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') {
+      navigator.serviceWorker.getRegistration().then(function (r) {
+        if (r) r.update();
+      });
+    }
   });
 })();
 </script>
