@@ -464,6 +464,15 @@ function isDriverVerified(u) {
   return u.verified === true || u.is_verified === true;
 }
 
+/** Banned, soft-deleted, or active timeout — blocks login and driver app. */
+function isUserSuspended(u) {
+  if (!u) return false;
+  if (u.deleted_at != null && String(u.deleted_at).trim() !== '') return true;
+  if (u.banned === true || u.banned === 1 || u.banned === '1' || String(u.banned).toLowerCase() === 'true') return true;
+  if (u.timeout_until && new Date(u.timeout_until) > new Date()) return true;
+  return false;
+}
+
 async function refreshCurrentUserFromRemote() {
   var cur = State.currentUser;
   if (!cur || cur.id == null || typeof SB === 'undefined' || !SB.getUserById) return;
@@ -551,6 +560,7 @@ function startDriverGpsForOrder(orderKey) {
 async function loadDriverOrdersList() {
   var uid = State.currentUser && State.currentUser.id;
   if (uid == null) return [];
+  if (isUserSuspended(State.currentUser)) return [];
   if (!isDriverVerified(State.currentUser)) return [];
   if (typeof SB !== 'undefined' && SB.getDriverOrders) {
     try {
@@ -656,6 +666,17 @@ function renderDriver() {
     var head = document.getElementById('driver-app-head');
     var list = document.getElementById('driver-orders-list');
     if (!head || !list) return;
+
+    if (isUserSuspended(State.currentUser)) {
+      head.innerHTML =
+        '<div style="background:linear-gradient(135deg,#fef2f2,#ffe4e6);border:1px solid #fecaca;border-radius:16px;padding:1.25rem 1.35rem;margin-bottom:1.25rem">' +
+        '<h1 style="font-family:var(--font-display,Georgia,serif);font-size:1.45rem;color:#991b1b;margin:0 0 0.5rem">⛔ Account not active</h1>' +
+        '<p style="margin:0;font-size:0.88rem;color:#7f1d1d;line-height:1.55">Your delivery partner access is suspended or was not approved (for example after admin review). You cannot accept deliveries. Contact Everest if you think this is a mistake.</p></div>' +
+        '<button type="button" class="btn btn-ghost btn-sm" onclick="renderDriver()">Refresh status</button>';
+      list.innerHTML = '';
+      State.driverOrdersList = [];
+      return;
+    }
 
     if (!isDriverVerified(State.currentUser)) {
       head.innerHTML =
@@ -1652,6 +1673,10 @@ async function doLogin() {
   // Check hardcoded admin/vendor first
   const local = (STN.DB.get('users') || []).find(u => u.email === email && u.password === pass);
   if (local) {
+    if (isUserSuspended(local)) {
+      toast('This account is suspended or no longer active.', 'error');
+      return;
+    }
     const sessionUser = STN.userForSession(local);
     State.currentUser = sessionUser;
     STN.DB.set('currentUser', sessionUser);
@@ -1668,6 +1693,10 @@ async function doLogin() {
   try {
     const user = await SB.getUser(email);
     if (!user || user.password !== pass) { toast('⚠️ Invalid email or password', 'error'); return; }
+    if (isUserSuspended(user)) {
+      toast('This account is suspended or no longer active.', 'error');
+      return;
+    }
     State.currentUser = STN.userForSession({ ...user, firstName: user.first_name, lastName: user.last_name });
     STN.DB.set('currentUser', State.currentUser);
     updateNavUser();
@@ -2446,6 +2475,10 @@ async function mergeLocalAndRemoteUsersForAdmin() {
     remote.forEach(function (r) {
       if (!r || r.id == null) return;
       var id = String(r.id);
+      if (r.deleted_at != null && String(r.deleted_at).trim() !== '') {
+        byId.delete(id);
+        return;
+      }
       var ex = byId.get(id);
       var full = _remoteUserRowForAdminMerge(r);
       if (!ex) {
@@ -3122,6 +3155,10 @@ async function assignOrderDriver(orderRef, driverUserId) {
   try {
     if (typeof SB !== 'undefined' && SB.getUserById) {
       var drvRow = await SB.getUserById(driverUserId);
+      if (drvRow && isUserSuspended(drvRow)) {
+        toast('That account is suspended or removed — pick another driver', 'error');
+        return;
+      }
       if (drvRow && drvRow.role === 'driver' && !isDriverVerified(drvRow)) {
         toast('That driver is not verified yet — approve them in Admin → Drivers', 'error');
         return;
@@ -3132,6 +3169,10 @@ async function assignOrderDriver(orderRef, driverUserId) {
   var locDrv = localUsers.find(function (u) {
     return String(u.id) === String(driverUserId);
   });
+  if (locDrv && isUserSuspended(locDrv)) {
+    toast('That account is suspended — pick another driver', 'error');
+    return;
+  }
   if (locDrv && locDrv.role === 'driver' && !isDriverVerified(locDrv)) {
     toast('That driver is not verified yet — Admin → Drivers', 'error');
     return;
@@ -3155,10 +3196,23 @@ async function assignOrderDriver(orderRef, driverUserId) {
 }
 
 async function verifyDriverAccount(userId) {
+  try {
+    if (typeof SB !== 'undefined' && SB.getUserById) {
+      var probe = await SB.getUserById(userId);
+      if (probe && isUserSuspended(probe)) {
+        toast('Cannot verify a suspended or removed account', 'error');
+        return;
+      }
+    }
+  } catch (e) {}
   var users = STN.DB.get('users') || [];
   var idx = users.findIndex(function (u) {
     return String(u.id) === String(userId);
   });
+  if (idx !== -1 && isUserSuspended(users[idx])) {
+    toast('Cannot verify a suspended account', 'error');
+    return;
+  }
   if (idx !== -1) {
     users[idx].verified = true;
     users[idx].is_verified = true;
@@ -3214,55 +3268,101 @@ async function verifyVendor(userId) {
   switchAdmin('vendors');
 }
 
-function banUser(userId) {
+async function banUser(userId) {
   if (!confirm('Are you sure you want to BAN this user permanently?')) return;
+  var now = new Date().toISOString();
+  try {
+    if (typeof SB !== 'undefined' && SB.updateUser) {
+      await SB.updateUser(userId, {
+        banned: true,
+        ban_reason: 'Banned by admin',
+        banned_at: now,
+      });
+    }
+  } catch (e) {
+    var em = String((e && e.message) || e || '');
+    toast(
+      em
+        ? 'Ban failed on server (run SQL migration for banned columns + UPDATE policy): ' +
+            (em.length > 120 ? em.slice(0, 117) + '…' : em)
+        : 'Ban failed on server — check Supabase RLS UPDATE on users',
+      'error'
+    );
+    if (typeof STNLog !== 'undefined') STNLog.error('banUser', e, { userId });
+    return;
+  }
   const users = STN.DB.get('users') || [];
-  const idx = users.findIndex(u => u.id == userId);
+  const idx = users.findIndex(u => String(u.id) === String(userId));
   if (idx !== -1) {
     users[idx].banned = true;
     users[idx].ban_reason = 'Banned by admin';
-    users[idx].banned_at = new Date().toISOString();
+    users[idx].banned_at = now;
     STN.DB.set('users', users);
-    // If this is the current logged in user, log them out
-    if (State.currentUser && State.currentUser.id == userId) {
-      State.currentUser = null;
-      STN.DB.set('currentUser', null);
-      updateNavUser();
-      showPage('home');
-    }
-    toast('User banned!', 'success');
   }
+  if (State.currentUser && String(State.currentUser.id) === String(userId)) {
+    State.currentUser = null;
+    STN.DB.set('currentUser', null);
+    updateNavUser();
+    showPage('home');
+  }
+  toast('User banned — saved to database', 'success');
   const activeSection = document.querySelector('[id^="adm-nav-"].adm-active')?.id?.replace('adm-nav-', '') || 'users';
   switchAdmin(activeSection);
 }
 
-function timeoutUser(userId) {
+async function timeoutUser(userId) {
   const hours = prompt('Timeout duration in hours? (e.g. 24, 48, 72)', '24');
   if (!hours) return;
   const h = parseInt(hours);
   if (isNaN(h) || h <= 0) { toast('Invalid duration', 'error'); return; }
+  const until = new Date(Date.now() + h * 3600000).toISOString();
+  try {
+    if (typeof SB !== 'undefined' && SB.updateUser) {
+      await SB.updateUser(userId, { timeout_until: until, timeout_hours: h });
+    }
+  } catch (e) {
+    toast('Timeout failed on server — check RLS UPDATE on users', 'error');
+    if (typeof STNLog !== 'undefined') STNLog.error('timeoutUser', e, { userId });
+    return;
+  }
   const users = STN.DB.get('users') || [];
-  const idx = users.findIndex(u => u.id == userId);
+  const idx = users.findIndex(u => String(u.id) === String(userId));
   if (idx !== -1) {
-    const until = new Date(Date.now() + h * 3600000).toISOString();
     users[idx].timeout_until = until;
     users[idx].timeout_hours = h;
     STN.DB.set('users', users);
-    toast('User timed out for ' + h + ' hours!', 'success');
   }
+  toast('User timed out for ' + h + ' hours (saved to database)', 'success');
   const activeSection = document.querySelector('[id^="adm-nav-"].adm-active')?.id?.replace('adm-nav-', '') || 'users';
   switchAdmin(activeSection);
 }
 
-function unbanUser(userId) {
+async function unbanUser(userId) {
+  try {
+    if (typeof SB !== 'undefined' && SB.updateUser) {
+      await SB.updateUser(userId, {
+        banned: false,
+        ban_reason: null,
+        banned_at: null,
+        timeout_until: null,
+        timeout_hours: null,
+        deleted_at: null,
+      });
+    }
+  } catch (e) {
+    toast('Unban failed on server — check RLS UPDATE on users', 'error');
+    if (typeof STNLog !== 'undefined') STNLog.error('unbanUser', e, { userId });
+    return;
+  }
   const users = STN.DB.get('users') || [];
-  const idx = users.findIndex(u => u.id == userId);
+  const idx = users.findIndex(u => String(u.id) === String(userId));
   if (idx !== -1) {
     users[idx].banned = false;
     users[idx].timeout_until = null;
+    users[idx].deleted_at = null;
     STN.DB.set('users', users);
-    toast('User unbanned!', 'success');
   }
+  toast('User restored — saved to database', 'success');
   const activeSection = document.querySelector('[id^="adm-nav-"].adm-active')?.id?.replace('adm-nav-', '') || 'users';
   switchAdmin(activeSection);
 }
@@ -3307,20 +3407,38 @@ async function adminDeleteUserAccount(userId) {
   }
   if (!confirm('Final confirmation: DELETE this user forever?')) return;
 
+  var deleteHow = '';
   try {
     if (typeof SB !== 'undefined' && SB.deleteUser) {
       await SB.deleteUser(userId);
+      deleteHow = 'hard';
+    } else {
+      throw new Error('deleteUser not available');
     }
-  } catch (e) {
-    var em = String((e && e.message) || e || 'Delete failed');
-    toast(
-      em.indexOf('permission') >= 0 || em.indexOf('RLS') >= 0 || em.indexOf('policy') >= 0
-        ? 'Delete blocked by Supabase RLS. Run the SQL policy in supabase/migrations for DELETE on users, or use the dashboard.'
-        : '⚠️ ' + (em.length > 160 ? em.slice(0, 157) + '…' : em),
-      'error'
-    );
-    if (typeof STNLog !== 'undefined') STNLog.error('adminDeleteUserAccount', e, { userId });
-    return;
+  } catch (eDel) {
+    try {
+      if (typeof SB !== 'undefined' && SB.updateUser) {
+        await SB.updateUser(userId, {
+          deleted_at: new Date().toISOString(),
+          banned: true,
+          ban_reason: 'Account removed by admin',
+          banned_at: new Date().toISOString(),
+        });
+        deleteHow = 'soft';
+      } else {
+        throw eDel;
+      }
+    } catch (eSoft) {
+      var em = String((eDel && eDel.message) || eDel || '');
+      toast(
+        em.indexOf('permission') >= 0 || em.indexOf('RLS') >= 0 || em.indexOf('policy') >= 0
+          ? 'Delete blocked: add DELETE or UPDATE policy on users, or run migrations (see supabase/migrations).'
+          : '⚠️ ' + (em.length > 140 ? em.slice(0, 137) + '…' : em),
+        'error'
+      );
+      if (typeof STNLog !== 'undefined') STNLog.error('adminDeleteUserAccount', eDel, { userId });
+      return;
+    }
   }
 
   var users = STN.DB.get('users') || [];
@@ -3334,7 +3452,12 @@ async function adminDeleteUserAccount(userId) {
     updateNavUser();
     showPage('home');
   }
-  toast('Account deleted', 'success');
+  toast(
+    deleteHow === 'hard'
+      ? 'Account deleted from database'
+      : 'Account disabled and hidden (soft delete — row kept if DB blocked hard delete)',
+    'success'
+  );
   var activeSection =
     document.querySelector('[id^="adm-nav-"].adm-active')?.id?.replace('adm-nav-', '') || 'users';
   switchAdmin(activeSection);
