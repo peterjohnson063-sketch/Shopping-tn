@@ -122,8 +122,76 @@ function _regRateLimitRecordSuccess() {
   } catch (e) {}
 }
 
+/**
+ * Opt-in runtime evidence: `?stn_diag=1` or hash `#stn_diag` / `#stn_diag=1` — JS errors in a bottom bar
+ * and sessionStorage `stn_diag_log`. Console: STN_DIAG_COPY() to copy all text.
+ */
+function _stnDiagUrlEnabled() {
+  var q = String(location.search || '');
+  var h = String(location.hash || '');
+  if (/[\?&]stn_diag=1(?:&|$)/.test(q)) return true;
+  if (/#stn_diag(?:=1)?(?:\?|$)/.test(h) || h === '#stn_diag' || h.indexOf('stn_diag=1') >= 0) return true;
+  return false;
+}
+
+function _stnInstallDiagOverlayIfQuery() {
+  try {
+    if (!_stnDiagUrlEnabled()) return;
+    if (document.getElementById('stn-diag-overlay')) return;
+    var box = document.createElement('div');
+    box.id = 'stn-diag-overlay';
+    box.setAttribute('aria-live', 'assertive');
+    box.style.cssText =
+      'position:fixed;bottom:0;left:0;right:0;max-height:28vh;overflow:auto;background:#0f172a;color:#fca5a5;font:12px/1.45 ui-monospace,monospace;z-index:2147483646;padding:10px 12px;white-space:pre-wrap;box-shadow:0 -4px 24px rgba(0,0,0,.35);border-top:2px solid #dc2626;';
+    function appendLine(text) {
+      var line = new Date().toISOString().slice(11, 23) + ' ' + text;
+      box.textContent += (box.textContent ? '\n' : '') + line;
+      try {
+        var prev = sessionStorage.getItem('stn_diag_log') || '';
+        sessionStorage.setItem('stn_diag_log', (prev ? prev + '\n' : '') + line);
+      } catch (e) {}
+      try {
+        fetch('http://127.0.0.1:7472/ingest/e32ef648-4ad1-46fd-b914-26d2c0d1af57', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'a2e097' },
+          body: JSON.stringify({
+            sessionId: 'a2e097',
+            location: 'stn_diag',
+            message: String(text).slice(0, 500),
+            timestamp: Date.now(),
+          }),
+        }).catch(function () {});
+      } catch (e2) {}
+    }
+    window.addEventListener('error', function (e) {
+      appendLine(
+        'error: ' +
+          (e && e.message) +
+          ' @ ' +
+          (e && e.filename) +
+          ':' +
+          (e && e.lineno)
+      );
+    });
+    window.addEventListener('unhandledrejection', function (e) {
+      var r = e && e.reason;
+      appendLine('rejection: ' + (r && r.message ? r.message : String(r)));
+    });
+    box.textContent = '[stn_diag] listening for errors…';
+    document.body.appendChild(box);
+    window.STN_DIAG_COPY = function () {
+      return (
+        (box.textContent || '') +
+        '\n--- sessionStorage ---\n' +
+        (sessionStorage.getItem('stn_diag_log') || '')
+      );
+    };
+  } catch (e) {}
+}
+
 // ── INIT ──
 function init() {
+  _stnInstallDiagOverlayIfQuery();
   State.currentUser = STN.DB.get('currentUser');
   if (State.currentUser && State.currentUser.password) {
     State.currentUser = STN.userForSession(State.currentUser);
@@ -869,13 +937,27 @@ function updateCartBadge() {
 }
 
 function addToCart(productId) {
-  const product = State.products.find(p => p.id === productId);
-  if (!product) return;
-  const existing = State.cart.find(i => i.id === productId);
+  const product = State.products.find(function (p) {
+    return String(p.id) === String(productId);
+  });
+  if (!product) {
+    toast('Could not add to cart — product missing. Refresh and try again.', 'error');
+    return;
+  }
+  const canonicalId = product.id;
+  const existing = State.cart.find(function (i) {
+    return String(i.id) === String(canonicalId);
+  });
   if (existing) {
     existing.qty++;
   } else {
-    State.cart.push({ id: productId, name: product.name, price: product.price, emoji: product.emoji, qty: 1 });
+    State.cart.push({
+      id: canonicalId,
+      name: product.name,
+      price: product.price,
+      emoji: product.emoji,
+      qty: 1,
+    });
   }
   STN.DB.set('cart', State.cart);
   updateCartBadge();
@@ -1136,10 +1218,15 @@ function updateWishlistBadge() {
 }
 
 function toggleWishlist(productId) {
-  const idx = State.wishlist.indexOf(productId);
-  const product = State.products.find(p => p.id === productId);
+  const pid = String(productId);
+  const idx = State.wishlist.findIndex(function (w) {
+    return String(w) === pid;
+  });
+  const product = State.products.find(function (p) {
+    return String(p.id) === pid;
+  });
   if (idx === -1) {
-    State.wishlist.push(productId);
+    State.wishlist.push(product ? product.id : productId);
     toast(`♥ Added to wishlist: ${product?.name}`, 'success');
   } else {
     State.wishlist.splice(idx, 1);
@@ -1147,10 +1234,14 @@ function toggleWishlist(productId) {
   }
   STN.DB.set('wishlist', State.wishlist);
   updateWishlistBadge();
-  // Update button states
-  document.querySelectorAll(`[data-wish="${productId}"]`).forEach(btn => {
-    btn.classList.toggle('active', State.wishlist.includes(productId));
-    btn.textContent = State.wishlist.includes(productId) ? '♥' : '♡';
+  document.querySelectorAll('[data-wish]').forEach(function (btn) {
+    var wid = btn.getAttribute('data-wish');
+    if (String(wid) !== pid) return;
+    var on = State.wishlist.some(function (w) {
+      return String(w) === pid;
+    });
+    btn.classList.toggle('active', on);
+    btn.textContent = on ? '♥' : '♡';
   });
 }
 
@@ -1161,7 +1252,11 @@ function renderStars(rating) {
 
 function renderStarsInput(id) {
   return `<div class="star-input" id="stars-${id}">
-    ${[1,2,3,4,5].map(n => `<span onclick="setRating(${id},${n})" data-val="${n}">☆</span>`).join('')}
+    ${[1, 2, 3, 4, 5]
+      .map(function (n) {
+        return `<span onclick='setRating(${JSON.stringify(id)},${n})' data-val="${n}">☆</span>`;
+      })
+      .join('')}
   </div>`;
 }
 
@@ -1197,7 +1292,9 @@ function productCardMediaHTML(p) {
   return `<div class="product-emoji" style="background:linear-gradient(135deg,${from},${to})">${p.emoji || '📦'}</div>`;
 }
 function productCardHTML(p) {
-  const isWished = State.wishlist.includes(p.id);
+  const isWished = State.wishlist.some(function (w) {
+    return String(w) === String(p.id);
+  });
   return `
   <div class="product-card" data-cat="${p.cat}">
     <div class="product-img-wrap">
@@ -1205,8 +1302,8 @@ function productCardHTML(p) {
       ${p.badge ? `<span class="product-badge">${p.badge}</span>` : ''}
       ${p.verified ? `<span class="product-verified">✓ Verified</span>` : ''}
       <div class="product-overlay">
-        <button class="btn btn-gold btn-sm" onclick="openProductDetail(${p.id})">View Details</button>
-        <button class="wishlist-btn ${isWished ? 'active' : ''}" data-wish="${p.id}" onclick="toggleWishlist(${p.id})">${isWished ? '♥' : '♡'}</button>
+        <button class="btn btn-gold btn-sm" onclick='openProductDetail(${JSON.stringify(p.id)})'>View Details</button>
+        <button class="wishlist-btn ${isWished ? 'active' : ''}" data-wish="${_cardEscapeAttr(String(p.id))}" onclick='toggleWishlist(${JSON.stringify(p.id)})'>${isWished ? '♥' : '♡'}</button>
       </div>
     </div>
     <div class="product-body">
@@ -1220,7 +1317,7 @@ function productCardHTML(p) {
         <span class="price">${p.price.toLocaleString()}</span>
         <span class="price-currency">TND</span>
         ${p.oldPrice ? `<span class="price-old">${p.oldPrice.toLocaleString()} TND</span>` : ''}
-        <button class="btn btn-gold btn-sm" style="margin-left:auto;padding:0.45rem 1rem;font-size:0.65rem" onclick="addToCart(${p.id})">+ Cart</button>
+        <button class="btn btn-gold btn-sm" style="margin-left:auto;padding:0.45rem 1rem;font-size:0.65rem" onclick='addToCart(${JSON.stringify(p.id)})'>+ Cart</button>
       </div>
     </div>
   </div>`;
@@ -1345,12 +1442,23 @@ async function hydrateProductDetailVendor(p) {
 }
 
 async function openProductDetail(productId) {
-  const p = State.products.find(pr => pr.id === productId);
-  if (!p) return;
+  const p = State.products.find(function (pr) {
+    return String(pr.id) === String(productId);
+  });
+  if (!p) {
+    toast('Product not found. Try refreshing the page.', 'error');
+    return;
+  }
   State.selectedProduct = p;
 
-  const productReviews = State.reviews.filter(r => r.productId === productId);
+  const productReviews = State.reviews.filter(function (r) {
+    return String(r.productId) === String(productId);
+  });
   const body = document.getElementById('product-modal-body');
+  if (!body) {
+    toast('Product details panel is missing. Reload the page.', 'error');
+    return;
+  }
   const fallbackName = p.brand || 'Everest Partner';
 
   const productSrc = p.image || p.image_url;
@@ -1401,8 +1509,8 @@ async function openProductDetail(productId) {
             <div class="qty-display" id="detail-qty">1</div>
             <button class="qty-btn" onclick="changeDetailQty(1)">+</button>
           </div>
-          <button class="btn btn-gold" style="flex:1" onclick="addToCart(${p.id});closeModal('product-modal')">Add to Cart</button>
-          <button class="wishlist-btn ${State.wishlist.includes(p.id)?'active':''}" data-wish="${p.id}" onclick="toggleWishlist(${p.id})">${State.wishlist.includes(p.id)?'♥':'♡'}</button>
+          <button class="btn btn-gold" style="flex:1" onclick='addToCart(${JSON.stringify(p.id)});closeModal("product-modal")'>Add to Cart</button>
+          <button class="wishlist-btn ${State.wishlist.some(function (w) { return String(w) === String(p.id); }) ? 'active' : ''}" data-wish="${_detailEscapeAttr(String(p.id))}" onclick='toggleWishlist(${JSON.stringify(p.id)})'>${State.wishlist.some(function (w) { return String(w) === String(p.id); }) ? '♥' : '♡'}</button>
         </div>
         <div style="font-size:0.75rem;color:var(--text-muted)">📦 In stock: ${p.stock} units · 🚚 Free delivery · 🔄 30-day returns</div>
       </div>
@@ -1435,7 +1543,7 @@ async function openProductDetail(productId) {
           ${renderStarsInput(p.id)}
         </div>
         <textarea class="form-textarea" id="review-text" placeholder="Share your experience…" style="min-height:80px;margin-bottom:0.8rem"></textarea>
-        <button class="btn btn-gold btn-sm" onclick="submitReview(${p.id})">Submit Review</button>
+        <button class="btn btn-gold btn-sm" onclick='submitReview(${JSON.stringify(p.id)})'>Submit Review</button>
       </div>` : `<p style="font-size:0.8rem;color:var(--text-muted);margin-top:1rem"><a href="#" onclick="showPage('auth')" style="color:var(--gold)">Sign in</a> to leave a review</p>`}
     </div>`;
 
@@ -2806,7 +2914,7 @@ function switchAdmin(section) {
                   <td style="padding:0.875rem 1rem;font-size:0.8rem"><span style="color:${p.stock>5?'#059669':'#dc2626'};font-weight:600">${p.stock}</span></td>
                   <td style="padding:0.875rem 1rem;font-size:0.8rem;color:#f59e0b;font-weight:600">★ ${p.rating}</td>
                   <td style="padding:0.875rem 1rem"><span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:${p.verified?'#dcfce7':'#fef9c3'};color:${p.verified?'#166534':'#92400e'}">${p.verified?'✓ Live':'⏳ Pending'}</span></td>
-                  <td style="padding:0.875rem 1rem"><button onclick="openProductDetail(${p.id})" style="background:#f5f3ff;color:#7c3aed;border:1px solid #e9d5ff;padding:0.3rem 0.8rem;border-radius:6px;font-size:0.75rem;cursor:pointer">View</button></td>
+                  <td style="padding:0.875rem 1rem"><button onclick='openProductDetail(${JSON.stringify(p.id)})' style="background:#f5f3ff;color:#7c3aed;border:1px solid #e9d5ff;padding:0.3rem 0.8rem;border-radius:6px;font-size:0.75rem;cursor:pointer">View</button></td>
                 </tr>`).join('')}
               </tbody>
             </table>
@@ -4203,7 +4311,7 @@ function switchVendorSection(section) {
                     <td style="padding:0.875rem 1rem;font-size:0.875rem;font-weight:600;color:#111827">${(p.price||0).toLocaleString()} TND</td>
                     <td style="padding:0.875rem 1rem;font-size:0.875rem"><span style="color:${(p.stock||0)>5?'#059669':'#dc2626'};font-weight:600">${p.stock||0} units</span></td>
                     <td style="padding:0.875rem 1rem"><span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:${p.verified?'#dcfce7':'#fef9c3'};color:${p.verified?'#166534':'#92400e'}">${p.verified?'✓ Live':'⏳ Pending'}</span></td>
-                    <td style="padding:0.875rem 1rem"><button onclick="deleteVendorProduct(${p.id})" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;padding:0.3rem 0.8rem;border-radius:6px;font-size:0.75rem;cursor:pointer;font-weight:600">Delete</button></td>
+                    <td style="padding:0.875rem 1rem"><button onclick='deleteVendorProduct(${JSON.stringify(p.id)})' style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;padding:0.3rem 0.8rem;border-radius:6px;font-size:0.75rem;cursor:pointer;font-weight:600">Delete</button></td>
                   </tr>`).join('')}
                 </tbody></table></div>`}
         </div>
@@ -5091,6 +5199,60 @@ function sortProducts(sortBy) {
   filterAndRenderProducts();
 }
 
+/** Decode `data-stn-pid` from a shop grid product card (safe for numeric + UUID ids). */
+function _stnProductsGridPidFromCard(card) {
+  if (!card) return null;
+  var raw = card.getAttribute('data-stn-pid');
+  if (raw == null || raw === '') return null;
+  try {
+    return decodeURIComponent(raw);
+  } catch (e) {
+    return raw;
+  }
+}
+
+/** Same as opening product detail (overlay “Quick View” button). Declared before grid delegate for clarity. */
+function quickView(productId) {
+  openProductDetail(productId);
+}
+
+/**
+ * One delegated click handler on #products-grid — avoids fragile inline onclick for Supabase UUIDs / CSP.
+ */
+function _stnInstallProductsGridClickDelegate(grid) {
+  if (!grid || grid.getAttribute('data-stn-delegated') === '1') return;
+  grid.setAttribute('data-stn-delegated', '1');
+  grid.addEventListener('click', function (e) {
+    var card = e.target.closest('.product-card[data-stn-pid]');
+    if (!card || !grid.contains(card)) return;
+    var pid = _stnProductsGridPidFromCard(card);
+    if (pid == null || pid === '') {
+      return;
+    }
+
+    if (e.target.closest('.stn-card-quick')) {
+      e.preventDefault();
+      e.stopPropagation();
+      quickView(pid);
+      return;
+    }
+    if (e.target.closest('.stn-card-cart')) {
+      e.preventDefault();
+      e.stopPropagation();
+      addToCart(pid);
+      return;
+    }
+    if (e.target.closest('.stn-card-wish')) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleWishlist(pid);
+      return;
+    }
+    if (e.target.closest('button') || e.target.closest('a')) return;
+    openProductDetail(pid);
+  });
+}
+
 // Render products grid
 function renderProductsGrid(products) {
   const grid = document.getElementById('products-grid');
@@ -5107,26 +5269,30 @@ function renderProductsGrid(products) {
     `;
     return;
   }
-  
+
   grid.innerHTML = products.map(product => createProductCard(product)).join('');
+  _stnInstallProductsGridClickDelegate(grid);
   animateProductCardsEntry(grid);
 }
 
-// Create product card HTML
+// Create product card HTML (clicks handled by _stnInstallProductsGridClickDelegate on #products-grid)
 function createProductCard(product) {
-  const isInWishlist = State.wishlist.some(w => w === product.id || (w && w.id === product.id));
+  const isInWishlist = State.wishlist.some(function (w) {
+    return String(w) === String(product.id);
+  });
   const rating = product.rating || 0;
   const stars = '★'.repeat(Math.floor(rating)) + '☆'.repeat(5 - Math.floor(rating));
-  
+  var pidEnc = encodeURIComponent(String(product.id));
+
   return `
-    <div class="product-card" onclick="openProductDetail(${product.id})">
+    <div class="product-card" data-stn-pid="${pidEnc}">
       <div class="product-img-wrap">
         ${productCardMediaHTML(product)}
         ${product.badge ? `<div class="product-badge">${product.badge}</div>` : ''}
         ${product.verified ? `<div class="product-verified">✓ Verified</div>` : ''}
         <div class="product-overlay">
-          <button class="btn btn-white btn-sm" onclick="event.stopPropagation(); quickView(${product.id})">👁️ Quick View</button>
-          <button class="btn btn-gold btn-sm" onclick="event.stopPropagation(); addToCart(${product.id})">🛒 Add to Cart</button>
+          <button type="button" class="btn btn-white btn-sm stn-card-quick">👁️ Quick View</button>
+          <button type="button" class="btn btn-gold btn-sm stn-card-cart">🛒 Add to Cart</button>
         </div>
       </div>
       <div class="product-body">
@@ -5139,7 +5305,7 @@ function createProductCard(product) {
         <div class="product-price-row">
           <span class="price">${product.price} <span class="price-currency">TND</span></span>
           ${product.oldPrice ? `<span class="price-old">${product.oldPrice} TND</span>` : ''}
-          <button class="wishlist-btn ${isInWishlist ? 'active' : ''}" onclick="event.stopPropagation(); toggleWishlist(${product.id})">
+          <button type="button" class="wishlist-btn stn-card-wish ${isInWishlist ? 'active' : ''}">
             ${isInWishlist ? '♥' : '♡'}
           </button>
         </div>
