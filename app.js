@@ -81,6 +81,47 @@ function blobToDataUrl(blob) {
   });
 }
 
+/** Max successful sign-ups per browser tab per hour; failed attempts do not count. */
+var _STN_REG_RL_KEY = 'stn_reg_rl_v2';
+var _STN_REG_RL_MAX = 5;
+var _STN_REG_RL_WINDOW_MS = 60 * 60 * 1000;
+
+function _regRateLimitRead() {
+  try {
+    sessionStorage.removeItem('reg_count');
+  } catch (e) {}
+  try {
+    var raw = sessionStorage.getItem(_STN_REG_RL_KEY);
+    if (!raw) return { n: 0, t0: 0 };
+    var j = JSON.parse(raw);
+    return { n: Math.max(0, Number(j.n) || 0), t0: Number(j.t0) || 0 };
+  } catch (e2) {
+    return { n: 0, t0: 0 };
+  }
+}
+
+/** Returns minutes to wait if blocked, else null. */
+function _regRateLimitBlockedMinutes() {
+  var now = Date.now();
+  var st = _regRateLimitRead();
+  if (!st.t0 || now - st.t0 > _STN_REG_RL_WINDOW_MS) return null;
+  if (st.n < _STN_REG_RL_MAX) return null;
+  return Math.max(1, Math.ceil((_STN_REG_RL_WINDOW_MS - (now - st.t0)) / 60000));
+}
+
+function _regRateLimitRecordSuccess() {
+  var now = Date.now();
+  var st = _regRateLimitRead();
+  if (!st.t0 || now - st.t0 > _STN_REG_RL_WINDOW_MS) {
+    st = { n: 1, t0: now };
+  } else {
+    st.n += 1;
+  }
+  try {
+    sessionStorage.setItem(_STN_REG_RL_KEY, JSON.stringify(st));
+  } catch (e) {}
+}
+
 // ── INIT ──
 function init() {
   State.currentUser = STN.DB.get('currentUser');
@@ -1676,12 +1717,12 @@ async function doRegister() {
   if (existingUsers.find(u => u.email === email)) {
     toast('An account with this email already exists', 'error'); return;
   }
-  // 6. Rate limit - max 3 accounts per session
-  const regCount = parseInt(sessionStorage.getItem('reg_count') || '0');
-  if (regCount >= 3) {
-    toast('Too many registration attempts. Please try again later.', 'error'); return;
+  // 6. Rate limit — only counts successful sign-ups; window resets after 1 hour
+  var regWaitMin = _regRateLimitBlockedMinutes();
+  if (regWaitMin != null) {
+    toast('Too many new accounts from this browser in the last hour. Try again in about ' + regWaitMin + ' minutes.', 'error');
+    return;
   }
-  sessionStorage.setItem('reg_count', String(regCount + 1));
 
   if (!fname || !lname || !email || !phone || !wilaya || !delegation || !pass) { toast('⚠️ Please fill all required fields', 'error'); return; }
   if (pass !== pass2) { toast('⚠️ Passwords do not match', 'error'); return; }
@@ -1785,6 +1826,7 @@ async function doRegister() {
       userPayload.is_verified = false;
     }
     const newUser = await SB.createUser(userPayload);
+    _regRateLimitRecordSuccess();
     State.currentUser = STN.userForSession({ ...newUser, firstName: newUser.first_name, lastName: newUser.last_name });
     STN.DB.set('currentUser', State.currentUser);
     updateNavUser();
