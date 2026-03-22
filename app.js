@@ -174,8 +174,8 @@ function updateNavUser() {
 function showPage(id) {
   console.log('🔄 showPage called with:', id);
   
-  // Stop real-time tracking when navigating away from tracking page
-  if (State.currentPage !== 'track' && id !== 'track') {
+  // Stop tracking timers/subscriptions when leaving the track page
+  if (State.currentPage === 'track' && id !== 'track') {
     stopRealtimeTracking();
   }
   
@@ -1082,7 +1082,7 @@ async function renderTrack() {
 
     try {
       const orders = await SB.getUserOrders(State.currentUser.id);
-      if (orders && orders.length > 0) {
+      if (orders && orders.length > 0 && emptyDiv && resultDiv) {
         emptyDiv.style.display = 'none';
         resultDiv.style.display = 'block';
         resultDiv.innerHTML = `
@@ -1120,9 +1120,9 @@ async function renderTrack() {
   if (result) result.style.display = 'none';
 }
 
-// Real-time tracking state
+// Real-time tracking state (fetch SB has no WebSocket; polling + safe stubs)
 let currentTrackingOrder = null;
-let trackingSubscription = null;
+let trackingSubTokens = [];
 let trackingUpdateInterval = null;
 
 async function trackOrder() {
@@ -1131,6 +1131,7 @@ async function trackOrder() {
 
   const resultDiv = document.getElementById('track-result');
   const emptyDiv = document.getElementById('track-empty');
+  if (!resultDiv || !emptyDiv) { toast('⚠️ Tracking UI not found', 'error'); return; }
 
   // Show loading
   emptyDiv.style.display = 'none';
@@ -1138,7 +1139,7 @@ async function trackOrder() {
   resultDiv.innerHTML = '<div style="text-align:center;padding:3rem"><div style="font-size:2rem;animation:spin 1s linear infinite;display:inline-block">⏳</div><p style="color:#7b72a8;margin-top:1rem">Looking up your order...</p></div>';
 
   try {
-    const order = await SB.getOrder(num);
+    const order = await SB.findOrder(num);
     if (!order) {
       resultDiv.style.display = 'none';
       emptyDiv.style.display = 'block';
@@ -1163,37 +1164,42 @@ async function trackOrder() {
 }
 
 function startRealtimeTracking(order) {
-  // Clean up existing subscriptions
-  if (trackingSubscription) {
-    SB.unsubscribe(`tracking_${order.id}`);
-  }
+  trackingSubTokens.forEach(function (t) {
+    try { SB.unsubscribe(t); } catch (e) {}
+  });
+  trackingSubTokens = [];
   if (trackingUpdateInterval) {
     clearInterval(trackingUpdateInterval);
+    trackingUpdateInterval = null;
   }
 
-  // Subscribe to real-time updates for this order
-  trackingSubscription = SB.subscribeToOrders(async (payload) => {
-    if (payload.new && payload.new.id === order.id) {
-      console.log('🔄 Order status updated:', payload.new);
-      currentTrackingOrder = payload.new;
-      await renderTrackingUI(payload.new);
-      toast('📦 Order status updated!', 'success');
-    }
-  });
+  if (typeof SB.subscribeToOrders === 'function') {
+    const t1 = SB.subscribeToOrders(async (payload) => {
+      if (payload.new && payload.new.id === order.id) {
+        console.log('🔄 Order status updated:', payload.new);
+        currentTrackingOrder = payload.new;
+        await renderTrackingUI(payload.new);
+        toast('📦 Order status updated!', 'success');
+      }
+    });
+    if (t1) trackingSubTokens.push(t1);
+  }
 
-  // Also subscribe to tracking events
-  SB.subscribeToTracking(order.id, async (payload) => {
-    console.log('📍 Tracking event updated:', payload);
-    if (currentTrackingOrder) {
-      await renderTrackingUI(currentTrackingOrder);
-    }
-  });
+  if (typeof SB.subscribeToTracking === 'function') {
+    const t2 = SB.subscribeToTracking(order.id, async (payload) => {
+      console.log('📍 Tracking event updated:', payload);
+      if (currentTrackingOrder) {
+        await renderTrackingUI(currentTrackingOrder);
+      }
+    });
+    if (t2) trackingSubTokens.push(t2);
+  }
 
-  // Fallback polling every 30 seconds
+  // Polling (primary path for fetch-based SB)
   trackingUpdateInterval = setInterval(async () => {
     try {
-      const updatedOrder = await SB.getOrder(order.tracking_number);
-      if (updatedOrder && updatedOrder.status !== currentTrackingOrder.status) {
+      const updatedOrder = await SB.getOrder(order.id);
+      if (updatedOrder && currentTrackingOrder && updatedOrder.status !== currentTrackingOrder.status) {
         currentTrackingOrder = updatedOrder;
         await renderTrackingUI(updatedOrder);
         toast('📦 Order status updated!', 'success');
@@ -1208,7 +1214,13 @@ async function renderTrackingUI(order) {
   const resultDiv = document.getElementById('track-result');
   if (!resultDiv) return;
 
-  const tracking = await SB.getTracking(order.id);
+  let tracking = [];
+  try {
+    const raw = await SB.getTracking(order.id);
+    tracking = Array.isArray(raw) ? raw : [];
+  } catch (e) {
+    tracking = [];
+  }
   const steps = [
     { key: 'pending', label: '🕐 Order Received', desc: 'Your order has been received' },
     { key: 'confirmed', label: '✅ Confirmed', desc: 'Artisan is preparing your order' },
@@ -1288,10 +1300,10 @@ function refreshTracking() {
 }
 
 function stopRealtimeTracking() {
-  if (trackingSubscription) {
-    SB.unsubscribe(`tracking_${currentTrackingOrder?.id}`);
-    trackingSubscription = null;
-  }
+  trackingSubTokens.forEach(function (t) {
+    try { SB.unsubscribe(t); } catch (e) {}
+  });
+  trackingSubTokens = [];
   if (trackingUpdateInterval) {
     clearInterval(trackingUpdateInterval);
     trackingUpdateInterval = null;
@@ -1309,7 +1321,7 @@ async function testRealtimeTracking() {
   
   try {
     // Create a test order if it doesn't exist
-    let testOrder = await SB.getOrder(testTrackingNum);
+    let testOrder = await SB.findOrder(testTrackingNum);
     
     if (!testOrder) {
       // Create a sample test order
@@ -2546,7 +2558,7 @@ function switchVendorSection(section) {
               <div id="upload-placeholder"><div style="font-size:2rem;margin-bottom:0.5rem">📸</div><p style="color:#6b7280;margin-bottom:0.25rem;font-size:0.875rem;font-weight:500">Click to upload image</p></div>
               <div id="upload-loading" style="display:none"><div style="font-size:1.5rem">⏳</div><p style="color:#7c3aed;font-size:0.85rem">Uploading...</p></div>
             </div>
-            <input type="file" id="vp-image-file" accept="image/png, image/jpeg, image/jpg" style="display:none" onchange="handleImageUpload(this)"/>
+            <input type="file" id="vp-image-file" accept="image/*" style="display:none" onchange="uploadToCloudinary(this)"/>
             <input type="hidden" id="vp-image-url"/>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
@@ -2560,30 +2572,14 @@ function switchVendorSection(section) {
             <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Stock *</label><input type="number" id="vp-stock" placeholder="10" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
-            <div>
-              <label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Category *</label>
-              <div style="position:relative">
-                <select id="vp-cat" onchange="handleCategoryChange(this.value)" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;background:white;outline:none;box-sizing:border-box">
-                  <option value="">Select Category</option>
-                  <option value="sofa">Sofa / Furniture</option>
-                  <option value="rug">Rugs / Kilim</option>
-                  <option value="lighting">Lighting</option>
-                  <option value="ceramic">Ceramics</option>
-                  <option value="bedroom">Bedroom</option>
-                  <option value="outdoor">Outdoor</option>
-                  <option value="fragrance">Fragrance</option>
-                  <option value="decor">Decor</option>
-                  <option value="custom">+ Add New Category</option>
-                </select>
-                <div id="new-category-input" style="display:none;position:absolute;top:0;left:0;width:100%">
-                  <input type="text" id="vp-new-category" placeholder="Enter new category..." style="width:100%;border:1px solid #7c3aed;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;background:white;outline:none;box-sizing:border-box" onblur="confirmNewCategory()" onkeypress="if(event.key==='Enter')confirmNewCategory()"/>
-                </div>
-              </div>
+            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Category *</label>
+              <select id="vp-cat" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;background:white;outline:none;box-sizing:border-box">
+                <option value="sofa">Sofa / Furniture</option><option value="rug">Rugs / Kilim</option><option value="lighting">Lighting</option><option value="ceramic">Ceramics</option><option value="bedroom">Bedroom</option><option value="outdoor">Outdoor</option><option value="fragrance">Fragrance</option><option value="decor">Decor</option>
+              </select>
             </div>
             <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Badge (optional)</label><input type="text" id="vp-badge" placeholder="New, Bestseller..." style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
           </div>
-          <button onclick="handleProductUpload()" id="upload-btn" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.875rem 2rem;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer;width:100%;transition:all 0.3s ease">Upload Product →</button>
-          <div id="upload-error" style="margin-top:1rem;color:#dc2626;font-size:0.875rem;display:none"></div>
+          <button onclick="uploadProduct()" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.875rem 2rem;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer;width:100%">Upload Product →</button>
         </div>
       </div>`;
 
@@ -2805,379 +2801,87 @@ async function deleteVendorProduct(productId) {
   }
 }
 
-// ── PRODUCT UPLOAD FORM HANDLERS ──
-function handleCategoryChange(value) {
-  const select = document.getElementById('vp-cat');
-  const newCategoryInput = document.getElementById('new-category-input');
-  
-  if (value === 'custom') {
-    select.style.display = 'none';
-    newCategoryInput.style.display = 'block';
-    document.getElementById('vp-new-category').focus();
-  } else {
-    select.style.display = 'block';
-    newCategoryInput.style.display = 'none';
-  }
-}
+async function uploadProduct() {
+  const title = document.getElementById('vp-title')?.value?.trim();
+  const brand = document.getElementById('vp-brand')?.value?.trim();
+  const desc = document.getElementById('vp-desc')?.value?.trim();
+  const price = parseFloat(document.getElementById('vp-price')?.value);
+  const stock = parseInt(document.getElementById('vp-stock')?.value);
+  const cat = document.getElementById('vp-cat')?.value;
+  const badge = document.getElementById('vp-badge')?.value?.trim();
 
-function confirmNewCategory() {
-  const newCategoryInput = document.getElementById('vp-new-category');
-  const select = document.getElementById('vp-cat');
-  const newCategoryValue = newCategoryInput.value.trim();
-  
-  if (newCategoryValue) {
-    // Add new category to dropdown
-    const newOption = document.createElement('option');
-    newOption.value = newCategoryValue.toLowerCase().replace(/\s+/g, '-');
-    newOption.textContent = newCategoryValue;
-    select.insertBefore(newOption, select.lastElementChild);
-    
-    // Select the new category
-    select.value = newOption.value;
-    
-    // Hide input and show select
-    newCategoryInput.style.display = 'none';
-    select.style.display = 'block';
-    
-    // Clear new category input
-    newCategoryInput.value = '';
-  }
-}
+  if (!title || !brand || !desc || !price || !stock) { toast('⚠️ Please fill all required fields', 'error'); return; }
 
-function handleImageUpload(input) {
-  const file = input.files[0];
-  if (!file) return;
+  const emojis = {sofa:'🛋️',rug:'🏺',lighting:'💡',ceramic:'🏺',bedroom:'🛏️',outdoor:'🌿',fragrance:'🧴',decor:'🎨',furniture:'🪑'};
   
-  // Validate file type
-  const validTypes = ['image/png', 'image/jpeg', 'image/jpg'];
-  if (!validTypes.includes(file.type)) {
-    showToast('⚠️ Please upload a PNG or JPG image', 'error');
-    input.value = '';
-    return;
-  }
-  
-  // Validate file size (max 5MB)
-  if (file.size > 5 * 1024 * 1024) {
-    showToast('⚠️ Image size must be less than 5MB', 'error');
-    input.value = '';
-    return;
-  }
-  
-  // Show loading state
-  document.getElementById('upload-placeholder').style.display = 'none';
-  document.getElementById('upload-preview').style.display = 'none';
-  document.getElementById('upload-loading').style.display = 'block';
-  
-  // Read and preview image
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const img = document.getElementById('upload-img-preview');
-    img.src = e.target.result;
-    
-    // Show preview
-    setTimeout(() => {
-      document.getElementById('upload-loading').style.display = 'none';
-      document.getElementById('upload-preview').style.display = 'block';
-      document.getElementById('upload-zone').style.borderColor = '#10b981';
-      document.getElementById('upload-zone').style.background = '#f0fdf4';
-    }, 1000);
+  const newProduct = {
+    name: title,
+    brand: State.currentUser?.shop_name || State.currentUser?.shopName || brand,
+    vendorId: State.currentUser?.id,
+    region: State.currentUser?.wilaya || 'Tunisia',
+    // IMPORTANT: match our product schema (data.js uses `cat` + `desc`)
+    cat,
+    price,
+    oldPrice: parseFloat(document.getElementById('vp-old-price')?.value) || null,
+    rating: 0,
+    reviews: 0,
+    badge: badge || null,
+    emoji: emojis[cat] || '📦',
+    image: document.getElementById('vp-image-url')?.value || null,
+    verified: false, // Will be verified by admin
+    stock,
+    desc,
+    created_at: new Date().toISOString()
   };
-  reader.readAsDataURL(file);
-}
 
-async function handleProductUpload() {
-  console.log('🚀 handleProductUpload called');
-  
+  console.log('🔄 Attempting to save product to Supabase:', newProduct);
+
   try {
-    const title = document.getElementById('vp-title')?.value?.trim();
-    const brand = document.getElementById('vp-brand')?.value?.trim();
-    const desc = document.getElementById('vp-desc')?.value?.trim();
-    const price = parseFloat(document.getElementById('vp-price')?.value);
-    const stock = parseInt(document.getElementById('vp-stock')?.value);
-    const cat = document.getElementById('vp-cat')?.value || 'default';
-    const badge = document.getElementById('vp-badge')?.value?.trim();
-    
-    console.log('📝 Form data:', { title, brand, desc, price, stock, cat, badge });
-    
-    // Hide any previous errors
-    const errorDiv = document.getElementById('upload-error');
-    if (errorDiv) errorDiv.style.display = 'none';
-    
-    // Validation - only Product Name and Price are mandatory
-    if (!title) {
-      const errorMsg = '⚠️ Product Name is required';
-      console.log(errorMsg);
-      if (errorDiv) {
-        errorDiv.textContent = errorMsg;
-        errorDiv.style.display = 'block';
-      }
-      document.getElementById('vp-title')?.focus();
-      return;
+    if (typeof SB === 'undefined' || !SB?.createProduct) {
+      throw new Error('Supabase client not ready (SB.createProduct missing)');
     }
-    
-    if (!price || price <= 0) {
-      const errorMsg = '⚠️ Price is required and must be greater than 0';
-      console.log(errorMsg);
-      if (errorDiv) {
-        errorDiv.textContent = errorMsg;
-        errorDiv.style.display = 'block';
-      }
-      document.getElementById('vp-price')?.focus();
-      return;
-    }
-    
-    // Show loading state on button
-    const uploadBtn = document.getElementById('upload-btn');
-    if (!uploadBtn) {
-      console.error('❌ Upload button not found!');
-      return;
-    }
-    
-    const originalText = uploadBtn.textContent;
-    uploadBtn.textContent = '⏳ Uploading...';
-    uploadBtn.style.background = '#9ca3af';
-    uploadBtn.disabled = true;
-    
-    // Handle image upload if present
-    let imageUrl = null;
-    const imageFile = document.getElementById('vp-image-file')?.files[0];
-    
-    if (imageFile) {
-      // For demo purposes, use the preview as URL
-      imageUrl = document.getElementById('upload-img-preview')?.src;
-    }
-    
-    const emojis = {
-      sofa: '🛋️', rug: '🏺', lighting: '💡', ceramic: '🏺', 
-      bedroom: '🛏️', outdoor: '🌿', fragrance: '🧴', 
-      decor: '🎨', furniture: '🪑', default: '📦'
-    };
-    
-    const newProduct = {
-      name: title,
-      brand: brand || State.currentUser?.shop_name || State.currentUser?.shopName || 'Everest Vendor',
-      vendorId: State.currentUser?.id,
-      region: State.currentUser?.wilaya || 'Tunisia',
-      cat: cat,
-      price: price,
-      oldPrice: parseFloat(document.getElementById('vp-old-price')?.value) || null,
-      rating: 0,
-      reviews: 0,
-      badge: badge || null,
-      emoji: emojis[cat] || '📦',
-      image: imageUrl || `https://picsum.photos/seed/${title}${Date.now()}/400/300.jpg`,
-      verified: false,
-      stock: stock || 10,
-      desc: desc || 'Beautiful product from Tunisia',
-      created_at: new Date().toISOString()
-    };
 
-    console.log('🔄 Attempting to save product:', newProduct);
-
-    // Save to Supabase or fallback to local storage
-    if (typeof SB !== 'undefined' && SB?.createProduct) {
-      console.log('💾 Saving to Supabase...');
-      const savedProduct = await SB.createProduct(newProduct);
-      console.log('✅ Product saved to Supabase successfully:', savedProduct);
-      
-      // Update local state
-      State.products.push(savedProduct);
-      STN.DB.set('products', State.products);
-    } else {
-      console.log('⚠️ Supabase not available, saving to local storage only');
-      // Fallback to local storage only
-      State.products.push(newProduct);
-      STN.DB.set('products', State.products);
-    }
+    toast('⏳ Uploading product...', 'default');
+    // Save to Supabase first
+    const savedProduct = await SB.createProduct(newProduct);
     
-    // Show beautiful success toast
-    showEverestSuccessToast('🎉 Product uploaded successfully!');
+    console.log('✅ Product saved to Supabase successfully:', savedProduct);
+    
+    // Update local state with the returned product (includes Supabase ID)
+    State.products.push(savedProduct);
+    STN.DB.set('products', State.products);
+    
+    console.log('📦 Local state updated. Total products:', State.products.length);
     
     // Clear form
-    clearUploadForm();
+    document.getElementById('vp-title').value = '';
+    document.getElementById('vp-brand').value = '';
+    document.getElementById('vp-desc').value = '';
+    document.getElementById('vp-price').value = '';
+    document.getElementById('vp-old-price').value = '';
+    document.getElementById('vp-stock').value = '';
+    document.getElementById('vp-badge').value = '';
+    document.getElementById('vp-image-url').value = '';
+    document.getElementById('vp-cat').selectedIndex = 0;
     
-    // Switch to inventory after a short delay
-    setTimeout(() => {
-      switchVendorSection('inventory');
-    }, 2000);
+    toast('✦ Product uploaded successfully! Pending admin verification.', 'success');
+    switchVendorSection('inventory');
     
     // Refresh products display if on products page
     if (State.currentPage === 'products') {
+      // Re-fetch from Supabase to get the latest data
       await initializeProducts();
       filterAndRenderProducts();
     }
-    
-    // Notify other parts of app
-    try { 
-      window.dispatchEvent(new CustomEvent('products:changed', { 
-        detail: { source: 'handleProductUpload', product: newProduct } 
-      })); 
-    } catch(e) {}
+
+    // Notify other parts of the app to refresh (Shop page, dashboards, etc.)
+    try { window.dispatchEvent(new CustomEvent('products:changed', { detail: { source: 'uploadProduct', productId: savedProduct?.id } })); } catch(e) {}
     
   } catch (error) {
-    console.error('❌ Error uploading product:', error);
-    const errorMsg = '⚠️ Failed to upload product: ' + (error?.message || 'Unknown error');
-    const errorDiv = document.getElementById('upload-error');
-    if (errorDiv) {
-      errorDiv.textContent = errorMsg;
-      errorDiv.style.display = 'block';
-    }
-    showToast(errorMsg, 'error');
-  } finally {
-    // Reset button state
-    const uploadBtn = document.getElementById('upload-btn');
-    if (uploadBtn) {
-      uploadBtn.textContent = 'Upload Product →';
-      uploadBtn.style.background = 'linear-gradient(135deg,#7c3aed,#6b3fd4)';
-      uploadBtn.disabled = false;
-    }
+    console.error('❌ Error uploading product to Supabase:', error);
+    console.error('❌ Error details:', error.message);
+    toast('⚠️ Failed to upload product: ' + (error?.message || 'Unknown error'), 'error');
   }
-}
-
-function clearUploadForm() {
-  document.getElementById('vp-title').value = '';
-  document.getElementById('vp-brand').value = '';
-  document.getElementById('vp-desc').value = '';
-  document.getElementById('vp-price').value = '';
-  document.getElementById('vp-old-price').value = '';
-  document.getElementById('vp-stock').value = '';
-  document.getElementById('vp-badge').value = '';
-  document.getElementById('vp-image-url').value = '';
-  document.getElementById('vp-cat').selectedIndex = 0;
-  
-  // Reset image upload
-  document.getElementById('upload-placeholder').style.display = 'block';
-  document.getElementById('upload-preview').style.display = 'none';
-  document.getElementById('upload-loading').style.display = 'none';
-  document.getElementById('upload-zone').style.borderColor = '#e9d5ff';
-  document.getElementById('upload-zone').style.background = '#fafafa';
-  document.getElementById('vp-image-file').value = '';
-}
-
-function showEverestSuccessToast(message) {
-  // Create beautiful Everest-style success toast
-  const toast = document.createElement('div');
-  toast.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: linear-gradient(135deg, #7c3aed, #6b3fd4);
-    color: white;
-    padding: 1rem 1.5rem;
-    border-radius: 12px;
-    box-shadow: 0 10px 25px rgba(124, 58, 237, 0.3);
-    z-index: 9999;
-    font-family: 'Outfit', sans-serif;
-    font-weight: 600;
-    font-size: 0.95rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    animation: slideInRight 0.5s ease, pulse 2s infinite;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-  `;
-  
-  toast.innerHTML = `
-    <div style="font-size: 1.5rem;">🏔️</div>
-    <div>
-      <div style="font-weight: 700; margin-bottom: 0.25rem;">Everest Success!</div>
-      <div style="font-size: 0.85rem; opacity: 0.9;">${message}</div>
-    </div>
-  `;
-  
-  // Add animation styles
-  if (!document.getElementById('everest-toast-styles')) {
-    const style = document.createElement('style');
-    style.id = 'everest-toast-styles';
-    style.textContent = `
-      @keyframes slideInRight {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-      }
-      @keyframes pulse {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.02); }
-      }
-    `;
-    document.head.appendChild(style);
-  }
-  
-  document.body.appendChild(toast);
-  
-  // Auto remove after 4 seconds
-  setTimeout(() => {
-    toast.style.animation = 'slideInRight 0.5s ease reverse';
-    setTimeout(() => {
-      if (toast.parentNode) {
-        toast.parentNode.removeChild(toast);
-      }
-    }, 500);
-  }, 4000);
-}
-
-function showToast(message, type = 'default') {
-  // Fallback toast function
-  if (typeof toast === 'function') {
-    toast(message, type);
-  } else {
-    console.log(message);
-  }
-}
-
-async function uploadProduct() {
-  // Keep original function for backward compatibility
-  console.log('🔄 uploadProduct called (legacy function)');
-  return handleProductUpload();
-}
-
-// Quick test function for debugging
-function testUploadForm() {
-  console.log('🧪 Testing upload form...');
-  
-  // Check if all required elements exist
-  const elements = [
-    'vp-title', 'vp-price', 'vp-cat', 'upload-btn', 
-    'vp-brand', 'vp-desc', 'vp-stock', 'vp-badge'
-  ];
-  
-  let missing = [];
-  elements.forEach(id => {
-    const element = document.getElementById(id);
-    if (!element) {
-      missing.push(id);
-    } else {
-      console.log(`✅ Found element: ${id}`);
-    }
-  });
-  
-  if (missing.length > 0) {
-    console.error('❌ Missing elements:', missing);
-    return false;
-  }
-  
-  // Check if functions exist
-  const functions = [
-    'handleProductUpload', 'handleCategoryChange', 
-    'confirmNewCategory', 'showEverestSuccessToast'
-  ];
-  
-  let missingFunctions = [];
-  functions.forEach(fn => {
-    if (typeof window[fn] !== 'function') {
-      missingFunctions.push(fn);
-    } else {
-      console.log(`✅ Found function: ${fn}`);
-    }
-  });
-  
-  if (missingFunctions.length > 0) {
-    console.error('❌ Missing functions:', missingFunctions);
-    return false;
-  }
-  
-  console.log('✅ Upload form test passed!');
-  return true;
 }
 
 // ── CARPENTER ──

@@ -1916,8 +1916,7 @@ function filterAndGo(cat) {
 <!-- Leaflet JS for Interactive Map -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 
-<!-- Supabase JS - FIXED: Load with proper global -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- REST API via fetch: supabase-fixed.js defines global SB (no @supabase/supabase-js bundle needed) -->
 
 <script>
 // ═══════════════════════════════════════════════
@@ -1926,14 +1925,6 @@ function filterAndGo(cat) {
 // ═══════════════════════════════════════════════
 (function() {
   'use strict';
-
-  // Initialize Supabase properly
-  if (typeof window.supabase !== 'undefined') {
-    window.supabase_js = window.supabase;
-    console.log('✅ Supabase library loaded and available');
-  } else {
-    console.error('❌ Supabase library not loaded');
-  }
 
   function applyPatch() {
     if (typeof State === 'undefined' || typeof STN === 'undefined') {

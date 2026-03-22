@@ -17,8 +17,12 @@ const SB = {
       body: body ? JSON.stringify(body) : undefined
     });
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.message || 'Supabase error');
+      let msg = 'Supabase error';
+      try {
+        const err = await res.json();
+        msg = err.message || err.error_description || err.hint || msg;
+      } catch (e) {}
+      throw new Error(msg);
     }
     return method === 'DELETE' ? null : res.json();
   },
@@ -73,6 +77,22 @@ const SB = {
     return data[0] || null;
   },
 
+  /** Resolve order by UUID/numeric id or by tracking_number (user-facing ref). */
+  async findOrder(ref) {
+    const r = String(ref == null ? '' : ref).trim();
+    if (!r) return null;
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(r)) {
+      const byUuid = await this.getOrder(r);
+      if (byUuid) return byUuid;
+    }
+    if (/^\d+$/.test(r)) {
+      const byId = await this.getOrder(r);
+      if (byId) return byId;
+    }
+    const data = await this.req('GET', 'orders', null, `?tracking_number=eq.${encodeURIComponent(r)}&limit=1`);
+    return Array.isArray(data) && data[0] ? data[0] : null;
+  },
+
   async createOrder(order) {
     const data = await this.req('POST', 'orders', order);
     return data[0];
@@ -81,6 +101,10 @@ const SB = {
   async updateOrder(id, updates) {
     const data = await this.req('PATCH', 'orders', updates, `?id=eq.${id}`);
     return data[0];
+  },
+
+  async updateOrderStatus(id, status) {
+    return this.updateOrder(id, { status });
   },
 
   async getUserOrders(userId) {
@@ -111,7 +135,17 @@ const SB = {
     };
     const data = await this.req('POST', 'order_tracking', tracking);
     return data[0];
-  }
+  },
+
+  // Fetch-based client has no WebSocket Realtime; stubs keep app.js stable (polling does updates).
+  _rtSeq: 0,
+  subscribeToOrders() {
+    return `rt_orders_${++this._rtSeq}`;
+  },
+  subscribeToTracking() {
+    return `rt_track_${++this._rtSeq}`;
+  },
+  unsubscribe() {}
 };
 
 console.log('✅ Supabase client initialized (fetch-based)');
