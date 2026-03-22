@@ -20,7 +20,8 @@ var TRANSLATIONS={
     'rewards-sub':'Earn points on every purchase and unlock exclusive perks!',
     'about-label':'Our Story','about-title':'About Everest',
     'add-cart':'Add to Cart','view-all':'View All','shop-now':'Shop Now',
-    'sign-in':'Sign In','create-account':'Create Account','logout':'Sign Out'
+    'sign-in':'Sign In','create-account':'Create Account','logout':'Sign Out',
+    'nav-cart':'Cart','nav-me':'Me'
   },
   fr:{
     'nav-home':'Accueil','nav-products':'Collections','nav-carpenter':'Sur Mesure',
@@ -41,7 +42,8 @@ var TRANSLATIONS={
     'rewards-sub':'Gagnez des points a chaque achat!',
     'about-label':'Notre Histoire','about-title':'À propos d\'Everest',
     'add-cart':'Ajouter au Panier','view-all':'Voir Tout','shop-now':'Acheter',
-    'sign-in':'Connexion','create-account':'Creer un Compte','logout':'Deconnexion'
+    'sign-in':'Connexion','create-account':'Creer un Compte','logout':'Deconnexion',
+    'nav-cart':'Panier','nav-me':'Compte'
   },
   ar:{
     'nav-home':'\u0627\u0644\u0631\u0626\u064a\u0633\u064a\u0629',
@@ -87,7 +89,9 @@ var TRANSLATIONS={
     'shop-now':'\u062a\u0633\u0648\u0642 \u0627\u0644\u0622\u0646',
     'sign-in':'\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644',
     'create-account':'\u0625\u0646\u0634\u0627\u0621 \u062d\u0633\u0627\u0628',
-    'logout':'\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062e\u0631\u0648\u062c'
+    'logout':'\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062e\u0631\u0648\u062c',
+    'nav-cart':'\u0627\u0644\u0633\u0644\u0629',
+    'nav-me':'\u062d\u0633\u0627\u0628\u064a'
   }
 };
 

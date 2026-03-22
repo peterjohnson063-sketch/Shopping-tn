@@ -171,6 +171,7 @@ function updateNavUser() {
     btn.innerHTML = '';
     btn.appendChild(el2);
   }
+  syncBottomNavActive(State.currentPage || 'home');
 }
 
 // ── PAGE NAVIGATION ──
@@ -232,6 +233,7 @@ function showPage(id) {
     const lang = activeLangBtn.id.replace('lang-','');
     setTimeout(() => { if(typeof setLang === 'function') setLang(lang); }, 100);
   }
+  syncBottomNavActive(id);
   return false;
 }
 
@@ -268,10 +270,131 @@ function toast(msg, type = 'default') {
   setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 400); }, 3200);
 }
 
+// ── Motion (Framer Motion ecosystem — motion.dev) via ESM CDN for vanilla JS ──
+var EVEREST_MOTION_CDN = 'https://cdn.jsdelivr.net/npm/motion@11.15.0/+esm';
+
+function mobileNavAccount() {
+  if (!State.currentUser) {
+    showPage('auth');
+    return;
+  }
+  var role = State.currentUser.role;
+  if (role === 'admin') showPage('admin');
+  else if (role === 'vendor') showPage('vendor');
+  else showPage('account');
+}
+
+function syncBottomNavActive(pageId) {
+  var nav = document.getElementById('bottom-nav');
+  if (!nav) return;
+  nav.querySelectorAll('.bottom-nav__btn').forEach(function (b) { b.classList.remove('active'); });
+  var map = { home: 'bottomnav-home', products: 'bottomnav-products', track: 'bottomnav-track' };
+  var accountPages = { account: 1, auth: 1, vendor: 1, admin: 1, 'vendor-dashboard': 1 };
+  if (accountPages[pageId]) {
+    var acc = document.getElementById('bottomnav-account');
+    if (acc) acc.classList.add('active');
+    return;
+  }
+  var bid = map[pageId];
+  if (bid) {
+    var el = document.getElementById(bid);
+    if (el) el.classList.add('active');
+  }
+}
+
+async function showCelebrationOverlay() {
+  var layer = document.createElement('div');
+  layer.className = 'celebration-layer';
+  layer.setAttribute('aria-hidden', 'true');
+  var burst = document.createElement('div');
+  burst.className = 'celebration-burst';
+  var wrap = document.createElement('div');
+  wrap.className = 'celebration-check-wrap';
+  wrap.innerHTML =
+    '<svg class="celebration-check" viewBox="0 0 64 64" width="72" height="72" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="none" stroke="currentColor" stroke-width="2" opacity="0.2"/><path fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" d="M18 34l10 10 18-22"/></svg>';
+  layer.appendChild(burst);
+  layer.appendChild(wrap);
+  document.body.appendChild(layer);
+
+  var colors = ['#7c3aed', '#a78bfa', '#34d399', '#fbbf24', '#f472b6', '#38bdf8', '#f59e0b'];
+  var pieceEls = [];
+  var i;
+  for (i = 0; i < 28; i++) {
+    var p = document.createElement('span');
+    p.className = 'celebration-piece';
+    p.style.background = colors[i % colors.length];
+    burst.appendChild(p);
+    pieceEls.push(p);
+  }
+
+  try {
+    var mod = await import(EVEREST_MOTION_CDN);
+    var animate = mod.animate;
+    var check = wrap.querySelector('.celebration-check');
+    if (animate && check) {
+      animate(
+        check,
+        { opacity: [0, 1], scale: [0.35, 1.08, 1], rotate: [-18, 0] },
+        { duration: 0.52, easing: [0.34, 1.35, 0.64, 1] }
+      );
+    }
+    if (animate && pieceEls.length) {
+      pieceEls.forEach(function (el, idx) {
+        var a = (Math.PI * 2 * idx) / pieceEls.length + (Math.random() - 0.5) * 0.9;
+        var dist = 88 + Math.random() * 110;
+        var tx = Math.cos(a) * dist;
+        var ty = Math.sin(a) * dist - 28;
+        var rot = (Math.random() - 0.5) * 520;
+        animate(
+          el,
+          { x: [0, tx], y: [0, ty], opacity: [1, 0], rotate: [0, rot] },
+          { duration: 0.82 + Math.random() * 0.35, delay: idx * 0.016, easing: [0.22, 1, 0.36, 1] }
+        );
+      });
+    }
+  } catch (e) {
+    if (typeof STNLog !== 'undefined') STNLog.debug('celebration', 'motion unavailable', { message: e && e.message });
+  }
+
+  setTimeout(function () {
+    if (layer.parentNode) layer.parentNode.removeChild(layer);
+  }, 2100);
+}
+
+async function animateProductCardsEntry(grid) {
+  if (!grid) return;
+  var cards = grid.querySelectorAll('.product-card');
+  if (!cards.length) return;
+  cards.forEach(function (c) {
+    c.style.opacity = '0';
+    c.style.transform = 'translateY(28px) scale(0.94)';
+  });
+  try {
+    var mod = await import(EVEREST_MOTION_CDN);
+    var animate = mod.animate;
+    var stagger = mod.stagger;
+    if (!animate || !stagger) throw new Error('motion exports missing');
+    animate(
+      cards,
+      { opacity: [0, 1], y: [28, 0], scale: [0.94, 1] },
+      { duration: 0.42, delay: stagger(0.048), easing: [0.22, 1, 0.36, 1] }
+    );
+  } catch (e) {
+    cards.forEach(function (c) {
+      c.style.opacity = '';
+      c.style.transform = '';
+      c.classList.add('reveal', 'visible');
+    });
+  }
+}
+
 // ── CART ──
 function updateCartBadge() {
   const total = State.cart.reduce((s, i) => s + i.qty, 0);
   document.querySelectorAll('.cart-badge').forEach(b => b.textContent = total);
+  document.querySelectorAll('#bottom-nav .cart-badge').forEach(b => {
+    b.style.display = total > 0 ? 'flex' : 'none';
+  });
   const fc = document.getElementById('float-cart-count');
   if (fc) { fc.textContent = total; fc.style.display = total > 0 ? 'flex' : 'none'; }
 }
@@ -528,6 +651,7 @@ async function submitOrder() {
         <button onclick="closeSuccessModal()" style="width:100%;padding:0.9rem;background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:12px;font-size:0.9rem;cursor:pointer">Track My Order →</button>
       </div>`;
     document.body.appendChild(successModal);
+    showCelebrationOverlay();
 
   } catch(e) {
     if (typeof STNLog !== 'undefined') STNLog.error('checkout.submitOrder', e, {});
@@ -606,7 +730,7 @@ function productCardMediaHTML(p) {
 function productCardHTML(p) {
   const isWished = State.wishlist.includes(p.id);
   return `
-  <div class="product-card reveal" data-cat="${p.cat}">
+  <div class="product-card" data-cat="${p.cat}">
     <div class="product-img-wrap">
       ${productCardMediaHTML(p)}
       ${p.badge ? `<span class="product-badge">${p.badge}</span>` : ''}
@@ -1153,19 +1277,26 @@ function renderHome() {
   
   // Featured - first 8
   const grid = document.getElementById('home-featured-grid');
-  if (grid) grid.innerHTML = products.slice(0, 8).map(productCardHTML).join('');
-  
+  if (grid) {
+    grid.innerHTML = products.slice(0, 8).map(productCardHTML).join('');
+    animateProductCardsEntry(grid);
+  }
+
   // Best sellers - sort by reviews
   const bsGrid = document.getElementById('home-bestsellers-grid');
   if (bsGrid) {
     const bs = [...products].sort((a,b) => b.reviews - a.reviews).slice(0, 8);
     bsGrid.innerHTML = bs.map(productCardHTML).join('');
+    animateProductCardsEntry(bsGrid);
   }
-  
+
   // New arrivals - last 6
   const newGrid = document.getElementById('home-new-grid');
-  if (newGrid) newGrid.innerHTML = products.slice(-6).map(productCardHTML).join('');
-  
+  if (newGrid) {
+    newGrid.innerHTML = products.slice(-6).map(productCardHTML).join('');
+    animateProductCardsEntry(newGrid);
+  }
+
   startFlashTimer();
   initReveal();
 }
@@ -1582,6 +1713,7 @@ function renderWishlist() {
     grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:4rem;color:var(--text-muted)"><div style="font-size:3rem;margin-bottom:1rem">♡</div><p>Your wishlist is empty</p><button class="btn btn-ghost btn-sm" style="margin-top:1.5rem" onclick="showPage('products')">Browse Collections</button></div>`;
   } else {
     grid.innerHTML = items.map(productCardHTML).join('');
+    animateProductCardsEntry(grid);
   }
   initReveal();
 }
@@ -3179,6 +3311,7 @@ async function uploadProduct() {
     if (otherIn) otherIn.value = '';
 
     toast('✦ Success! Product saved with price, description, category, and image URL. Pending admin verification.', 'success');
+    showCelebrationOverlay();
     switchVendorSection('inventory');
 
     if (State.currentPage === 'products') {
@@ -3686,25 +3819,17 @@ function renderProductsGrid(products) {
   }
   
   grid.innerHTML = products.map(product => createProductCard(product)).join('');
-  
-  // Add reveal animations
-  setTimeout(() => {
-    grid.querySelectorAll('.product-card').forEach((card, index) => {
-      setTimeout(() => {
-        card.classList.add('reveal', 'visible');
-      }, index * 50);
-    });
-  }, 100);
+  animateProductCardsEntry(grid);
 }
 
 // Create product card HTML
 function createProductCard(product) {
-  const isInWishlist = State.wishlist.some(item => item.id === product.id);
+  const isInWishlist = State.wishlist.some(w => w === product.id || (w && w.id === product.id));
   const rating = product.rating || 0;
   const stars = '★'.repeat(Math.floor(rating)) + '☆'.repeat(5 - Math.floor(rating));
   
   return `
-    <div class="product-card" onclick="showProductDetail(${product.id})">
+    <div class="product-card" onclick="openProductDetail(${product.id})">
       <div class="product-img-wrap">
         ${productCardMediaHTML(product)}
         ${product.badge ? `<div class="product-badge">${product.badge}</div>` : ''}

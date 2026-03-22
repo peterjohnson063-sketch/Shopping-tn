@@ -2,8 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="Everest — Hit Your Dreams. Tunisia's premium digital mall: curated artisans from Monastir, Ksar Hellal, and the Sahel.">
+<meta name="theme-color" content="#6200EE">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Everest">
+<link rel="apple-touch-icon" href="assets/everest-logo.png"/>
 <title>Everest — Hit Your Dreams | Tunisia</title>
 <link rel="icon" type="image/svg+xml" href="assets/everest-logo.svg"/>
 <link rel="alternate icon" type="image/png" href="assets/everest-logo.png"/>
@@ -374,8 +379,8 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 
 /* RESPONSIVE */
 @media(max-width:1024px) { .grid-4 { grid-template-columns: repeat(2,1fr); } .grid-5 { grid-template-columns: repeat(3,1fr); } }
-@media(max-width:768px) { .nav-links { display: none; } .grid-2,.grid-3,.grid-4,.grid-5 { grid-template-columns: 1fr; } .grid-auto { grid-template-columns: repeat(auto-fill,minmax(160px,1fr)); } .s { padding: 3.5rem 4% 2rem; } .drawer { width: 100%; } .footer-grid { grid-template-columns: 1fr 1fr; } }
-@media(max-width:480px) { .grid-auto { grid-template-columns: 1fr 1fr; } .lang-wrap { display: none; } }
+@media(max-width:768px) { .nav-links { display: none; } .grid-2,.grid-3,.grid-4,.grid-5 { grid-template-columns: 1fr; } .grid-auto { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; } .s { padding: 3.5rem 4% 2rem; } .drawer { width: 100%; } .footer-grid { grid-template-columns: 1fr 1fr; } }
+@media(max-width:480px) { .grid-auto { grid-template-columns: repeat(2, minmax(0, 1fr)); } .lang-wrap { display: none; } }
 
 </style>
 <!-- Professional Dashboard Styles -->
@@ -781,6 +786,33 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
       🛒 <span class="badge cart-badge">0</span>
     </button>
     <div id="nav-user-area"></div>
+  </div>
+</nav>
+
+<!-- Mobile bottom navigation (app-like shell) -->
+<nav id="bottom-nav" class="bottom-nav" aria-label="Primary">
+  <div id="bottom-nav-inner">
+    <button type="button" class="bottom-nav__btn active" id="bottomnav-home" onclick="showPage('home'); return false;">
+      <span class="bottom-nav__icon" aria-hidden="true">🏠</span>
+      <span data-lang="nav-home">Home</span>
+    </button>
+    <button type="button" class="bottom-nav__btn" id="bottomnav-products" onclick="showPage('products'); return false;">
+      <span class="bottom-nav__icon" aria-hidden="true">🛍️</span>
+      <span data-lang="nav-products">Collections</span>
+    </button>
+    <button type="button" class="bottom-nav__btn" id="bottomnav-track" onclick="showPage('track'); return false;">
+      <span class="bottom-nav__icon" aria-hidden="true">📦</span>
+      <span data-lang="nav-track">Track</span>
+    </button>
+    <button type="button" class="bottom-nav__btn" id="bottomnav-cart" onclick="openCart(); return false;" aria-label="Cart">
+      <span class="bottom-nav__icon" aria-hidden="true">🛒</span>
+      <span class="badge cart-badge" aria-hidden="true">0</span>
+      <span data-lang="nav-cart">Cart</span>
+    </button>
+    <button type="button" class="bottom-nav__btn" id="bottomnav-account" onclick="mobileNavAccount(); return false;">
+      <span class="bottom-nav__icon" aria-hidden="true">👤</span>
+      <span data-lang="nav-me">Me</span>
+    </button>
   </div>
 </nav>
 
@@ -2130,6 +2162,15 @@ function filterAndGo(cat) {
   }
 })();
 
+</script>
+
+<script>
+(function () {
+  if (!('serviceWorker' in navigator)) return;
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(function () {});
+  });
+})();
 </script>
 
 </body>
