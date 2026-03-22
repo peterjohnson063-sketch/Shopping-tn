@@ -380,7 +380,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 /* RESPONSIVE */
 @media(max-width:1024px) { .grid-4 { grid-template-columns: repeat(2,1fr); } .grid-5 { grid-template-columns: repeat(3,1fr); } }
 @media(max-width:768px) { .nav-links { display: none; } .grid-2,.grid-3,.grid-4,.grid-5 { grid-template-columns: 1fr; } .grid-auto { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; } .s { padding: 3.5rem 4% 2rem; } .drawer { width: 100%; } .footer-grid { grid-template-columns: 1fr 1fr; } }
-@media(max-width:480px) { .grid-auto { grid-template-columns: repeat(2, minmax(0, 1fr)); } .lang-wrap { display: none; } }
+@media(max-width:480px) { .grid-auto { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 </style>
 <!-- Professional Dashboard Styles -->
@@ -774,12 +774,12 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     <li><button class="nav-btn" id="navbtn-loyalty" data-lang="nav-loyalty" onclick="showPage('loyalty')">Rewards</button></li>
     <li><button class="nav-btn" id="navbtn-about" data-lang="nav-about" onclick="showPage('about')">About</button></li>
   </ul>
+  <div class="lang-wrap nav-lang-bar" aria-label="Language">
+    <button class="lang-btn" id="lang-ar" type="button" onclick="setLang('ar')">AR</button>
+    <button class="lang-btn active" id="lang-fr" type="button" onclick="setLang('fr')">FR</button>
+    <button class="lang-btn" id="lang-en" type="button" onclick="setLang('en')">EN</button>
+  </div>
   <div class="nav-actions">
-    <div class="lang-wrap">
-      <button class="lang-btn" id="lang-ar" onclick="setLang('ar')">AR</button>
-      <button class="lang-btn active" id="lang-fr" onclick="setLang('fr')">FR</button>
-      <button class="lang-btn" id="lang-en" onclick="setLang('en')">EN</button>
-    </div>
     <button class="nav-icon-btn nav-hide-mobile-commerce" onclick="showPage('wishlist')" title="Wishlist">
       ♡ <span class="badge wishlist-badge">0</span>
     </button>
@@ -1929,7 +1929,7 @@ function filterAndGo(cat) {
 </script>
 
 <!-- YASMINE AI CHAT WIDGET -->
-<button id="yasmine-toggle" onclick="AI.toggle()" style="position:fixed;bottom:2rem;right:2rem;width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#9b72f0);border:none;cursor:pointer;box-shadow:0 4px 20px rgba(124,58,237,0.5);z-index:9000;display:flex;align-items:center;justify-content:center;font-size:1.5rem;transition:transform 0.2s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">✨</button>
+<button type="button" id="yasmine-toggle" class="yasmine-fab" onclick="AI.toggle()" aria-label="Open assistant" style="position:fixed;bottom:2rem;right:2rem;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#9b72f0);border:none;cursor:pointer;box-shadow:0 4px 20px rgba(124,58,237,0.5);z-index:8600;display:flex;align-items:center;justify-content:center;font-size:1.35rem;transition:transform 0.2s" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">✨</button>
 
 <div id="yasmine-panel" style="display:none;position:fixed;bottom:6rem;right:2rem;width:340px;max-height:520px;background:white;border-radius:20px;box-shadow:0 8px 40px rgba(30,10,78,0.2);z-index:9000;flex-direction:column;overflow:hidden;border:1px solid rgba(124,58,237,0.15)">
   <!-- Header -->

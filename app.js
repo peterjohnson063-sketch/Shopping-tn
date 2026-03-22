@@ -163,6 +163,11 @@ function toggleNavDrawer(open) {
   document.body.style.overflow = openNext ? 'hidden' : '';
 }
 
+function navLabelForHeader(full, short) {
+  var mobile = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+  return mobile ? short : full;
+}
+
 function updateNavUser() {
   var btn = document.getElementById('nav-user-area');
   if (!btn) return;
@@ -170,30 +175,34 @@ function updateNavUser() {
     var role = State.currentUser.role;
     var name = State.currentUser.first_name || State.currentUser.firstName || '';
     var el = document.createElement('button');
-    el.style.cssText = 'border:none;padding:0.5rem 1.2rem;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:Outfit,sans-serif;display:flex;align-items:center;gap:0.5rem;';
+    el.className = 'nav-header-user-btn';
+    el.style.cssText = 'border:none;padding:0.5rem 1.2rem;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:Outfit,sans-serif;display:flex;align-items:center;gap:0.5rem;max-width:100%;';
     if (role === 'admin') {
       el.style.background = 'linear-gradient(135deg,#7c3aed,#4a1fa8)';
       el.style.color = 'white';
-      el.textContent = 'Admin Dashboard';
+      el.textContent = navLabelForHeader('Admin Dashboard', 'Admin');
       el.onclick = function(){ showPage('admin'); };
     } else if (role === 'vendor') {
       el.style.background = 'linear-gradient(135deg,#059669,#047857)';
       el.style.color = 'white';
-      el.textContent = 'My Dashboard';
+      el.textContent = navLabelForHeader('My Dashboard', 'Dashboard');
       el.onclick = function(){ showPage('vendor'); };
     } else {
       el.style.background = 'white';
       el.style.color = '#374151';
       el.style.border = '1px solid #e5e7eb';
-      el.textContent = name || 'My Account';
+      var longName = name || 'My Account';
+      var shortName = name ? (name.length > 9 ? name.slice(0, 8) + '…' : name) : 'Account';
+      el.textContent = navLabelForHeader(longName, shortName);
       el.onclick = function(){ showPage('account'); };
     }
     btn.innerHTML = '';
     btn.appendChild(el);
   } else {
     var el2 = document.createElement('button');
-    el2.style.cssText = 'background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.5rem 1.2rem;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:Outfit,sans-serif;';
-    el2.textContent = 'Sign In';
+    el2.className = 'nav-header-user-btn';
+    el2.style.cssText = 'background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.5rem 1.2rem;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:Outfit,sans-serif;white-space:nowrap;';
+    el2.textContent = navLabelForHeader('Sign In', 'Sign in');
     el2.onclick = function(){ showPage('auth'); };
     btn.innerHTML = '';
     btn.appendChild(el2);
@@ -392,6 +401,9 @@ async function showCelebrationOverlay() {
 
 async function animateProductCardsEntry(grid) {
   if (!grid) return;
+  if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
+    return;
+  }
   var cards = grid.querySelectorAll('.product-card');
   if (!cards.length) return;
   cards.forEach(function (c) {
