@@ -2455,6 +2455,45 @@ async function mergeLocalAndRemoteUsersForAdmin() {
   }
 }
 
+function _admDriverInfoCell(label, val) {
+  var v = val == null || String(val).trim() === '' ? '—' : String(val);
+  return (
+    '<div><span style="display:block;font-size:0.62rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.25rem">' +
+    _detailEscapeHtml(label) +
+    '</span><span style="font-size:0.84rem;color:#0f172a;font-weight:500">' +
+    _detailEscapeHtml(v) +
+    '</span></div>'
+  );
+}
+
+/** Thumbnail + link for CIN / licence URLs (http(s) or data:image). */
+function _admDriverDocPreview(url, title) {
+  var u = (url || '').toString().trim();
+  if (!u) {
+    return (
+      '<div style="min-height:160px;border:2px dashed #e2e8f0;border-radius:14px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:0.82rem;text-align:center;padding:1.25rem;background:#f8fafc">' +
+      _detailEscapeHtml('No ' + title + ' uploaded') +
+      '</div>'
+    );
+  }
+  var href = _cardEscapeAttr(u);
+  return (
+    '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:0.65rem">' +
+    '<a href="' +
+    href +
+    '" target="_blank" rel="noopener noreferrer" style="display:block;line-height:0">' +
+    '<img src="' +
+    href +
+    '" alt="' +
+    _cardEscapeAttr(title) +
+    '" loading="lazy" decoding="async" style="width:100%;max-height:220px;object-fit:contain;border-radius:10px;background:#fff"/></a>' +
+    '<p style="font-size:0.68rem;color:#64748b;margin:0.5rem 0 0;text-align:center">' +
+    '<a href="' +
+    href +
+    '" target="_blank" rel="noopener" style="color:#0369a1;font-weight:600">Open full image</a></p></div>'
+  );
+}
+
 function renderAdmin() {
   if (!State.currentUser || State.currentUser.role !== 'admin') {
     toast('Admin access required', 'error'); showPage('auth'); return;
@@ -2471,6 +2510,7 @@ function buildAdminHTML() {
     {id:'orders', label:'&#129534; Orders'},
     {id:'logistics', label:'🗺️ Logistics Map'},
     {id:'users', label:'&#128101; Customers'},
+    {id:'drivers', label:'&#128666; Drivers'},
     {id:'vendors', label:'&#127978; Vendors'},
     {id:'vendor-dashboard', label:'&#128179; Vendor Dashboard'}
   ];
@@ -2779,6 +2819,129 @@ function switchAdmin(section) {
           else if (btn.dataset.action === 'unban') unbanUser(id);
         });
     });
+  } else if (section === 'drivers') {
+    content.innerHTML =
+      '<p style="padding:2rem;text-align:center;color:#64748b;font-size:0.9rem">Loading delivery partners…</p>';
+    mergeLocalAndRemoteUsersForAdmin().then(function (merged) {
+      var pane = document.getElementById('admin-content');
+      var navD = document.getElementById('adm-nav-drivers');
+      if (!pane || !navD || !navD.classList.contains('adm-active')) return;
+      var drivers = merged.filter(function (u) {
+        return u.role === 'driver';
+      });
+      var pendingCount = drivers.filter(function (u) {
+        return !isDriverVerified(u) && !u.banned;
+      }).length;
+      var cards =
+        drivers.length === 0
+          ? '<div style="text-align:center;padding:3.5rem 1.5rem;background:white;border:1px solid #e5e7eb;border-radius:16px;color:#64748b;font-size:0.95rem">No delivery partners yet. They appear here after signing up as <strong>Delivery partner</strong>.</div>'
+          : drivers
+              .map(function (d) {
+                var fn = d.first_name || d.firstName || '';
+                var ln = d.last_name || d.lastName || '';
+                var vid = JSON.stringify(String(d.id));
+                var verified = isDriverVerified(d);
+                var isBanned = !!d.banned;
+                var cinU = (d.cin_document_url || '').toString().trim();
+                var licU = (d.license_document_url || '').toString().trim();
+                var plate = d.vehicle_plate_number || d.vehiclePlateNumber || '';
+                var vmodel = d.vehicle_model || d.vehicleModel || '';
+                var vcolor = d.vehicle_color || d.vehicleColor || '';
+                var idAttr = _cardEscapeAttr(String(d.id));
+                var actions = '';
+                if (!isBanned) {
+                  if (!verified) {
+                    actions +=
+                      '<button type="button" onclick="verifyDriverAccount(' +
+                      vid +
+                      ')" style="background:linear-gradient(135deg,#059669,#10b981);color:white;border:none;padding:0.55rem 1.25rem;border-radius:10px;font-size:0.82rem;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(5,150,105,0.35)">✓ Approve driver</button>';
+                  }
+                  actions +=
+                    '<button type="button" data-adm-drv-ban="' +
+                    idAttr +
+                    '" style="background:#fff1f2;color:#b91c1c;border:1px solid #fecaca;padding:0.55rem 1.1rem;border-radius:10px;font-size:0.82rem;font-weight:600;cursor:pointer">Reject (ban)</button>' +
+                    '<button type="button" data-adm-drv-timeout="' +
+                    idAttr +
+                    '" style="background:#fffbeb;color:#b45309;border:1px solid #fde68a;padding:0.55rem 1.1rem;border-radius:10px;font-size:0.82rem;font-weight:600;cursor:pointer">Timeout</button>';
+                } else {
+                  actions +=
+                    '<button type="button" data-adm-drv-unban="' +
+                    idAttr +
+                    '" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.55rem 1.1rem;border-radius:10px;font-size:0.82rem;font-weight:600;cursor:pointer">Unban</button>';
+                }
+                var statusPill = isBanned
+                  ? '<span style="display:inline-block;background:#fee2e2;color:#991b1b;padding:0.4rem 0.85rem;border-radius:999px;font-size:0.75rem;font-weight:700">Banned</span>'
+                  : verified
+                  ? '<span style="display:inline-block;background:#dcfce7;color:#166534;padding:0.4rem 0.85rem;border-radius:999px;font-size:0.75rem;font-weight:700">✓ Approved</span>'
+                  : '<span style="display:inline-block;background:#fef3c7;color:#b45309;padding:0.4rem 0.85rem;border-radius:999px;font-size:0.75rem;font-weight:700">⏳ Pending your review</span>';
+                return (
+                  '<div class="adm-driver-card" style="background:white;border:1px solid #e5e7eb;border-radius:18px;padding:1.5rem 1.5rem 1.35rem;box-shadow:0 4px 20px rgba(15,23,42,0.06)">' +
+                  '<div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid #f1f5f9">' +
+                  '<div style="min-width:0;flex:1">' +
+                  '<h2 style="margin:0;font-size:1.2rem;font-weight:700;color:#0f172a;letter-spacing:-0.02em">' +
+                  _detailEscapeHtml((fn + ' ' + ln).trim() || 'Driver') +
+                  '</h2>' +
+                  '<p style="margin:0.4rem 0 0;font-size:0.85rem;color:#64748b;word-break:break-all">' +
+                  _detailEscapeHtml(d.email || '') +
+                  '</p>' +
+                  '<p style="margin:0.35rem 0 0;font-size:0.72rem;color:#94a3b8">User ID: ' +
+                  _detailEscapeHtml(String(d.id)) +
+                  '</p></div>' +
+                  '<div style="flex-shrink:0">' +
+                  statusPill +
+                  '</div></div>' +
+                  '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem 1.25rem;margin-bottom:1.35rem">' +
+                  _admDriverInfoCell('Phone', d.phone) +
+                  _admDriverInfoCell('Wilaya', d.wilaya) +
+                  _admDriverInfoCell('Delegation', d.delegation) +
+                  _admDriverInfoCell('CIN number', d.id_card_number) +
+                  _admDriverInfoCell('Vehicle plate', plate) +
+                  _admDriverInfoCell('Vehicle model', vmodel) +
+                  _admDriverInfoCell('Vehicle colour', vcolor) +
+                  _admDriverInfoCell('Loyalty points', d.points != null ? String(d.points) : '') +
+                  '</div>' +
+                  '<p style="font-size:0.72rem;font-weight:700;color:#0c4a6e;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 0.65rem">Submitted documents</p>' +
+                  '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;margin-bottom:1.35rem">' +
+                  '<div><p style="font-size:0.7rem;font-weight:600;color:#0369a1;margin:0 0 0.45rem">National ID (CIN)</p>' +
+                  _admDriverDocPreview(cinU, 'CIN') +
+                  '</div><div><p style="font-size:0.7rem;font-weight:600;color:#0369a1;margin:0 0 0.45rem">Driving licence</p>' +
+                  _admDriverDocPreview(licU, 'licence') +
+                  '</div></div>' +
+                  '<div style="display:flex;flex-wrap:wrap;gap:0.65rem;align-items:center">' +
+                  actions +
+                  '</div></div>'
+                );
+              })
+              .join('');
+      pane.innerHTML =
+        '<div><div style="margin-bottom:1.5rem">' +
+        '<h1 style="font-size:1.55rem;font-weight:800;color:#0f172a;margin:0;letter-spacing:-0.03em">Delivery partners</h1>' +
+        '<p style="color:#64748b;font-size:0.9rem;margin:0.5rem 0 0;line-height:1.5">' +
+        '<strong>' +
+        drivers.length +
+        '</strong> driver(s) · <strong>' +
+        pendingCount +
+        '</strong> waiting for approval. Review photos below, then <strong>Approve</strong> or <strong>Reject (ban)</strong>.</p></div>' +
+        '<div style="display:flex;flex-direction:column;gap:1.35rem">' +
+        cards +
+        '</div></div>';
+      pane.onclick = function (e) {
+        var bBan = e.target.closest('[data-adm-drv-ban]');
+        if (bBan) {
+          banUser(bBan.getAttribute('data-adm-drv-ban'));
+          return;
+        }
+        var bUn = e.target.closest('[data-adm-drv-unban]');
+        if (bUn) {
+          unbanUser(bUn.getAttribute('data-adm-drv-unban'));
+          return;
+        }
+        var bTo = e.target.closest('[data-adm-drv-timeout]');
+        if (bTo) {
+          timeoutUser(bTo.getAttribute('data-adm-drv-timeout'));
+        }
+      };
+    });
   } else if (section === 'logistics') {
     content.innerHTML = `
       <div>
@@ -2931,7 +3094,7 @@ async function assignOrderDriver(orderRef, driverUserId) {
     if (typeof SB !== 'undefined' && SB.getUserById) {
       var drvRow = await SB.getUserById(driverUserId);
       if (drvRow && drvRow.role === 'driver' && !isDriverVerified(drvRow)) {
-        toast('That driver is not verified yet — approve documents in Customers first', 'error');
+        toast('That driver is not verified yet — approve them in Admin → Drivers', 'error');
         return;
       }
     }
@@ -2941,7 +3104,7 @@ async function assignOrderDriver(orderRef, driverUserId) {
     return String(u.id) === String(driverUserId);
   });
   if (locDrv && locDrv.role === 'driver' && !isDriverVerified(locDrv)) {
-    toast('That driver is not verified yet — approve documents first', 'error');
+    toast('That driver is not verified yet — Admin → Drivers', 'error');
     return;
   }
   var orders = STN.DB.get('orders') || [];
