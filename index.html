@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="description" content="Everest — Hit Your Dreams. Tunisia's premium digital mall: curated artisans from Monastir, Ksar Hellal, and the Sahel.">
 <meta name="theme-color" content="#6200EE">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -60,8 +60,30 @@
 }
 
 *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
-body { background: #ffffff; color: #1a1035; font-family: var(--font-body); min-height: 100vh; overflow-x: hidden; cursor: none; }
+html {
+  scroll-behavior: smooth;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+body {
+  background: #ffffff;
+  color: #1a1035;
+  font-family: var(--font-body);
+  min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-x: clip;
+  position: relative;
+  margin: 0;
+  cursor: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
 a { color: inherit; text-decoration: none; cursor: none; }
 button { cursor: none; font-family: var(--font-body); }
 input, select, textarea { font-family: var(--font-body); }
@@ -110,7 +132,7 @@ body.cursor-big #cursor-ring { width: 50px; height: 50px; }
 .lang-btn.active, .lang-btn:hover { border-color: rgba(107,63,212,0.35); color: #7c3aed; background: #f5f2ff; }
 
 /* PAGES */
-.page { display: none; min-height: 100vh; position: relative; z-index: 1; padding-top: 64px; width: 100%; box-sizing: border-box; }
+.page { display: none; min-height: 100vh; position: relative; z-index: 1; padding-top: 64px; width: 100%; max-width: 100%; box-sizing: border-box; overflow-x: clip; }
 .page.active { display: block !important; width: 100% !important; min-height: 100vh; animation: page-in .35s ease; }
 @keyframes page-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -1091,7 +1113,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
       <button class="btn btn-outline btn-sm" onclick="toggleSidebar()" style="display:none;" id="mobile-filter-btn">
         🎯 Filters <span id="filter-count" style="background:#7c3aed;color:white;padding:0.1rem 0.4rem;border-radius:12px;margin-left:0.3rem;font-size:0.65rem">0</span>
       </button>
-      <div class="search-bar reveal" style="flex:1;min-width:250px">
+      <div class="search-bar reveal products-page-search" style="flex:1;min-width:0">
         <div class="search-icon-wrap">⌕</div>
         <input type="text" class="search-input" id="prod-search" placeholder="Search products, brands, regions…" onkeydown="if(event.key==='Enter')searchProducts()" oninput="if(this.value.length>2||this.value.length===0)searchProducts()"/>
         <button class="search-btn" onclick="searchProducts()">Search</button>
