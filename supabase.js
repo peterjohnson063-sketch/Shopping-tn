@@ -352,6 +352,10 @@ const SB = {
     const data = await this.req('PATCH', 'users', updates, `?id=eq.${_sbEq(id)}`);
     return data[0];
   },
+  async deleteUser(id) {
+    if (id == null || id === '') throw new Error('Invalid user id');
+    return this.req('DELETE', 'users', null, `?id=eq.${_sbEq(id)}`);
+  },
 
   // ── PRODUCTS ──
   async getProducts() {

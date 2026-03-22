@@ -379,6 +379,12 @@ const SB = {
     return data[0];
   },
 
+  /** Hard-delete row in public.users (requires RLS DELETE policy for your API role). */
+  async deleteUser(id) {
+    if (id == null || id === '') throw new Error('Invalid user id');
+    return this.req('DELETE', 'users', null, `?id=eq.${_sbEq(id)}`);
+  },
+
   /**
    * Supabase Storage upload (public bucket). Create bucket `driver-kyc` + INSERT policy in dashboard.
    */

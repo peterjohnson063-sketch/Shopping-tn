@@ -2799,7 +2799,8 @@ function switchAdmin(section) {
             docLinks + driverVerifyBtn +
             (isBanned
               ? '<button data-action="unban" data-id="'+u.id+'" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;font-weight:600">Unban</button>'
-              : '<button data-action="timeout" data-id="'+u.id+'" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;font-weight:600;margin-right:0.3rem">&#9203; Timeout</button><button data-action="ban" data-id="'+u.id+'" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;font-weight:600">&#128683; Ban</button>')
+              : '<button data-action="timeout" data-id="'+u.id+'" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;font-weight:600;margin-right:0.3rem">&#9203; Timeout</button><button data-action="ban" data-id="'+u.id+'" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;font-weight:600">&#128683; Ban</button>') +
+            '<div style="margin-top:0.5rem"><button type="button" data-action="delete-account" data-id="'+u.id+'" style="background:#0f172a;color:#fff;border:none;padding:0.3rem 0.65rem;border-radius:6px;font-size:0.66rem;cursor:pointer;font-weight:700">Delete account</button></div>'
           );
           return '<tr style="border-top:1px solid #f3f4f6'+(isBanned?';background:#fff5f5':'')+'">' +
             '<td style="padding:0.75rem 1rem"><div style="display:flex;align-items:center;gap:0.75rem"><div style="width:32px;height:32px;border-radius:50%;background:'+(isBanned?'#ef4444':'linear-gradient(135deg,#7c3aed,#9b72f0)')+';display:flex;align-items:center;justify-content:center;color:white;font-size:0.8rem;font-weight:700">'+((u.first_name||u.firstName||'?')[0].toUpperCase())+'</div><div><div style="font-size:0.82rem;font-weight:600;color:'+(isBanned?'#ef4444':'#111827')+'">'+(u.first_name||u.firstName||'')+' '+(u.last_name||u.lastName||'')+(isBanned?' &#128683;':'')+'</div>'+(isTimedOut?'<div style="font-size:0.68rem;color:#f59e0b">&#9203; '+timeoutLeft+'</div>':'')+'</div></div></td>' +
@@ -2830,6 +2831,7 @@ function switchAdmin(section) {
           if (btn.dataset.action === 'ban') banUser(id);
           else if (btn.dataset.action === 'timeout') timeoutUser(id);
           else if (btn.dataset.action === 'unban') unbanUser(id);
+          else if (btn.dataset.action === 'delete-account') adminDeleteUserAccount(id);
         });
     });
   } else if (section === 'drivers') {
@@ -2882,6 +2884,10 @@ function switchAdmin(section) {
                     idAttr +
                     '" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.55rem 1.1rem;border-radius:10px;font-size:0.82rem;font-weight:600;cursor:pointer">Unban</button>';
                 }
+                actions +=
+                  '<button type="button" data-adm-drv-delete="' +
+                  idAttr +
+                  '" style="background:#0f172a;color:#fff;border:none;padding:0.55rem 1.1rem;border-radius:10px;font-size:0.82rem;font-weight:700;cursor:pointer">Delete account</button>';
                 var statusPill = isBanned
                   ? '<span style="display:inline-block;background:#fee2e2;color:#991b1b;padding:0.4rem 0.85rem;border-radius:999px;font-size:0.75rem;font-weight:700">Banned</span>'
                   : verified
@@ -2952,6 +2958,11 @@ function switchAdmin(section) {
         var bTo = e.target.closest('[data-adm-drv-timeout]');
         if (bTo) {
           timeoutUser(bTo.getAttribute('data-adm-drv-timeout'));
+          return;
+        }
+        var bDel = e.target.closest('[data-adm-drv-delete]');
+        if (bDel) {
+          adminDeleteUserAccount(bDel.getAttribute('data-adm-drv-delete'));
         }
       };
     });
@@ -3055,7 +3066,11 @@ function switchAdmin(section) {
           if (!v.verified && !isBanned) act += '<button data-action="approve" data-id="'+v.id+'" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;margin-right:0.3rem">Approve</button>';
           act += isBanned
             ? '<button data-action="unban" data-id="'+v.id+'" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer">Unban</button>'
-            : '<button data-action="timeout" data-id="'+v.id+'" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;margin-right:0.3rem">Timeout</button><button data-action="ban" data-id="'+v.id+'" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer">Ban</button>';
+            : '<button data-action="timeout" data-id="'+v.id+'" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;margin-right:0.3rem">Timeout</button><button data-action="ban" data-id="'+v.id+'" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;margin-right:0.3rem">Ban</button>';
+          act +=
+            '<button data-action="delete-account" data-id="' +
+            v.id +
+            '" style="background:#0f172a;color:#fff;border:none;padding:0.25rem 0.55rem;border-radius:6px;font-size:0.68rem;cursor:pointer;font-weight:700">Delete</button>';
           return '<tr style="border-top:1px solid #f3f4f6'+(isBanned?';background:#fff5f5':'')+'">'
             +'<td style="padding:0.75rem 1rem;font-size:0.82rem;font-weight:600;color:'+(isBanned?'#ef4444':'#111827')+'">'+(v.first_name||v.firstName||'')+' '+(v.last_name||v.lastName||'')+(isTimedOut?' <small style="color:#f59e0b">'+timeoutLeft+'</small>':'')+'</td>'
             +'<td style="padding:0.75rem 1rem;font-size:0.78rem;color:#6b7280">'+v.email+'</td>'
@@ -3083,6 +3098,7 @@ function switchAdmin(section) {
           else if (action === 'ban') banUser(id);
           else if (action === 'timeout') timeoutUser(id);
           else if (action === 'unban') unbanUser(id);
+          else if (action === 'delete-account') adminDeleteUserAccount(id);
         });
     });
   }
@@ -3248,6 +3264,79 @@ function unbanUser(userId) {
     toast('User unbanned!', 'success');
   }
   const activeSection = document.querySelector('[id^="adm-nav-"].adm-active')?.id?.replace('adm-nav-', '') || 'users';
+  switchAdmin(activeSection);
+}
+
+/** Permanently remove a user from Supabase + local demo list (admin only). */
+async function adminDeleteUserAccount(userId) {
+  if (!State.currentUser || State.currentUser.role !== 'admin') {
+    toast('Admin access required', 'error');
+    return;
+  }
+  if (String(State.currentUser.id) === String(userId)) {
+    toast('You cannot delete your own account', 'error');
+    return;
+  }
+  var locals = STN.DB.get('users') || [];
+  var localTarget = locals.find(function (u) {
+    return String(u.id) === String(userId);
+  });
+  var emailHint = localTarget && localTarget.email ? String(localTarget.email) : 'this user';
+  try {
+    if (typeof SB !== 'undefined' && SB.getUserById) {
+      var rem = await SB.getUserById(userId);
+      if (rem && rem.role === 'admin') {
+        toast('Admin accounts cannot be deleted from the panel', 'error');
+        return;
+      }
+      if (rem && rem.email) emailHint = String(rem.email);
+    }
+  } catch (probeErr) {}
+  if (localTarget && localTarget.role === 'admin') {
+    toast('Admin accounts cannot be deleted from the panel', 'error');
+    return;
+  }
+  if (
+    !confirm(
+      'Delete account permanently?\n\n' +
+        emailHint +
+        '\n\nThis removes the row from the database. Orders may still reference this user id. OK?'
+    )
+  ) {
+    return;
+  }
+  if (!confirm('Final confirmation: DELETE this user forever?')) return;
+
+  try {
+    if (typeof SB !== 'undefined' && SB.deleteUser) {
+      await SB.deleteUser(userId);
+    }
+  } catch (e) {
+    var em = String((e && e.message) || e || 'Delete failed');
+    toast(
+      em.indexOf('permission') >= 0 || em.indexOf('RLS') >= 0 || em.indexOf('policy') >= 0
+        ? 'Delete blocked by Supabase RLS. Run the SQL policy in supabase/migrations for DELETE on users, or use the dashboard.'
+        : '⚠️ ' + (em.length > 160 ? em.slice(0, 157) + '…' : em),
+      'error'
+    );
+    if (typeof STNLog !== 'undefined') STNLog.error('adminDeleteUserAccount', e, { userId });
+    return;
+  }
+
+  var users = STN.DB.get('users') || [];
+  var next = users.filter(function (u) {
+    return String(u.id) !== String(userId);
+  });
+  STN.DB.set('users', next);
+  if (State.currentUser && String(State.currentUser.id) === String(userId)) {
+    State.currentUser = null;
+    STN.DB.set('currentUser', null);
+    updateNavUser();
+    showPage('home');
+  }
+  toast('Account deleted', 'success');
+  var activeSection =
+    document.querySelector('[id^="adm-nav-"].adm-active')?.id?.replace('adm-nav-', '') || 'users';
   switchAdmin(activeSection);
 }
 
