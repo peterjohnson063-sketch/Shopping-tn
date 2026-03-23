@@ -1,5 +1,5 @@
 /* Everest PWA — offline-friendly, but network-first so phones always get updates */
-const CACHE_NAME = 'everest-pwa-v9';
+const CACHE_NAME = 'everest-pwa-v10';
 const PRECACHE_URLS = [
   './',
   './index.html',

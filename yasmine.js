@@ -95,36 +95,109 @@ var TRANSLATIONS={
   }
 };
 
-function setLang(lang){
-  window._currentLang = lang;
-  ['ar','fr','en'].forEach(function(l){
-    var btn=document.getElementById('lang-'+l);
-    if(btn) btn.classList.toggle('active', l===lang);
-  });
-  document.querySelectorAll('[data-nav-lang]').forEach(function(b){
-    b.classList.toggle('active', b.getAttribute('data-nav-lang')===lang);
-  });
-  document.documentElement.dir = lang==='ar' ? 'rtl' : 'ltr';
+function _safeLang(lang) {
+  if (lang === 'ar' || lang === 'fr' || lang === 'en') return lang;
+  return 'fr';
+}
+
+function _applyLangToDom(lang) {
   var T = TRANSLATIONS[lang];
-  if(!T) return;
-  document.querySelectorAll('[data-lang]').forEach(function(el){
-    var key = el.getAttribute('data-lang');
-    if(T[key]) el.textContent = T[key];
+  if (!T) return;
+
+  ['ar', 'fr', 'en'].forEach(function (l) {
+    var btn = document.getElementById('lang-' + l);
+    if (btn) btn.classList.toggle('active', l === lang);
   });
+  document.querySelectorAll('[data-nav-lang]').forEach(function (b) {
+    b.classList.toggle('active', b.getAttribute('data-nav-lang') === lang);
+  });
+
+  document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+  document.documentElement.lang = lang;
+
+  document.querySelectorAll('[data-lang]').forEach(function (el) {
+    var key = el.getAttribute('data-lang');
+    if (T[key]) el.textContent = T[key];
+  });
+  document.querySelectorAll('[data-lang-placeholder]').forEach(function (el) {
+    var key = el.getAttribute('data-lang-placeholder');
+    if (T[key]) el.setAttribute('placeholder', T[key]);
+  });
+  document.querySelectorAll('[data-lang-title]').forEach(function (el) {
+    var key = el.getAttribute('data-lang-title');
+    if (T[key]) el.setAttribute('title', T[key]);
+  });
+
   var hs = document.getElementById('home-search');
-  if(hs && T['hero-search']) hs.placeholder = T['hero-search'];
+  if (hs && T['hero-search']) hs.placeholder = T['hero-search'];
   var cartTitle = document.querySelector('.cart-header h2');
-  if(cartTitle && T['cart-title']) cartTitle.textContent = T['cart-title'];
+  if (cartTitle && T['cart-title']) cartTitle.textContent = T['cart-title'];
   var checkoutBtn = document.querySelector('[onclick="checkout()"]');
-  if(checkoutBtn && T['checkout-btn']) checkoutBtn.textContent = T['checkout-btn'] + ' \u2192';
+  if (checkoutBtn && T['checkout-btn']) checkoutBtn.textContent = T['checkout-btn'] + ' \u2192';
   var trackInput = document.getElementById('track-num');
-  if(trackInput && T['track-placeholder']) trackInput.placeholder = T['track-placeholder'];
-  if(typeof AI !== 'undefined') AI.setLang(lang);
-  if(typeof toast === 'function'){
-    var f = {ar:'AR - \u0639\u0631\u0628\u064a', fr:'FR - Fran\u00e7ais', en:'EN - English'};
-    toast(f[lang], 'default');
+  if (trackInput && T['track-placeholder']) trackInput.placeholder = T['track-placeholder'];
+}
+
+function setLang(lang, opts){
+  var options = opts || {};
+  var safe = _safeLang(lang);
+  var prev = window._currentLang || 'fr';
+  window._currentLang = safe;
+  try { localStorage.setItem('stn_lang', safe); } catch(e) {}
+
+  _applyLangToDom(safe);
+
+  if(typeof AI !== 'undefined') AI.setLang(safe);
+  if(!options.silent && prev !== safe && typeof toast === 'function'){
+    var f = {ar:'AR - \u0639\u0631\u0628\u064a', fr:'FR - Francais', en:'EN - English'};
+    toast(f[safe], 'default');
   }
 }
+
+window.STNI18N = {
+  getLang: function () { return _safeLang(window._currentLang || 'fr'); },
+  setLang: setLang,
+  t: function (key, fallback) {
+    var lang = _safeLang(window._currentLang || 'fr');
+    var T = TRANSLATIONS[lang] || {};
+    return T[key] || fallback || key;
+  }
+};
+
+(function initLanguageSystem() {
+  try {
+    var stored = localStorage.getItem('stn_lang');
+    if (stored) window._currentLang = _safeLang(stored);
+  } catch (e) {}
+
+  var applySaved = function () {
+    setLang(window._currentLang || 'fr', { silent: true });
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applySaved);
+  } else {
+    applySaved();
+  }
+
+  // Apply language to dynamic DOM updates (newly rendered page sections/modals).
+  var scheduled = false;
+  var obs = new MutationObserver(function () {
+    if (scheduled) return;
+    scheduled = true;
+    setTimeout(function () {
+      scheduled = false;
+      setLang(window._currentLang || 'fr', { silent: true });
+    }, 50);
+  });
+  if (document.body) {
+    obs.observe(document.body, { childList: true, subtree: true });
+  } else {
+    document.addEventListener('DOMContentLoaded', function () {
+      if (document.body) obs.observe(document.body, { childList: true, subtree: true });
+    });
+  }
+})();
 
 
 // ── AI ASSISTANT ──

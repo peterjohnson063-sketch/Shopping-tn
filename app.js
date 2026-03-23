@@ -556,7 +556,7 @@ function showPage(id) {
   const activeLangBtn = document.querySelector('.lang-btn.active');
   if (activeLangBtn) {
     const lang = activeLangBtn.id.replace('lang-','');
-    setTimeout(() => { if(typeof setLang === 'function') setLang(lang); }, 100);
+    setTimeout(() => { if(typeof setLang === 'function') setLang(lang, { silent: true }); }, 100);
   }
   syncBottomNavActive(id);
   return false;
