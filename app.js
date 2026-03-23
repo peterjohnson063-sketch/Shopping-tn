@@ -2115,6 +2115,94 @@ function logout() {
   showPage('home');
 }
 
+/** Customer, vendor, or driver: remove own profile (not admin). Uses Supabase delete or soft-delete; falls back to local-only if SB is unavailable. */
+async function deleteMyAccount() {
+  if (!State.currentUser) {
+    showPage('auth');
+    return;
+  }
+  var role = State.currentUser.role;
+  if (role === 'admin') {
+    toast('Admin accounts cannot be deleted from here. Contact another admin or support.', 'error');
+    return;
+  }
+  var uid = State.currentUser.id;
+  if (uid == null || uid === '') {
+    toast('This session has no account id. Use Log out instead.', 'error');
+    return;
+  }
+  var email = State.currentUser.email || 'your account';
+  if (
+    !confirm(
+      'Delete your Everest account?\n\n' +
+        email +
+        '\n\nYou will be signed out. This cannot be undone in the app. Continue?'
+    )
+  ) {
+    return;
+  }
+  if (!confirm('Final confirmation: permanently delete this account?')) return;
+
+  function clearLocalSessionAndUserRow() {
+    var usersArr = STN.DB.get('users') || [];
+    STN.DB.set(
+      'users',
+      usersArr.filter(function (u) {
+        return String(u.id) !== String(uid);
+      })
+    );
+    _stnAdminRemovedUserIdRemember(uid);
+    State.currentUser = null;
+    STN.DB.set('currentUser', null);
+    updateNavUser();
+    showPage('home');
+  }
+
+  if (typeof SB === 'undefined' || typeof SB.deleteUser !== 'function') {
+    clearLocalSessionAndUserRow();
+    toast('Removed from this device (cloud delete unavailable).', 'success');
+    return;
+  }
+
+  var deleteHow = '';
+  try {
+    await SB.deleteUser(uid);
+    deleteHow = 'hard';
+  } catch (eDel) {
+    try {
+      if (typeof SB.updateUser === 'function') {
+        await SB.updateUser(uid, {
+          deleted_at: new Date().toISOString(),
+          banned: true,
+          ban_reason: 'Account deleted by user',
+          banned_at: new Date().toISOString(),
+        });
+        deleteHow = 'soft';
+      } else {
+        throw eDel;
+      }
+    } catch (eSoft) {
+      var em = String((eDel && eDel.message) || eDel || '');
+      toast(
+        em.indexOf('permission') >= 0 || em.indexOf('RLS') >= 0 || em.indexOf('policy') >= 0
+          ? 'Could not delete: server blocked the request. Try again or contact support.'
+          : 'Could not delete: ' + (em.length > 120 ? em.slice(0, 117) + '…' : em),
+        'error'
+      );
+      if (typeof STNLog !== 'undefined') STNLog.error('deleteMyAccount', eDel, { uid });
+      return;
+    }
+  }
+
+  clearLocalSessionAndUserRow();
+  toast(
+    deleteHow === 'hard'
+      ? 'Your account was deleted.'
+      : 'Your account was closed (profile hidden on the server).',
+    'success'
+  );
+}
+
 // ── HOME ──
 function renderHome() {
   const products = State.products;
@@ -2586,16 +2674,33 @@ function renderWishlist() {
 function renderAccount() {
   if (!State.currentUser) { showPage('auth'); return; }
   const u = State.currentUser;
-  const tier = STN.LOYALTY_TIERS.find(t => u.points >= t.min && u.points <= t.max) || STN.LOYALTY_TIERS[0];
+  var fn = u.firstName || u.first_name || '';
+  var ln = u.lastName || u.last_name || '';
+  var role = u.role || 'customer';
+  var pts = Number(u.points);
+  if (!Number.isFinite(pts)) pts = 0;
+  const tier = STN.LOYALTY_TIERS.find(t => pts >= t.min && pts <= t.max) || STN.LOYALTY_TIERS[0];
   const nextTier = STN.LOYALTY_TIERS[STN.LOYALTY_TIERS.indexOf(tier) + 1];
-  const progress = nextTier ? ((u.points - tier.min) / (nextTier.min - tier.min)) * 100 : 100;
+  const progress = nextTier ? ((pts - tier.min) / (nextTier.min - tier.min)) * 100 : 100;
+  var shopLine =
+    role === 'vendor'
+      ? '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.35rem">Seller · ' +
+        (u.shop_name || u.shopName || 'Shop') +
+        '</div>'
+      : '';
+  var navBtns =
+    role === 'vendor'
+      ? '<button class="btn btn-ghost btn-sm" onclick="showPage(\'vendor\')">Seller hub</button>'
+      : '<button class="btn btn-ghost btn-sm" onclick="showPage(\'track\')">My Orders</button>\n          <button class="btn btn-ghost btn-sm" onclick="showPage(\'wishlist\')">Wishlist (' +
+        State.wishlist.length +
+        ')</button>';
   const page = document.getElementById('page-account');
   if (!page) return;
   page.innerHTML = `
   <div class="s">
     <div class="s-header reveal">
       <span class="eyebrow">My Account</span>
-      <h1 class="display" style="font-size:3rem">Hello, <em class="gold-text">${u.firstName}!</em></h1>
+      <h1 class="display" style="font-size:3rem">Hello, <em class="gold-text">${fn || 'there'}!</em></h1>
       <div class="divider center"></div>
     </div>
     <div class="grid-2" style="gap:2rem;margin-bottom:3rem">
@@ -2603,16 +2708,20 @@ function renderAccount() {
         <div style="display:flex;align-items:center;gap:1.2rem;margin-bottom:1.5rem">
           <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,var(--purple-mid),var(--purple-glow));border:2px solid rgba(124,58,237,0.3);display:flex;align-items:center;justify-content:center;font-size:1.8rem">${u.avatar || '👤'}</div>
           <div>
-            <div style="font-size:1.1rem;color:var(--champagne);font-weight:500">${u.firstName} ${u.lastName}</div>
-            <div style="font-size:0.75rem;color:var(--text-muted)">${u.email}</div>
-            <div style="font-size:0.7rem;color:var(--gold);margin-top:0.2rem">${u.wilaya} · ${u.delegation}</div>
+            <div style="font-size:1.1rem;color:var(--champagne);font-weight:500">${fn} ${ln}</div>
+            <div style="font-size:0.75rem;color:var(--text-muted)">${u.email || ''}</div>
+            <div style="font-size:0.7rem;color:var(--gold);margin-top:0.2rem">${u.wilaya || '—'} · ${u.delegation || '—'}</div>
+            ${shopLine}
           </div>
         </div>
-        <div style="display:flex;gap:0.8rem;flex-wrap:wrap">
-          <button class="btn btn-ghost btn-sm" onclick="showPage('track')">My Orders</button>
-          <button class="btn btn-ghost btn-sm" onclick="showPage('wishlist')">Wishlist (${State.wishlist.length})</button>
-          <button class="btn btn-danger btn-sm" onclick="logout()">Sign Out</button>
+        <div style="display:flex;gap:0.8rem;flex-wrap:wrap;margin-bottom:1rem">
+          ${navBtns}
         </div>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;padding-top:1rem;border-top:1px solid rgba(124,58,237,0.12)">
+          <button type="button" class="btn btn-danger btn-sm" onclick="logout()">Log out</button>
+          <button type="button" class="btn btn-ghost btn-sm" style="border-color:rgba(220,38,38,0.45);color:#b91c1c" onclick="deleteMyAccount()">Delete account</button>
+        </div>
+        <p style="font-size:0.7rem;color:var(--text-muted);margin:0.75rem 0 0;max-width:28rem">Deleting removes your profile from Everest (or hides it if the server only allows a soft delete). You can register again with the same email only if the database allows it.</p>
       </div>
       <div class="glass-lg reveal" style="padding:2rem;border-color:rgba(${tier.color},0.3)">
         <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem">
@@ -2622,12 +2731,12 @@ function renderAccount() {
             <div style="font-size:1.4rem;font-family:var(--font-display);color:var(--champagne)">${tier.name} <em class="gold-text">Member</em></div>
           </div>
         </div>
-        <div style="font-size:1.8rem;font-family:var(--font-display);color:var(--champagne);margin-bottom:0.3rem">${u.points.toLocaleString()} <span style="font-size:1rem;color:var(--text-muted)">points</span></div>
+        <div style="font-size:1.8rem;font-family:var(--font-display);color:var(--champagne);margin-bottom:0.3rem">${pts.toLocaleString()} <span style="font-size:1rem;color:var(--text-muted)">points</span></div>
         ${nextTier ? `
         <div style="background:var(--bg-1,#f8f7ff);border-radius:4px;height:6px;margin:0.8rem 0;overflow:hidden">
           <div style="height:100%;width:${progress}%;background:linear-gradient(90deg,var(--gold),var(--champagne));border-radius:4px;transition:width 1s"></div>
         </div>
-        <div style="font-size:0.72rem;color:var(--text-muted)">${(nextTier.min - u.points).toLocaleString()} points to ${nextTier.name}</div>` : '<div style="font-size:0.72rem;color:var(--success)">✦ Maximum tier reached!</div>'}
+        <div style="font-size:0.72rem;color:var(--text-muted)">${(nextTier.min - pts).toLocaleString()} points to ${nextTier.name}</div>` : '<div style="font-size:0.72rem;color:var(--success)">✦ Maximum tier reached!</div>'}
       </div>
     </div>
   </div>`;
@@ -4249,6 +4358,11 @@ function buildProfessionalDashboardHTML() {
           <div class="dash-pro-shop" id="vendor-name"></div>
           <span class="dash-pro-live" id="vendor-verify-pill">Live</span>
         </div>
+        <div class="dash-pro-hero-actions" style="width:100%;flex-basis:100%;display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.15rem;padding-top:0.65rem;border-top:1px solid var(--dp-border)">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="showPage('account')">Account</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="logout()">Log out</button>
+          <button type="button" class="btn btn-sm" style="background:#fff;color:#b91c1c;border:1px solid rgba(220,38,38,0.35)" onclick="deleteMyAccount()">Delete account</button>
+        </div>
       </div>
 
       <div class="kpi-grid" id="kpi-grid">
@@ -4940,10 +5054,15 @@ function buildVendorHTML() {
     return '<button id="vnd-nav-'+t.id+'" onclick="switchVendorSection(\'' + t.id + '\')" style="background:none;border:none;border-bottom:2px solid transparent;padding:0.875rem 1.25rem;cursor:pointer;font-size:0.875rem;font-weight:500;color:#6b7280;font-family:Outfit,sans-serif;white-space:nowrap;transition:all 0.15s">'+t.label+'</button>';
   }).join('');
   return '<div style="background:#f9fafb;min-height:100vh">'
-    + '<div style="background:white;border-bottom:2px solid #e5e7eb;padding:0 2rem;display:flex;align-items:center;gap:1rem;overflow-x:auto">'
+    + '<div style="background:white;border-bottom:2px solid #e5e7eb;padding:0 2rem;display:flex;align-items:center;gap:1rem;overflow-x:auto;flex-wrap:wrap">'
     + '<span style="font-size:0.9rem;font-weight:700;color:#7c3aed;padding:0.875rem 0;margin-right:0.5rem;white-space:nowrap;flex-shrink:0">&#127978; '+shopName+'</span>'
     + '<span style="font-size:0.7rem;font-weight:600;color:'+(isVerified?'#059669':'#d97706')+';padding:0.2rem 0.6rem;background:'+(isVerified?'#f0fdf4':'#fffbeb')+';border-radius:20px;flex-shrink:0">'+(isVerified?'Verified':'Pending')+'</span>'
-    + '<div style="display:flex;flex:1">' + tabsHTML + '</div>'
+    + '<div style="display:flex;flex:1;min-width:0">' + tabsHTML + '</div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;padding:0.5rem 0;flex-shrink:0">'
+    + '<button type="button" onclick="showPage(\'account\')" style="background:#f5f3ff;color:#5b21b6;border:1px solid #ddd6fe;padding:0.45rem 0.85rem;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif">Account</button>'
+    + '<button type="button" onclick="logout()" style="background:#7c3aed;color:white;border:none;padding:0.45rem 0.85rem;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif">Log out</button>'
+    + '<button type="button" onclick="deleteMyAccount()" style="background:white;color:#b91c1c;border:1px solid #fecaca;padding:0.45rem 0.85rem;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif">Delete account</button>'
+    + '</div>'
     + '</div>'
     + '<div style="padding:2rem" id="vendor-content"></div>'
     + '</div>';
