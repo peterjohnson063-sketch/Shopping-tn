@@ -4043,6 +4043,38 @@ async function assignOrderDriver(orderRef, driverUserId) {
   switchAdmin('orders');
 }
 
+/**
+ * PATCH driver approval to Supabase. Tries shapes that match different schemas:
+ * - is_verified (driver KYC migration)
+ * - verified only (some vendor-oriented schemas)
+ * - both (if both columns exist)
+ */
+async function _sbPatchDriverVerifiedForApprove(userId) {
+  if (typeof SB === 'undefined' || typeof SB.updateUser !== 'function') {
+    return { ok: true, mode: 'no-remote' };
+  }
+  var lastErr = null;
+  try {
+    await SB.updateUser(userId, { is_verified: true });
+    return { ok: true, mode: 'is_verified' };
+  } catch (e1) {
+    lastErr = e1;
+  }
+  try {
+    await SB.updateUser(userId, { verified: true });
+    return { ok: true, mode: 'verified-only' };
+  } catch (e2) {
+    lastErr = e2;
+  }
+  try {
+    await SB.updateUser(userId, { verified: true, is_verified: true });
+    return { ok: true, mode: 'both' };
+  } catch (e3) {
+    lastErr = e3;
+  }
+  return { ok: false, err: lastErr };
+}
+
 async function verifyDriverAccount(userId) {
   try {
     if (typeof SB !== 'undefined' && SB.getUserById) {
@@ -4061,42 +4093,72 @@ async function verifyDriverAccount(userId) {
     toast('Cannot verify a suspended account', 'error');
     return;
   }
-  if (idx !== -1) {
-    users[idx].verified = true;
-    users[idx].is_verified = true;
-    STN.DB.set('users', users);
+
+  var remote = await _sbPatchDriverVerifiedForApprove(userId);
+  if (!remote.ok) {
+    var msg = remote.err && remote.err.message ? String(remote.err.message) : 'Update failed';
+    var low = msg.toLowerCase();
+    toast(
+      low.indexOf('policy') >= 0 || low.indexOf('permission') >= 0 || low.indexOf('rls') >= 0
+        ? 'Could not approve: the database blocked the update (RLS). Apply the optional users UPDATE policy in Supabase (see migrations) or use a service role.'
+        : 'Could not approve driver: ' + (msg.length > 130 ? msg.slice(0, 127) + '…' : msg),
+      'error'
+    );
+    if (typeof STNLog !== 'undefined') STNLog.warn('verifyDriverAccount.remote', remote.err);
+    return;
   }
-  try {
-    if (typeof SB !== 'undefined' && SB.updateUser) {
-      await SB.updateUser(userId, { verified: true, is_verified: true });
-      if (idx === -1 && SB.getUserById) {
-        var row = await SB.getUserById(userId);
-        if (row) {
-          users.push(
-            STN.userForSession({
-              ...row,
-              firstName: row.first_name,
-              lastName: row.last_name,
-              verified: true,
-              is_verified: true,
-            })
-          );
-          STN.DB.set('users', users);
-        }
+
+  users = STN.DB.get('users') || [];
+  idx = users.findIndex(function (u) {
+    return String(u.id) === String(userId);
+  });
+  if (remote.mode !== 'no-remote' && typeof SB !== 'undefined' && SB.getUserById) {
+    try {
+      var row = await SB.getUserById(userId);
+      if (row) {
+        var merged = STN.userForSession({
+          ...row,
+          firstName: row.first_name,
+          lastName: row.last_name,
+          verified: true,
+          is_verified: true,
+        });
+        if (idx >= 0) users[idx] = merged;
+        else users.push(merged);
+        STN.DB.set('users', users);
+      }
+    } catch (e) {
+      if (typeof STNLog !== 'undefined') STNLog.warn('verifyDriverAccount.refetch', e && e.message);
+      if (idx >= 0) {
+        users[idx].verified = true;
+        users[idx].is_verified = true;
+        STN.DB.set('users', users);
       }
     }
-  } catch (e) {
-    if (typeof STNLog !== 'undefined') STNLog.warn('verifyDriverAccount', e && e.message);
+  } else {
+    if (idx >= 0) {
+      users[idx].verified = true;
+      users[idx].is_verified = true;
+      STN.DB.set('users', users);
+    }
   }
+
   if (State.currentUser && String(State.currentUser.id) === String(userId)) {
     State.currentUser.verified = true;
     State.currentUser.is_verified = true;
     STN.DB.set('currentUser', State.currentUser);
     updateNavUser();
   }
-  toast('Driver verified — they can accept deliveries', 'success');
-  switchAdmin('users');
+  toast('Driver approved — they can accept deliveries.', 'success');
+  var navActive = document.querySelector('[id^="adm-nav-"].adm-active');
+  var sec =
+    navActive && navActive.id && navActive.id.indexOf('adm-nav-') === 0
+      ? navActive.id.replace('adm-nav-', '')
+      : 'users';
+  switchAdmin(sec === 'drivers' ? 'drivers' : 'users');
 }
+
+window.verifyDriverAccount = verifyDriverAccount;
 
 async function verifyVendor(userId) {
   const users = STN.DB.get('users') || [];
