@@ -5925,12 +5925,28 @@ async function uploadProduct() {
       throw new Error('Upload failed after retries. Check Supabase columns and RLS policies.');
     }
 
+    var savedForUi = Object.assign({}, savedProduct || {}, {
+      name: title,
+      brand: brand,
+      desc: desc,
+      price: price,
+      oldPrice: oldPrice,
+      stock: stock,
+      badge: badge || null,
+      cat: catSlug,
+      category: catSlug,
+      image: imageUrl,
+      image_url: imageUrl,
+      product_images: imageList,
+      vendorId: effectiveVendorId,
+    });
+
     if (editProductId) {
       var idx = State.products.findIndex(function (p) { return String(p.id) === String(editProductId); });
-      if (idx >= 0) State.products[idx] = savedProduct;
-      else State.products.push(savedProduct);
+      if (idx >= 0) State.products[idx] = savedForUi;
+      else State.products.push(savedForUi);
     } else {
-      State.products.push(savedProduct);
+      State.products.push(savedForUi);
     }
     STN.DB.set('products', State.products);
     vendorSetUploadMode(null);
@@ -5943,6 +5959,10 @@ async function uploadProduct() {
       await initializeProducts();
       filterAndRenderProducts();
     }
+    try {
+      await initializeProducts();
+      if (State.currentPage === 'products') filterAndRenderProducts();
+    } catch (refreshErr) {}
 
     try { window.dispatchEvent(new CustomEvent('products:changed', { detail: { source: 'uploadProduct', productId: savedProduct?.id } })); } catch(e) {}
   } catch (error) {
