@@ -95,6 +95,75 @@ var TRANSLATIONS={
   }
 };
 
+function _stnEnsureTranslateStyles() {
+  if (document.getElementById('stn-gt-hide-style')) return;
+  var s = document.createElement('style');
+  s.id = 'stn-gt-hide-style';
+  s.textContent =
+    '.goog-te-banner-frame.skiptranslate{display:none!important;}' +
+    'body{top:0!important;}' +
+    '#stn-google-translate{position:fixed;left:-9999px;top:-9999px;opacity:0;pointer-events:none;}';
+  document.head.appendChild(s);
+}
+
+function _stnInitGoogleTranslate() {
+  if (window.__stnGoogleTranslateInitStarted) return;
+  window.__stnGoogleTranslateInitStarted = true;
+  _stnEnsureTranslateStyles();
+
+  if (!document.getElementById('stn-google-translate')) {
+    var host = document.createElement('div');
+    host.id = 'stn-google-translate';
+    document.body.appendChild(host);
+  }
+
+  window.googleTranslateElementInit = function () {
+    try {
+      if (window.google && window.google.translate && window.google.translate.TranslateElement) {
+        window.__stnGoogleTranslateReady = true;
+        new window.google.translate.TranslateElement(
+          {
+            pageLanguage: 'en',
+            includedLanguages: 'en,fr,ar',
+            autoDisplay: false
+          },
+          'stn-google-translate'
+        );
+      }
+    } catch (e) {}
+  };
+
+  if (!document.querySelector('script[data-stn-google-translate-script="1"]')) {
+    var js = document.createElement('script');
+    js.setAttribute('data-stn-google-translate-script', '1');
+    js.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+    js.async = true;
+    document.head.appendChild(js);
+  }
+}
+
+function _stnApplyGooglePageTranslate(lang) {
+  var safe = _safeLang(lang);
+  var apply = function () {
+    var combo = document.querySelector('.goog-te-combo');
+    if (!combo) return false;
+    if (combo.value !== safe) {
+      combo.value = safe;
+      combo.dispatchEvent(new Event('change'));
+    }
+    return true;
+  };
+
+  if (!apply()) {
+    _stnInitGoogleTranslate();
+    var tries = 0;
+    var timer = setInterval(function () {
+      tries += 1;
+      if (apply() || tries > 50) clearInterval(timer);
+    }, 120);
+  }
+}
+
 function _safeLang(lang) {
   if (lang === 'ar' || lang === 'fr' || lang === 'en') return lang;
   return 'fr';
@@ -146,6 +215,7 @@ function setLang(lang, opts){
   try { localStorage.setItem('stn_lang', safe); } catch(e) {}
 
   _applyLangToDom(safe);
+  _stnApplyGooglePageTranslate(safe);
 
   if(typeof AI !== 'undefined') AI.setLang(safe);
   if(!options.silent && prev !== safe && typeof toast === 'function'){
@@ -171,6 +241,7 @@ window.STNI18N = {
   } catch (e) {}
 
   var applySaved = function () {
+    _stnInitGoogleTranslate();
     setLang(window._currentLang || 'fr', { silent: true });
   };
 
