@@ -15,6 +15,12 @@ function _sbEq(value) {
   return encodeURIComponent(value == null ? '' : String(value));
 }
 
+/** True if value is a string Postgres accepts as uuid (8-4-4-4-12 hex). */
+function _sbIsUuid(v) {
+  if (v == null || v === '') return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v).trim());
+}
+
 const _ORDER_STATUSES = new Set([
   'pending', 'confirmed', 'processing', 'shipped', 'delivered', 'ready', 'cancelled', 'canceled', 'transit',
   'out_for_delivery', 'out-for-delivery',
@@ -114,9 +120,9 @@ function _sbMapProductBodyForApi(product, options) {
   });
 
   if (Object.prototype.hasOwnProperty.call(product, 'vendorId') && product.vendorId !== undefined) {
-    body.vendor_id = product.vendorId;
+    if (_sbIsUuid(product.vendorId)) body.vendor_id = String(product.vendorId).trim();
   } else if (Object.prototype.hasOwnProperty.call(product, 'vendor_id') && product.vendor_id !== undefined) {
-    body.vendor_id = product.vendor_id;
+    if (_sbIsUuid(product.vendor_id)) body.vendor_id = String(product.vendor_id).trim();
   }
 
   var oldCol = _sbProductOldPriceColumn();
@@ -266,6 +272,8 @@ function _sbUniqueUserInsertAttempts(body) {
 
 // Initialize Supabase client - FIXED: Use fetch API only (no library dependency)
 const SB = {
+  isUuid: _sbIsUuid,
+
   // ── GENERIC REQUEST ──
   async req(method, table, body, query = '') {
     _sbSafeTable(table);

@@ -5133,6 +5133,40 @@ async function uploadToCloudinary(input) {
   }
 }
 
+/**
+ * `products.vendor_id` in Supabase is usually UUID. Session `currentUser.id` may be a numeric
+ * local id or stale value — refresh from `users` by email when possible.
+ */
+async function resolveVendorIdForProductUpload() {
+  var u = State.currentUser;
+  if (!u) return { id: null, err: 'not_signed_in' };
+  function isU(v) {
+    if (typeof SB !== 'undefined' && typeof SB.isUuid === 'function') return SB.isUuid(v);
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v || '').trim());
+  }
+  if (isU(u.id)) return { id: String(u.id).trim(), err: null };
+  var alt = u.auth_id || u.uuid || u.supabase_user_id;
+  if (isU(alt)) return { id: String(alt).trim(), err: null };
+  var email = (u.email || '').trim();
+  if (email && typeof SB !== 'undefined' && SB.getUser) {
+    try {
+      var row = await SB.getUser(email);
+      if (row && isU(row.id)) {
+        State.currentUser = STN.userForSession(Object.assign({}, State.currentUser, { id: row.id }));
+        STN.DB.set('currentUser', State.currentUser);
+        if (typeof updateNavUser === 'function') updateNavUser();
+        return { id: String(row.id).trim(), err: null };
+      }
+      if (row && row.id != null && !isU(row.id)) {
+        return { id: null, err: 'numeric_user_id' };
+      }
+    } catch (e) {
+      if (typeof STNLog !== 'undefined') STNLog.warn('vendor.resolveVendorId', e && e.message);
+    }
+  }
+  return { id: null, err: 'no_uuid' };
+}
+
 async function deleteVendorProduct(productId) {
   try {
     // Delete from Supabase first
@@ -5202,10 +5236,22 @@ async function uploadProduct() {
     return;
   }
 
-  if (State.currentUser.id == null || State.currentUser.id === '') {
-    toast('⚠️ Your vendor profile has no ID. Sign out and sign in again.', 'error');
+  var vendorIdRes = await resolveVendorIdForProductUpload();
+  if (!vendorIdRes.id) {
+    if (vendorIdRes.err === 'numeric_user_id') {
+      toast(
+        '⚠️ Your account id in the database is not a UUID, but products.vendor_id expects one. An admin should change products.vendor_id to bigint (to match users.id) or add a UUID profile field from Auth.',
+        'error'
+      );
+    } else {
+      toast(
+        '⚠️ Could not resolve a valid vendor UUID. Sign out and sign in with your email so your Supabase user id loads. If you only use offline demo accounts, register a vendor on this site first.',
+        'error'
+      );
+    }
     return;
   }
+  var effectiveVendorUuid = vendorIdRes.id;
 
   let catSlug = null;
   if (rawCat === '__new__') {
@@ -5253,7 +5299,7 @@ async function uploadProduct() {
   const newProduct = {
     name: title,
     brand: State.currentUser?.shop_name || State.currentUser?.shopName || brand,
-    vendorId: State.currentUser?.id,
+    vendorId: effectiveVendorUuid,
     region: State.currentUser?.wilaya || 'Tunisia',
     cat: catSlug,
     category: catSlug,
