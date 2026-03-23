@@ -26,6 +26,8 @@ const State = {
   dashSection: 'overview',
   vendorSection: 'dashboard',
   selectedProduct: null,
+  vendorEditingProductId: null,
+  vendorUploadImageUrls: [],
   flashInterval: null,
   countdownInterval: null,
 };
@@ -1324,9 +1326,33 @@ function _cardEscapeAttr(s) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
+function _productImageList(p) {
+  if (!p || typeof p !== 'object') return [];
+  var out = [];
+  var raw = p.product_images;
+  if (Array.isArray(raw)) {
+    out = raw;
+  } else if (typeof raw === 'string' && raw.trim()) {
+    try {
+      var parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) out = parsed;
+    } catch (e) {}
+  }
+  if ((!out || out.length === 0) && (p.image || p.image_url)) {
+    out = [p.image || p.image_url];
+  }
+  return out
+    .map(function (u) { return String(u || '').trim(); })
+    .filter(function (u) { return /^https?:\/\//i.test(u); })
+    .slice(0, 4);
+}
+function _primaryProductImage(p) {
+  var imgs = _productImageList(p);
+  return imgs.length ? imgs[0] : '';
+}
 /** Listing / grid: real photo when vendor uploaded one (image_url), else gradient + emoji. */
 function productCardMediaHTML(p) {
-  const src = (p.image || p.image_url || '').toString().trim();
+  const src = _primaryProductImage(p);
   if (src) {
     return `<img class="product-card-photo" src="${_cardEscapeAttr(src)}" alt="${_cardEscapeAttr(p.name || 'Product')}" loading="lazy" decoding="async" />`;
   }
@@ -1388,7 +1414,7 @@ function _everestPartnerGalleryMainHtml() {
   </div>`;
 }
 function _detailGalleryMainProductHtml(p) {
-  const src = p.image || p.image_url;
+  const src = _primaryProductImage(p);
   if (src) {
     return `<img src="${_detailEscapeAttr(String(src))}" alt="" style="max-width:100%;max-height:100%;object-fit:contain"/>`;
   }
@@ -1405,9 +1431,14 @@ function bindProductDetailThumbs(p) {
       if (kind === 'vendor') {
         main.innerHTML = window.__detailVendorMainHtml || _everestPartnerGalleryMainHtml();
       } else if (kind === 'product') {
-        const src = p.image || p.image_url;
+        const src = _primaryProductImage(p);
         if (src) main.innerHTML = _detailGalleryMainProductHtml(p);
         else main.textContent = p.emoji || '';
+      } else if (kind === 'product-image') {
+        var imgSrc = (t.getAttribute('data-src') || '').trim();
+        if (imgSrc) {
+          main.innerHTML = `<img src="${_detailEscapeAttr(imgSrc)}" alt="" style="max-width:100%;max-height:100%;object-fit:contain"/>`;
+        }
       } else if (kind === 'emoji') {
         const em = t.getAttribute('data-emoji') || t.textContent;
         main.textContent = em || '';
@@ -1504,7 +1535,8 @@ async function openProductDetail(productId) {
   }
   const fallbackName = p.brand || 'Everest Partner';
 
-  const productSrc = p.image || p.image_url;
+  const productImages = _productImageList(p);
+  const productSrc = productImages[0] || '';
   const productThumbInner = productSrc
     ? `<img src="${_detailEscapeAttr(String(productSrc))}" alt="" style="width:100%;height:100%;object-fit:cover"/>`
     : _detailEscapeHtml(p.emoji || '✨');
@@ -1518,6 +1550,9 @@ async function openProductDetail(productId) {
             <div id="detail-vendor-thumb-inner" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#ede9fe,#ddd6fe)">${_everestPartnerIconSmallHtml()}</div>
           </div>
           <div class="gallery-thumb active" data-detail-kind="product" style="padding:2px;overflow:hidden">${productThumbInner}</div>
+          ${productImages.slice(1).map(function (src) {
+            return `<div class="gallery-thumb" data-detail-kind="product-image" data-src="${_detailEscapeAttr(src)}" style="padding:2px;overflow:hidden"><img src="${_detailEscapeAttr(src)}" alt="" style="width:100%;height:100%;object-fit:cover"/></div>`;
+          }).join('')}
           ${['🔍', '📐', '🎨'].map(e => `<div class="gallery-thumb" data-detail-kind="emoji" data-emoji="${_detailEscapeAttr(e)}">${e}</div>`).join('')}
         </div>
       </div>
@@ -5287,19 +5322,20 @@ function switchVendorSection(section) {
     content.innerHTML = `
       <div>
         <div style="margin-bottom:1.5rem">
-          <h1 style="font-size:1.5rem;font-weight:700;color:#111827">Upload Product</h1>
-          <p style="color:#6b7280;font-size:0.875rem">Add a new product to your shop</p>
+          <h1 id="vp-form-title" style="font-size:1.5rem;font-weight:700;color:#111827">Upload Product</h1>
+          <p id="vp-form-subtitle" style="color:#6b7280;font-size:0.875rem">Add a new product to your shop</p>
         </div>
         <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:2rem;max-width:700px">
           <div style="margin-bottom:1.5rem">
             <label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.5rem">Product Image</label>
             <div id="upload-zone" onclick="document.getElementById('vp-image-file').click()" style="border:2px dashed #e9d5ff;border-radius:10px;padding:2rem;text-align:center;cursor:pointer;background:#fafafa" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f3ff'" onmouseout="this.style.borderColor='#e9d5ff';this.style.background='#fafafa'">
-              <div id="upload-preview" style="display:none;margin-bottom:1rem"><img id="upload-img-preview" style="max-height:150px;border-radius:8px;object-fit:cover" src=""/></div>
-              <div id="upload-placeholder"><div style="font-size:2rem;margin-bottom:0.5rem">📸</div><p style="color:#6b7280;margin-bottom:0.25rem;font-size:0.875rem;font-weight:500">Click to upload image</p></div>
+              <div id="upload-preview" style="display:none;margin-bottom:1rem"></div>
+              <div id="upload-placeholder"><div style="font-size:2rem;margin-bottom:0.5rem">📸</div><p style="color:#6b7280;margin-bottom:0.25rem;font-size:0.875rem;font-weight:500">Click to upload up to 4 images</p></div>
               <div id="upload-loading" style="display:none"><div style="font-size:1.5rem">⏳</div><p style="color:#7c3aed;font-size:0.85rem">Uploading...</p></div>
             </div>
-            <input type="file" id="vp-image-file" accept="image/*" style="display:none" onchange="uploadToCloudinary(this)"/>
+            <input type="file" id="vp-image-file" accept="image/*" multiple style="display:none" onchange="uploadVendorImages(this)"/>
             <input type="hidden" id="vp-image-url"/>
+            <input type="hidden" id="vp-edit-id"/>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
             <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Product Name *</label><input type="text" id="vp-title" placeholder="e.g. Velvet Sultan Sofa" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
@@ -5324,9 +5360,13 @@ function switchVendorSection(section) {
             </div>
             <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Badge (optional)</label><input type="text" id="vp-badge" placeholder="New, Bestseller..." style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
           </div>
-          <button onclick="uploadProduct()" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.875rem 2rem;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer;width:100%">Upload Product →</button>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:0.75rem">
+            <button id="vp-submit-btn" onclick="uploadProduct()" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.875rem 2rem;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer;width:100%">Upload Product →</button>
+            <button id="vp-cancel-edit-btn" onclick="cancelVendorProductEdit()" style="display:none;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;padding:0.875rem 1rem;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer">Cancel Edit</button>
+          </div>
         </div>
       </div>`;
+    vendorSetUploadMode(null);
 
   } else if (section === 'inventory') {
     content.innerHTML = `
@@ -5350,7 +5390,10 @@ function switchVendorSection(section) {
                     <td style="padding:0.875rem 1rem;font-size:0.875rem;font-weight:600;color:#111827">${(p.price||0).toLocaleString()} TND</td>
                     <td style="padding:0.875rem 1rem;font-size:0.875rem"><span style="color:${(p.stock||0)>5?'#059669':'#dc2626'};font-weight:600">${p.stock||0} units</span></td>
                     <td style="padding:0.875rem 1rem"><span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:${p.verified?'#dcfce7':'#fef9c3'};color:${p.verified?'#166534':'#92400e'}">${p.verified?'✓ Live':'⏳ Pending'}</span></td>
-                    <td style="padding:0.875rem 1rem"><button onclick='deleteVendorProduct(${JSON.stringify(p.id)})' style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;padding:0.3rem 0.8rem;border-radius:6px;font-size:0.75rem;cursor:pointer;font-weight:600">Delete</button></td>
+                    <td style="padding:0.875rem 1rem;display:flex;gap:0.45rem;align-items:center">
+                      <button onclick='editVendorProduct(${JSON.stringify(p.id)})' style="background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe;padding:0.3rem 0.8rem;border-radius:6px;font-size:0.75rem;cursor:pointer;font-weight:600">Edit</button>
+                      <button onclick='deleteVendorProduct(${JSON.stringify(p.id)})' style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;padding:0.3rem 0.8rem;border-radius:6px;font-size:0.75rem;cursor:pointer;font-weight:600">Delete</button>
+                    </td>
                   </tr>`).join('')}
                 </tbody></table></div>`}
         </div>
@@ -5478,16 +5521,57 @@ function vendorConfirmOrder(orderId, trackingNum) {
 }
 
 
-async function uploadToCloudinary(input) {
-  const file = input.files[0];
-  if (!file) return;
+function renderUploadPreviews(urls) {
+  var preview = document.getElementById('upload-preview');
+  var placeholder = document.getElementById('upload-placeholder');
+  if (!preview || !placeholder) return;
+  if (!Array.isArray(urls) || urls.length === 0) {
+    preview.style.display = 'none';
+    preview.innerHTML = '';
+    placeholder.style.display = 'block';
+    return;
+  }
+  preview.style.display = 'grid';
+  preview.style.gridTemplateColumns = 'repeat(4,minmax(0,1fr))';
+  preview.style.gap = '0.5rem';
+  preview.innerHTML = urls.slice(0, 4).map(function (url, idx) {
+    var safe = _cardEscapeAttr(url);
+    return '<div style="position:relative;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;height:74px;background:#fff">'
+      + '<img src="' + safe + '" alt="" style="width:100%;height:100%;object-fit:cover"/>'
+      + '<button type="button" onclick="removeVendorUploadImage(' + idx + ')" title="Remove image" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:999px;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:20px">×</button>'
+      + '</div>';
+  }).join('');
+  placeholder.style.display = 'none';
+}
+
+function removeVendorUploadImage(index) {
+  if (!Array.isArray(State.vendorUploadImageUrls)) State.vendorUploadImageUrls = [];
+  State.vendorUploadImageUrls = State.vendorUploadImageUrls.filter(function (_, i) { return i !== index; });
+  var hiddenUrl = document.getElementById('vp-image-url');
+  if (hiddenUrl) hiddenUrl.value = State.vendorUploadImageUrls[0] || '';
+  renderUploadPreviews(State.vendorUploadImageUrls);
+}
+
+async function uploadVendorImages(input) {
+  const files = Array.from(input.files || []).filter(function (f) { return f && /^image\//i.test(f.type || ''); });
+  if (!files.length) return;
+  if (!Array.isArray(State.vendorUploadImageUrls)) State.vendorUploadImageUrls = [];
+  const remainingSlots = Math.max(0, 4 - State.vendorUploadImageUrls.length);
+  if (remainingSlots <= 0) {
+    toast('⚠️ You can upload up to 4 images only.', 'error');
+    input.value = '';
+    return;
+  }
+  const queue = files.slice(0, remainingSlots);
+  if (files.length > queue.length) {
+    toast('Only first ' + queue.length + ' image(s) were added (max 4 total).', 'default');
+  }
   const placeholder = document.getElementById('upload-placeholder');
   const loading = document.getElementById('upload-loading');
   const preview = document.getElementById('upload-preview');
-  const previewImg = document.getElementById('upload-img-preview');
   const hiddenUrl = document.getElementById('vp-image-url');
 
-  if (!placeholder || !loading || !preview || !previewImg) {
+  if (!placeholder || !loading || !preview) {
     toast('⚠️ Upload area not found. Open Upload Product again.', 'error');
     return;
   }
@@ -5495,38 +5579,113 @@ async function uploadToCloudinary(input) {
   placeholder.style.display = 'none';
   loading.style.display = 'block';
 
-  const formData = new FormData();
-  formData.append('file', file);
-  // Cloudinary preset name must match your Cloudinary dashboard (rename there to Everest if you prefer)
-  formData.append('upload_preset', 'Shopping');
-  formData.append('cloud_name', 'dzhnza3dn');
-
   try {
-    const r = await fetch('https://api.cloudinary.com/v1_1/dzhnza3dn/image/upload', {
-      method: 'POST',
-      body: formData,
-    });
-    const data = await r.json().catch(function () { return {}; });
-    if (!r.ok) {
-      const msg = (data && (data.error && data.error.message)) || 'HTTP ' + r.status;
-      throw new Error(msg);
+    for (var i = 0; i < queue.length; i++) {
+      const formData = new FormData();
+      formData.append('file', queue[i]);
+      formData.append('upload_preset', 'Shopping');
+      formData.append('cloud_name', 'dzhnza3dn');
+      const r = await fetch('https://api.cloudinary.com/v1_1/dzhnza3dn/image/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await r.json().catch(function () { return {}; });
+      if (!r.ok) {
+        const msg = (data && (data.error && data.error.message)) || 'HTTP ' + r.status;
+        throw new Error(msg);
+      }
+      if (!data.secure_url) throw new Error('Upload failed: no secure_url');
+      State.vendorUploadImageUrls.push(data.secure_url);
+      State.vendorUploadImageUrls = State.vendorUploadImageUrls.slice(0, 4);
     }
-    if (data.secure_url) {
-      if (hiddenUrl) hiddenUrl.value = data.secure_url;
-      previewImg.src = data.secure_url;
-      preview.style.display = 'block';
-      loading.style.display = 'none';
-      placeholder.style.display = 'none';
-      toast('✦ Image uploaded successfully!', 'success');
-    } else {
-      throw new Error('Upload failed: no secure_url');
-    }
+    if (hiddenUrl) hiddenUrl.value = State.vendorUploadImageUrls[0] || '';
+    renderUploadPreviews(State.vendorUploadImageUrls);
+    loading.style.display = 'none';
+    toast('✦ ' + queue.length + ' image(s) uploaded.', 'success');
   } catch (e) {
-    if (typeof STNLog !== 'undefined') STNLog.error('media.cloudinary', e, { fileName: file.name, fileSize: file.size });
+    if (typeof STNLog !== 'undefined') STNLog.error('media.cloudinary', e, { files: queue.map(function (f) { return f.name; }) });
     if (loading) loading.style.display = 'none';
-    if (placeholder) placeholder.style.display = 'block';
+    renderUploadPreviews(State.vendorUploadImageUrls);
     toast('⚠️ Upload failed. Check your internet connection.', 'error');
+  } finally {
+    input.value = '';
   }
+}
+
+async function uploadToCloudinary(input) {
+  return uploadVendorImages(input);
+}
+
+function vendorSetUploadMode(product) {
+  var formTitle = document.getElementById('vp-form-title');
+  var subtitle = document.getElementById('vp-form-subtitle');
+  var submitBtn = document.getElementById('vp-submit-btn');
+  var cancelBtn = document.getElementById('vp-cancel-edit-btn');
+  var editId = document.getElementById('vp-edit-id');
+  var hiddenUrl = document.getElementById('vp-image-url');
+  var catSelect = document.getElementById('vp-cat');
+  var fields = ['vp-title', 'vp-brand', 'vp-desc', 'vp-price', 'vp-old-price', 'vp-stock', 'vp-badge', 'vp-cat-other'];
+  if (!product) {
+    State.vendorEditingProductId = null;
+    State.vendorUploadImageUrls = [];
+    if (editId) editId.value = '';
+    fields.forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    if (catSelect) {
+      catSelect.value = '';
+      onVendorCategoryChange('');
+    }
+    if (hiddenUrl) hiddenUrl.value = '';
+    if (formTitle) formTitle.textContent = 'Upload Product';
+    if (subtitle) subtitle.textContent = 'Add a new product to your shop';
+    if (submitBtn) submitBtn.textContent = 'Upload Product →';
+    if (cancelBtn) cancelBtn.style.display = 'none';
+    renderUploadPreviews([]);
+    return;
+  }
+
+  State.vendorEditingProductId = product.id;
+  State.vendorUploadImageUrls = _productImageList(product);
+  if (editId) editId.value = String(product.id);
+  var fieldMap = {
+    'vp-title': product.name || '',
+    'vp-brand': product.brand || '',
+    'vp-desc': product.desc || product.description || '',
+    'vp-price': product.price != null ? product.price : '',
+    'vp-old-price': product.oldPrice != null ? product.oldPrice : '',
+    'vp-stock': product.stock != null ? product.stock : '',
+    'vp-badge': product.badge || '',
+  };
+  Object.keys(fieldMap).forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.value = fieldMap[id];
+  });
+  if (catSelect) {
+    catSelect.value = product.cat || product.category || '';
+    onVendorCategoryChange(catSelect.value);
+  }
+  if (hiddenUrl) hiddenUrl.value = State.vendorUploadImageUrls[0] || '';
+  if (formTitle) formTitle.textContent = 'Edit Product';
+  if (subtitle) subtitle.textContent = 'Update details and photos without deleting the product';
+  if (submitBtn) submitBtn.textContent = 'Save Changes →';
+  if (cancelBtn) cancelBtn.style.display = 'inline-block';
+  renderUploadPreviews(State.vendorUploadImageUrls);
+}
+
+function editVendorProduct(productId) {
+  var p = (State.products || []).find(function (x) { return String(x.id) === String(productId); });
+  if (!p) {
+    toast('Product not found.', 'error');
+    return;
+  }
+  switchVendorSection('upload');
+  setTimeout(function () { vendorSetUploadMode(p); }, 50);
+}
+
+function cancelVendorProductEdit() {
+  vendorSetUploadMode(null);
 }
 
 /**
@@ -5577,7 +5736,13 @@ async function uploadProduct() {
   const price = parseFloat(document.getElementById('vp-price')?.value);
   const stock = parseInt(document.getElementById('vp-stock')?.value, 10);
   const badge = document.getElementById('vp-badge')?.value?.trim();
-  const imageUrl = document.getElementById('vp-image-url')?.value?.trim() || null;
+  const editProductId = document.getElementById('vp-edit-id')?.value?.trim() || null;
+  var imageList = Array.isArray(State.vendorUploadImageUrls) ? State.vendorUploadImageUrls.slice(0, 4) : [];
+  if (imageList.length === 0) {
+    var singleFallback = document.getElementById('vp-image-url')?.value?.trim();
+    if (singleFallback) imageList = [singleFallback];
+  }
+  const imageUrl = imageList[0] || null;
   var oldPriceField = document.getElementById('vp-old-price')?.value;
   var oldPrice = null;
   if (oldPriceField != null && String(oldPriceField).trim() !== '') {
@@ -5684,6 +5849,7 @@ async function uploadProduct() {
     emoji: STN.categoryEmoji(catSlug),
     image: imageUrl,
     image_url: imageUrl,
+    product_images: imageList,
     verified: false,
     stock,
     desc,
@@ -5701,7 +5867,7 @@ async function uploadProduct() {
       throw new Error('Supabase client not ready (SB.createProduct missing)');
     }
 
-    toast('⏳ Uploading product...', 'default');
+    toast(editProductId ? '⏳ Saving product changes...' : '⏳ Uploading product...', 'default');
     var errMsg = function (e) { return String(e && e.message ? e.message : e); };
     var tryPayload = Object.assign({}, newProduct);
     var tryOpts;
@@ -5711,7 +5877,9 @@ async function uploadProduct() {
     var maxAttempts = 8;
     for (var attempt = 0; attempt < maxAttempts; attempt++) {
       try {
-        savedProduct = await SB.createProduct(tryPayload, tryOpts);
+        savedProduct = editProductId
+          ? await SB.updateProduct(editProductId, tryPayload, tryOpts)
+          : await SB.createProduct(tryPayload, tryOpts);
         break;
       } catch (tryErr) {
         var m1 = errMsg(tryErr);
@@ -5729,6 +5897,9 @@ async function uploadProduct() {
         } else if (/Could not find.*'old_price'|Could not find the 'old_price'|column.*old_price/i.test(m1)) {
           delete tryPayload.oldPrice;
           delete tryPayload.old_price;
+          recovered = true;
+        } else if (/Could not find.*'product_images'|Could not find the 'product_images'|column.*product_images/i.test(m1)) {
+          delete tryPayload.product_images;
           recovered = true;
         } else if (!slimmedUi && /Could not find the '(emoji|badge|verified|reviews|rating)' column/i.test(m1)) {
           tryPayload = vendorUploadSlimProductPayload(tryPayload);
@@ -5750,27 +5921,17 @@ async function uploadProduct() {
       throw new Error('Upload failed after retries. Check Supabase columns and RLS policies.');
     }
 
-    State.products.push(savedProduct);
-    STN.DB.set('products', State.products);
-
-    ['vp-title', 'vp-brand', 'vp-desc', 'vp-price', 'vp-old-price', 'vp-stock', 'vp-badge', 'vp-image-url'].forEach(function (id) {
-      var el = document.getElementById(id);
-      if (el) el.value = '';
-    });
-    var prev = document.getElementById('upload-preview');
-    var ph = document.getElementById('upload-placeholder');
-    var img = document.getElementById('upload-img-preview');
-    if (prev) prev.style.display = 'none';
-    if (ph) ph.style.display = 'block';
-    if (img) img.removeAttribute('src');
-    if (catSelect) {
-      catSelect.value = '';
-      onVendorCategoryChange('');
+    if (editProductId) {
+      var idx = State.products.findIndex(function (p) { return String(p.id) === String(editProductId); });
+      if (idx >= 0) State.products[idx] = savedProduct;
+      else State.products.push(savedProduct);
+    } else {
+      State.products.push(savedProduct);
     }
-    var otherIn = document.getElementById('vp-cat-other');
-    if (otherIn) otherIn.value = '';
+    STN.DB.set('products', State.products);
+    vendorSetUploadMode(null);
 
-    toast('✦ Success! Product saved with price, description, category, and image URL. Pending admin verification.', 'success');
+    toast(editProductId ? '✦ Product updated successfully.' : '✦ Success! Product saved with up to 4 images. Pending admin verification.', 'success');
     showCelebrationOverlay();
     switchVendorSection('inventory');
 
@@ -5785,6 +5946,8 @@ async function uploadProduct() {
     var hint = '';
     if (error && error.message && /category_id|column|schema/i.test(error.message)) {
       hint = ' If your `products` table has no category_id column, remove that column from the API or add it in Supabase.';
+    } else if (error && error.message && /product_images/i.test(error.message)) {
+      hint = ' Run migration `supabase/migrations/20260323170000_products_multiple_images.sql` in Supabase SQL editor.';
     } else if (error && error.message && /invalid input syntax for type uuid/i.test(error.message)) {
       hint =
         ' Your `products.vendor_id` column is UUID but vendor ids can be numeric. In Supabase → SQL, run the migration file `supabase/migrations/20260324120000_products_vendor_id_text.sql` once.';

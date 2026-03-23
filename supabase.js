@@ -58,6 +58,20 @@ function _sbNormalizeProductRow(row) {
   if ((out.image == null || out.image === '') && out.image_url != null && out.image_url !== '') {
     out.image = out.image_url;
   }
+  if (!Array.isArray(out.product_images)) {
+    if (typeof out.product_images === 'string' && out.product_images.trim()) {
+      try {
+        var parsedImgs = JSON.parse(out.product_images);
+        if (Array.isArray(parsedImgs)) out.product_images = parsedImgs;
+      } catch (e) {}
+    }
+  }
+  if (!Array.isArray(out.product_images) || out.product_images.length === 0) {
+    if (out.image) out.product_images = [out.image];
+  }
+  if (Array.isArray(out.product_images) && out.product_images.length && (out.image == null || out.image === '')) {
+    out.image = out.product_images[0];
+  }
   var opc = _sbProductOldPriceColumn();
   if (out.oldPrice == null || out.oldPrice === '') {
     var rawOldRow = out[opc] != null && out[opc] !== '' ? out[opc] : out.oldprice;
@@ -98,6 +112,7 @@ function _sbMapProductBodyForApi(product, options) {
     if (k === 'image') return;
     if (k === 'oldPrice' || k === 'old_price') return;
     if (k === 'vendorId' || k === 'vendor_id') return;
+    if (k === 'product_images') return;
     var v = product[k];
     if (v !== undefined) body[k] = v;
   });
@@ -134,6 +149,14 @@ function _sbMapProductBodyForApi(product, options) {
   }
   if (Object.prototype.hasOwnProperty.call(product, 'image_url') && product.image_url != null && product.image_url !== '' && body.image_url === undefined) {
     body.image_url = product.image_url;
+  }
+  if (Object.prototype.hasOwnProperty.call(product, 'product_images')) {
+    var imgs = product.product_images;
+    if (Array.isArray(imgs)) {
+      body.product_images = imgs.filter(function (u) { return u != null && String(u).trim() !== ''; }).slice(0, 4);
+    } else if (imgs == null || imgs === '') {
+      body.product_images = [];
+    }
   }
 
   if (hasCat && catVal !== undefined && !omitSlug) {
