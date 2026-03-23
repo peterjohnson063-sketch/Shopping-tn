@@ -5633,6 +5633,10 @@ function vendorSetUploadMode(product) {
       var el = document.getElementById(id);
       if (el) el.value = '';
     });
+    var brandInput = document.getElementById('vp-brand');
+    if (brandInput && State.currentUser) {
+      brandInput.value = State.currentUser.shop_name || State.currentUser.shopName || '';
+    }
     if (catSelect) {
       catSelect.value = '';
       onVendorCategoryChange('');
@@ -5836,7 +5840,7 @@ async function uploadProduct() {
 
   const newProduct = {
     name: title,
-    brand: State.currentUser?.shop_name || State.currentUser?.shopName || brand,
+    brand: brand,
     vendorId: effectiveVendorId,
     region: State.currentUser?.wilaya || 'Tunisia',
     cat: catSlug,
@@ -5954,7 +5958,8 @@ async function uploadProduct() {
       hint =
         ' Your `products.vendor_id` column is UUID but vendor ids can be numeric. In Supabase → SQL, run the migration file `supabase/migrations/20260324120000_products_vendor_id_text.sql` once.';
     }
-    toast('⚠️ Failed to upload product: ' + (error?.message || 'Unknown error') + hint, 'error');
+    var actionText = editProductId ? 'save product changes' : 'upload product';
+    toast('⚠️ Failed to ' + actionText + ': ' + (error?.message || 'Unknown error') + hint, 'error');
   }
 }
 
