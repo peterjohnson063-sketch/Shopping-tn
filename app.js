@@ -197,6 +197,7 @@ async function init() {
     State.currentUser = STN.userForSession(State.currentUser);
     STN.DB.set('currentUser', State.currentUser);
   }
+  await healCurrentUserFromSupabase();
   State.cart = STN.DB.get('cart') || [];
   State.wishlist = STN.DB.get('wishlist') || [];
 
@@ -1793,6 +1794,54 @@ function populateDelegations() {
   delSel.innerHTML = `<option value="">Select Delegation…</option>` + delegations.map(d => `<option value="${d}">${d}</option>`).join('');
 }
 
+/**
+ * Merge `public.users` (Supabase) into the session by email so `id` always matches the database
+ * (fixes local demo ids vs UUID / bigint server ids). Patches the cached `users` list for the same email.
+ */
+async function healCurrentUserFromSupabase() {
+  var u = State.currentUser;
+  if (!u || typeof SB === 'undefined' || typeof SB.getUser !== 'function') return false;
+  var emailRaw = String(u.email || '').trim();
+  if (!emailRaw) return false;
+  try {
+    var row = await SB.getUser(emailRaw);
+    if (!row && emailRaw.toLowerCase() !== emailRaw) {
+      row = await SB.getUser(emailRaw.toLowerCase());
+    }
+    if (!row || row.id == null) return false;
+    var merged = Object.assign({}, u, row, {
+      firstName: row.first_name != null ? row.first_name : u.firstName,
+      lastName: row.last_name != null ? row.last_name : u.lastName,
+      first_name: row.first_name != null ? row.first_name : u.first_name,
+      last_name: row.last_name != null ? row.last_name : u.last_name,
+      shop_name: row.shop_name != null ? row.shop_name : u.shop_name,
+      shopName: row.shop_name != null ? row.shop_name : u.shopName,
+      id: row.id,
+      role: row.role || u.role,
+      verified: row.verified !== undefined ? row.verified : u.verified,
+      wilaya: row.wilaya != null ? row.wilaya : u.wilaya,
+      delegation: row.delegation != null ? row.delegation : u.delegation,
+      phone: row.phone != null ? row.phone : u.phone,
+    });
+    State.currentUser = STN.userForSession(merged);
+    STN.DB.set('currentUser', State.currentUser);
+    var emKey = emailRaw.toLowerCase();
+    var list = STN.DB.get('users') || [];
+    var ix = list.findIndex(function (x) {
+      return String(x.email || '').toLowerCase() === emKey;
+    });
+    if (ix >= 0) {
+      list[ix] = Object.assign({}, list[ix], { id: row.id });
+      STN.DB.set('users', list);
+    }
+    if (typeof updateNavUser === 'function') updateNavUser();
+    return true;
+  } catch (e) {
+    if (typeof STNLog !== 'undefined') STNLog.warn('auth.healSession', e && e.message);
+    return false;
+  }
+}
+
 async function doLogin() {
   const email = document.getElementById('login-email')?.value?.trim();
   const pass = document.getElementById('login-pass')?.value;
@@ -1808,11 +1857,13 @@ async function doLogin() {
     const sessionUser = STN.userForSession(local);
     State.currentUser = sessionUser;
     STN.DB.set('currentUser', sessionUser);
+    await healCurrentUserFromSupabase();
+    STN.DB.set('currentUser', State.currentUser);
     updateNavUser();
-    toast(`✦ Welcome back, ${local.firstName}!`, 'success');
-    if (local.role === 'admin') showPage('admin');
-    else if (local.role === 'vendor') showPage('vendor');
-    else if (local.role === 'driver') showPage('driver');
+    toast(`✦ Welcome back, ${State.currentUser.firstName || local.firstName}!`, 'success');
+    if (State.currentUser.role === 'admin') showPage('admin');
+    else if (State.currentUser.role === 'vendor') showPage('vendor');
+    else if (State.currentUser.role === 'driver') showPage('driver');
     else showPage('home');
     return;
   }
@@ -1826,6 +1877,8 @@ async function doLogin() {
       return;
     }
     State.currentUser = STN.userForSession({ ...user, firstName: user.first_name, lastName: user.last_name });
+    STN.DB.set('currentUser', State.currentUser);
+    await healCurrentUserFromSupabase();
     STN.DB.set('currentUser', State.currentUser);
     updateNavUser();
     toast(`✦ Welcome back, ${user.first_name}!`, 'success');
@@ -2021,6 +2074,8 @@ async function doRegister() {
       STN.DB.set('users', regUsers);
     } catch (regLocalErr) {}
     State.currentUser = STN.userForSession({ ...newUser, firstName: newUser.first_name, lastName: newUser.last_name });
+    STN.DB.set('currentUser', State.currentUser);
+    await healCurrentUserFromSupabase();
     STN.DB.set('currentUser', State.currentUser);
     updateNavUser();
     if (isVendor) {
@@ -5134,37 +5189,17 @@ async function uploadToCloudinary(input) {
 }
 
 /**
- * `products.vendor_id` in Supabase is usually UUID. Session `currentUser.id` may be a numeric
- * local id or stale value — refresh from `users` by email when possible.
+ * Ensures session id matches Supabase `users.id`, then returns that id for `products.vendor_id`
+ * (text column supports UUID or numeric string — see migration products_vendor_id_text).
  */
 async function resolveVendorIdForProductUpload() {
+  if (!State.currentUser) return { id: null, err: 'not_signed_in' };
+  await healCurrentUserFromSupabase();
   var u = State.currentUser;
-  if (!u) return { id: null, err: 'not_signed_in' };
-  function isU(v) {
-    if (typeof SB !== 'undefined' && typeof SB.isUuid === 'function') return SB.isUuid(v);
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v || '').trim());
+  if (!u || u.id == null || String(u.id).trim() === '') {
+    return { id: null, err: 'no_id' };
   }
-  if (isU(u.id)) return { id: String(u.id).trim(), err: null };
-  var alt = u.auth_id || u.uuid || u.supabase_user_id;
-  if (isU(alt)) return { id: String(alt).trim(), err: null };
-  var email = (u.email || '').trim();
-  if (email && typeof SB !== 'undefined' && SB.getUser) {
-    try {
-      var row = await SB.getUser(email);
-      if (row && isU(row.id)) {
-        State.currentUser = STN.userForSession(Object.assign({}, State.currentUser, { id: row.id }));
-        STN.DB.set('currentUser', State.currentUser);
-        if (typeof updateNavUser === 'function') updateNavUser();
-        return { id: String(row.id).trim(), err: null };
-      }
-      if (row && row.id != null && !isU(row.id)) {
-        return { id: null, err: 'numeric_user_id' };
-      }
-    } catch (e) {
-      if (typeof STNLog !== 'undefined') STNLog.warn('vendor.resolveVendorId', e && e.message);
-    }
-  }
-  return { id: null, err: 'no_uuid' };
+  return { id: String(u.id).trim(), err: null };
 }
 
 async function deleteVendorProduct(productId) {
@@ -5238,20 +5273,17 @@ async function uploadProduct() {
 
   var vendorIdRes = await resolveVendorIdForProductUpload();
   if (!vendorIdRes.id) {
-    if (vendorIdRes.err === 'numeric_user_id') {
-      toast(
-        '⚠️ Your account id in the database is not a UUID, but products.vendor_id expects one. An admin should change products.vendor_id to bigint (to match users.id) or add a UUID profile field from Auth.',
-        'error'
-      );
+    if (vendorIdRes.err === 'not_signed_in') {
+      toast('⚠️ Sign in as a vendor to upload.', 'error');
     } else {
       toast(
-        '⚠️ Could not resolve a valid vendor UUID. Sign out and sign in with your email so your Supabase user id loads. If you only use offline demo accounts, register a vendor on this site first.',
+        '⚠️ Your profile has no user id, or Supabase could not load your account by email. Use “Create Account” on this site (not demo-only), then sign in with that email. If it persists, check that Row Level Security allows SELECT on public.users for sign-in.',
         'error'
       );
     }
     return;
   }
-  var effectiveVendorUuid = vendorIdRes.id;
+  var effectiveVendorId = vendorIdRes.id;
 
   let catSlug = null;
   if (rawCat === '__new__') {
@@ -5299,7 +5331,7 @@ async function uploadProduct() {
   const newProduct = {
     name: title,
     brand: State.currentUser?.shop_name || State.currentUser?.shopName || brand,
-    vendorId: effectiveVendorUuid,
+    vendorId: effectiveVendorId,
     region: State.currentUser?.wilaya || 'Tunisia',
     cat: catSlug,
     category: catSlug,
@@ -5412,6 +5444,9 @@ async function uploadProduct() {
     var hint = '';
     if (error && error.message && /category_id|column|schema/i.test(error.message)) {
       hint = ' If your `products` table has no category_id column, remove that column from the API or add it in Supabase.';
+    } else if (error && error.message && /invalid input syntax for type uuid/i.test(error.message)) {
+      hint =
+        ' Your `products.vendor_id` column is UUID but vendor ids can be numeric. In Supabase → SQL, run the migration file `supabase/migrations/20260324120000_products_vendor_id_text.sql` once.';
     }
     toast('⚠️ Failed to upload product: ' + (error?.message || 'Unknown error') + hint, 'error');
   }

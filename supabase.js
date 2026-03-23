@@ -102,10 +102,14 @@ function _sbMapProductBodyForApi(product, options) {
     if (v !== undefined) body[k] = v;
   });
 
-  if (Object.prototype.hasOwnProperty.call(product, 'vendorId') && product.vendorId !== undefined) {
-    if (_sbIsUuid(product.vendorId)) body.vendor_id = String(product.vendorId).trim();
-  } else if (Object.prototype.hasOwnProperty.call(product, 'vendor_id') && product.vendor_id !== undefined) {
-    if (_sbIsUuid(product.vendor_id)) body.vendor_id = String(product.vendor_id).trim();
+  var rawVid =
+    Object.prototype.hasOwnProperty.call(product, 'vendorId') && product.vendorId !== undefined
+      ? product.vendorId
+      : Object.prototype.hasOwnProperty.call(product, 'vendor_id') && product.vendor_id !== undefined
+      ? product.vendor_id
+      : undefined;
+  if (rawVid !== undefined && rawVid !== null && String(rawVid).trim() !== '') {
+    body.vendor_id = String(rawVid).trim();
   }
 
   var oldCol = _sbProductOldPriceColumn();
