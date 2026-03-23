@@ -2702,6 +2702,515 @@ function _admDriverDocPreview(url, title) {
   );
 }
 
+function dashOrderTimestamp(order) {
+  var t = order.created_at || order.createdAt;
+  if (!t) return null;
+  var ms = new Date(t).getTime();
+  return isNaN(ms) ? null : ms;
+}
+
+function dashOrderTotal(order) {
+  var n = Number(order.total != null ? order.total : order.amount);
+  return isNaN(n) ? 0 : n;
+}
+
+function dashOrderBelongsToVendor(order, vendorId) {
+  var v = order.vendor_id != null ? order.vendor_id : order.vendorId;
+  return v != null && String(v) === String(vendorId);
+}
+
+function dashSumRevenue(orders) {
+  return orders.reduce(function (s, o) {
+    return s + dashOrderTotal(o);
+  }, 0);
+}
+
+function dashDailyRevenueSeries(orders, numDays) {
+  var series = [];
+  var now = new Date();
+  for (var i = numDays - 1; i >= 0; i--) {
+    var day = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i, 0, 0, 0, 0);
+    var next = new Date(day.getTime() + 86400000);
+    var sum = orders.reduce(function (s, o) {
+      var ts = dashOrderTimestamp(o);
+      if (ts == null) return s;
+      if (ts >= day.getTime() && ts < next.getTime()) return s + dashOrderTotal(o);
+      return s;
+    }, 0);
+    series.push(sum);
+  }
+  return series;
+}
+
+function dashAnalyticsForOrders(orders, periodDays) {
+  periodDays = periodDays || 7;
+  var now = Date.now();
+  var dayMs = 86400000;
+  var curStart = now - periodDays * dayMs;
+  var prevStart = curStart - periodDays * dayMs;
+  var cur = orders.filter(function (o) {
+    var ts = dashOrderTimestamp(o);
+    return ts != null && ts >= curStart && ts <= now;
+  });
+  var prev = orders.filter(function (o) {
+    var ts = dashOrderTimestamp(o);
+    return ts != null && ts >= prevStart && ts < curStart;
+  });
+  return {
+    revenueAll: dashSumRevenue(orders),
+    revenuePeriod: dashSumRevenue(cur),
+    revenuePrev: dashSumRevenue(prev),
+    ordersPeriod: cur.length,
+    ordersPrev: prev.length,
+    daily: dashDailyRevenueSeries(orders, periodDays),
+    aovPeriod: cur.length ? dashSumRevenue(cur) / cur.length : 0,
+    aovPrev: prev.length ? dashSumRevenue(prev) / prev.length : 0,
+  };
+}
+
+function dashPctChange(prev, cur) {
+  if (prev <= 0 && cur <= 0) return 0;
+  if (prev <= 0) return 100;
+  return Math.round(((cur - prev) / prev) * 1000) / 10;
+}
+
+function dashDeltaClass(pct) {
+  if (pct > 0.05) return 'up';
+  if (pct < -0.05) return 'down';
+  return 'flat';
+}
+
+function dashFormatDelta(pct, labelUp, labelDown) {
+  var cls = dashDeltaClass(pct);
+  if (cls === 'flat') return { html: '<span class="dash-pro-stat-delta flat">vs prior week · flat</span>', cls: cls };
+  var arrow = pct > 0 ? '↑' : '↓';
+  var txt = pct > 0 ? labelUp : labelDown;
+  return {
+    html:
+      '<span class="dash-pro-stat-delta ' +
+      cls +
+      '">' +
+      arrow +
+      ' ' +
+      Math.abs(pct) +
+      '% ' +
+      txt +
+      '</span>',
+    cls: cls,
+  };
+}
+
+function dashSparklineBars(values, width, height) {
+  width = width || 320;
+  height = height || 72;
+  var gid = 'dashGrad-' + Math.random().toString(36).slice(2, 11);
+  var max = Math.max.apply(null, values.concat([1]));
+  var n = values.length;
+  var slot = width / n;
+  var pad = slot * 0.18;
+  var bw = Math.max(2, slot - pad * 2);
+  var rects = [];
+  for (var i = 0; i < n; i++) {
+    var v = values[i];
+    var bh = Math.max(3, (v / max) * (height - 14));
+    var x = i * slot + pad;
+    var y = height - 7 - bh;
+    rects.push(
+      '<rect x="' +
+        x.toFixed(2) +
+        '" y="' +
+        y.toFixed(2) +
+        '" width="' +
+        bw.toFixed(2) +
+        '" height="' +
+        bh.toFixed(2) +
+        '" rx="4" fill="url(#' +
+        gid +
+        ')"/>'
+    );
+  }
+  return (
+    '<svg class="dash-pro-spark-svg" width="100%" height="' +
+    height +
+    '" viewBox="0 0 ' +
+    width +
+    ' ' +
+    height +
+    '" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="' +
+    gid +
+    '" x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stop-color="#1db954"/><stop offset="100%" stop-color="#a78bfa"/></linearGradient></defs>' +
+    rects.join('') +
+    '</svg>'
+  );
+}
+
+function dashTopProductLines(orders, limit) {
+  var map = {};
+  orders.forEach(function (o) {
+    var items = o.items;
+    if (!Array.isArray(items)) return;
+    items.forEach(function (it) {
+      var name = String(it.name || 'Item').trim().substring(0, 56) || 'Item';
+      var qty = Number(it.qty != null ? it.qty : it.quantity) || 1;
+      map[name] = (map[name] || 0) + qty;
+    });
+  });
+  return Object.keys(map)
+    .map(function (k) {
+      return { name: k, qty: map[k] };
+    })
+    .sort(function (a, b) {
+      return b.qty - a.qty;
+    })
+    .slice(0, limit || 5);
+}
+
+function dashTopWilayas(orders, limit) {
+  var map = {};
+  orders.forEach(function (o) {
+    var w = (o.wilaya && String(o.wilaya).trim()) || 'Unknown';
+    map[w] = (map[w] || 0) + 1;
+  });
+  return Object.keys(map)
+    .map(function (k) {
+      return { name: k, count: map[k] };
+    })
+    .sort(function (a, b) {
+      return b.count - a.count;
+    })
+    .slice(0, limit || 6);
+}
+
+function dashTopVendors(orders, users, limit) {
+  var map = {};
+  orders.forEach(function (o) {
+    var vid = o.vendor_id != null ? o.vendor_id : o.vendorId;
+    if (vid == null || vid === '') return;
+    var key = String(vid);
+    map[key] = (map[key] || 0) + dashOrderTotal(o);
+  });
+  return Object.keys(map)
+    .map(function (id) {
+      var u = (users || []).find(function (x) {
+        return String(x.id) === id;
+      });
+      var name = u
+        ? String(u.shop_name || u.shopName || u.first_name || u.firstName || 'Vendor').substring(0, 40)
+        : 'Vendor #' + id;
+      return { id: id, name: name, revenue: map[id] };
+    })
+    .sort(function (a, b) {
+      return b.revenue - a.revenue;
+    })
+    .slice(0, limit || 5);
+}
+
+function dashFulfillmentStats(orders) {
+  var delivered = 0;
+  var canceled = 0;
+  orders.forEach(function (o) {
+    var s = String(o.status || '').toLowerCase().replace(/-/g, '_');
+    if (s === 'cancelled' || s === 'canceled') canceled++;
+    else if (s === 'delivered') delivered++;
+  });
+  var open = orders.length - canceled;
+  return {
+    delivered: delivered,
+    canceled: canceled,
+    rate: open > 0 ? Math.round((delivered / open) * 1000) / 10 : 0,
+  };
+}
+
+function dashStatusFunnel(orders) {
+  var c = { pending: 0, processing: 0, transit: 0, delivered: 0, canceled: 0 };
+  orders.forEach(function (o) {
+    var s = String(o.status || 'pending')
+      .toLowerCase()
+      .replace(/-/g, '_');
+    if (s === 'cancelled' || s === 'canceled') c.canceled++;
+    else if (s === 'delivered') c.delivered++;
+    else if (s === 'shipped' || s === 'out_for_delivery' || s === 'transit') c.transit++;
+    else if (s === 'processing' || s === 'ready') c.processing++;
+    else c.pending++;
+  });
+  return c;
+}
+
+function _dashEscapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/"/g, '&quot;');
+}
+
+function buildAdminOverviewHTML(orders, users, products) {
+  var vendors = users.filter(function (u) {
+    return u.role === 'vendor';
+  });
+  var drivers = users.filter(function (u) {
+    return u.role === 'driver';
+  });
+  var shoppers = users.filter(function (u) {
+    var r = u.role || 'customer';
+    return r === 'customer' || r === 'user';
+  });
+  var analytics = dashAnalyticsForOrders(orders, 7);
+  var fulfil = dashFulfillmentStats(orders);
+  var funnel = dashStatusFunnel(orders);
+  var revPct = dashPctChange(analytics.revenuePrev, analytics.revenuePeriod);
+  var ordPct = dashPctChange(analytics.ordersPrev, analytics.ordersPeriod);
+  var aovPct = dashPctChange(analytics.aovPrev, analytics.aovPeriod);
+  var revDelta = dashFormatDelta(revPct, 'vs prior week', 'vs prior week');
+  var ordDelta = dashFormatDelta(ordPct, 'orders vs prior week', 'orders vs prior week');
+  var aovDelta = dashFormatDelta(aovPct, 'AOV vs prior week', 'AOV vs prior week');
+  var topV = dashTopVendors(orders, users, 5);
+  var topP = dashTopProductLines(orders, 5);
+  var wilayas = dashTopWilayas(orders, 6);
+  var pendingVendor = vendors.filter(function (v) {
+    return !v.verified;
+  }).length;
+  var verifiedDrivers = drivers.filter(function (d) {
+    return typeof isDriverVerified === 'function' && isDriverVerified(d);
+  }).length;
+  var inFlight = funnel.pending + funnel.processing + funnel.transit;
+  var stockLow = (products || []).filter(function (p) {
+    return (p.stock || 0) < 5;
+  }).length;
+
+  var kpi = [
+    {
+      label: 'Gross sales (all time)',
+      value: analytics.revenueAll.toLocaleString() + ' TND',
+      delta:
+        '<span class="dash-pro-stat-delta flat">' +
+        orders.length +
+        ' orders · lifetime GMV</span>',
+    },
+    {
+      label: 'Last 7 days revenue',
+      value: analytics.revenuePeriod.toLocaleString() + ' TND',
+      delta: revDelta.html,
+    },
+    {
+      label: 'Orders (7d)',
+      value: String(analytics.ordersPeriod),
+      delta: ordDelta.html,
+    },
+    {
+      label: 'Avg order value (7d)',
+      value: Math.round(analytics.aovPeriod).toLocaleString() + ' TND',
+      delta: aovDelta.html,
+    },
+    {
+      label: 'Active catalog',
+      value: String((products || []).length),
+      delta:
+        '<span class="dash-pro-stat-delta flat">' +
+        stockLow +
+        ' SKUs low stock</span>',
+    },
+    {
+      label: 'Fulfillment rate',
+      value: fulfil.rate + '%',
+      delta:
+        '<span class="dash-pro-stat-delta flat">' +
+        fulfil.delivered +
+        ' delivered · ' +
+        fulfil.canceled +
+        ' canceled</span>',
+    },
+  ];
+
+  var kpiHtml = kpi
+    .map(function (k) {
+      return (
+        '<div class="dash-pro-stat"><div class="dash-pro-stat-label">' +
+        k.label +
+        '</div><div class="dash-pro-stat-value dash-pro-mono">' +
+        k.value +
+        '</div>' +
+        k.delta +
+        '</div>'
+      );
+    })
+    .join('');
+
+  var funnelRows = [
+    { key: 'pending', label: 'Awaiting action', n: funnel.pending, color: '#fbbf24' },
+    { key: 'processing', label: 'Processing', n: funnel.processing, color: '#60a5fa' },
+    { key: 'transit', label: 'In transit', n: funnel.transit, color: '#a78bfa' },
+    { key: 'delivered', label: 'Delivered', n: funnel.delivered, color: '#1db954' },
+    { key: 'canceled', label: 'Canceled', n: funnel.canceled, color: '#f87171' },
+  ]
+    .map(function (r) {
+      return (
+        '<div class="dash-pro-list-row"><div class="dash-pro-list-name" style="display:flex;align-items:center;gap:0.5rem"><span style="width:8px;height:8px;border-radius:50%;background:' +
+        r.color +
+        '"></span>' +
+        r.label +
+        '</div><span class="dash-pro-list-meta dash-pro-mono">' +
+        r.n +
+        '</span></div>'
+      );
+    })
+    .join('');
+
+  var topVHtml =
+    topV.length === 0
+      ? '<p style="padding:0.5rem 0;color:#71717a;font-size:0.8rem">No vendor-attributed orders yet.</p>'
+      : topV
+          .map(function (v) {
+            return (
+              '<div class="dash-pro-list-row"><span class="dash-pro-list-name">' +
+              _dashEscapeHtml(v.name) +
+              '</span><span class="dash-pro-list-meta dash-pro-mono">' +
+              v.revenue.toLocaleString() +
+              ' TND</span></div>'
+            );
+          })
+          .join('');
+
+  var topPHtml =
+    topP.length === 0
+      ? '<p style="padding:0.5rem 0;color:#71717a;font-size:0.8rem">Line items will appear as orders include product names.</p>'
+      : topP
+          .map(function (p) {
+            return (
+              '<div class="dash-pro-list-row"><span class="dash-pro-list-name">' +
+              _dashEscapeHtml(p.name) +
+              '</span><span class="dash-pro-list-meta dash-pro-mono">' +
+              p.qty +
+              ' units</span></div>'
+            );
+          })
+          .join('');
+
+  var wilayaHtml = wilayas
+    .map(function (w) {
+      return (
+        '<div class="dash-pro-list-row"><span class="dash-pro-list-name">' +
+        _dashEscapeHtml(w.name) +
+        '</span><span class="dash-pro-list-meta dash-pro-mono">' +
+        w.count +
+        ' orders</span></div>'
+      );
+    })
+    .join('');
+
+  var recentRows =
+    orders.length === 0
+      ? '<tr><td colspan="5" style="text-align:center;padding:2rem;color:#71717a">No orders yet</td></tr>'
+      : orders
+          .slice(-8)
+          .reverse()
+          .map(function (o) {
+      var st = String(o.status || 'pending').toLowerCase();
+      var stColor =
+        st === 'delivered'
+          ? 'rgba(29,185,84,0.2)'
+          : st === 'shipped' || st === 'out_for_delivery'
+          ? 'rgba(96,165,250,0.2)'
+          : st === 'cancelled' || st === 'canceled'
+          ? 'rgba(248,113,113,0.2)'
+          : 'rgba(251,191,36,0.2)';
+      var stFg =
+        st === 'delivered'
+          ? '#4ade80'
+          : st === 'shipped' || st === 'out_for_delivery'
+          ? '#93c5fd'
+          : st === 'cancelled' || st === 'canceled'
+          ? '#fca5a5'
+          : '#fcd34d';
+      return (
+        '<tr><td class="dash-pro-mono" style="color:#a78bfa;font-weight:700">' +
+        _dashEscapeHtml(String(o.tracking_number || o.id || '—')) +
+        '</td><td>' +
+        _dashEscapeHtml(String(o.client_name || o.phone || 'Guest')) +
+        '</td><td class="dash-pro-mono">' +
+        dashOrderTotal(o).toLocaleString() +
+        ' TND</td><td><span class="dash-pro-pill" style="background:' +
+        stColor +
+        ';color:' +
+        stFg +
+        '">' +
+        _dashEscapeHtml(st) +
+        '</span></td><td style="font-size:0.72rem">' +
+        (o.created_at ? _dashEscapeHtml(new Date(o.created_at).toLocaleDateString()) : '—') +
+        '</td></tr>'
+      );
+          })
+          .join('');
+
+  return (
+    '<div>' +
+    '<div style="margin-bottom:1.5rem">' +
+    '<h1 class="dash-pro-hero-title">Command center</h1>' +
+    '<p class="dash-pro-hero-sub">Live marketplace pulse — revenue, pipeline, geography, and catalog health in one view. Metrics compare this week to the previous week when dates exist on orders.</p>' +
+    '</div>' +
+    '<div class="dash-pro-kpi-grid">' +
+    kpiHtml +
+    '</div>' +
+    '<div class="dash-pro-card" style="margin-bottom:1.25rem">' +
+    '<div class="dash-pro-chart-box">' +
+    '<div class="dash-pro-chart-head"><strong>Revenue trajectory</strong><span>Last 7 days · TND</span></div>' +
+    dashSparklineBars(analytics.daily, 640, 80) +
+    '</div></div>' +
+    '<div class="dash-pro-grid-2">' +
+    '<div class="dash-pro-stack">' +
+    '<div class="dash-pro-card">' +
+    '<div class="dash-pro-card-h"><span>Recent orders</span><button type="button" onclick="switchAdmin(\'orders\')">Open pipeline</button></div>' +
+    '<div class="dash-pro-table-wrap"><table class="dash-pro-table"><thead><tr><th>ID</th><th>Customer</th><th>Total</th><th>Status</th><th>Date</th></tr></thead><tbody>' +
+    recentRows +
+    '</tbody></table></div></div>' +
+    '<div class="dash-pro-mini">' +
+    '<div class="dash-pro-mini-tile"><span>Accounts</span><strong class="dash-pro-mono">' +
+    users.length +
+    '</strong><div style="font-size:0.7rem;color:#71717a;margin-top:0.35rem">' +
+    shoppers.length +
+    ' shoppers · ' +
+    vendors.length +
+    ' vendors · ' +
+    drivers.length +
+    ' drivers</div></div>' +
+    '<div class="dash-pro-mini-tile"><span>In pipeline</span><strong class="dash-pro-mono">' +
+    inFlight +
+    '</strong><div style="font-size:0.7rem;color:#71717a;margin-top:0.35rem">Excludes canceled</div></div>' +
+    '<div class="dash-pro-mini-tile"><span>Drivers on duty</span><strong class="dash-pro-mono">' +
+    verifiedDrivers +
+    '</strong><div style="font-size:0.7rem;color:#71717a;margin-top:0.35rem">Verified profiles</div></div>' +
+    '<div class="dash-pro-mini-tile"><span>GMV / order</span><strong class="dash-pro-mono">' +
+    (orders.length ? Math.round(analytics.revenueAll / Math.max(orders.length, 1)) : 0).toLocaleString() +
+    ' TND</strong><div style="font-size:0.7rem;color:#71717a;margin-top:0.35rem">All-time average</div></div>' +
+    '</div></div>' +
+    '<div class="dash-pro-stack">' +
+    '<div class="dash-pro-card"><div class="dash-pro-card-h"><span>Order pipeline</span><span class="dash-pro-mono" style="font-size:0.72rem;color:#71717a">' +
+    orders.length +
+    ' total</span></div><div style="padding:0 1.2rem 1rem">' +
+    funnelRows +
+    '</div></div>' +
+    '<div class="dash-pro-card"><div class="dash-pro-card-h"><span>Top vendors by GMV</span><button type="button" onclick="switchAdmin(\'vendors\')">Manage</button></div><div style="padding:0 1.2rem 1rem">' +
+    topVHtml +
+    '</div></div>' +
+    '<div class="dash-pro-callout">' +
+    '<h4>Vendor approvals</h4>' +
+    '<div class="big dash-pro-mono">' +
+    pendingVendor +
+    '</div>' +
+    '<p style="margin:0;font-size:0.8rem;color:#a1a1aa">Shops waiting for verification</p>' +
+    '<button type="button" onclick="switchAdmin(\'vendors\')" style="margin-top:0.85rem;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#fff;padding:0.45rem 1rem;border-radius:999px;font-size:0.75rem;font-weight:600;cursor:pointer;font-family:inherit">Review queue</button>' +
+    '</div>' +
+    '</div></div>' +
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem;margin-top:1.25rem">' +
+    '<div class="dash-pro-card"><div class="dash-pro-card-h"><span>Top SKUs (units)</span></div><div style="padding:0 1.2rem 1rem">' +
+    topPHtml +
+    '</div></div>' +
+    '<div class="dash-pro-card"><div class="dash-pro-card-h"><span>Demand by wilaya</span></div><div style="padding:0 1.2rem 1rem">' +
+    wilayaHtml +
+    '</div></div>' +
+    '</div></div>'
+  );
+}
+
 function renderAdmin() {
   if (!State.currentUser || State.currentUser.role !== 'admin') {
     toast('Admin access required', 'error'); showPage('auth'); return;
@@ -2714,39 +3223,47 @@ function renderAdmin() {
 
 function buildAdminHTML() {
   var tabs = [
-    {id:'overview', label:'&#128202; Overview'},
-    {id:'orders', label:'&#129534; Orders'},
-    {id:'logistics', label:'🗺️ Logistics Map'},
-    {id:'users', label:'&#128101; Customers'},
-    {id:'drivers', label:'&#128666; Drivers'},
-    {id:'vendors', label:'&#127978; Vendors'},
-    {id:'vendor-dashboard', label:'&#128179; Vendor Dashboard'}
+    { id: 'overview', label: 'Overview' },
+    { id: 'orders', label: 'Orders' },
+    { id: 'logistics', label: 'Logistics' },
+    { id: 'users', label: 'Customers' },
+    { id: 'drivers', label: 'Drivers' },
+    { id: 'vendors', label: 'Vendors' },
+    { id: 'vendor-dashboard', label: 'Vendor view' },
   ];
-  var tabsHTML = tabs.map(function(t) {
-    return '<button id="adm-nav-'+t.id+'" onclick="switchAdmin(\'' + t.id + '\')" style="background:none;border:none;border-bottom:2px solid transparent;padding:0.875rem 1.25rem;cursor:pointer;font-size:0.875rem;font-weight:500;color:#6b7280;font-family:Outfit,sans-serif;white-space:nowrap;transition:all 0.15s">'+t.label+'</button>';
-  }).join('');
-  return '<div style="background:#f9fafb;min-height:100vh">'
-    + '<div style="background:white;border-bottom:2px solid #e5e7eb;padding:0 2rem;display:flex;align-items:center;gap:1rem;overflow-x:auto">'
-    + '<span style="font-size:0.9rem;font-weight:700;color:#7c3aed;padding:0.875rem 0;margin-right:0.5rem;white-space:nowrap;flex-shrink:0">&#9881; Admin Panel</span>'
-    + '<div style="display:flex;flex:1">' + tabsHTML + '</div>'
-    + '</div>'
-    + '<div style="padding:2rem" id="admin-content"></div>'
-    + '</div>';
+  var tabsHTML = tabs
+    .map(function (t) {
+      return (
+        '<button type="button" class="dash-pro-tab" id="adm-nav-' +
+        t.id +
+        '" onclick="switchAdmin(\'' +
+        t.id +
+        '\')">' +
+        t.label +
+        '</button>'
+      );
+    })
+    .join('');
+  return (
+    '<div class="dash-pro">' +
+    '<div class="dash-pro-topbar">' +
+    '<div class="dash-pro-brand"><span class="dash-pro-brand-mark">●</span> Everest admin</div>' +
+    '<div class="dash-pro-tabs">' +
+    tabsHTML +
+    '</div></div>' +
+    '<div class="dash-pro-body" id="admin-content"></div>' +
+    '</div>'
+  );
 }
 
 function switchAdmin(section) {
-  // Update tabs
-  document.querySelectorAll('[id^="adm-nav-"]').forEach(function(el) {
-    el.style.borderBottomColor = 'transparent';
-    el.style.color = '#6b7280';
-    el.style.fontWeight = '500';
+  document.querySelectorAll('.dash-pro-tab').forEach(function (el) {
+    el.classList.remove('dash-pro-tab--active');
     el.classList.remove('adm-active');
   });
   var active = document.getElementById('adm-nav-' + section);
   if (active) {
-    active.style.borderBottomColor = '#7c3aed';
-    active.style.color = '#7c3aed';
-    active.style.fontWeight = '700';
+    active.classList.add('dash-pro-tab--active');
     active.classList.add('adm-active');
   }
 
@@ -2756,84 +3273,10 @@ function switchAdmin(section) {
   const users = STN.DB.get('users') || [];
   const orders = STN.DB.get('orders') || [];
   const vendors = users.filter(u => u.role === 'vendor');
-  const revenue = orders.reduce((s, o) => s + (o.total || 0), 0);
-  const pending = orders.filter(o => o.status !== 'delivered').length;
+  const revenue = dashSumRevenue(orders);
 
   if (section === 'overview') {
-    content.innerHTML = `
-      <div>
-        <div style="margin-bottom:2rem">
-          <h1 style="font-size:1.5rem;font-weight:700;color:#111827;margin-bottom:0.25rem">Dashboard Overview</h1>
-          <p style="color:#6b7280;font-size:0.875rem">Welcome back, Admin! Here's what's happening today.</p>
-        </div>
-        <!-- KPI CARDS -->
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;margin-bottom:2rem">
-          ${[
-            {label:'Total Revenue',value:revenue.toLocaleString()+' TND',icon:'💰',change:'+18%',color:'#7c3aed',bg:'#f5f3ff'},
-            {label:'Total Orders',value:orders.length,icon:'🧾',change:'+12 this week',color:'#2563eb',bg:'#eff6ff'},
-            {label:'Customers',value:users.length,icon:'👥',change:'+5 today',color:'#059669',bg:'#f0fdf4'},
-            {label:'Products',value:State.products.length,icon:'📦',change:'+3 new',color:'#d97706',bg:'#fffbeb'}
-          ].map(k => `
-            <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.5rem;transition:box-shadow 0.2s" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)'" onmouseout="this.style.boxShadow=''">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
-                <div style="width:40px;height:40px;background:${k.bg};border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem">${k.icon}</div>
-                <span style="background:#f0fdf4;color:#166534;font-size:0.7rem;padding:0.2rem 0.6rem;border-radius:20px;font-weight:600">↑ ${k.change}</span>
-              </div>
-              <div style="font-size:1.75rem;font-weight:700;color:#111827;margin-bottom:0.25rem">${k.value}</div>
-              <div style="font-size:0.8rem;color:#6b7280">${k.label}</div>
-            </div>
-          `).join('')}
-        </div>
-        <!-- RECENT ORDERS + TOP PRODUCTS -->
-        <div style="display:grid;grid-template-columns:1fr 340px;gap:1.5rem">
-          <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
-            <div style="padding:1.25rem 1.5rem;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between">
-              <h3 style="font-size:0.95rem;font-weight:600;color:#111827">Recent Orders</h3>
-              <button onclick="switchAdmin('orders')" style="color:#7c3aed;background:none;border:none;font-size:0.8rem;cursor:pointer;font-weight:600">View All →</button>
-            </div>
-            <div style="overflow-x:auto">
-              <table style="width:100%;border-collapse:collapse">
-                <thead><tr style="background:#f9fafb">${['Order ID','Customer','Total','Status','Date'].map(h=>`<th style="text-align:left;padding:0.75rem 1rem;font-size:0.75rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em">${h}</th>`).join('')}</tr></thead>
-                <tbody>${orders.slice(-6).reverse().map(o => `
-                  <tr style="border-top:1px solid #f3f4f6" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
-                    <td style="padding:0.875rem 1rem;font-size:0.8rem;font-weight:600;color:#7c3aed">${o.tracking_number || o.id}</td>
-                    <td style="padding:0.875rem 1rem;font-size:0.8rem;color:#374151">${o.phone || 'Guest'}</td>
-                    <td style="padding:0.875rem 1rem;font-size:0.8rem;font-weight:600;color:#111827">${(o.total||0).toLocaleString()} TND</td>
-                    <td style="padding:0.875rem 1rem"><span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:600;background:${o.status==='delivered'?'#dcfce7':o.status==='shipped'?'#dbeafe':'#fef9c3'};color:${o.status==='delivered'?'#166534':o.status==='shipped'?'#1d4ed8':'#92400e'}">${o.status||'pending'}</span></td>
-                    <td style="padding:0.875rem 1rem;font-size:0.78rem;color:#9ca3af">${o.created_at ? new Date(o.created_at).toLocaleDateString() : 'Today'}</td>
-                  </tr>`).join('')}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <!-- Quick stats panel -->
-          <div style="display:flex;flex-direction:column;gap:1.5rem">
-            <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.5rem">
-              <h3 style="font-size:0.95rem;font-weight:600;color:#111827;margin-bottom:1.2rem">Order Status</h3>
-              ${[
-                {label:'Pending',count:orders.filter(o=>!o.status||o.status==='pending').length,color:'#f59e0b',bg:'#fffbeb'},
-                {label:'Processing',count:orders.filter(o=>o.status==='processing').length,color:'#3b82f6',bg:'#eff6ff'},
-                {label:'Shipped',count:orders.filter(o=>o.status==='shipped').length,color:'#8b5cf6',bg:'#f5f3ff'},
-                {label:'Delivered',count:orders.filter(o=>o.status==='delivered').length,color:'#10b981',bg:'#ecfdf5'},
-              ].map(s=>`
-                <div style="display:flex;align-items:center;justify-content:space-between;padding:0.6rem 0;border-bottom:1px solid #f3f4f6">
-                  <div style="display:flex;align-items:center;gap:0.6rem">
-                    <div style="width:8px;height:8px;border-radius:50%;background:${s.color}"></div>
-                    <span style="font-size:0.82rem;color:#374151">${s.label}</span>
-                  </div>
-                  <span style="background:${s.bg};color:${s.color};padding:0.15rem 0.6rem;border-radius:20px;font-size:0.75rem;font-weight:700">${s.count}</span>
-                </div>`).join('')}
-            </div>
-            <div style="background:linear-gradient(135deg,#7c3aed,#4a1fa8);border-radius:12px;padding:1.5rem;color:white">
-              <div style="font-size:0.75rem;opacity:0.8;margin-bottom:0.5rem">Pending Vendors</div>
-              <div style="font-size:2rem;font-weight:700;margin-bottom:0.5rem">${vendors.filter(v=>!v.verified).length}</div>
-              <div style="font-size:0.78rem;opacity:0.75;margin-bottom:1rem">waiting for approval</div>
-              <button onclick="switchAdmin('vendors')" style="background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.3);padding:0.4rem 1rem;border-radius:6px;font-size:0.78rem;cursor:pointer;font-family:inherit">Review Now →</button>
-            </div>
-          </div>
-        </div>
-      </div>`;
-
+    content.innerHTML = buildAdminOverviewHTML(orders, users, State.products || []);
   } else if (section === 'orders') {
     var driverUsers = users.filter(function (u) {
       return u.role === 'driver' && isDriverVerified(u);
@@ -3661,26 +4104,35 @@ function renderVendorDashboard() {
 
 function buildProfessionalDashboardHTML() {
   return `
-    <div class="dashboard-container">
-      <!-- Header -->
-      <div class="dashboard-header">
+    <div class="dashboard-container dash-pro-root">
+      <div class="dash-pro-hero">
         <div>
-          <h1>🚀 Vendor Dashboard</h1>
-          <p>Manage your business in real-time</p>
+          <p class="dash-pro-eyebrow">Seller workspace</p>
+          <h1 class="dash-pro-hero-title">Performance</h1>
+          <p class="dash-pro-hero-sub">Live GMV, fulfillment, catalog exposure, and logistics — tuned for daily operations on Everest.</p>
         </div>
-        <div class="header-info">
-          <div class="vendor-name" id="vendor-name">${State.currentUser?.shop_name || State.currentUser?.name || 'Vendor Shop'}</div>
-          <div class="vendor-status">✅ VERIFIED</div>
+        <div class="dash-pro-hero-meta">
+          <div class="dash-pro-shop" id="vendor-name"></div>
+          <span class="dash-pro-live" id="vendor-verify-pill">Live</span>
         </div>
       </div>
 
-      <!-- KPI Cards -->
       <div class="kpi-grid" id="kpi-grid">
         <div class="loading">
           <div class="spinner"></div>
           Loading dashboard...
         </div>
       </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">Revenue trajectory</h2>
+          <span id="vendor-chart-sub" style="font-size:0.75rem;color:#71717a;font-weight:600"></span>
+        </div>
+        <div id="vendor-revenue-chart" style="padding:0 1.25rem 1.35rem;min-height:88px"></div>
+      </div>
+
+      <div class="dash-pro-mini" id="vendor-mini-stats" style="margin-bottom:1.35rem"></div>
 
       <!-- Main Content -->
       <div class="main-content">
@@ -3802,24 +4254,49 @@ class ProfessionalVendorDashboard {
     try {
       if (typeof STNLog !== 'undefined') STNLog.debug('vendor.proDashboard', 'loadData start', {});
       
-      // Load orders
+      // Load orders (prefer vendor-scoped API; normalize vendor_id / vendorId)
       try {
-        const allOrders = await SB.getOrders();
-        this.orders = allOrders ? allOrders.filter(o => o.vendorId === this.vendorData.id) : [];
+        const vid = this.vendorData.id;
+        let loaded = null;
+        if (typeof SB !== 'undefined' && typeof SB.getVendorOrders === 'function') {
+          loaded = await SB.getVendorOrders(vid);
+        }
+        if (loaded && loaded.length) {
+          this.orders = loaded;
+        } else {
+          const allOrders = await SB.getOrders();
+          this.orders = (allOrders || []).filter(function (o) {
+            return dashOrderBelongsToVendor(o, vid);
+          });
+        }
         if (typeof STNLog !== 'undefined') STNLog.debug('vendor.proDashboard', 'orders loaded', { count: this.orders.length });
       } catch (error) {
         if (typeof STNLog !== 'undefined') STNLog.warn('vendor.proDashboard', 'orders fetch failed; using local', { message: error && error.message });
-        this.orders = STN.DB.get('orders') || [];
+        var vidLocal = this.vendorData.id;
+        var local = STN.DB.get('orders') || [];
+        this.orders = local.filter(function (o) {
+          return dashOrderBelongsToVendor(o, vidLocal);
+        });
       }
 
       // Load products
       try {
         const allProducts = await SB.getProducts();
-        this.products = allProducts ? allProducts.filter(p => p.vendorId === this.vendorData.id) : [];
+        const vid = this.vendorData.id;
+        this.products = allProducts
+          ? allProducts.filter(function (p) {
+              var pv = p.vendor_id != null ? p.vendor_id : p.vendorId;
+              return pv != null && String(pv) === String(vid);
+            })
+          : [];
         if (typeof STNLog !== 'undefined') STNLog.debug('vendor.proDashboard', 'products loaded', { count: this.products.length });
       } catch (error) {
         if (typeof STNLog !== 'undefined') STNLog.warn('vendor.proDashboard', 'products fetch failed; using state', { message: error && error.message });
-        this.products = State.products || [];
+        var pvId = this.vendorData.id;
+        this.products = (State.products || []).filter(function (p) {
+          var pv = p.vendor_id != null ? p.vendor_id : p.vendorId;
+          return pv != null && String(pv) === String(pvId);
+        });
       }
 
       if (typeof STNLog !== 'undefined') STNLog.debug('vendor.proDashboard', 'loadData summary', {
@@ -3836,6 +4313,7 @@ class ProfessionalVendorDashboard {
   renderDashboard() {
     this.renderHeader();
     this.renderKPIs();
+    this.renderVendorAnalytics();
     this.renderOrders();
     this.renderInventory();
   }
@@ -3843,53 +4321,191 @@ class ProfessionalVendorDashboard {
   renderHeader() {
     const vendorNameEl = document.getElementById('vendor-name');
     if (vendorNameEl) {
-      vendorNameEl.textContent = this.vendorData.shop_name || this.vendorData.name || 'Vendor Shop';
+      vendorNameEl.textContent = this.vendorData.shop_name || this.vendorData.name || 'Your shop';
+    }
+    const pill = document.getElementById('vendor-verify-pill');
+    if (pill) {
+      const ok = !!this.vendorData.verified;
+      pill.textContent = ok ? 'Verified' : 'Pending review';
+      pill.className = 'dash-pro-live' + (ok ? '' : ' dash-pro-live--pending');
+    }
+  }
+
+  renderVendorAnalytics() {
+    const chartEl = document.getElementById('vendor-revenue-chart');
+    const cap = document.getElementById('vendor-chart-sub');
+    const mini = document.getElementById('vendor-mini-stats');
+    const a = dashAnalyticsForOrders(this.orders, 7);
+    if (chartEl) {
+      chartEl.innerHTML = dashSparklineBars(a.daily, 720, 86);
+    }
+    if (cap) {
+      const mx = Math.max.apply(null, a.daily.concat([0]));
+      cap.textContent =
+        mx > 0
+          ? 'Best day · ' + mx.toLocaleString() + ' TND (last 7d)'
+          : 'No dated revenue in the last 7 days';
+    }
+    if (mini) {
+      const fulfil = dashFulfillmentStats(this.orders);
+      const inTransit = this.orders.filter(function (o) {
+        const s = String(o.status || '')
+          .toLowerCase()
+          .replace(/-/g, '_');
+        return (
+          s === 'shipped' ||
+          s === 'out_for_delivery' ||
+          s === 'transit' ||
+          s === 'processing' ||
+          s === 'ready'
+        );
+      }).length;
+      const low = this.products.filter(function (p) {
+        return (p.stock || 0) < 5;
+      }).length;
+      const stockVal = this.products.reduce(function (s, p) {
+        return s + (Number(p.price) || 0) * (Number(p.stock) || 0);
+      }, 0);
+      const revPct = dashPctChange(a.revenuePrev, a.revenuePeriod);
+      const ordPct = dashPctChange(a.ordersPrev, a.ordersPeriod);
+      function weekWord(pct) {
+        if (Math.abs(pct) < 0.05) return 'Flat vs prior week';
+        return (pct > 0 ? '↑ ' : '↓ ') + Math.abs(pct) + '% vs prior week';
+      }
+      mini.innerHTML =
+        '<div class="dash-pro-mini-tile"><span>Weekly revenue pulse</span><strong style="font-size:0.88rem">' +
+        weekWord(revPct) +
+        '</strong><div style="font-size:0.7rem;color:#71717a;margin-top:0.35rem">Same 7-day window as the chart above</div></div>' +
+        '<div class="dash-pro-mini-tile"><span>Orders this week</span><strong class="dash-pro-mono">' +
+        a.ordersPeriod +
+        '</strong><div style="font-size:0.7rem;color:#71717a;margin-top:0.35rem">' +
+        weekWord(ordPct) +
+        ' · prior ' +
+        a.ordersPrev +
+        '</div></div>' +
+        '<div class="dash-pro-mini-tile"><span>In fulfillment</span><strong class="dash-pro-mono">' +
+        inTransit +
+        '</strong><div style="font-size:0.7rem;color:#71717a;margin-top:0.35rem">Processing → shipped → out for delivery</div></div>' +
+        '<div class="dash-pro-mini-tile"><span>Retail stock value</span><strong class="dash-pro-mono">' +
+        Math.round(stockVal).toLocaleString() +
+        ' TND</strong><div style="font-size:0.7rem;color:#71717a;margin-top:0.35rem">' +
+        low +
+        ' SKU below 5 units · ' +
+        this.products.length +
+        ' live SKUs</div></div>' +
+        '<div class="dash-pro-mini-tile"><span>Fulfillment</span><strong class="dash-pro-mono">' +
+        fulfil.rate +
+        '%</strong><div style="font-size:0.7rem;color:#71717a;margin-top:0.35rem">' +
+        fulfil.delivered +
+        ' delivered · ' +
+        fulfil.canceled +
+        ' canceled</div></div>' +
+        '<div class="dash-pro-mini-tile"><span>Average order (7d)</span><strong class="dash-pro-mono">' +
+        Math.round(a.aovPeriod).toLocaleString() +
+        ' TND</strong><div style="font-size:0.7rem;color:#71717a;margin-top:0.35rem">Previous week ' +
+        Math.round(a.aovPrev).toLocaleString() +
+        ' TND</div></div>';
     }
   }
 
   renderKPIs() {
     const kpiGrid = document.getElementById('kpi-grid');
-    
-    const totalRevenue = this.orders.reduce((sum, order) => sum + (order.total || order.amount || 0), 0);
-    const totalOrders = this.orders.length;
-    const deliveredOrders = this.orders.filter(o => o.status === 'delivered').length;
-    const lowStockProducts = this.products.filter(p => (p.stock || 0) < 5).length;
+    const lifetime = dashSumRevenue(this.orders);
+    const a = dashAnalyticsForOrders(this.orders, 7);
+    const fulfil = dashFulfillmentStats(this.orders);
+    const lowStockProducts = this.products.filter(function (p) {
+      return (p.stock || 0) < 5;
+    }).length;
+    const deliveredOrders = this.orders.filter(function (o) {
+      return o.status === 'delivered';
+    }).length;
+    const revPct = dashPctChange(a.revenuePrev, a.revenuePeriod);
+    const ordPct = dashPctChange(a.ordersPrev, a.ordersPeriod);
+
+    function deltaHtml(pct) {
+      if (Math.abs(pct) < 0.05) {
+        return '<span style="color:#71717a">Flat vs prior week</span>';
+      }
+      const up = pct > 0;
+      return (
+        '<span style="color:' +
+        (up ? '#1db954' : '#f87171') +
+        ';font-weight:700">' +
+        (up ? '↑ ' : '↓ ') +
+        Math.abs(pct) +
+        '% vs prior week</span>'
+      );
+    }
 
     const kpis = [
       {
         icon: '💰',
-        value: totalRevenue.toLocaleString() + ' TND',
-        label: 'Total Revenue',
-        change: '+12%'
+        value: lifetime.toLocaleString() + ' TND',
+        label: 'Lifetime GMV',
+        change: '<span style="color:#71717a">' + this.orders.length + ' orders all-time</span>',
+      },
+      {
+        icon: '📈',
+        value: a.revenuePeriod.toLocaleString() + ' TND',
+        label: '7-day revenue',
+        change: deltaHtml(revPct),
       },
       {
         icon: '📦',
-        value: totalOrders,
-        label: 'Total Orders',
-        change: '+8%'
+        value: String(a.ordersPeriod),
+        label: 'Orders (7 days)',
+        change: deltaHtml(ordPct),
       },
       {
         icon: '✅',
-        value: deliveredOrders,
-        label: 'Delivered',
-        change: '+15%'
+        value: String(deliveredOrders),
+        label: 'Delivered (lifetime)',
+        change:
+          '<span style="color:#71717a">' +
+          fulfil.rate +
+          '% fulfillment · ' +
+          fulfil.canceled +
+          ' canceled</span>',
       },
       {
         icon: '⚠️',
-        value: lowStockProducts,
-        label: 'Low Stock Items',
-        change: lowStockProducts > 0 ? '-2' : '+0'
-      }
+        value: String(lowStockProducts),
+        label: 'Low stock SKUs',
+        change:
+          '<span style="color:#71717a">' +
+          this.products.length +
+          ' products · restock soon</span>',
+      },
+      {
+        icon: '🎯',
+        value: Math.round(a.aovPeriod).toLocaleString() + ' TND',
+        label: 'Avg order value (7d)',
+        change:
+          '<span style="color:#71717a">Prev. week ' +
+          Math.round(a.aovPrev).toLocaleString() +
+          ' TND</span>',
+      },
     ];
 
-    kpiGrid.innerHTML = kpis.map(kpi => `
-      <div class="kpi-card">
-        <div class="kpi-icon">${kpi.icon}</div>
-        <div class="kpi-value">${kpi.value}</div>
-        <div class="kpi-label">${kpi.label}</div>
-        <div class="kpi-change">${kpi.change}</div>
-      </div>
-    `).join('');
+    kpiGrid.innerHTML = kpis
+      .map(function (kpi) {
+        return (
+          '<div class="kpi-card">' +
+          '<div class="kpi-icon">' +
+          kpi.icon +
+          '</div>' +
+          '<div class="kpi-value">' +
+          kpi.value +
+          '</div>' +
+          '<div class="kpi-label">' +
+          kpi.label +
+          '</div>' +
+          '<div class="kpi-change">' +
+          kpi.change +
+          '</div></div>'
+        );
+      })
+      .join('');
   }
 
   renderOrders() {
@@ -3966,7 +4582,14 @@ class ProfessionalVendorDashboard {
         .openPopup();
 
       // Add delivery markers for shipped orders
-      this.orders.filter(o => o.status === 'shipped' || o.status === 'transit').forEach((order, index) => {
+      this.orders
+        .filter(function (o) {
+          var s = String(o.status || '')
+            .toLowerCase()
+            .replace(/-/g, '_');
+          return s === 'shipped' || s === 'transit' || s === 'out_for_delivery';
+        })
+        .forEach((order, index) => {
         // Random locations around Tunisia for demo
         const tunisiaLocations = [
           [36.8065, 10.1815], // Tunis
