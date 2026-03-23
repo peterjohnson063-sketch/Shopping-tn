@@ -686,6 +686,33 @@ const SB = {
       return [];
     }
   },
+  async getDispatchDecisions(limit) {
+    var lim = parseInt(String(limit == null ? 500 : limit), 10);
+    if (!Number.isFinite(lim) || lim < 1) lim = 500;
+    lim = Math.min(lim, 2000);
+    try {
+      return this.req('GET', 'dispatch_decision_log', null, `?order=created_at.desc&limit=${lim}`);
+    } catch (e) {
+      return [];
+    }
+  },
+  async logDispatchDecision(row) {
+    try {
+      const data = await this.req('POST', 'dispatch_decision_log', row);
+      return Array.isArray(data) && data[0] ? data[0] : null;
+    } catch (e) {
+      return null;
+    }
+  },
+  async getLogisticsMetrics(limitDays) {
+    var days = parseInt(String(limitDays == null ? 30 : limitDays), 10);
+    if (!Number.isFinite(days) || days < 1) days = 30;
+    try {
+      return await this.req('GET', 'logistics_kpis_v1', null, `?days=eq.${days}&limit=1`);
+    } catch (e) {
+      return [];
+    }
+  },
 
   // ── ORDER TRACKING ──
   async getTracking(orderId) {

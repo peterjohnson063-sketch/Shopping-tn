@@ -23,6 +23,7 @@ function _sbIsUuid(v) {
 
 const _ORDER_STATUSES = new Set([
   'pending', 'confirmed', 'processing', 'shipped', 'delivered', 'ready', 'cancelled', 'canceled', 'transit',
+  'out_for_delivery', 'out-for-delivery',
 ]);
 
 function _sbProductCategoryColumn() {
@@ -595,6 +596,42 @@ const SB = {
       if (Array.isArray(bySnake) && bySnake.length) return bySnake;
     } catch (e) {}
     return this.req('GET', 'orders', null, `?vendorId=eq.${v}&order=created_at.desc&limit=500`);
+  },
+  async getDriverOrders(driverUserId) {
+    const d = _sbEq(driverUserId);
+    try {
+      const rows = await this.req('GET', 'orders', null, `?driver_id=eq.${d}&order=created_at.desc&limit=500`);
+      return Array.isArray(rows) ? rows : [];
+    } catch (e) {
+      return [];
+    }
+  },
+  async getDispatchDecisions(limit) {
+    var lim = parseInt(String(limit == null ? 500 : limit), 10);
+    if (!Number.isFinite(lim) || lim < 1) lim = 500;
+    lim = Math.min(lim, 2000);
+    try {
+      return this.req('GET', 'dispatch_decision_log', null, `?order=created_at.desc&limit=${lim}`);
+    } catch (e) {
+      return [];
+    }
+  },
+  async logDispatchDecision(row) {
+    try {
+      const data = await this.req('POST', 'dispatch_decision_log', row);
+      return Array.isArray(data) && data[0] ? data[0] : null;
+    } catch (e) {
+      return null;
+    }
+  },
+  async getLogisticsMetrics(limitDays) {
+    var days = parseInt(String(limitDays == null ? 30 : limitDays), 10);
+    if (!Number.isFinite(days) || days < 1) days = 30;
+    try {
+      return await this.req('GET', 'logistics_kpis_v1', null, `?days=eq.${days}&limit=1`);
+    } catch (e) {
+      return [];
+    }
   },
 
   // ── ORDER TRACKING ──

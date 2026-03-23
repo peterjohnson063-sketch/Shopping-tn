@@ -32,6 +32,76 @@ const State = {
   countdownInterval: null,
 };
 
+const DELIVERY_STATUS_FLOW = [
+  'pending',
+  'confirmed',
+  'processing',
+  'ready',
+  'out_for_delivery',
+  'delivered',
+];
+
+const DELIVERY_ACTIVE_STATUSES = new Set(['confirmed', 'processing', 'ready', 'out_for_delivery', 'transit', 'shipped']);
+
+function normalizeOrderStatus(st) {
+  var s = String(st == null ? '' : st).trim().toLowerCase();
+  if (!s) return 'pending';
+  if (s === 'out-for-delivery' || s === 'out_for_delivery') return 'out_for_delivery';
+  if (s === 'cancelled') return 'canceled';
+  return s;
+}
+
+function nextOrderStatus(current) {
+  var s = normalizeOrderStatus(current);
+  var idx = DELIVERY_STATUS_FLOW.indexOf(s);
+  if (idx < 0) return DELIVERY_STATUS_FLOW[0];
+  if (idx >= DELIVERY_STATUS_FLOW.length - 1) return s;
+  return DELIVERY_STATUS_FLOW[idx + 1];
+}
+
+function orderStatusBadge(status) {
+  var s = normalizeOrderStatus(status);
+  if (s === 'delivered') return { label: '✓ Delivered', bg: '#dcfce7', fg: '#166534' };
+  if (s === 'out_for_delivery') return { label: '🚚 Out for delivery', bg: '#dbeafe', fg: '#1d4ed8' };
+  if (s === 'ready') return { label: '📦 Ready for pickup', bg: '#ede9fe', fg: '#6d28d9' };
+  if (s === 'processing') return { label: '⚙️ Processing', bg: '#ede9fe', fg: '#6d28d9' };
+  if (s === 'confirmed') return { label: '✅ Confirmed', bg: '#e0f2fe', fg: '#0369a1' };
+  if (s === 'shipped' || s === 'transit') return { label: '🚚 Transit', bg: '#dbeafe', fg: '#1d4ed8' };
+  if (s === 'canceled') return { label: '✖ Canceled', bg: '#fee2e2', fg: '#b91c1c' };
+  return { label: '⏳ Pending', bg: '#fef9c3', fg: '#92400e' };
+}
+
+const WILAYA_COORDS = {
+  Tunis: [36.8065, 10.1815], Ariana: [36.8663, 10.1647], Ben_Arous: [36.7531, 10.2189], Manouba: [36.8101, 10.0956],
+  Nabeul: [36.4561, 10.7376], Sousse: [35.8256, 10.6084], Monastir: [35.7643, 10.8113], Mahdia: [35.5047, 11.0622],
+  Sfax: [34.7406, 10.7603], Kairouan: [35.6781, 10.0963], Bizerte: [37.2744, 9.8739], Beja: [36.7256, 9.1817],
+  Jendouba: [36.5011, 8.7802], Kef: [36.1742, 8.7049], Siliana: [36.0887, 9.3708], Zaghouan: [36.4029, 10.1429],
+  Kasserine: [35.1676, 8.8365], Sidi_Bouzid: [35.0382, 9.4858], Gabes: [33.8815, 10.0982], Medenine: [33.3549, 10.5055],
+  Tataouine: [32.9297, 10.4518], Tozeur: [33.9197, 8.1335], Kebili: [33.7044, 8.969], Gafsa: [34.425, 8.7842]
+};
+
+function wilayaToCoord(raw) {
+  var k = String(raw == null ? '' : raw).trim();
+  if (!k) return null;
+  var norm = k
+    .replace(/é/g, 'e')
+    .replace(/è/g, 'e')
+    .replace(/ê/g, 'e')
+    .replace(/\s+/g, '_');
+  return WILAYA_COORDS[norm] || WILAYA_COORDS[k] || null;
+}
+
+function haversineKm(aLat, aLng, bLat, bLng) {
+  var R = 6371;
+  var dLat = (bLat - aLat) * Math.PI / 180;
+  var dLng = (bLng - aLng) * Math.PI / 180;
+  var aa = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(aLat * Math.PI / 180) * Math.cos(bLat * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  var c = 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
+  return R * c;
+}
+
 function _driverKycBucket() {
   return (typeof window !== 'undefined' && window.STN_DRIVER_KYC_BUCKET) || 'driver-kyc';
 }
@@ -698,6 +768,25 @@ function driverOpenMapsByKey(key) {
   window.open(url, '_blank');
 }
 
+function driverOpenOptimizedRoute(key) {
+  var list = State.driverOrdersList || [];
+  var o = list.find(function (x) {
+    return String(x.tracking_number || '') === String(key) || String(x.id) === String(key);
+  });
+  if (!o) { toast('Stop not found — refresh', 'error'); return; }
+  var pickup = _orderVendorCoord(o);
+  var drop = _orderCustomerCoord(o);
+  if (!pickup || !drop) {
+    driverOpenMapsByKey(key);
+    return;
+  }
+  var url = 'https://www.google.com/maps/dir/?api=1&origin=' +
+    encodeURIComponent(pickup[0] + ',' + pickup[1]) +
+    '&destination=' + encodeURIComponent(drop[0] + ',' + drop[1]) +
+    '&travelmode=driving';
+  window.open(url, '_blank');
+}
+
 async function patchDriverLocationOnOrder(orderKey, lat, lng) {
   try {
     if (typeof SB !== 'undefined' && SB.updateOrder) await SB.updateOrder(orderKey, { driver_lat: lat, driver_lng: lng });
@@ -760,6 +849,9 @@ async function driverMarkOutForDelivery(orderKey) {
   }
   try {
     if (typeof SB !== 'undefined' && SB.updateOrderStatus) await SB.updateOrderStatus(orderKey, 'out_for_delivery');
+    if (typeof SB !== 'undefined' && SB.addTracking) {
+      await SB.addTracking(orderKey, 'out_for_delivery', 'Driver left vendor and is heading to destination', null).catch(function () {});
+    }
   } catch (e) {}
   var orders = STN.DB.get('orders') || [];
   var o = orders.find(function (x) {
@@ -779,8 +871,23 @@ async function driverMarkDelivered(orderKey) {
     return;
   }
   stopDriverGpsForDelivery();
+  var podNote = prompt('Proof of delivery note (recipient name / code):', '');
+  var podPhoto = prompt('Optional proof photo URL (leave empty if none):', '') || '';
+  var deliveredAt = new Date().toISOString();
   try {
-    if (typeof SB !== 'undefined' && SB.updateOrderStatus) await SB.updateOrderStatus(orderKey, 'delivered');
+    if (typeof SB !== 'undefined' && SB.updateOrder) {
+      await SB.updateOrder(orderKey, {
+        status: 'delivered',
+        delivered_at: deliveredAt,
+        pod_note: podNote || null,
+        pod_photo_url: podPhoto || null,
+      });
+    } else if (typeof SB !== 'undefined' && SB.updateOrderStatus) {
+      await SB.updateOrderStatus(orderKey, 'delivered');
+    }
+    if (typeof SB !== 'undefined' && SB.addTracking) {
+      await SB.addTracking(orderKey, 'delivered', 'Delivered to customer', null).catch(function () {});
+    }
   } catch (e) {}
   var orders = STN.DB.get('orders') || [];
   var o = orders.find(function (x) {
@@ -788,6 +895,9 @@ async function driverMarkDelivered(orderKey) {
   });
   if (o) {
     o.status = 'delivered';
+    o.delivered_at = deliveredAt;
+    o.pod_note = podNote || null;
+    o.pod_photo_url = podPhoto || null;
     STN.DB.set('orders', orders);
   }
   toast('Delivered — great job!', 'success');
@@ -815,6 +925,9 @@ async function driverAcceptOrder(orderKey) {
   };
   try {
     if (typeof SB !== 'undefined' && SB.updateOrder) await SB.updateOrder(orderKey, body);
+    if (typeof SB !== 'undefined' && SB.addTracking) {
+      await SB.addTracking(orderKey, 'ready', 'Driver accepted the delivery and prepared vehicle details', null).catch(function () {});
+    }
   } catch (e) {}
   var orders = STN.DB.get('orders') || [];
   var o = orders.find(function (x) {
@@ -929,6 +1042,9 @@ function renderDriver() {
             '<button type="button" class="btn btn-outline btn-sm" onclick="driverOpenMapsByKey(\'' +
             safeKey +
             '\')">Navigate</button>' +
+            '<button type="button" class="btn btn-outline btn-sm" onclick="driverOpenOptimizedRoute(\'' +
+            safeKey +
+            '\')">Optimized route</button>' +
             (accepted && canDeliver
               ? '<button type="button" class="btn btn-ghost btn-sm" onclick="startDriverGpsForOrder(\'' + safeKey + '\')">Share GPS</button>'
               : '') +
@@ -2622,12 +2738,15 @@ async function renderTrackingUI(order) {
     { key: 'pending', label: '🕐 Order Received', desc: 'Your order has been received' },
     { key: 'confirmed', label: '✅ Confirmed', desc: 'Artisan is preparing your order' },
     { key: 'processing', label: '🔨 Crafting', desc: 'Being handcrafted with care' },
-    { key: 'shipped', label: '🚚 Shipped', desc: 'On the way to you' },
+    { key: 'ready', label: '📦 Ready for pickup', desc: 'Driver can pick up your package' },
+    { key: 'out_for_delivery', label: '🚚 Out for delivery', desc: 'Driver is on the way' },
     { key: 'delivered', label: '🎉 Delivered', desc: 'Enjoy your purchase!' }
   ];
-  const currentStepIndex = steps.findIndex(s => s.key === order.status);
-  const statusColors = { pending: '#f59e0b', confirmed: '#3b82f6', processing: '#8b5cf6', shipped: '#06b6d4', delivered: '#10b981' };
-  const statusColor = statusColors[order.status] || '#7c3aed';
+  var normalizedStatus = normalizeOrderStatus(order.status);
+  if (normalizedStatus === 'shipped' || normalizedStatus === 'transit') normalizedStatus = 'out_for_delivery';
+  const currentStepIndex = steps.findIndex(s => s.key === normalizedStatus);
+  const statusColors = { pending: '#f59e0b', confirmed: '#3b82f6', processing: '#8b5cf6', ready: '#7c3aed', out_for_delivery: '#06b6d4', delivered: '#10b981' };
+  const statusColor = statusColors[normalizedStatus] || '#7c3aed';
   const showVehicle =
     !!order.driver_accepted_at &&
     !!(order.delivery_vehicle_plate || order.delivery_vehicle_model || order.delivery_vehicle_color);
@@ -2646,7 +2765,7 @@ async function renderTrackingUI(order) {
           <p style="font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;color:#7b72a8;margin-bottom:0.3rem">Tracking Number</p>
           <p style="font-family:'Cormorant Garamond',serif;font-size:1.4rem;color:#1e0a4e;font-weight:600">${order.tracking_number}</p>
         </div>
-        <span style="background:${statusColor}20;color:${statusColor};padding:0.4rem 1rem;border-radius:20px;font-size:0.75rem;font-weight:600;text-transform:uppercase">● ${order.status}</span>
+        <span style="background:${statusColor}20;color:${statusColor};padding:0.4rem 1rem;border-radius:20px;font-size:0.75rem;font-weight:600;text-transform:uppercase">● ${normalizedStatus.replace(/_/g, ' ')}</span>
       </div>
 
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:2rem">
@@ -2680,7 +2799,7 @@ async function renderTrackingUI(order) {
         ${steps.map((step, i) => {
           const done = i <= currentStepIndex;
           const active = i === currentStepIndex;
-          const trackEvent = tracking.find(t => t.status === step.key);
+          const trackEvent = tracking.find(t => normalizeOrderStatus(t.status) === step.key);
           return `<div style="position:relative;margin-bottom:1.5rem;opacity:${done ? '1' : '0.4'}${active ? ';animation:fadeIn 0.5s ease-in' : ''}">
             <div style="position:absolute;left:-1.6rem;top:0.2rem;width:14px;height:14px;border-radius:50%;background:${active ? '#7c3aed' : done ? '#9b72f0' : '#e8e4ff'};border:2px solid ${done ? '#7c3aed' : '#d4d0f0'};${active ? 'box-shadow:0 0 0 4px rgba(124,58,237,0.15);animation:pulse 2s infinite' : ''}"></div>
             <p style="font-size:0.85rem;font-weight:600;color:#1e0a4e;margin-bottom:0.2rem">${step.label}</p>
@@ -3729,10 +3848,7 @@ async function switchAdmin(section) {
                     return '<option value="' + d.id + '"' + sel + '>' + nm + ' #' + d.id + '</option>';
                   })
                   .join('');
-                var st = o.status||'pending';
-                var stLabel = st==='delivered'?'✓ Delivered':st==='out_for_delivery'||st==='out-for-delivery'?'🚚 Out for delivery':st==='shipped'?'🚚 Shipped':st==='processing'?'⚙️ Processing':'⏳ Pending';
-                var stBg = st==='delivered'?'#dcfce7':st==='shipped'||st==='out_for_delivery'||st==='out-for-delivery'?'#dbeafe':st==='processing'?'#ede9fe':'#fef9c3';
-                var stFg = st==='delivered'?'#166534':st==='shipped'||st==='out_for_delivery'||st==='out-for-delivery'?'#1d4ed8':st==='processing'?'#6d28d9':'#92400e';
+                var sbg = orderStatusBadge(o.status || 'pending');
                 return `
                 <tr style="border-top:1px solid #f3f4f6" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
                   <td style="padding:0.75rem 0.875rem;font-size:0.78rem;font-weight:600;color:#7c3aed;white-space:nowrap">${o.tracking_number||o.id||'-'}</td>
@@ -3748,13 +3864,14 @@ async function switchAdmin(section) {
                   <td style="padding:0.75rem 0.875rem;font-size:0.78rem;color:#374151">${Array.isArray(o.items)?o.items.map(i=>i.name||'Item').join(', ').substring(0,30)+(o.items.length>1?'...':''):'1 item'}</td>
                   <td style="padding:0.75rem 0.875rem;font-size:0.78rem;font-weight:700;color:#111827;white-space:nowrap">${(o.total||0).toLocaleString()} TND</td>
                   <td style="padding:0.75rem 0.875rem">
-                    <span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;white-space:nowrap;background:${stBg};color:${stFg}">
-                      ${stLabel}
+                    <span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;white-space:nowrap;background:${sbg.bg};color:${sbg.fg}">
+                      ${sbg.label}
                     </span>
                   </td>
                   <td style="padding:0.75rem 0.5rem;vertical-align:top">
                     <select id="adm-drv-${oid}" style="font-size:0.68rem;max-width:118px;padding:0.2rem;border-radius:6px;border:1px solid #e5e7eb">${drvOpts}</select>
                     <button type="button" onclick="assignOrderDriver('${oid}', document.getElementById('adm-drv-${oid}').value)" style="display:block;margin-top:0.35rem;background:#e0f2fe;color:#0369a1;border:none;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.65rem;cursor:pointer;font-weight:600">Assign</button>
+                    <button type="button" onclick="autoAssignOrderDriver('${oid}')" style="display:block;margin-top:0.3rem;background:#ede9fe;color:#6d28d9;border:none;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.65rem;cursor:pointer;font-weight:700">Auto</button>
                   </td>
                   <td style="padding:0.75rem 0.875rem;font-size:0.72rem;color:#9ca3af;white-space:nowrap">${o.created_at?new Date(o.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'Today'}</td>
                   <td style="padding:0.75rem 0.875rem">
@@ -4034,6 +4151,7 @@ async function switchAdmin(section) {
             <button onclick="centerOnDriver()" style="background:#059669;color:white;border:none;padding:0.6rem 1rem;border-radius:8px;font-size:0.8rem;cursor:pointer;font-weight:600">📍 Center on Driver</button>
           </div>
         </div>
+        <div id="logistics-kpi-row"></div>
         
         <!-- Map Container -->
         <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.08)">
@@ -4073,6 +4191,7 @@ async function switchAdmin(section) {
       </div>
     `;
     
+    renderAdminLogisticsKpis();
     // Initialize map after DOM is ready
     setTimeout(() => initializeLogisticsMap(), 100);
     
@@ -4163,12 +4282,14 @@ function advanceOrder(orderId) {
   const orders = STN.DB.get('orders') || [];
   const order = orders.find(o => o.id === orderId || o.tracking_number === orderId);
   if (!order) { toast('Order not found', 'error'); return; }
-  const steps = ['pending','processing','shipped','delivered'];
-  const curr = steps.indexOf(order.status||'pending');
-  if (curr >= steps.length - 1) { toast('Order already delivered!', 'default'); return; }
-  order.status = steps[curr + 1];
+  var next = nextOrderStatus(order.status || 'pending');
+  if (normalizeOrderStatus(order.status) === 'delivered') { toast('Order already delivered!', 'default'); return; }
+  order.status = next;
   STN.DB.set('orders', orders);
   toast('Order advanced to: ' + order.status, 'success');
+  try {
+    if (typeof SB !== 'undefined' && SB.updateOrderStatus) SB.updateOrderStatus(orderId, order.status).catch(function(){});
+  } catch (e) {}
   switchAdmin('orders');
 }
 
@@ -4215,6 +4336,121 @@ async function assignOrderDriver(orderRef, driverUserId) {
   }
   toast('Driver assigned to order', 'success');
   switchAdmin('orders');
+}
+
+function _orderVendorCoord(order) {
+  if (!order || typeof order !== 'object') return null;
+  var lat = Number(order.vendor_lat != null ? order.vendor_lat : order.pickup_lat);
+  var lng = Number(order.vendor_lng != null ? order.vendor_lng : order.pickup_lng);
+  if (Number.isFinite(lat) && Number.isFinite(lng)) return [lat, lng];
+  return wilayaToCoord(order.vendor_wilaya || order.vendor_region || order.wilaya || '');
+}
+
+function _orderCustomerCoord(order) {
+  if (!order || typeof order !== 'object') return null;
+  var lat = Number(order.delivery_lat != null ? order.delivery_lat : order.customer_lat);
+  var lng = Number(order.delivery_lng != null ? order.delivery_lng : order.customer_lng);
+  if (Number.isFinite(lat) && Number.isFinite(lng)) return [lat, lng];
+  return wilayaToCoord(order.wilaya || order.customer_wilaya || order.region || '');
+}
+
+function _driverCurrentCoord(driver, orders) {
+  if (!driver) return null;
+  var last = null;
+  (orders || []).forEach(function (o) {
+    var did = o.driver_id != null ? o.driver_id : o.driverId;
+    if (String(did || '') !== String(driver.id)) return;
+    var st = normalizeOrderStatus(o.status);
+    if (!(st === 'out_for_delivery' || st === 'transit' || st === 'processing' || st === 'ready' || st === 'shipped')) return;
+    var lat = Number(o.driver_lat);
+    var lng = Number(o.driver_lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    if (!last || String(o.updated_at || o.created_at || '') > String(last.t || '')) {
+      last = { t: o.updated_at || o.created_at || '', coord: [lat, lng] };
+    }
+  });
+  if (last) return last.coord;
+  return wilayaToCoord(driver.wilaya || '');
+}
+
+function _driverActiveLoad(driverId, orders) {
+  return (orders || []).filter(function (o) {
+    var did = o.driver_id != null ? o.driver_id : o.driverId;
+    if (String(did || '') !== String(driverId)) return false;
+    return DELIVERY_ACTIVE_STATUSES.has(normalizeOrderStatus(o.status));
+  }).length;
+}
+
+async function autoAssignOrderDriver(orderRef) {
+  var orders = STN.DB.get('orders') || [];
+  var target = orders.find(function (o) { return String(o.id) === String(orderRef) || String(o.tracking_number) === String(orderRef); });
+  if (!target) { toast('Order not found for auto-dispatch', 'error'); return; }
+
+  var users = await mergeLocalAndRemoteUsersForAdmin().catch(function () {
+    return STN.DB.get('users') || [];
+  });
+  var candidates = (users || []).filter(function (u) {
+    return u.role === 'driver' && isDriverVerified(u) && !isUserSuspended(u);
+  });
+  if (!candidates.length) { toast('No verified active drivers available', 'error'); return; }
+
+  var pickup = _orderVendorCoord(target);
+  var drop = _orderCustomerCoord(target);
+  if (!pickup || !drop) {
+    toast('Auto-dispatch needs vendor/customer coordinates (or wilaya)', 'error');
+    return;
+  }
+
+  var best = null;
+  var scored = candidates.map(function (d) {
+    var dCoord = _driverCurrentCoord(d, orders) || pickup;
+    var toPickupKm = haversineKm(dCoord[0], dCoord[1], pickup[0], pickup[1]);
+    var routeKm = haversineKm(pickup[0], pickup[1], drop[0], drop[1]);
+    var load = _driverActiveLoad(d.id, orders);
+    var score = (toPickupKm * 0.58) + (routeKm * 0.32) + (load * 4.5);
+    var row = {
+      driver_id: String(d.id),
+      driver_name: (d.first_name || d.firstName || 'Driver') + ' ' + (d.last_name || d.lastName || ''),
+      distance_to_vendor_km: Math.round(toPickupKm * 100) / 100,
+      route_distance_km: Math.round(routeKm * 100) / 100,
+      active_load: load,
+      score: Math.round(score * 100) / 100,
+    };
+    if (!best || row.score < best.score) best = row;
+    return row;
+  }).sort(function (a, b) { return a.score - b.score; });
+
+  if (!best) { toast('Auto-dispatch failed to score drivers', 'error'); return; }
+  await assignOrderDriver(orderRef, best.driver_id);
+
+  if (typeof SB !== 'undefined') {
+    try {
+      if (SB.logDispatchDecision) {
+        await SB.logDispatchDecision({
+          order_id: target.id || target.tracking_number || orderRef,
+          selected_driver_id: best.driver_id,
+          reason_code: 'best_eta_capacity',
+          score_breakdown: scored.slice(0, 8),
+          created_at: new Date().toISOString(),
+          mode: 'auto',
+        });
+      }
+      if (SB.req) {
+        for (var i = 0; i < Math.min(scored.length, 10); i++) {
+          await SB.req('POST', 'dispatch_score', {
+            order_id: target.id || target.tracking_number || orderRef,
+            driver_id: scored[i].driver_id,
+            distance_to_vendor_km: scored[i].distance_to_vendor_km,
+            route_distance_km: scored[i].route_distance_km,
+            active_load: scored[i].active_load,
+            score: scored[i].score,
+            created_at: new Date().toISOString(),
+          }).catch(function () {});
+        }
+      }
+    } catch (e) {}
+  }
+  toast('Auto-dispatch selected ' + best.driver_name.trim() + ' (score ' + best.score + ')', 'success');
 }
 
 /**
@@ -8074,6 +8310,61 @@ let logisticsMap = null;
 let orderMarkers = [];
 let driverMarker = null;
 
+function computeLogisticsKpis(orders) {
+  var list = Array.isArray(orders) ? orders : [];
+  var total = list.length;
+  var delivered = 0;
+  var active = 0;
+  var assigned = 0;
+  var sumPickupMins = 0;
+  var pickupN = 0;
+  var sumDistance = 0;
+  var distanceN = 0;
+  list.forEach(function (o) {
+    var st = normalizeOrderStatus(o.status);
+    if (st === 'delivered') delivered++;
+    if (DELIVERY_ACTIVE_STATUSES.has(st)) active++;
+    if (o.driver_id != null || o.driverId != null) assigned++;
+    if (o.driver_accepted_at && o.created_at) {
+      var mins = (new Date(o.driver_accepted_at).getTime() - new Date(o.created_at).getTime()) / 60000;
+      if (Number.isFinite(mins) && mins >= 0) {
+        sumPickupMins += mins;
+        pickupN++;
+      }
+    }
+    var a = _orderVendorCoord(o);
+    var b = _orderCustomerCoord(o);
+    if (a && b) {
+      sumDistance += haversineKm(a[0], a[1], b[0], b[1]);
+      distanceN++;
+    }
+  });
+  return {
+    total: total,
+    delivered: delivered,
+    active: active,
+    assigned: assigned,
+    onTimeRate: total > 0 ? Math.round((delivered / total) * 1000) / 10 : 0,
+    avgPickupMins: pickupN > 0 ? Math.round(sumPickupMins / pickupN) : 0,
+    avgRouteKm: distanceN > 0 ? Math.round((sumDistance / distanceN) * 10) / 10 : 0,
+  };
+}
+
+function renderAdminLogisticsKpis() {
+  var orders = STN.DB.get('orders') || [];
+  var k = computeLogisticsKpis(orders);
+  var root = document.getElementById('logistics-kpi-row');
+  if (!root) return;
+  root.innerHTML =
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0.75rem;margin-bottom:1rem">' +
+    '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:0.8rem"><div style="font-size:0.68rem;color:#64748b;text-transform:uppercase;letter-spacing:0.08em">Assigned</div><div style="font-size:1.2rem;font-weight:700;color:#0f172a">' + k.assigned + '/' + k.total + '</div></div>' +
+    '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:0.8rem"><div style="font-size:0.68rem;color:#64748b;text-transform:uppercase;letter-spacing:0.08em">Active</div><div style="font-size:1.2rem;font-weight:700;color:#1d4ed8">' + k.active + '</div></div>' +
+    '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:0.8rem"><div style="font-size:0.68rem;color:#64748b;text-transform:uppercase;letter-spacing:0.08em">Avg pickup</div><div style="font-size:1.2rem;font-weight:700;color:#6d28d9">' + k.avgPickupMins + ' min</div></div>' +
+    '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:0.8rem"><div style="font-size:0.68rem;color:#64748b;text-transform:uppercase;letter-spacing:0.08em">Avg route</div><div style="font-size:1.2rem;font-weight:700;color:#047857">' + k.avgRouteKm + ' km</div></div>' +
+    '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:0.8rem"><div style="font-size:0.68rem;color:#64748b;text-transform:uppercase;letter-spacing:0.08em">Delivered</div><div style="font-size:1.2rem;font-weight:700;color:#166534">' + k.delivered + ' (' + k.onTimeRate + '%)</div></div>' +
+    '</div>';
+}
+
 // Initialize logistics map
 function initializeLogisticsMap() {
   const mapContainer = document.getElementById('logistics-map');
@@ -8272,7 +8563,7 @@ function updateOrderList(orders) {
             font-size: 11px;
             font-weight: 600;
           ">
-            ${order.status === 'delivered' ? '✓ Delivered' : order.status === 'shipped' ? '🚚 Shipped' : '⏳ Processing'}
+            ${orderStatusBadge(order.status).label}
           </div>
         </div>
         <div style="font-size: 12px; color: #374151;">
@@ -8288,6 +8579,7 @@ function updateOrderList(orders) {
 function refreshLogisticsMap() {
   if (logisticsMap) {
     loadOrderMarkers();
+    renderAdminLogisticsKpis();
     toast('🔄 Map refreshed with latest order data', 'success');
   } else {
     toast('⚠️ Map not loaded yet', 'error');
