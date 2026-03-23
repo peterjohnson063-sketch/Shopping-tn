@@ -101,15 +101,16 @@ function _safeLang(lang) {
 }
 
 var __stnRtI18n = {
-  captured: false,
   textNodes: [],
   attrNodes: [],
   cache: {},
+  textNodeSet: null,
+  attrSeenByEl: null,
 };
 
 function _stnCaptureOriginalDomTexts() {
-  if (__stnRtI18n.captured) return;
-  __stnRtI18n.captured = true;
+  if (!__stnRtI18n.textNodeSet) __stnRtI18n.textNodeSet = new WeakSet();
+  if (!__stnRtI18n.attrSeenByEl) __stnRtI18n.attrSeenByEl = new WeakMap();
 
   var skipTag = { SCRIPT:1, STYLE:1, NOSCRIPT:1, IFRAME:1, CODE:1, PRE:1 };
   var walker = document.createTreeWalker(document.body || document.documentElement, NodeFilter.SHOW_TEXT, null);
@@ -122,19 +123,50 @@ function _stnCaptureOriginalDomTexts() {
     var txt = String(n.nodeValue || '').replace(/\s+/g, ' ').trim();
     if (!txt) continue;
     if (/^[0-9\s.,:%+\-/*()]+$/.test(txt)) continue;
+    if (__stnRtI18n.textNodeSet.has(n)) continue;
+    __stnRtI18n.textNodeSet.add(n);
     __stnRtI18n.textNodes.push({ node: n, original: n.nodeValue });
   }
 
   var attrs = ['placeholder', 'title', 'aria-label'];
   document.querySelectorAll('input,textarea,button,a,[title],[aria-label]').forEach(function (el) {
     if (el.closest && el.closest('[data-no-translate="1"]')) return;
+    var seen = __stnRtI18n.attrSeenByEl.get(el);
+    if (!seen) {
+      seen = {};
+      __stnRtI18n.attrSeenByEl.set(el, seen);
+    }
     attrs.forEach(function (a) {
       var v = el.getAttribute(a);
       if (!v) return;
       var t = String(v).trim();
       if (!t) return;
+      if (seen[a]) return;
+      seen[a] = true;
       __stnRtI18n.attrNodes.push({ el: el, attr: a, original: v });
     });
+  });
+}
+
+function _stnStabilizeLanguageButtons() {
+  var langs = ['ar', 'fr', 'en'];
+  langs.forEach(function (l) {
+    var btn = document.getElementById('lang-' + l);
+    if (!btn) return;
+    btn.setAttribute('data-no-translate', '1');
+    btn.setAttribute('translate', 'no');
+    btn.style.direction = 'ltr';
+    btn.style.unicodeBidi = 'isolate';
+    btn.textContent = l.toUpperCase();
+  });
+  document.querySelectorAll('[data-nav-lang]').forEach(function (b) {
+    var l = (b.getAttribute('data-nav-lang') || '').toLowerCase();
+    if (!l) return;
+    b.setAttribute('data-no-translate', '1');
+    b.setAttribute('translate', 'no');
+    b.style.direction = 'ltr';
+    b.style.unicodeBidi = 'isolate';
+    b.textContent = l.toUpperCase();
   });
 }
 
@@ -160,6 +192,7 @@ async function _stnTranslateText(text, targetLang) {
 }
 
 async function _stnTranslateWholeDom(targetLang) {
+  _stnStabilizeLanguageButtons();
   _stnCaptureOriginalDomTexts();
   var lang = _safeLang(targetLang);
 
@@ -173,7 +206,7 @@ async function _stnTranslateWholeDom(targetLang) {
 
   if (lang === 'en') return;
 
-  var maxItems = 650;
+  var maxItems = 3000;
   var textItems = __stnRtI18n.textNodes.filter(function (x) { return x && x.node && x.node.isConnected; }).slice(0, maxItems);
   var attrItems = __stnRtI18n.attrNodes.filter(function (x) { return x && x.el && x.el.isConnected; }).slice(0, maxItems);
 
