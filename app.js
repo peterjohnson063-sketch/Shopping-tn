@@ -2855,6 +2855,56 @@ function dashFormatDelta(pct, labelUp, labelDown) {
   };
 }
 
+/** Only show % change when prior week has a real baseline (avoids fake +100% from zero). */
+function dashHonestRevenueDeltaHtml(analytics) {
+  if (analytics.ordersPeriod === 0 && analytics.revenuePeriod === 0) {
+    return '<span class="dash-pro-stat-delta flat">No dated orders in the last 7 days</span>';
+  }
+  if (analytics.ordersPrev === 0 && analytics.revenuePrev === 0) {
+    return '<span class="dash-pro-stat-delta flat">No dated sales in the week before — % not shown</span>';
+  }
+  var pct = dashPctChange(analytics.revenuePrev, analytics.revenuePeriod);
+  return dashFormatDelta(pct, 'vs prior week', 'vs prior week').html;
+}
+
+function dashHonestOrdersDeltaHtml(analytics) {
+  if (analytics.ordersPeriod === 0) {
+    return '<span class="dash-pro-stat-delta flat">No dated orders in the last 7 days</span>';
+  }
+  if (analytics.ordersPrev === 0) {
+    return '<span class="dash-pro-stat-delta flat">Prior week: 0 dated orders</span>';
+  }
+  var pct = dashPctChange(analytics.ordersPrev, analytics.ordersPeriod);
+  return dashFormatDelta(pct, 'vs prior week', 'vs prior week').html;
+}
+
+function dashHonestAovDeltaHtml(analytics) {
+  if (analytics.ordersPeriod === 0) {
+    return '<span class="dash-pro-stat-delta flat">No orders this week</span>';
+  }
+  if (analytics.ordersPrev === 0) {
+    return '<span class="dash-pro-stat-delta flat">Prior week had no orders (AOV N/A)</span>';
+  }
+  var pct = dashPctChange(analytics.aovPrev, analytics.aovPeriod);
+  return dashFormatDelta(pct, 'vs prior week AOV', 'vs prior week AOV').html;
+}
+
+function dashHonestMiniRevPhrase(analytics) {
+  if (analytics.ordersPeriod === 0 && analytics.revenuePeriod === 0) return 'No dated activity this week';
+  if (analytics.ordersPrev === 0 && analytics.revenuePrev === 0) return 'No prior-week baseline — % hidden';
+  var pct = dashPctChange(analytics.revenuePrev, analytics.revenuePeriod);
+  if (Math.abs(pct) < 0.05) return 'Flat vs prior week';
+  return (pct > 0 ? '↑ ' : '↓ ') + Math.abs(pct) + '% vs prior week';
+}
+
+function dashHonestMiniOrdPhrase(analytics) {
+  if (analytics.ordersPeriod === 0) return 'No dated orders this week';
+  if (analytics.ordersPrev === 0) return 'Prior week: 0 dated orders';
+  var pct = dashPctChange(analytics.ordersPrev, analytics.ordersPeriod);
+  if (Math.abs(pct) < 0.05) return 'Flat vs prior week';
+  return (pct > 0 ? '↑ ' : '↓ ') + Math.abs(pct) + '% vs prior week';
+}
+
 function dashSparklineBars(values, width, height) {
   width = width || 320;
   height = height || 72;
@@ -2893,7 +2943,7 @@ function dashSparklineBars(values, width, height) {
     height +
     '" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="' +
     gid +
-    '" x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stop-color="#1db954"/><stop offset="100%" stop-color="#a78bfa"/></linearGradient></defs>' +
+    '" x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stop-color="#7c3aed"/><stop offset="100%" stop-color="#9b72f0"/></linearGradient></defs>' +
     rects.join('') +
     '</svg>'
   );
@@ -3012,12 +3062,6 @@ function buildAdminOverviewHTML(orders, users, products) {
   var analytics = dashAnalyticsForOrders(orders, 7);
   var fulfil = dashFulfillmentStats(orders);
   var funnel = dashStatusFunnel(orders);
-  var revPct = dashPctChange(analytics.revenuePrev, analytics.revenuePeriod);
-  var ordPct = dashPctChange(analytics.ordersPrev, analytics.ordersPeriod);
-  var aovPct = dashPctChange(analytics.aovPrev, analytics.aovPeriod);
-  var revDelta = dashFormatDelta(revPct, 'vs prior week', 'vs prior week');
-  var ordDelta = dashFormatDelta(ordPct, 'orders vs prior week', 'orders vs prior week');
-  var aovDelta = dashFormatDelta(aovPct, 'AOV vs prior week', 'AOV vs prior week');
   var topV = dashTopVendors(orders, users, 5);
   var topP = dashTopProductLines(orders, 5);
   var wilayas = dashTopWilayas(orders, 6);
@@ -3044,17 +3088,17 @@ function buildAdminOverviewHTML(orders, users, products) {
     {
       label: 'Last 7 days revenue',
       value: analytics.revenuePeriod.toLocaleString() + ' TND',
-      delta: revDelta.html,
+      delta: dashHonestRevenueDeltaHtml(analytics),
     },
     {
       label: 'Orders (7d)',
       value: String(analytics.ordersPeriod),
-      delta: ordDelta.html,
+      delta: dashHonestOrdersDeltaHtml(analytics),
     },
     {
       label: 'Avg order value (7d)',
       value: Math.round(analytics.aovPeriod).toLocaleString() + ' TND',
-      delta: aovDelta.html,
+      delta: dashHonestAovDeltaHtml(analytics),
     },
     {
       label: 'Active catalog',
@@ -3112,7 +3156,7 @@ function buildAdminOverviewHTML(orders, users, products) {
 
   var topVHtml =
     topV.length === 0
-      ? '<p style="padding:0.5rem 0;color:#71717a;font-size:0.8rem">No vendor-attributed orders yet.</p>'
+      ? '<p style="padding:0.5rem 0;color:#7b72a8;font-size:0.8rem">No vendor-attributed orders in the loaded data yet.</p>'
       : topV
           .map(function (v) {
             return (
@@ -3127,7 +3171,7 @@ function buildAdminOverviewHTML(orders, users, products) {
 
   var topPHtml =
     topP.length === 0
-      ? '<p style="padding:0.5rem 0;color:#71717a;font-size:0.8rem">Line items will appear as orders include product names.</p>'
+      ? '<p style="padding:0.5rem 0;color:#7b72a8;font-size:0.8rem">Top SKUs appear when order rows include line items with product names.</p>'
       : topP
           .map(function (p) {
             return (
@@ -3154,7 +3198,7 @@ function buildAdminOverviewHTML(orders, users, products) {
 
   var recentRows =
     orders.length === 0
-      ? '<tr><td colspan="5" style="text-align:center;padding:2rem;color:#71717a">No orders yet</td></tr>'
+      ? '<tr><td colspan="5" style="text-align:center;padding:2rem;color:#7b72a8">No orders in the loaded dataset</td></tr>'
       : orders
           .slice(-8)
           .reverse()
@@ -3162,22 +3206,22 @@ function buildAdminOverviewHTML(orders, users, products) {
       var st = String(o.status || 'pending').toLowerCase();
       var stColor =
         st === 'delivered'
-          ? 'rgba(29,185,84,0.2)'
+          ? 'rgba(5,150,105,0.12)'
           : st === 'shipped' || st === 'out_for_delivery'
-          ? 'rgba(96,165,250,0.2)'
+          ? 'rgba(37,99,235,0.1)'
           : st === 'cancelled' || st === 'canceled'
-          ? 'rgba(248,113,113,0.2)'
-          : 'rgba(251,191,36,0.2)';
+          ? 'rgba(220,38,38,0.1)'
+          : 'rgba(217,119,6,0.12)';
       var stFg =
         st === 'delivered'
-          ? '#4ade80'
+          ? '#047857'
           : st === 'shipped' || st === 'out_for_delivery'
-          ? '#93c5fd'
+          ? '#1d4ed8'
           : st === 'cancelled' || st === 'canceled'
-          ? '#fca5a5'
-          : '#fcd34d';
+          ? '#b91c1c'
+          : '#b45309';
       return (
-        '<tr><td class="dash-pro-mono" style="color:#a78bfa;font-weight:700">' +
+        '<tr><td class="dash-pro-mono" style="color:#7c3aed;font-weight:700">' +
         _dashEscapeHtml(String(o.tracking_number || o.id || '—')) +
         '</td><td>' +
         _dashEscapeHtml(String(o.client_name || o.phone || 'Guest')) +
@@ -3199,8 +3243,8 @@ function buildAdminOverviewHTML(orders, users, products) {
   return (
     '<div>' +
     '<div style="margin-bottom:1.5rem">' +
-    '<h1 class="dash-pro-hero-title">Command center</h1>' +
-    '<p class="dash-pro-hero-sub">Live marketplace pulse — revenue, pipeline, geography, and catalog health in one view. Metrics compare this week to the previous week when dates exist on orders.</p>' +
+    '<h1 class="dash-pro-hero-title">Marketplace overview</h1>' +
+    '<p class="dash-pro-hero-sub">Figures load from Supabase (orders, users) and your live product catalog. Week-over-week % appears only when the prior week had dated orders — nothing is invented.</p>' +
     '</div>' +
     '<div class="dash-pro-kpi-grid">' +
     kpiHtml +
@@ -3220,7 +3264,7 @@ function buildAdminOverviewHTML(orders, users, products) {
     '<div class="dash-pro-mini">' +
     '<div class="dash-pro-mini-tile"><span>Accounts</span><strong class="dash-pro-mono">' +
     users.length +
-    '</strong><div style="font-size:0.7rem;color:#71717a;margin-top:0.35rem">' +
+    '</strong><div style="font-size:0.7rem;color:#7b72a8;margin-top:0.35rem">' +
     shoppers.length +
     ' shoppers · ' +
     vendors.length +
@@ -3229,16 +3273,16 @@ function buildAdminOverviewHTML(orders, users, products) {
     ' drivers</div></div>' +
     '<div class="dash-pro-mini-tile"><span>In pipeline</span><strong class="dash-pro-mono">' +
     inFlight +
-    '</strong><div style="font-size:0.7rem;color:#71717a;margin-top:0.35rem">Excludes canceled</div></div>' +
+    '</strong><div style="font-size:0.7rem;color:#7b72a8;margin-top:0.35rem">Excludes canceled</div></div>' +
     '<div class="dash-pro-mini-tile"><span>Drivers on duty</span><strong class="dash-pro-mono">' +
     verifiedDrivers +
-    '</strong><div style="font-size:0.7rem;color:#71717a;margin-top:0.35rem">Verified profiles</div></div>' +
+    '</strong><div style="font-size:0.7rem;color:#7b72a8;margin-top:0.35rem">Verified profiles</div></div>' +
     '<div class="dash-pro-mini-tile"><span>GMV / order</span><strong class="dash-pro-mono">' +
     (orders.length ? Math.round(analytics.revenueAll / Math.max(orders.length, 1)) : 0).toLocaleString() +
-    ' TND</strong><div style="font-size:0.7rem;color:#71717a;margin-top:0.35rem">All-time average</div></div>' +
+    ' TND</strong><div style="font-size:0.7rem;color:#7b72a8;margin-top:0.35rem">All-time average</div></div>' +
     '</div></div>' +
     '<div class="dash-pro-stack">' +
-    '<div class="dash-pro-card"><div class="dash-pro-card-h"><span>Order pipeline</span><span class="dash-pro-mono" style="font-size:0.72rem;color:#71717a">' +
+    '<div class="dash-pro-card"><div class="dash-pro-card-h"><span>Order pipeline</span><span class="dash-pro-mono" style="font-size:0.72rem;color:#7b72a8">' +
     orders.length +
     ' total</span></div><div style="padding:0 1.2rem 1rem">' +
     funnelRows +
@@ -3251,8 +3295,8 @@ function buildAdminOverviewHTML(orders, users, products) {
     '<div class="big dash-pro-mono">' +
     pendingVendor +
     '</div>' +
-    '<p style="margin:0;font-size:0.8rem;color:#a1a1aa">Shops waiting for verification</p>' +
-    '<button type="button" onclick="switchAdmin(\'vendors\')" style="margin-top:0.85rem;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#fff;padding:0.45rem 1rem;border-radius:999px;font-size:0.75rem;font-weight:600;cursor:pointer;font-family:inherit">Review queue</button>' +
+    '<p style="margin:0;font-size:0.8rem;color:#7b72a8">Shops waiting for verification</p>' +
+    '<button type="button" onclick="switchAdmin(\'vendors\')" style="margin-top:0.85rem;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;padding:0.5rem 1.15rem;border-radius:10px;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(124,58,237,0.25)">Review queue</button>' +
     '</div>' +
     '</div></div>' +
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem;margin-top:1.25rem">' +
@@ -3311,7 +3355,7 @@ function buildAdminHTML() {
   );
 }
 
-function switchAdmin(section) {
+async function switchAdmin(section) {
   document.querySelectorAll('.dash-pro-tab').forEach(function (el) {
     el.classList.remove('dash-pro-tab--active');
     el.classList.remove('adm-active');
@@ -3325,14 +3369,49 @@ function switchAdmin(section) {
   const content = document.getElementById('admin-content');
   if (!content) return;
 
-  const users = STN.DB.get('users') || [];
-  const orders = STN.DB.get('orders') || [];
+  var users = STN.DB.get('users') || [];
+  var orders = STN.DB.get('orders') || [];
+
+  if (section === 'overview') {
+    content.innerHTML =
+      '<div style="padding:2.75rem 1.5rem;text-align:center;color:#7b72a8;font-size:0.9rem">Loading orders and users from the database…</div>';
+    try {
+      if (typeof SB !== 'undefined' && SB.getOrders) {
+        var ro = await SB.getOrders();
+        if (Array.isArray(ro)) orders = ro;
+      }
+    } catch (e) {
+      if (typeof STNLog !== 'undefined') STNLog.warn('admin.overview.getOrders', e && e.message);
+    }
+    try {
+      users = await mergeLocalAndRemoteUsersForAdmin();
+    } catch (e2) {
+      if (typeof STNLog !== 'undefined') STNLog.warn('admin.overview.mergeUsers', e2 && e2.message);
+    }
+    var navOv = document.getElementById('adm-nav-overview');
+    if (!navOv || !navOv.classList.contains('adm-active')) return;
+    content.innerHTML = buildAdminOverviewHTML(orders, users, State.products || []);
+    return;
+  }
+
+  try {
+    if (typeof SB !== 'undefined' && SB.getOrders) {
+      var rx = await SB.getOrders();
+      if (Array.isArray(rx)) orders = rx;
+    }
+  } catch (e) {
+    if (typeof STNLog !== 'undefined') STNLog.warn('admin.tab.getOrders', e && e.message);
+  }
+
   const vendors = users.filter(u => u.role === 'vendor');
   const revenue = dashSumRevenue(orders);
 
-  if (section === 'overview') {
-    content.innerHTML = buildAdminOverviewHTML(orders, users, State.products || []);
-  } else if (section === 'orders') {
+  if (section === 'orders') {
+    try {
+      users = await mergeLocalAndRemoteUsersForAdmin();
+    } catch (mu) {
+      if (typeof STNLog !== 'undefined') STNLog.warn('admin.orders.mergeUsers', mu && mu.message);
+    }
     var driverUsers = users.filter(function (u) {
       return u.role === 'driver' && isDriverVerified(u);
     });
@@ -4179,10 +4258,10 @@ function buildProfessionalDashboardHTML() {
         </div>
       </div>
 
-      <div class="panel">
+      <div class="panel" id="vendor-analytics-anchor" tabindex="-1">
         <div class="panel-header">
           <h2 class="panel-title">Revenue trajectory</h2>
-          <span id="vendor-chart-sub" style="font-size:0.75rem;color:#71717a;font-weight:600"></span>
+          <span id="vendor-chart-sub" style="font-size:0.75rem;color:#7b72a8;font-weight:600"></span>
         </div>
         <div id="vendor-revenue-chart" style="padding:0 1.25rem 1.35rem;min-height:88px"></div>
       </div>
@@ -4421,43 +4500,37 @@ class ProfessionalVendorDashboard {
       const stockVal = this.products.reduce(function (s, p) {
         return s + (Number(p.price) || 0) * (Number(p.stock) || 0);
       }, 0);
-      const revPct = dashPctChange(a.revenuePrev, a.revenuePeriod);
-      const ordPct = dashPctChange(a.ordersPrev, a.ordersPeriod);
-      function weekWord(pct) {
-        if (Math.abs(pct) < 0.05) return 'Flat vs prior week';
-        return (pct > 0 ? '↑ ' : '↓ ') + Math.abs(pct) + '% vs prior week';
-      }
       mini.innerHTML =
         '<div class="dash-pro-mini-tile"><span>Weekly revenue pulse</span><strong style="font-size:0.88rem">' +
-        weekWord(revPct) +
-        '</strong><div style="font-size:0.7rem;color:#71717a;margin-top:0.35rem">Same 7-day window as the chart above</div></div>' +
+        dashHonestMiniRevPhrase(a) +
+        '</strong><div style="font-size:0.7rem;color:#7b72a8;margin-top:0.35rem">Same 7-day window as the chart above</div></div>' +
         '<div class="dash-pro-mini-tile"><span>Orders this week</span><strong class="dash-pro-mono">' +
         a.ordersPeriod +
-        '</strong><div style="font-size:0.7rem;color:#71717a;margin-top:0.35rem">' +
-        weekWord(ordPct) +
+        '</strong><div style="font-size:0.7rem;color:#7b72a8;margin-top:0.35rem">' +
+        dashHonestMiniOrdPhrase(a) +
         ' · prior ' +
         a.ordersPrev +
         '</div></div>' +
         '<div class="dash-pro-mini-tile"><span>In fulfillment</span><strong class="dash-pro-mono">' +
         inTransit +
-        '</strong><div style="font-size:0.7rem;color:#71717a;margin-top:0.35rem">Processing → shipped → out for delivery</div></div>' +
+        '</strong><div style="font-size:0.7rem;color:#7b72a8;margin-top:0.35rem">Processing → shipped → out for delivery</div></div>' +
         '<div class="dash-pro-mini-tile"><span>Retail stock value</span><strong class="dash-pro-mono">' +
         Math.round(stockVal).toLocaleString() +
-        ' TND</strong><div style="font-size:0.7rem;color:#71717a;margin-top:0.35rem">' +
+        ' TND</strong><div style="font-size:0.7rem;color:#7b72a8;margin-top:0.35rem">' +
         low +
         ' SKU below 5 units · ' +
         this.products.length +
         ' live SKUs</div></div>' +
         '<div class="dash-pro-mini-tile"><span>Fulfillment</span><strong class="dash-pro-mono">' +
         fulfil.rate +
-        '%</strong><div style="font-size:0.7rem;color:#71717a;margin-top:0.35rem">' +
+        '%</strong><div style="font-size:0.7rem;color:#7b72a8;margin-top:0.35rem">' +
         fulfil.delivered +
         ' delivered · ' +
         fulfil.canceled +
         ' canceled</div></div>' +
         '<div class="dash-pro-mini-tile"><span>Average order (7d)</span><strong class="dash-pro-mono">' +
         Math.round(a.aovPeriod).toLocaleString() +
-        ' TND</strong><div style="font-size:0.7rem;color:#71717a;margin-top:0.35rem">Previous week ' +
+        ' TND</strong><div style="font-size:0.7rem;color:#7b72a8;margin-top:0.35rem">Previous week ' +
         Math.round(a.aovPrev).toLocaleString() +
         ' TND</div></div>';
     }
@@ -4474,49 +4547,31 @@ class ProfessionalVendorDashboard {
     const deliveredOrders = this.orders.filter(function (o) {
       return o.status === 'delivered';
     }).length;
-    const revPct = dashPctChange(a.revenuePrev, a.revenuePeriod);
-    const ordPct = dashPctChange(a.ordersPrev, a.ordersPeriod);
-
-    function deltaHtml(pct) {
-      if (Math.abs(pct) < 0.05) {
-        return '<span style="color:#71717a">Flat vs prior week</span>';
-      }
-      const up = pct > 0;
-      return (
-        '<span style="color:' +
-        (up ? '#1db954' : '#f87171') +
-        ';font-weight:700">' +
-        (up ? '↑ ' : '↓ ') +
-        Math.abs(pct) +
-        '% vs prior week</span>'
-      );
-    }
-
     const kpis = [
       {
         icon: '💰',
         value: lifetime.toLocaleString() + ' TND',
         label: 'Lifetime GMV',
-        change: '<span style="color:#71717a">' + this.orders.length + ' orders all-time</span>',
+        change: '<span style="color:#7b72a8">' + this.orders.length + ' orders all-time</span>',
       },
       {
         icon: '📈',
         value: a.revenuePeriod.toLocaleString() + ' TND',
         label: '7-day revenue',
-        change: deltaHtml(revPct),
+        change: dashHonestRevenueDeltaHtml(a),
       },
       {
         icon: '📦',
         value: String(a.ordersPeriod),
         label: 'Orders (7 days)',
-        change: deltaHtml(ordPct),
+        change: dashHonestOrdersDeltaHtml(a),
       },
       {
         icon: '✅',
         value: String(deliveredOrders),
         label: 'Delivered (lifetime)',
         change:
-          '<span style="color:#71717a">' +
+          '<span style="color:#7b72a8">' +
           fulfil.rate +
           '% fulfillment · ' +
           fulfil.canceled +
@@ -4527,7 +4582,7 @@ class ProfessionalVendorDashboard {
         value: String(lowStockProducts),
         label: 'Low stock SKUs',
         change:
-          '<span style="color:#71717a">' +
+          '<span style="color:#7b72a8">' +
           this.products.length +
           ' products · restock soon</span>',
       },
@@ -4535,10 +4590,7 @@ class ProfessionalVendorDashboard {
         icon: '🎯',
         value: Math.round(a.aovPeriod).toLocaleString() + ' TND',
         label: 'Avg order value (7d)',
-        change:
-          '<span style="color:#71717a">Prev. week ' +
-          Math.round(a.aovPrev).toLocaleString() +
-          ' TND</span>',
+        change: dashHonestAovDeltaHtml(a),
       },
     ];
 
@@ -4615,6 +4667,10 @@ class ProfessionalVendorDashboard {
     if (!mapContainer) return;
 
     try {
+      if (this.map && typeof this.map.remove === 'function') {
+        this.map.remove();
+        this.map = null;
+      }
       // Initialize map centered on Sousse, Tunisia
       this.map = L.map('vendor-map').setView([35.8256, 10.6084], 10);
       
@@ -4749,31 +4805,103 @@ class ProfessionalVendorDashboard {
   }
 }
 
-// Global functions for buttons
+// Global functions for buttons (vendor professional dashboard)
+function scrollToVendorAnalyticsAnchor() {
+  var n = 0;
+  function tick() {
+    var el = document.getElementById('vendor-analytics-anchor');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (typeof el.focus === 'function') el.focus({ preventScroll: true });
+      return;
+    }
+    n++;
+    if (n < 50) setTimeout(tick, 120);
+  }
+  tick();
+}
+
 function viewAllOrders() {
-  switchVendorSection('orders');
+  showPage('vendor');
+  setTimeout(function () {
+    switchVendorSection('orders');
+  }, 80);
 }
 
 function addProduct() {
-  switchVendorSection('upload');
+  showPage('vendor');
+  setTimeout(function () {
+    switchVendorSection('upload');
+  }, 80);
 }
 
 function viewAnalytics() {
-  alert('📈 Analytics coming soon! This will show detailed sales charts and trends.');
+  if (State.currentPage !== 'vendor-dashboard') {
+    showPage('vendor-dashboard');
+  }
+  scrollToVendorAnalyticsAnchor();
+  toast('Revenue chart and weekly stats', 'default');
 }
 
 function viewSettings() {
-  alert('⚙️ Settings coming soon! This will include shop configuration and preferences.');
+  showPage('account');
+}
+
+function exportVendorCsvEscape(val) {
+  var s = String(val == null ? '' : val);
+  if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
 }
 
 function exportData() {
-  alert('📥 Export coming soon! This will allow you to download your business data.');
+  var d = window.dashboard;
+  if (!d || !Array.isArray(d.orders) || !Array.isArray(d.products)) {
+    toast('Open your seller dashboard first, then export again.', 'default');
+    return;
+  }
+  var lines = [];
+  lines.push('orders');
+  lines.push(
+    ['tracking', 'status', 'total_tnd', 'client', 'phone', 'wilaya', 'created_at']
+      .map(exportVendorCsvEscape)
+      .join(',')
+  );
+  (d.orders || []).forEach(function (o) {
+    lines.push(
+      [
+        o.tracking_number || o.id,
+        o.status,
+        o.total != null ? o.total : o.amount,
+        o.client_name,
+        o.phone,
+        o.wilaya,
+        o.created_at || o.date,
+      ]
+        .map(exportVendorCsvEscape)
+        .join(',')
+    );
+  });
+  lines.push('');
+  lines.push('products');
+  lines.push(['id', 'name', 'price_tnd', 'stock'].map(exportVendorCsvEscape).join(','));
+  (d.products || []).forEach(function (p) {
+    lines.push([p.id, p.name, p.price, p.stock].map(exportVendorCsvEscape).join(','));
+  });
+  var blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'everest-vendor-export-' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('CSV download started (orders + products from this session)', 'success');
 }
 
 function refreshMap() {
-  if (window.dashboard && window.dashboard.map) {
+  if (window.dashboard && typeof window.dashboard.initMap === 'function') {
     window.dashboard.initMap();
-    alert('🗺️ Tunisia map refreshed!');
+    toast('Map refreshed', 'success');
+  } else {
+    toast('Map is not ready yet', 'default');
   }
 }
 

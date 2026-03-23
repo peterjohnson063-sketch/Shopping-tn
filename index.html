@@ -761,24 +761,24 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 }
 </style>
 
-<!-- Premium admin + vendor dashboards (dark, data-dense) -->
+<!-- Admin + vendor dashboards (light — matches Everest shell) -->
 <style id="dash-pro-premium">
 .dash-pro {
-  --dp-bg: #050506;
-  --dp-elevated: #0f0f12;
-  --dp-card: #141417;
-  --dp-card-hover: #1a1a1f;
-  --dp-border: rgba(255, 255, 255, 0.07);
-  --dp-border-strong: rgba(255, 255, 255, 0.12);
-  --dp-text: #fafafa;
-  --dp-muted: #a1a1aa;
-  --dp-dim: #71717a;
-  --dp-green: #1db954;
-  --dp-green-dim: rgba(29, 185, 84, 0.15);
-  --dp-red: #f87171;
-  --dp-red-dim: rgba(248, 113, 113, 0.12);
-  --dp-brand: #a78bfa;
-  --dp-brand-dim: rgba(167, 139, 250, 0.14);
+  --dp-bg: #f8f7ff;
+  --dp-elevated: #f5f2ff;
+  --dp-card: #ffffff;
+  --dp-card-hover: #faf8ff;
+  --dp-border: rgba(107, 63, 212, 0.12);
+  --dp-border-strong: rgba(107, 63, 212, 0.22);
+  --dp-text: #1a1035;
+  --dp-muted: #5b5378;
+  --dp-dim: #7b72a8;
+  --dp-green: #059669;
+  --dp-green-dim: rgba(5, 150, 105, 0.12);
+  --dp-red: #dc2626;
+  --dp-red-dim: rgba(220, 38, 38, 0.1);
+  --dp-brand: #7c3aed;
+  --dp-brand-dim: rgba(124, 58, 237, 0.1);
   min-height: calc(100vh - 112px);
   background: var(--dp-bg);
   color: var(--dp-text);
@@ -793,8 +793,9 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   align-items: center;
   gap: 0.75rem 1.25rem;
   padding: 0.65rem max(4%, 20px);
-  background: linear-gradient(180deg, rgba(15, 15, 18, 0.97) 0%, rgba(10, 10, 12, 0.92) 100%);
+  background: rgba(255, 255, 255, 0.96);
   border-bottom: 1px solid var(--dp-border);
+  box-shadow: 0 1px 0 rgba(107, 63, 212, 0.06);
   backdrop-filter: blur(16px);
 }
 .dash-pro-brand {
@@ -809,7 +810,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   flex-shrink: 0;
 }
 .dash-pro-brand-mark {
-  color: var(--dp-green);
+  color: var(--dp-brand);
   font-size: 0.55rem;
 }
 .dash-pro-tabs {
@@ -836,13 +837,13 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   transition: color 0.2s, background 0.2s;
 }
 .dash-pro-tab:hover {
-  color: var(--dp-text);
-  background: rgba(255, 255, 255, 0.05);
+  color: var(--dp-brand);
+  background: var(--dp-brand-dim);
 }
 .dash-pro-tab.dash-pro-tab--active {
   color: #fff;
-  background: rgba(29, 185, 84, 0.18);
-  box-shadow: 0 0 0 1px rgba(29, 185, 84, 0.35);
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  box-shadow: 0 2px 10px rgba(124, 58, 237, 0.28);
   font-weight: 600;
 }
 .dash-pro-body {
@@ -863,10 +864,8 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   font-weight: 800;
   letter-spacing: -0.04em;
   margin: 0 0 0.35rem;
-  background: linear-gradient(135deg, #fff 0%, #a1a1aa 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #1e0a4e;
+  font-family: var(--font-display, 'Cormorant Garamond', Georgia, serif);
 }
 .dash-pro-hero-sub {
   margin: 0;
@@ -895,8 +894,8 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   position: absolute;
   inset: 0 0 auto 0;
   height: 3px;
-  background: linear-gradient(90deg, var(--dp-green), var(--dp-brand));
-  opacity: 0.85;
+  background: linear-gradient(90deg, #7c3aed, #9b72f0);
+  opacity: 1;
 }
 .dash-pro-stat:hover {
   border-color: var(--dp-border-strong);
@@ -988,7 +987,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   color: var(--dp-muted);
 }
 .dash-pro-table tr:hover td {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(124, 58, 237, 0.05);
 }
 .dash-pro-pill {
   display: inline-flex;
@@ -1020,7 +1019,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   display: block;
   width: 100%;
   border-radius: 12px;
-  background: linear-gradient(180deg, rgba(29, 185, 84, 0.06) 0%, transparent 100%);
+  background: linear-gradient(180deg, rgba(124, 58, 237, 0.08) 0%, transparent 100%);
 }
 .dash-pro-list-row {
   display: flex;
@@ -1048,21 +1047,22 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 .dash-pro-callout {
   border-radius: 16px;
   padding: 1.15rem 1.2rem;
-  background: linear-gradient(145deg, rgba(29, 185, 84, 0.12) 0%, rgba(167, 139, 250, 0.1) 100%);
-  border: 1px solid rgba(29, 185, 84, 0.25);
+  background: linear-gradient(145deg, #f5f2ff 0%, #ede8ff 100%);
+  border: 1px solid rgba(124, 58, 237, 0.2);
 }
 .dash-pro-callout h4 {
   margin: 0 0 0.35rem;
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: var(--dp-muted);
+  color: var(--dp-dim);
   font-weight: 700;
 }
 .dash-pro-callout .big {
   font-size: 1.85rem;
   font-weight: 800;
   margin: 0 0 0.25rem;
+  color: #1e0a4e;
 }
 .dash-pro-stack {
   display: flex;
@@ -1099,20 +1099,20 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 }
 /* Vendor dashboard root */
 .dash-pro-root.dashboard-container {
-  --dp-bg: #050506;
-  --dp-elevated: #0f0f12;
-  --dp-card: #141417;
-  --dp-card-hover: #1a1a1f;
-  --dp-border: rgba(255, 255, 255, 0.07);
-  --dp-border-strong: rgba(255, 255, 255, 0.12);
-  --dp-text: #fafafa;
-  --dp-muted: #a1a1aa;
-  --dp-dim: #71717a;
-  --dp-green: #1db954;
-  --dp-green-dim: rgba(29, 185, 84, 0.15);
-  --dp-red: #f87171;
-  --dp-brand: #a78bfa;
-  --dp-brand-dim: rgba(167, 139, 250, 0.14);
+  --dp-bg: #f8f7ff;
+  --dp-elevated: #f5f2ff;
+  --dp-card: #ffffff;
+  --dp-card-hover: #faf8ff;
+  --dp-border: rgba(107, 63, 212, 0.12);
+  --dp-border-strong: rgba(107, 63, 212, 0.22);
+  --dp-text: #1a1035;
+  --dp-muted: #5b5378;
+  --dp-dim: #7b72a8;
+  --dp-green: #059669;
+  --dp-green-dim: rgba(5, 150, 105, 0.12);
+  --dp-red: #dc2626;
+  --dp-brand: #7c3aed;
+  --dp-brand-dim: rgba(124, 58, 237, 0.1);
   max-width: 1600px;
   margin: 0 auto;
   padding: 1.25rem max(4%, 16px) 3rem;
@@ -1137,7 +1137,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   font-size: 0.62rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--dp-green);
+  color: var(--dp-brand);
   font-weight: 700;
   margin: 0 0 0.4rem;
 }
@@ -1159,14 +1159,14 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  background: var(--dp-green-dim);
-  color: var(--dp-green);
-  border: 1px solid rgba(29, 185, 84, 0.35);
+  background: rgba(5, 150, 105, 0.1);
+  color: #059669;
+  border: 1px solid rgba(5, 150, 105, 0.28);
 }
 .dash-pro-root .dash-pro-live.dash-pro-live--pending {
-  background: rgba(234, 179, 8, 0.12);
-  color: #facc15;
-  border-color: rgba(234, 179, 8, 0.35);
+  background: #fffbeb;
+  color: #b45309;
+  border-color: rgba(217, 119, 6, 0.35);
 }
 .dash-pro-root .kpi-grid {
   display: grid;
@@ -1182,14 +1182,14 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   box-shadow: none;
 }
 .dash-pro-root .kpi-card::before {
-  background: linear-gradient(90deg, var(--dp-green), var(--dp-brand));
+  background: linear-gradient(90deg, #7c3aed, #9b72f0);
   height: 3px;
 }
 .dash-pro-root .kpi-icon {
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(29, 185, 84, 0.25), rgba(167, 139, 250, 0.25));
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(155, 114, 240, 0.2));
   font-size: 1.25rem;
 }
 .dash-pro-root .kpi-value {
@@ -1208,8 +1208,8 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   margin-top: 0.45rem;
   padding: 0.35rem 0.55rem;
   border-radius: 8px;
-  background: var(--dp-elevated);
-  color: var(--dp-green);
+  background: #f8f7ff;
+  color: var(--dp-muted);
   border: 1px solid var(--dp-border);
   font-size: 0.72rem;
   font-weight: 600;
@@ -1233,12 +1233,13 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   font-size: 1rem;
 }
 .dash-pro-root .btn-primary {
-  background: linear-gradient(135deg, #1db954, #159442);
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
   border: none;
-  box-shadow: 0 4px 20px rgba(29, 185, 84, 0.25);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.28);
 }
 .dash-pro-root .btn-secondary {
-  background: var(--dp-elevated);
+  background: #ffffff;
   color: var(--dp-text);
   border: 1px solid var(--dp-border);
 }
@@ -1246,7 +1247,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   border-bottom-color: var(--dp-border);
 }
 .dash-pro-root .order-item:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(124, 58, 237, 0.04);
 }
 .dash-pro-root .order-id { color: var(--dp-brand); }
 .dash-pro-root .order-customer { color: var(--dp-muted); }
@@ -1261,7 +1262,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 .dash-pro-root .loading { color: var(--dp-muted); }
 .dash-pro-root .spinner {
   border-color: var(--dp-border);
-  border-top-color: var(--dp-green);
+  border-top-color: var(--dp-brand);
 }
 </style>
 
