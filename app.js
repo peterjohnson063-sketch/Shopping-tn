@@ -960,11 +960,43 @@ function renderDriver() {
     if (!head || !list) return;
 
     if (isUserSuspended(State.currentUser)) {
+      var cu = State.currentUser;
+      var bannedNow =
+        cu.banned === true ||
+        cu.banned === 1 ||
+        cu.banned === '1' ||
+        String(cu.banned || '').toLowerCase() === 'true';
+      var br = (cu.ban_reason != null && String(cu.ban_reason).trim() !== '' ? String(cu.ban_reason).trim() : '');
+      var reasonBlock =
+        bannedNow && br
+          ? '<div style="margin-top:1rem;padding:0.85rem 1rem;background:white;border:1px solid #fecaca;border-radius:12px">' +
+            '<p style="margin:0 0 0.35rem;font-size:0.72rem;font-weight:700;color:#991b1b;text-transform:uppercase;letter-spacing:0.06em">Message from admin</p>' +
+            '<p style="margin:0;font-size:0.9rem;color:#450a0a;line-height:1.5;white-space:pre-wrap;word-break:break-word">' +
+            _detailEscapeHtml(br) +
+            '</p></div>'
+          : '';
+      var timeoutNote = '';
+      if (cu.timeout_until && new Date(cu.timeout_until) > new Date()) {
+        try {
+          timeoutNote =
+            '<p style="margin:0.75rem 0 0;font-size:0.82rem;color:#7f1d1d">Temporary restriction until <strong>' +
+            _detailEscapeHtml(new Date(cu.timeout_until).toLocaleString()) +
+            '</strong>.</p>';
+        } catch (e) {}
+      }
       head.innerHTML =
         '<div style="background:linear-gradient(135deg,#fef2f2,#ffe4e6);border:1px solid #fecaca;border-radius:16px;padding:1.25rem 1.35rem;margin-bottom:1.25rem">' +
         '<h1 style="font-family:var(--font-display,Georgia,serif);font-size:1.45rem;color:#991b1b;margin:0 0 0.5rem">⛔ Account not active</h1>' +
-        '<p style="margin:0;font-size:0.88rem;color:#7f1d1d;line-height:1.55">Your delivery partner access is suspended or was not approved (for example after admin review). You cannot accept deliveries. Contact Everest if you think this is a mistake.</p></div>' +
-        '<button type="button" class="btn btn-ghost btn-sm" onclick="renderDriver()">Refresh status</button>';
+        '<p style="margin:0;font-size:0.88rem;color:#7f1d1d;line-height:1.55">Your delivery partner access is suspended or was not approved after admin review. You cannot accept deliveries.' +
+        (bannedNow ? ' If a reason is shown below, it was added by the admin team.' : '') +
+        '</p>' +
+        timeoutNote +
+        reasonBlock +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:0.65rem;align-items:center;margin-bottom:1rem">' +
+        '<button type="button" class="btn btn-danger btn-sm" onclick="logout()" style="font-weight:700">Log out</button>' +
+        '<button type="button" class="btn btn-ghost btn-sm" onclick="renderDriver()">Refresh status</button>' +
+        '</div>';
       list.innerHTML = '';
       State.driverOrdersList = [];
       return;
@@ -2110,6 +2142,12 @@ async function healCurrentUserFromSupabase() {
       wilaya: row.wilaya != null ? row.wilaya : u.wilaya,
       delegation: row.delegation != null ? row.delegation : u.delegation,
       phone: row.phone != null ? row.phone : u.phone,
+      banned: row.banned !== undefined && row.banned !== null ? row.banned : u.banned,
+      ban_reason: row.ban_reason !== undefined ? row.ban_reason : u.ban_reason,
+      banned_at: row.banned_at !== undefined ? row.banned_at : u.banned_at,
+      timeout_until: row.timeout_until !== undefined ? row.timeout_until : u.timeout_until,
+      timeout_hours: row.timeout_hours !== undefined ? row.timeout_hours : u.timeout_hours,
+      deleted_at: row.deleted_at !== undefined ? row.deleted_at : u.deleted_at,
     });
     State.currentUser = STN.userForSession(merged);
     STN.DB.set('currentUser', State.currentUser);
@@ -2139,7 +2177,13 @@ async function doLogin() {
   const local = (STN.DB.get('users') || []).find(u => u.email === email && u.password === pass);
   if (local) {
     if (isUserSuspended(local)) {
-      toast('This account is suspended or no longer active.', 'error');
+      var whyL = (local.ban_reason || '').toString().trim();
+      toast(
+        whyL
+          ? 'Account not active. Admin note: ' + (whyL.length > 160 ? whyL.slice(0, 157) + '…' : whyL)
+          : 'This account is suspended or no longer active.',
+        'error'
+      );
       return;
     }
     const sessionUser = STN.userForSession(local);
@@ -2161,7 +2205,13 @@ async function doLogin() {
     const user = await SB.getUser(email);
     if (!user || user.password !== pass) { toast('⚠️ Invalid email or password', 'error'); return; }
     if (isUserSuspended(user)) {
-      toast('This account is suspended or no longer active.', 'error');
+      var whyS = (user.ban_reason || '').toString().trim();
+      toast(
+        whyS
+          ? 'Account not active. Admin note: ' + (whyS.length > 160 ? whyS.slice(0, 157) + '…' : whyS)
+          : 'This account is suspended or no longer active.',
+        'error'
+      );
       return;
     }
     State.currentUser = STN.userForSession({ ...user, firstName: user.first_name, lastName: user.last_name });
@@ -4065,6 +4115,12 @@ async function switchAdmin(section) {
                   : verified
                   ? '<span style="display:inline-block;background:#dcfce7;color:#166534;padding:0.4rem 0.85rem;border-radius:999px;font-size:0.75rem;font-weight:700">✓ Approved</span>'
                   : '<span style="display:inline-block;background:#fef3c7;color:#b45309;padding:0.4rem 0.85rem;border-radius:999px;font-size:0.75rem;font-weight:700">⏳ Pending your review</span>';
+                var banNote =
+                  isBanned && (d.ban_reason || '').toString().trim()
+                    ? '<p style="margin:0.65rem 0 0;font-size:0.8rem;color:#7f1d1d;line-height:1.45;max-width:42rem"><strong>Rejection note (driver sees this):</strong> ' +
+                      _detailEscapeHtml(String(d.ban_reason).trim()) +
+                      '</p>'
+                    : '';
                 return (
                   '<div class="adm-driver-card" style="background:white;border:1px solid #e5e7eb;border-radius:18px;padding:1.5rem 1.5rem 1.35rem;box-shadow:0 4px 20px rgba(15,23,42,0.06)">' +
                   '<div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid #f1f5f9">' +
@@ -4077,7 +4133,9 @@ async function switchAdmin(section) {
                   '</p>' +
                   '<p style="margin:0.35rem 0 0;font-size:0.72rem;color:#94a3b8">User ID: ' +
                   _detailEscapeHtml(String(d.id)) +
-                  '</p></div>' +
+                  '</p>' +
+                  banNote +
+                  '</div>' +
                   '<div style="flex-shrink:0">' +
                   statusPill +
                   '</div></div>' +
@@ -4596,14 +4654,32 @@ async function verifyVendor(userId) {
   switchAdmin('vendors');
 }
 
-async function banUser(userId) {
-  if (!confirm('Are you sure you want to BAN this user permanently?')) return;
+/**
+ * Ban a user (admin). Optional `reason` skips the prompt; otherwise admin enters text shown to the user.
+ * @param {string|number} userId
+ * @param {string} [reason] pre-filled rejection note
+ */
+async function banUser(userId, reason) {
+  if (!confirm('Are you sure you want to BAN this user? They will see your reason on their account.')) return;
+  var note =
+    reason != null && String(reason).trim() !== ''
+      ? String(reason).trim()
+      : null;
+  if (note == null) {
+    var entered = window.prompt(
+      'Reason for rejection (the user will see this). Leave blank for a generic message:',
+      ''
+    );
+    if (entered === null) return;
+    entered = String(entered).trim();
+    note = entered || 'Your application did not meet our requirements at this time. Contact support if you have questions.';
+  }
   var now = new Date().toISOString();
   try {
     if (typeof SB !== 'undefined' && SB.updateUser) {
       await SB.updateUser(userId, {
         banned: true,
-        ban_reason: 'Banned by admin',
+        ban_reason: note,
         banned_at: now,
       });
     }
@@ -4623,7 +4699,7 @@ async function banUser(userId) {
   const idx = users.findIndex(u => String(u.id) === String(userId));
   if (idx !== -1) {
     users[idx].banned = true;
-    users[idx].ban_reason = 'Banned by admin';
+    users[idx].ban_reason = note;
     users[idx].banned_at = now;
     STN.DB.set('users', users);
   }
