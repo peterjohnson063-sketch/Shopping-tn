@@ -89,6 +89,7 @@ var _STN_REG_RL_MAX = 5;
 var _STN_REG_RL_WINDOW_MS = 60 * 60 * 1000;
 
 function _regRateLimitRead() {
+  var usedLocalFallback = false;
   try {
     sessionStorage.removeItem('reg_count');
   } catch (e) {}
@@ -209,6 +210,8 @@ async function init() {
     window.addEventListener('products:changed', async () => {
       try {
         await initializeProducts();
+        await initializeReviews();
+        applyReviewAggregatesToProducts();
         if (State.currentPage === 'vendor-dashboard' || document.getElementById('page-vendor-dashboard')?.classList?.contains('active')) {
           if (typeof refreshVendorData === 'function') {
             refreshVendorData();
@@ -245,6 +248,8 @@ async function init() {
   State.currentPage = 'home';
 
   await initializeProducts();
+  await initializeReviews();
+  applyReviewAggregatesToProducts();
   renderHome();
   setTimeout(initReveal, 80);
 }
@@ -257,6 +262,66 @@ function refreshProductViewsAfterCatalogLoad() {
     if (State.currentPage === 'wishlist') renderWishlist();
   } catch (e) {
     if (typeof STNLog !== 'undefined') STNLog.warn('products.refreshViews', e && e.message);
+  }
+}
+
+function _safeNum(n, fallback) {
+  var x = Number(n);
+  return Number.isFinite(x) ? x : (fallback == null ? 0 : fallback);
+}
+
+function applyReviewAggregatesToProducts() {
+  if (!Array.isArray(State.products)) return;
+  var byPid = {};
+  (State.reviews || []).forEach(function (r) {
+    var pid = String(r.productId != null ? r.productId : r.product_id != null ? r.product_id : '');
+    if (!pid) return;
+    var rating = _safeNum(r.rating, 0);
+    if (!byPid[pid]) byPid[pid] = { sum: 0, count: 0 };
+    if (rating > 0) {
+      byPid[pid].sum += rating;
+      byPid[pid].count += 1;
+    }
+  });
+  State.products = State.products.map(function (p) {
+    var key = String(p.id);
+    var agg = byPid[key];
+    var out = Object.assign({}, p);
+    if (agg && agg.count > 0) {
+      out.rating = Math.round((agg.sum / agg.count) * 10) / 10;
+      out.reviews = agg.count;
+    } else {
+      out.rating = _safeNum(out.rating, 0);
+      out.reviews = _safeNum(out.reviews, 0);
+    }
+    return out;
+  });
+}
+
+async function initializeReviews() {
+  var cached = STN.DB.get('reviews');
+  State.reviews = Array.isArray(cached) ? cached : [];
+  if (typeof SB === 'undefined' || typeof SB.getProductReviews !== 'function') return;
+  try {
+    var remote = await SB.getProductReviews(4000);
+    if (Array.isArray(remote)) {
+      State.reviews = remote.map(function (r) {
+        var uid = r.user_id != null ? r.user_id : r.userId;
+        return {
+          id: r.id,
+          productId: r.product_id != null ? r.product_id : r.productId,
+          userId: uid,
+          userName: r.user_name || r.userName || 'Customer',
+          rating: _safeNum(r.rating, 0),
+          comment: r.comment || '',
+          date: String(r.created_at || r.date || '').split('T')[0],
+          verified: true,
+        };
+      });
+      STN.DB.set('reviews', State.reviews);
+    }
+  } catch (e) {
+    if (typeof STNLog !== 'undefined') STNLog.warn('reviews.init', 'Supabase unavailable', { message: e && e.message });
   }
 }
 
@@ -286,6 +351,7 @@ async function initializeProducts() {
     var cached = STN.DB.get('products');
     State.products = Array.isArray(cached) ? cached : [];
   }
+  applyReviewAggregatesToProducts();
   refreshProductViewsAfterCatalogLoad();
 }
 
@@ -1638,25 +1704,74 @@ function changeDetailQty(d) {
   if (el) el.textContent = detailQty;
 }
 
-function submitReview(productId) {
+async function submitReview(productId) {
   if (!State.currentUser) return;
   if (currentRating === 0) { toast('⚠️ Please select a rating', 'error'); return; }
   const text = document.getElementById('review-text')?.value?.trim();
   if (!text) { toast('⚠️ Please write a review', 'error'); return; }
+  if (text.length < 3) { toast('⚠️ Please add a bit more detail in your review.', 'error'); return; }
 
-  const newReview = {
-    id: Date.now(),
-    productId,
-    userId: State.currentUser.id,
-    userName: State.currentUser.firstName + ' ' + State.currentUser.lastName[0] + '.',
+  var first = State.currentUser.first_name || State.currentUser.firstName || '';
+  var last = State.currentUser.last_name || State.currentUser.lastName || '';
+  var userName = (first + ' ' + (last ? String(last).charAt(0) + '.' : '')).trim() || 'Customer';
+  var uid = State.currentUser.id != null ? String(State.currentUser.id) : '';
+  if (!uid) { toast('⚠️ Your profile is missing an id. Please sign in again.', 'error'); return; }
+
+  var payload = {
+    product_id: productId,
+    user_id: uid,
+    user_name: userName,
     rating: currentRating,
     comment: text,
-    date: new Date().toISOString().split('T')[0],
-    verified: true
+    created_at: new Date().toISOString(),
   };
-  State.reviews.push(newReview);
-  STN.DB.set('reviews', State.reviews);
-  toast('✦ Review submitted! Thank you.', 'success');
+
+  try {
+    if (typeof SB !== 'undefined' && SB && typeof SB.getProductReviewByUser === 'function') {
+      var existing = await SB.getProductReviewByUser(productId, uid);
+      var saved = existing && existing.id
+        ? await SB.updateProductReview(existing.id, {
+            rating: payload.rating,
+            comment: payload.comment,
+            user_name: payload.user_name,
+            created_at: payload.created_at,
+          })
+        : await SB.createProductReview(payload);
+      if (saved) {
+        await initializeReviews();
+      } else {
+        throw new Error('Review save returned no row.');
+      }
+    } else {
+      throw new Error('Supabase reviews API is unavailable.');
+    }
+  } catch (err) {
+    // Fallback for temporary network outages: keep local review so UX still works.
+    var localId = Date.now();
+    var existingLocalIdx = State.reviews.findIndex(function (r) {
+      return String(r.productId) === String(productId) && String(r.userId) === String(uid);
+    });
+    var localReview = {
+      id: localId,
+      productId: productId,
+      userId: uid,
+      userName: userName,
+      rating: currentRating,
+      comment: text,
+      date: new Date().toISOString().split('T')[0],
+      verified: true
+    };
+    if (existingLocalIdx >= 0) State.reviews[existingLocalIdx] = localReview;
+    else State.reviews.push(localReview);
+    STN.DB.set('reviews', State.reviews);
+    usedLocalFallback = true;
+    if (typeof STNLog !== 'undefined') STNLog.warn('reviews.submit', 'fallback local save', { message: err && err.message });
+    toast('✦ Review saved locally (offline mode). It will sync when backend is reachable.', 'default');
+  }
+
+  applyReviewAggregatesToProducts();
+  STN.DB.set('products', State.products);
+  if (!usedLocalFallback) toast('✦ Review submitted! Thank you.', 'success');
   currentRating = 0;
   openProductDetail(productId);
 }

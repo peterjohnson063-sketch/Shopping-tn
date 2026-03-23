@@ -591,6 +591,32 @@ const SB = {
     return this.req('DELETE', 'products', null, `?id=eq.${_sbEq(id)}`);
   },
 
+  // ── PRODUCT REVIEWS ──
+  async getProductReviews(limit) {
+    var lim = parseInt(String(limit == null ? 4000 : limit), 10);
+    if (!Number.isFinite(lim) || lim < 1) lim = 4000;
+    lim = Math.min(lim, 10000);
+    return this.req('GET', 'product_reviews', null, `?order=created_at.desc&limit=${lim}`);
+  },
+  async getProductReviewByUser(productId, userId) {
+    if (productId == null || productId === '' || userId == null || userId === '') return null;
+    const data = await this.req(
+      'GET',
+      'product_reviews',
+      null,
+      `?product_id=eq.${_sbEq(productId)}&user_id=eq.${_sbEq(userId)}&limit=1`
+    );
+    return Array.isArray(data) && data[0] ? data[0] : null;
+  },
+  async createProductReview(review) {
+    const data = await this.req('POST', 'product_reviews', review);
+    return Array.isArray(data) && data[0] ? data[0] : null;
+  },
+  async updateProductReview(id, updates) {
+    const data = await this.req('PATCH', 'product_reviews', updates, `?id=eq.${_sbEq(id)}`);
+    return Array.isArray(data) && data[0] ? data[0] : null;
+  },
+
   // ── ORDERS ──
   async getOrders() {
     return this.req('GET', 'orders', null, '?order=created_at.desc&limit=2000');
