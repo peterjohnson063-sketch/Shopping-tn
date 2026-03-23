@@ -267,7 +267,8 @@ const SB = {
           'apikey': SUPABASE_KEY,
           'Authorization': `Bearer ${SUPABASE_KEY}`,
           'Content-Type': 'application/json',
-          'Prefer': method === 'POST' ? 'return=representation' : '',
+          'Prefer':
+            method === 'POST' || method === 'PATCH' ? 'return=representation' : '',
         },
         body: body ? JSON.stringify(body) : undefined,
       });
@@ -361,7 +362,17 @@ const SB = {
   },
   async updateUser(id, updates) {
     const data = await this.req('PATCH', 'users', updates, `?id=eq.${_sbEq(id)}`);
-    return data[0];
+    if (data !== null && Array.isArray(data) && data.length === 0) {
+      const err = new Error(
+        'No user row was updated (check id or RLS UPDATE on public.users — run migration 20260325110000_users_grant_and_rls_update.sql in Supabase).'
+      );
+      err._stnLogged = true;
+      if (typeof window !== 'undefined' && window.STNLog) {
+        window.STNLog.error('SB.updateUser', err, { id: String(id) });
+      }
+      throw err;
+    }
+    return Array.isArray(data) && data[0] != null ? data[0] : data;
   },
   async deleteUser(id) {
     if (id == null || id === '') throw new Error('Invalid user id');

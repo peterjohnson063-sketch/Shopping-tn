@@ -223,6 +223,7 @@ async function init() {
 
   initCursor();
   initNav();
+  initAdminDriverApproveDelegation();
   initReveal();
   updateCartBadge();
   updateWishlistBadge();
@@ -318,6 +319,22 @@ function initNav() {
   });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && document.body.classList.contains('nav-drawer-open')) toggleNavDrawer(false);
+  });
+}
+
+/** Delegated clicks: Approve / Verify driver (avoids fragile inline onclick). */
+function initAdminDriverApproveDelegation() {
+  if (window.__stnAdminDriverApproveDelegation) return;
+  window.__stnAdminDriverApproveDelegation = true;
+  var root = document.getElementById('page-admin');
+  if (!root) return;
+  root.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-stn-verify-driver]');
+    if (!btn) return;
+    e.preventDefault();
+    var raw = btn.getAttribute('data-stn-verify-driver');
+    if (raw == null || raw === '') return;
+    if (typeof verifyDriverAccount === 'function') verifyDriverAccount(raw);
   });
 }
 
@@ -550,7 +567,12 @@ var _driverGpsOrderKey = null;
 /** Drivers must be approved by admin (verified or is_verified true). */
 function isDriverVerified(u) {
   if (!u || u.role !== 'driver') return true;
-  return u.verified === true || u.is_verified === true;
+  function truthy(v) {
+    if (v === true || v === 1) return true;
+    var s = String(v == null ? '' : v).toLowerCase().trim();
+    return s === 'true' || s === 't' || s === '1';
+  }
+  return truthy(u.verified) || truthy(u.is_verified);
 }
 
 /** Banned, soft-deleted, or active timeout — blocks login and driver app. */
@@ -2749,6 +2771,8 @@ function _remoteUserRowForAdminMerge(r) {
   delete o.password;
   if (r.first_name != null && r.first_name !== '') o.firstName = r.first_name;
   if (r.last_name != null && r.last_name !== '') o.lastName = r.last_name;
+  if (r.is_verified != null) o.is_verified = !!r.is_verified;
+  if (r.verified != null) o.verified = !!r.verified;
   return o;
 }
 
@@ -3668,11 +3692,12 @@ async function switchAdmin(section) {
                 (u.id_card_number ? '<br/><span style="color:#64748b">CIN: ' + String(u.id_card_number).replace(/</g, '') + '</span>' : '') +
                 '</div>'
               : '';
+          var driverEscId = _cardEscapeAttr(String(u.id));
           var driverVerifyBtn =
             u.role === 'driver' && !isDriverVerified(u)
-              ? '<button type="button" onclick="verifyDriverAccount(' +
-                JSON.stringify(String(u.id)) +
-                ')" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.25rem 0.55rem;border-radius:6px;font-size:0.68rem;cursor:pointer;font-weight:600;margin-bottom:0.35rem;display:inline-block">Verify driver</button><br/>'
+              ? '<button type="button" data-stn-verify-driver="' +
+                driverEscId +
+                '" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.25rem 0.55rem;border-radius:6px;font-size:0.68rem;cursor:pointer;font-weight:600;margin-bottom:0.35rem;display:inline-block">Verify driver</button><br/>'
               : u.role === 'driver' && isDriverVerified(u)
               ? '<span style="font-size:0.65rem;color:#059669;font-weight:600;display:inline-block;margin-bottom:0.35rem">Verified</span><br/>'
               : '';
@@ -3735,7 +3760,6 @@ async function switchAdmin(section) {
               .map(function (d) {
                 var fn = d.first_name || d.firstName || '';
                 var ln = d.last_name || d.lastName || '';
-                var vid = JSON.stringify(String(d.id));
                 var verified = isDriverVerified(d);
                 var isBanned = !!d.banned;
                 var cinU = (d.cin_document_url || '').toString().trim();
@@ -3748,9 +3772,9 @@ async function switchAdmin(section) {
                 if (!isBanned) {
                   if (!verified) {
                     actions +=
-                      '<button type="button" onclick="verifyDriverAccount(' +
-                      vid +
-                      ')" style="background:linear-gradient(135deg,#059669,#10b981);color:white;border:none;padding:0.55rem 1.25rem;border-radius:10px;font-size:0.82rem;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(5,150,105,0.35)">✓ Approve driver</button>';
+                      '<button type="button" data-stn-verify-driver="' +
+                      idAttr +
+                      '" style="background:linear-gradient(135deg,#059669,#10b981);color:white;border:none;padding:0.55rem 1.25rem;border-radius:10px;font-size:0.82rem;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(5,150,105,0.35)">✓ Approve driver</button>';
                   }
                   actions +=
                     '<button type="button" data-adm-drv-ban="' +
@@ -4077,6 +4101,7 @@ async function _sbPatchDriverVerifiedForApprove(userId) {
 
 async function verifyDriverAccount(userId) {
   try {
+    toast('Saving approval to the database…', 'default');
     if (typeof SB !== 'undefined' && SB.getUserById) {
       var probe = await SB.getUserById(userId);
       if (probe && isUserSuspended(probe)) {
@@ -4084,78 +4109,85 @@ async function verifyDriverAccount(userId) {
         return;
       }
     }
-  } catch (e) {}
-  var users = STN.DB.get('users') || [];
-  var idx = users.findIndex(function (u) {
-    return String(u.id) === String(userId);
-  });
-  if (idx !== -1 && isUserSuspended(users[idx])) {
-    toast('Cannot verify a suspended account', 'error');
-    return;
-  }
+    var users = STN.DB.get('users') || [];
+    var idx = users.findIndex(function (u) {
+      return String(u.id) === String(userId);
+    });
+    if (idx !== -1 && isUserSuspended(users[idx])) {
+      toast('Cannot verify a suspended account', 'error');
+      return;
+    }
 
-  var remote = await _sbPatchDriverVerifiedForApprove(userId);
-  if (!remote.ok) {
-    var msg = remote.err && remote.err.message ? String(remote.err.message) : 'Update failed';
-    var low = msg.toLowerCase();
-    toast(
-      low.indexOf('policy') >= 0 || low.indexOf('permission') >= 0 || low.indexOf('rls') >= 0
-        ? 'Could not approve: the database blocked the update (RLS). Apply the optional users UPDATE policy in Supabase (see migrations) or use a service role.'
-        : 'Could not approve driver: ' + (msg.length > 130 ? msg.slice(0, 127) + '…' : msg),
-      'error'
-    );
-    if (typeof STNLog !== 'undefined') STNLog.warn('verifyDriverAccount.remote', remote.err);
-    return;
-  }
+    var remote = await _sbPatchDriverVerifiedForApprove(userId);
+    if (!remote.ok) {
+      var msg = remote.err && remote.err.message ? String(remote.err.message) : 'Update failed';
+      var low = msg.toLowerCase();
+      toast(
+        low.indexOf('policy') >= 0 ||
+          low.indexOf('permission') >= 0 ||
+          low.indexOf('rls') >= 0 ||
+          low.indexOf('no user row') >= 0
+          ? 'Database blocked the update. In Supabase → SQL, run the file supabase/migrations/20260325110000_users_grant_and_rls_update.sql (GRANT + UPDATE policy), then try again.'
+          : 'Could not approve driver: ' + (msg.length > 120 ? msg.slice(0, 117) + '…' : msg),
+        'error'
+      );
+      if (typeof STNLog !== 'undefined') STNLog.warn('verifyDriverAccount.remote', remote.err);
+      return;
+    }
 
-  users = STN.DB.get('users') || [];
-  idx = users.findIndex(function (u) {
-    return String(u.id) === String(userId);
-  });
-  if (remote.mode !== 'no-remote' && typeof SB !== 'undefined' && SB.getUserById) {
-    try {
-      var row = await SB.getUserById(userId);
-      if (row) {
-        var merged = STN.userForSession({
-          ...row,
-          firstName: row.first_name,
-          lastName: row.last_name,
-          verified: true,
-          is_verified: true,
-        });
-        if (idx >= 0) users[idx] = merged;
-        else users.push(merged);
-        STN.DB.set('users', users);
+    users = STN.DB.get('users') || [];
+    idx = users.findIndex(function (u) {
+      return String(u.id) === String(userId);
+    });
+    if (remote.mode !== 'no-remote' && typeof SB !== 'undefined' && SB.getUserById) {
+      try {
+        var row = await SB.getUserById(userId);
+        if (row) {
+          var merged = STN.userForSession({
+            ...row,
+            firstName: row.first_name,
+            lastName: row.last_name,
+            verified: true,
+            is_verified: true,
+          });
+          if (idx >= 0) users[idx] = merged;
+          else users.push(merged);
+          STN.DB.set('users', users);
+        }
+      } catch (e) {
+        if (typeof STNLog !== 'undefined') STNLog.warn('verifyDriverAccount.refetch', e && e.message);
+        if (idx >= 0) {
+          users[idx].verified = true;
+          users[idx].is_verified = true;
+          STN.DB.set('users', users);
+        }
       }
-    } catch (e) {
-      if (typeof STNLog !== 'undefined') STNLog.warn('verifyDriverAccount.refetch', e && e.message);
+    } else {
       if (idx >= 0) {
         users[idx].verified = true;
         users[idx].is_verified = true;
         STN.DB.set('users', users);
       }
     }
-  } else {
-    if (idx >= 0) {
-      users[idx].verified = true;
-      users[idx].is_verified = true;
-      STN.DB.set('users', users);
-    }
-  }
 
-  if (State.currentUser && String(State.currentUser.id) === String(userId)) {
-    State.currentUser.verified = true;
-    State.currentUser.is_verified = true;
-    STN.DB.set('currentUser', State.currentUser);
-    updateNavUser();
+    if (State.currentUser && String(State.currentUser.id) === String(userId)) {
+      State.currentUser.verified = true;
+      State.currentUser.is_verified = true;
+      STN.DB.set('currentUser', State.currentUser);
+      updateNavUser();
+    }
+    toast('Driver approved — they can accept deliveries.', 'success');
+    var navActive = document.querySelector('[id^="adm-nav-"].adm-active');
+    var sec =
+      navActive && navActive.id && navActive.id.indexOf('adm-nav-') === 0
+        ? navActive.id.replace('adm-nav-', '')
+        : 'users';
+    switchAdmin(sec === 'drivers' ? 'drivers' : 'users');
+  } catch (ex) {
+    var em = ex && ex.message ? String(ex.message) : String(ex);
+    toast('Approve failed: ' + (em.length > 140 ? em.slice(0, 137) + '…' : em), 'error');
+    if (typeof STNLog !== 'undefined') STNLog.error('verifyDriverAccount', ex, { userId });
   }
-  toast('Driver approved — they can accept deliveries.', 'success');
-  var navActive = document.querySelector('[id^="adm-nav-"].adm-active');
-  var sec =
-    navActive && navActive.id && navActive.id.indexOf('adm-nav-') === 0
-      ? navActive.id.replace('adm-nav-', '')
-      : 'users';
-  switchAdmin(sec === 'drivers' ? 'drivers' : 'users');
 }
 
 window.verifyDriverAccount = verifyDriverAccount;
