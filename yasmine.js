@@ -105,10 +105,34 @@ function _stnEnsureTranslateStyles() {
   var s = document.createElement('style');
   s.id = 'stn-gt-hide-style';
   s.textContent =
-    '.goog-te-banner-frame.skiptranslate{display:none!important;}' +
-    'body{top:0!important;}' +
+    '.goog-te-banner-frame{display:none!important;visibility:hidden!important;}' +
+    'iframe.goog-te-banner-frame{display:none!important;visibility:hidden!important;}' +
+    '.skiptranslate.goog-te-gadget{font-size:0!important;}' +
+    '#goog-gt-tt,.goog-te-balloon-frame{display:none!important;visibility:hidden!important;}' +
+    '.goog-text-highlight{background:none!important;box-shadow:none!important;}' +
+    'body{top:0!important;position:static!important;}' +
+    'html{margin-top:0!important;}' +
     '#stn-google-translate{position:fixed;left:-9999px;top:-9999px;opacity:0;pointer-events:none;}';
   document.head.appendChild(s);
+}
+
+function _stnHideGoogleTranslateChrome() {
+  try {
+    document.documentElement.style.setProperty('margin-top', '0px', 'important');
+    document.body.style.setProperty('top', '0px', 'important');
+    var sel = [
+      '.goog-te-banner-frame',
+      'iframe.goog-te-banner-frame',
+      '#goog-gt-tt',
+      '.goog-te-balloon-frame'
+    ];
+    sel.forEach(function (q) {
+      document.querySelectorAll(q).forEach(function (el) {
+        el.style.setProperty('display', 'none', 'important');
+        el.style.setProperty('visibility', 'hidden', 'important');
+      });
+    });
+  } catch (e) {}
 }
 
 function _stnInitGoogleTranslate() {
@@ -155,6 +179,7 @@ function _stnApplyGooglePageTranslate(lang) {
       combo.value = safe;
       combo.dispatchEvent(new Event('change'));
     }
+    _stnHideGoogleTranslateChrome();
     return true;
   };
   if (apply()) return;
@@ -162,6 +187,7 @@ function _stnApplyGooglePageTranslate(lang) {
   var tries = 0;
   var timer = setInterval(function () {
     tries += 1;
+    _stnHideGoogleTranslateChrome();
     if (apply() || tries > 50) clearInterval(timer);
   }, 120);
 }
@@ -250,6 +276,7 @@ window.STNI18N = {
   }
 
   _stnInitGoogleTranslate();
+  setInterval(_stnHideGoogleTranslateChrome, 700);
 })();
 
 
