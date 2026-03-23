@@ -5944,10 +5944,12 @@ async function uploadProduct() {
   } catch (error) {
     if (typeof STNLog !== 'undefined') STNLog.error('vendor.uploadProduct', error, { catSlug: catSlug });
     var hint = '';
-    if (error && error.message && /category_id|column|schema/i.test(error.message)) {
-      hint = ' If your `products` table has no category_id column, remove that column from the API or add it in Supabase.';
+    if (error && error.message && /category_id/i.test(error.message)) {
+      hint = ' If your `products` table has no `category_id` column, remove it from API payloads or add it in Supabase.';
     } else if (error && error.message && /product_images/i.test(error.message)) {
       hint = ' Run migration `supabase/migrations/20260323170000_products_multiple_images.sql` in Supabase SQL editor.';
+    } else if (error && error.message && /No product row was updated|row-level security|rls|permission denied/i.test(error.message)) {
+      hint = ' Supabase is blocking UPDATE on `public.products`. Add/adjust an UPDATE policy for vendors.';
     } else if (error && error.message && /invalid input syntax for type uuid/i.test(error.message)) {
       hint =
         ' Your `products.vendor_id` column is UUID but vendor ids can be numeric. In Supabase → SQL, run the migration file `supabase/migrations/20260324120000_products_vendor_id_text.sql` once.';

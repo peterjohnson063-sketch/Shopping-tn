@@ -504,6 +504,16 @@ const SB = {
   async updateProduct(id, updates, options) {
     const body = _sbMapProductBodyForApi(updates, options);
     const data = await this.req('PATCH', 'products', body, `?id=eq.${_sbEq(id)}`);
+    if (data !== null && Array.isArray(data) && data.length === 0) {
+      const err = new Error(
+        'No product row was updated (check product id and RLS UPDATE policy on public.products).'
+      );
+      err._stnLogged = true;
+      if (typeof window !== 'undefined' && window.STNLog) {
+        window.STNLog.error('SB.updateProduct', err, { id: String(id) });
+      }
+      throw err;
+    }
     return data[0] ? _sbNormalizeProductRow(data[0]) : null;
   },
   async deleteProduct(id) {
