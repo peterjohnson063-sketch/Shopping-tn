@@ -6573,6 +6573,12 @@ function homeSearch() {
     showPage('products');
   }
 }
+// Keep compatibility with inline handlers used in index.html
+function searchHome() {
+  homeSearch();
+}
+window.homeSearch = homeSearch;
+window.searchHome = searchHome;
 
 // ── START ──
 document.addEventListener('DOMContentLoaded', init);
