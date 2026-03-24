@@ -2455,7 +2455,7 @@ function filterAndGo(cat) {
 </script>
 <script>
   const SM_PRODUCTS=[
-    {title:'Chaise en Chêne',desc:'Chaise artisanale en chêne massif de Ksar Hellal. Structure solide, finition soignée, disponible en plusieurs teintes.',base:850,w:{min:40,max:60,val:45},d:{min:38,max:55,val:42},h:{min:80,max:100,val:88},locked:['Chêne massif','Assemblage tenon-mortaise','Vernis naturel'],scene:'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=1600&q=80',objectImages:['https://pngimg.com/d/chair_PNG6871.png','https://pngimg.com/d/chair_PNG6881.png','https://pngimg.com/d/chair_PNG6865.png','https://pngimg.com/d/chair_PNG6899.png'],images:['https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1400&q=80','https://images.unsplash.com/photo-1517705008128-361805f42e86?auto=format&fit=crop&w=1400&q=80','https://images.unsplash.com/photo-1519710164239-da123dc03ef4?auto=format&fit=crop&w=1400&q=80','https://images.unsplash.com/photo-1484101403633-562f891dc89a?auto=format&fit=crop&w=1400&q=80']},
+    {title:'Chaise en Chêne',desc:'Chaise artisanale en chêne massif de Ksar Hellal. Structure solide, finition soignée, disponible en plusieurs teintes.',base:850,w:{min:40,max:60,val:45},d:{min:38,max:55,val:42},h:{min:80,max:100,val:88},locked:['Chêne massif','Assemblage tenon-mortaise','Vernis naturel'],scene:'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%23f7f5ff"/><stop offset="1" stop-color="%23ece7ff"/></linearGradient></defs><rect width="1200" height="900" fill="url(%23g)"/><ellipse cx="600" cy="760" rx="360" ry="48" fill="%23d9d0ff" opacity=".45"/></svg>',objectImages:['https://pngimg.com/d/chair_PNG6871.png','https://pngimg.com/d/chair_PNG6881.png','https://pngimg.com/d/chair_PNG6865.png','https://pngimg.com/d/chair_PNG6899.png'],images:['https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1400&q=80','https://images.unsplash.com/photo-1517705008128-361805f42e86?auto=format&fit=crop&w=1400&q=80','https://images.unsplash.com/photo-1519710164239-da123dc03ef4?auto=format&fit=crop&w=1400&q=80','https://images.unsplash.com/photo-1484101403633-562f891dc89a?auto=format&fit=crop&w=1400&q=80']},
     {title:'Table à Manger',desc:'Grande table en chêne massif pour 6 à 8 personnes. Plateau épais 4cm, pieds carrés robustes, idéale pour les grandes familles.',base:2800,w:{min:140,max:220,val:180},d:{min:80,max:110,val:90},h:{min:72,max:80,val:75},locked:['Chêne massif 4cm','Pieds carrés','Huile naturelle'],mask:'polygon(13% 37%,89% 37%,92% 86%,10% 86%)',images:['https://source.unsplash.com/1200x900/?oak,dining,table&sig=11','https://source.unsplash.com/1200x900/?wood,dining,room,table&sig=12','https://source.unsplash.com/1200x900/?dining,table,interior,decor&sig=13','https://source.unsplash.com/1200x900/?family,dining,table,wood&sig=14']},
     {title:'Canapé Cadre Chêne',desc:'Cadre de canapé en chêne avec accoudoirs sculptés à la main. Structure premium, coussins non inclus.',base:3200,w:{min:160,max:240,val:200},d:{min:85,max:100,val:90},h:{min:75,max:90,val:82},locked:['Chêne massif','Pieds tournés','Vernis satiné'],mask:'polygon(9% 35%,92% 35%,96% 85%,5% 85%)',images:['https://source.unsplash.com/1200x900/?wooden,sofa,living-room&sig=21','https://source.unsplash.com/1200x900/?sofa,scandinavian,interior&sig=22','https://source.unsplash.com/1200x900/?oak,sofa,design&sig=23','https://source.unsplash.com/1200x900/?minimalist,sofa,decor&sig=24']},
     {title:'Armoire en Chêne',desc:"Armoire en chêne massif avec portes battantes. Intérieur configurable, quincaillerie laiton. Garantie 15 ans structure.",base:4500,w:{min:100,max:200,val:150},d:{min:50,max:70,val:60},h:{min:180,max:230,val:200},locked:['Chêne massif','Quincaillerie laiton','Fond contreplaqué'],mask:'polygon(23% 8%,77% 8%,82% 90%,18% 90%)',images:['https://source.unsplash.com/1200x900/?oak,wardrobe,bedroom&sig=31','https://source.unsplash.com/1200x900/?wood,closet,interior&sig=32','https://source.unsplash.com/1200x900/?cabinet,wooden,bedroom&sig=33','https://source.unsplash.com/1200x900/?wardrobe,luxury,interior&sig=34']},
@@ -2473,8 +2473,9 @@ function filterAndGo(cat) {
     document.getElementById('sm-desc').textContent=p.desc;
     const img=document.getElementById('sm-img');
     const gal=document.getElementById('sm-gallery');
-    if(gal && Array.isArray(p.images)) {
-      gal.innerHTML = p.images.map((url,i)=>`<div class="sm-gal-item ${i===0?'active':''}" onclick="smSelectGal(this,${i})"><div class="sm-gal-thumb" style="background-image:url('${url}')"></div></div>`).join('');
+    const thumbs = Array.isArray(p.objectImages) && p.objectImages.length ? p.objectImages : p.images;
+    if(gal && Array.isArray(thumbs)) {
+      gal.innerHTML = thumbs.map((url,i)=>`<div class="sm-gal-item ${i===0?'active':''}" onclick="smSelectGal(this,${i})"><div class="sm-gal-thumb" style="background-image:url('${url}')"></div></div>`).join('');
     }
     const scene = document.getElementById('sm-scene-bg');
     if (scene) {
@@ -2531,8 +2532,13 @@ function filterAndGo(cat) {
       }
     }
     const scene = document.getElementById('sm-scene-bg');
-    if (scene && p && Array.isArray(p.images) && p.images[idx]) {
-      scene.style.backgroundImage = `url('${p.images[idx]}')`;
+    if (scene && p) {
+      // Keep a stable clean background when using cutout object images.
+      if (!(Array.isArray(p.objectImages) && p.objectImages.length) && Array.isArray(p.images) && p.images[idx]) {
+        scene.style.backgroundImage = `url('${p.images[idx]}')`;
+      } else if (p.scene) {
+        scene.style.backgroundImage = `url('${p.scene}')`;
+      }
     }
   }
 
