@@ -6860,12 +6860,19 @@ function filterAndRenderProducts() {
   
   // Search filter
   if (State.searchQuery) {
-    filteredProducts = filteredProducts.filter(product => 
-      product.name.toLowerCase().includes(State.searchQuery) || 
-      product.brand.toLowerCase().includes(State.searchQuery) || 
-      (product.region && product.region.toLowerCase().includes(State.searchQuery)) ||
-      (product.category && product.category.toLowerCase().includes(State.searchQuery))
-    );
+    const query = String(State.searchQuery).toLowerCase();
+    filteredProducts = filteredProducts.filter(product => {
+      const name = String(product?.name || product?.title || '').toLowerCase();
+      const brand = String(product?.brand || '').toLowerCase();
+      const region = String(product?.region || '').toLowerCase();
+      const category = String(product?.category || product?.cat || '').toLowerCase();
+      return (
+        name.includes(query) ||
+        brand.includes(query) ||
+        region.includes(query) ||
+        category.includes(query)
+      );
+    });
   }
   
   // Category filter

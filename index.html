@@ -1761,7 +1761,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
       </button>
       <div class="search-bar reveal products-page-search" style="flex:1;min-width:0">
         <div class="search-icon-wrap">⌕</div>
-        <input type="text" class="search-input" id="prod-search" placeholder="Search products, brands, regions…" onkeydown="if(event.key==='Enter')searchProducts()" oninput="if(this.value.length>2||this.value.length===0)searchProducts()"/>
+        <input type="text" class="search-input" id="prod-search" placeholder="Search products, brands, regions…" onkeydown="if(event.key==='Enter')searchProducts()" oninput="searchProducts()"/>
         <button class="search-btn" onclick="searchProducts()">Search</button>
       </div>
     </div>
