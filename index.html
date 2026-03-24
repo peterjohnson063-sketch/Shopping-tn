@@ -2028,6 +2028,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
         <div id="sm-photo" style="aspect-ratio:4/3;border-radius:24px;border:2px solid rgba(107,63,212,0.15);position:relative;overflow:hidden;box-shadow:0 16px 50px rgba(74,31,168,0.14);transition:all .4s cubic-bezier(.4,0,.2,1);margin-bottom:1rem;background:#f5f2ff">
           <img id="sm-img" src="" alt="Customized decor preview" style="width:100%;height:100%;object-fit:cover;transition:all .5s ease;display:block"/>
           <div id="sm-color-overlay" style="position:absolute;inset:0;opacity:0;transition:opacity .5s;mix-blend-mode:multiply;pointer-events:none"></div>
+          <div id="sm-object-tint" style="position:absolute;inset:0;opacity:0;transition:opacity .45s,background .3s;mix-blend-mode:multiply;pointer-events:none;clip-path:polygon(26% 18%,74% 18%,82% 82%,18% 82%)"></div>
           <div style="position:absolute;top:12px;left:12px;background:rgba(30,10,78,.85);backdrop-filter:blur(8px);color:white;font-size:.62rem;padding:.35rem .8rem;border-radius:20px;font-weight:600">🧑‍🎨 Ahmed Maalej · Ksar Hellal</div>
           <div style="position:absolute;top:12px;right:12px;background:rgba(5,150,105,.9);color:white;font-size:.6rem;padding:.3rem .7rem;border-radius:20px;font-weight:700">✓ Certifié</div>
           <div id="sm-dim-float" style="position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:rgba(30,10,78,.8);backdrop-filter:blur(8px);color:white;font-size:.72rem;padding:.4rem 1rem;border-radius:20px;font-weight:600;white-space:nowrap;transition:all .3s">
@@ -2453,12 +2454,12 @@ function filterAndGo(cat) {
 </script>
 <script>
   const SM_PRODUCTS=[
-    {title:'Chaise en Chêne',desc:'Chaise artisanale en chêne massif de Ksar Hellal. Structure solide, finition soignée, disponible en plusieurs teintes.',base:850,w:{min:40,max:60,val:45},d:{min:38,max:55,val:42},h:{min:80,max:100,val:88},locked:['Chêne massif','Assemblage tenon-mortaise','Vernis naturel'],images:['https://source.unsplash.com/1200x900/?oak,chair,interior&sig=1','https://source.unsplash.com/1200x900/?wooden,chair,design&sig=2','https://source.unsplash.com/1200x900/?artisan,chair,wood&sig=3','https://source.unsplash.com/1200x900/?modern,chair,oak&sig=4']},
-    {title:'Table à Manger',desc:'Grande table en chêne massif pour 6 à 8 personnes. Plateau épais 4cm, pieds carrés robustes, idéale pour les grandes familles.',base:2800,w:{min:140,max:220,val:180},d:{min:80,max:110,val:90},h:{min:72,max:80,val:75},locked:['Chêne massif 4cm','Pieds carrés','Huile naturelle'],images:['https://source.unsplash.com/1200x900/?oak,dining,table&sig=11','https://source.unsplash.com/1200x900/?wood,dining,room,table&sig=12','https://source.unsplash.com/1200x900/?dining,table,interior,decor&sig=13','https://source.unsplash.com/1200x900/?family,dining,table,wood&sig=14']},
-    {title:'Canapé Cadre Chêne',desc:'Cadre de canapé en chêne avec accoudoirs sculptés à la main. Structure premium, coussins non inclus.',base:3200,w:{min:160,max:240,val:200},d:{min:85,max:100,val:90},h:{min:75,max:90,val:82},locked:['Chêne massif','Pieds tournés','Vernis satiné'],images:['https://source.unsplash.com/1200x900/?wooden,sofa,living-room&sig=21','https://source.unsplash.com/1200x900/?sofa,scandinavian,interior&sig=22','https://source.unsplash.com/1200x900/?oak,sofa,design&sig=23','https://source.unsplash.com/1200x900/?minimalist,sofa,decor&sig=24']},
-    {title:'Armoire en Chêne',desc:"Armoire en chêne massif avec portes battantes. Intérieur configurable, quincaillerie laiton. Garantie 15 ans structure.",base:4500,w:{min:100,max:200,val:150},d:{min:50,max:70,val:60},h:{min:180,max:230,val:200},locked:['Chêne massif','Quincaillerie laiton','Fond contreplaqué'],images:['https://source.unsplash.com/1200x900/?oak,wardrobe,bedroom&sig=31','https://source.unsplash.com/1200x900/?wood,closet,interior&sig=32','https://source.unsplash.com/1200x900/?cabinet,wooden,bedroom&sig=33','https://source.unsplash.com/1200x900/?wardrobe,luxury,interior&sig=34']},
-    {title:'Table Basse',desc:"Table basse en chêne au plateau légèrement bombé. Pieds en épingle acier noir. Design scandinave-tunisien unique.",base:1200,w:{min:80,max:130,val:100},d:{min:50,max:80,val:60},h:{min:38,max:50,val:42},locked:['Chêne massif','Pieds acier noir','Finition huile'],images:['https://source.unsplash.com/1200x900/?coffee,table,wood,living-room&sig=41','https://source.unsplash.com/1200x900/?wooden,coffee-table,interior&sig=42','https://source.unsplash.com/1200x900/?scandinavian,coffee,table&sig=43','https://source.unsplash.com/1200x900/?decor,table,wood,modern&sig=44']},
-    {title:'Coiffeuse avec Miroir',desc:"Coiffeuse en chêne avec miroir intégré et tiroirs. Finition dorée sur les poignées. Élégance vintage tunisienne.",base:1800,w:{min:80,max:120,val:100},d:{min:40,max:55,val:45},h:{min:140,max:180,val:160},locked:['Chêne massif','Miroir 5mm','Poignées laiton'],images:['https://source.unsplash.com/1200x900/?vanity,table,wood,mirror&sig=51','https://source.unsplash.com/1200x900/?dresser,mirror,interior&sig=52','https://source.unsplash.com/1200x900/?bedroom,vanity,decor&sig=53','https://source.unsplash.com/1200x900/?makeup,table,wood&sig=54']}
+    {title:'Chaise en Chêne',desc:'Chaise artisanale en chêne massif de Ksar Hellal. Structure solide, finition soignée, disponible en plusieurs teintes.',base:850,w:{min:40,max:60,val:45},d:{min:38,max:55,val:42},h:{min:80,max:100,val:88},locked:['Chêne massif','Assemblage tenon-mortaise','Vernis naturel'],mask:'polygon(33% 20%,68% 20%,74% 88%,27% 88%)',images:['https://source.unsplash.com/1200x900/?oak,chair,interior&sig=1','https://source.unsplash.com/1200x900/?wooden,chair,design&sig=2','https://source.unsplash.com/1200x900/?artisan,chair,wood&sig=3','https://source.unsplash.com/1200x900/?modern,chair,oak&sig=4']},
+    {title:'Table à Manger',desc:'Grande table en chêne massif pour 6 à 8 personnes. Plateau épais 4cm, pieds carrés robustes, idéale pour les grandes familles.',base:2800,w:{min:140,max:220,val:180},d:{min:80,max:110,val:90},h:{min:72,max:80,val:75},locked:['Chêne massif 4cm','Pieds carrés','Huile naturelle'],mask:'polygon(13% 37%,89% 37%,92% 86%,10% 86%)',images:['https://source.unsplash.com/1200x900/?oak,dining,table&sig=11','https://source.unsplash.com/1200x900/?wood,dining,room,table&sig=12','https://source.unsplash.com/1200x900/?dining,table,interior,decor&sig=13','https://source.unsplash.com/1200x900/?family,dining,table,wood&sig=14']},
+    {title:'Canapé Cadre Chêne',desc:'Cadre de canapé en chêne avec accoudoirs sculptés à la main. Structure premium, coussins non inclus.',base:3200,w:{min:160,max:240,val:200},d:{min:85,max:100,val:90},h:{min:75,max:90,val:82},locked:['Chêne massif','Pieds tournés','Vernis satiné'],mask:'polygon(9% 35%,92% 35%,96% 85%,5% 85%)',images:['https://source.unsplash.com/1200x900/?wooden,sofa,living-room&sig=21','https://source.unsplash.com/1200x900/?sofa,scandinavian,interior&sig=22','https://source.unsplash.com/1200x900/?oak,sofa,design&sig=23','https://source.unsplash.com/1200x900/?minimalist,sofa,decor&sig=24']},
+    {title:'Armoire en Chêne',desc:"Armoire en chêne massif avec portes battantes. Intérieur configurable, quincaillerie laiton. Garantie 15 ans structure.",base:4500,w:{min:100,max:200,val:150},d:{min:50,max:70,val:60},h:{min:180,max:230,val:200},locked:['Chêne massif','Quincaillerie laiton','Fond contreplaqué'],mask:'polygon(23% 8%,77% 8%,82% 90%,18% 90%)',images:['https://source.unsplash.com/1200x900/?oak,wardrobe,bedroom&sig=31','https://source.unsplash.com/1200x900/?wood,closet,interior&sig=32','https://source.unsplash.com/1200x900/?cabinet,wooden,bedroom&sig=33','https://source.unsplash.com/1200x900/?wardrobe,luxury,interior&sig=34']},
+    {title:'Table Basse',desc:"Table basse en chêne au plateau légèrement bombé. Pieds en épingle acier noir. Design scandinave-tunisien unique.",base:1200,w:{min:80,max:130,val:100},d:{min:50,max:80,val:60},h:{min:38,max:50,val:42},locked:['Chêne massif','Pieds acier noir','Finition huile'],mask:'polygon(16% 39%,87% 39%,90% 82%,13% 82%)',images:['https://source.unsplash.com/1200x900/?coffee,table,wood,living-room&sig=41','https://source.unsplash.com/1200x900/?wooden,coffee-table,interior&sig=42','https://source.unsplash.com/1200x900/?scandinavian,coffee,table&sig=43','https://source.unsplash.com/1200x900/?decor,table,wood,modern&sig=44']},
+    {title:'Coiffeuse avec Miroir',desc:"Coiffeuse en chêne avec miroir intégré et tiroirs. Finition dorée sur les poignées. Élégance vintage tunisienne.",base:1800,w:{min:80,max:120,val:100},d:{min:40,max:55,val:45},h:{min:140,max:180,val:160},locked:['Chêne massif','Miroir 5mm','Poignées laiton'],mask:'polygon(22% 10%,79% 10%,84% 92%,16% 92%)',images:['https://source.unsplash.com/1200x900/?vanity,table,wood,mirror&sig=51','https://source.unsplash.com/1200x900/?dresser,mirror,interior&sig=52','https://source.unsplash.com/1200x900/?bedroom,vanity,decor&sig=53','https://source.unsplash.com/1200x900/?makeup,table,wood&sig=54']}
   ];
   let smCurrent=0,smColor='#D4A853';
 
@@ -2478,6 +2479,10 @@ function filterAndGo(cat) {
       img.src = (Array.isArray(p.images) && p.images[0]) ? p.images[0] : '';
       img.alt = p.title + ' preview';
       img.style.display = 'block';
+    }
+    const tint = document.getElementById('sm-object-tint');
+    if (tint) {
+      tint.style.clipPath = p.mask || 'polygon(26% 18%,74% 18%,82% 82%,18% 82%)';
     }
     ['width','depth','height'].forEach(dim=>{
       const el=document.getElementById('sm-'+dim);
@@ -2541,7 +2546,12 @@ function filterAndGo(cat) {
     btn.querySelector('div').style.boxShadow='0 0 0 2.5px #7c3aed';
     document.getElementById('sm-color-name').textContent=name;
     const ov=document.getElementById('sm-color-overlay');
-    ov.style.background=color;ov.style.opacity='0.28';
+    ov.style.background=color;ov.style.opacity='0.08';
+    const objTint = document.getElementById('sm-object-tint');
+    if (objTint) {
+      objTint.style.background = color;
+      objTint.style.opacity = '0.46';
+    }
     if(typeof toast==='function') toast('🎨 '+name+' sélectionné','default');
   }
 
