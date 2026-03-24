@@ -219,6 +219,7 @@ function _sbDriverUserInsertAttempts(body) {
   delete a2.is_verified;
   delete a2.cin_document_url;
   delete a2.license_document_url;
+  delete a2.b3_document_url;
   add(a2);
   return list;
 }
@@ -243,11 +244,13 @@ function _sbUniqueUserInsertAttempts(body) {
   delete a2.is_verified;
   delete a2.cin_document_url;
   delete a2.license_document_url;
+  delete a2.b3_document_url;
   add(a2);
   var a3 = Object.assign({}, body);
   delete a3.is_verified;
   delete a3.cin_document_url;
   delete a3.license_document_url;
+  delete a3.b3_document_url;
   delete a3.id_card_number;
   delete a3.vehicle_plate_number;
   delete a3.vehicle_model;

@@ -752,6 +752,30 @@ function driverOrderStopLabel(order) {
   return (a + ' ' + w).trim() || 'Customer address on file';
 }
 
+function orderCreatedAtIso(order) {
+  return order.created_at || order.createdAt || null;
+}
+
+function orderDeadlineAtIso(order) {
+  return (
+    order.delivery_deadline_at ||
+    order.delivery_deadline ||
+    order.deadline_at ||
+    order.deadline ||
+    order.expected_delivery_at ||
+    null
+  );
+}
+
+function orderCustomerFullName(order) {
+  var direct = String(order.client_name || order.customer_name || '').trim();
+  if (direct) return direct;
+  var first = String(order.customer_first_name || order.first_name || '').trim();
+  var last = String(order.customer_last_name || order.last_name || '').trim();
+  var full = (first + ' ' + last).trim();
+  return full || String(order.userName || 'Customer');
+}
+
 function driverOpenMapsByKey(key) {
   var list = State.driverOrdersList || [];
   var o = list.find(function (x) {
@@ -1040,6 +1064,8 @@ function renderDriver() {
                 })
                 .join(' · ')
             : '—';
+          var createdAt = orderCreatedAtIso(o);
+          var deadlineAt = orderDeadlineAtIso(o);
           var phone = o.phone || o.client_phone || '';
           var canDeliver = o.status !== 'delivered' && o.status !== 'cancelled' && o.status !== 'canceled';
           var showOut = canDeliver && (o.status === 'shipped' || o.status === 'processing' || o.status === 'ready');
@@ -1052,7 +1078,7 @@ function renderDriver() {
             (o.tracking_number || o.id) +
             '</div>' +
             '<div style="font-size:0.95rem;font-weight:700;color:#1e0a4e;margin-top:0.2rem">' +
-            (o.client_name || o.userName || 'Customer') +
+            orderCustomerFullName(o) +
             '</div>' +
             (phone ? '<div style="font-size:0.8rem;color:#64748b;margin-top:0.15rem"><a href="tel:' + phone.replace(/\s/g, '') + '" style="color:#0369a1">' + phone + '</a></div>' : '') +
             '<div style="font-size:0.78rem;color:#64748b;margin-top:0.35rem;line-height:1.4">' +
@@ -1064,6 +1090,18 @@ function renderDriver() {
             (accepted
               ? '<p style="font-size:0.72rem;color:#059669;margin:0 0 0.75rem;font-weight:600">✓ You accepted this delivery</p>'
               : '') +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.8rem">' +
+            '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.45rem 0.55rem">' +
+            '<div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.07em;color:#64748b">Ordered at</div>' +
+            '<div style="font-size:0.76rem;color:#0f172a;font-weight:600">' +
+            (createdAt ? new Date(createdAt).toLocaleString('fr-TN') : '—') +
+            '</div></div>' +
+            '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:0.45rem 0.55rem">' +
+            '<div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.07em;color:#9a3412">Finish before</div>' +
+            '<div style="font-size:0.76rem;color:#9a3412;font-weight:700">' +
+            (deadlineAt ? new Date(deadlineAt).toLocaleString('fr-TN') : 'As soon as possible') +
+            '</div></div>' +
+            '</div>' +
             '<div style="font-size:0.76rem;color:#64748b;margin-bottom:1rem;line-height:1.45">' +
             items +
             '</div>' +
@@ -1416,7 +1454,7 @@ async function submitOrder() {
   const wilaya = document.getElementById('co-wilaya')?.value?.trim();
   const address = document.getElementById('co-address')?.value?.trim();
   
-  if (!fname || !phone || !wilaya || !address) { toast('⚠️ Please fill all fields', 'error'); return; }
+  if (!fname || !lname || !phone || !wilaya || !address) { toast('⚠️ Please fill all fields', 'error'); return; }
   
   const btn = document.querySelector('#checkout-modal button:last-child');
   btn.textContent = 'Processing...';
@@ -1426,6 +1464,8 @@ async function submitOrder() {
     // Get shop names from cart items
     const shopNames = [...new Set(State.cart.map(i => i.brand || i.shopName || 'Everest').filter(Boolean))].join(', ');
     
+    const nowIso = new Date().toISOString();
+    const deadlineIso = new Date(Date.now() + (90 * 60 * 1000)).toISOString();
     const order = await SB.createOrder({
       user_id: State.currentUser?.id || null,
       items: State.cart,
@@ -1434,7 +1474,12 @@ async function submitOrder() {
       wilaya,
       address,
       phone,
-      notes: fname + ' ' + lname
+      notes: fname + ' ' + lname,
+      client_name: (fname + ' ' + lname).trim(),
+      customer_first_name: fname,
+      customer_last_name: lname,
+      created_at: nowIso,
+      delivery_deadline_at: deadlineIso
     });
 
     document.getElementById('checkout-modal').remove();
@@ -2067,7 +2112,11 @@ function renderAuth() {
             <label class="form-label">Photo of driving licence *</label>
             <input type="file" class="form-input" id="reg-driver-lic-file" accept="image/*"/>
           </div>
-          <p style="font-size:0.68rem;color:#64748b;margin:0">JPEG or PNG, max 8 MB each. An admin must verify your documents before you can accept deliveries.</p>
+          <div class="form-group" style="margin-bottom:0.35rem">
+            <label class="form-label">B3 (criminal record extract) *</label>
+            <input type="file" class="form-input" id="reg-driver-b3-file" accept="image/*,application/pdf"/>
+          </div>
+          <p style="font-size:0.68rem;color:#64748b;margin:0">CIN/licence as JPEG or PNG, B3 as image or PDF, max 8 MB each. An admin must verify your documents before you can accept deliveries.</p>
         </div>
         <button class="btn btn-gold btn-full btn-lg" onclick="doRegister()">Create Account →</button>
       </div>
@@ -2292,6 +2341,7 @@ async function doRegister() {
   var vcolor = '';
   var fCin = null;
   var fLic = null;
+  var fB3 = null;
   if (isDriver) {
     cin = document.getElementById('reg-driver-cin')?.value?.trim() || '';
     plate = document.getElementById('reg-driver-plate')?.value?.trim() || '';
@@ -2299,16 +2349,17 @@ async function doRegister() {
     vcolor = document.getElementById('reg-driver-vcolor')?.value?.trim() || '';
     fCin = document.getElementById('reg-driver-cin-file')?.files?.[0];
     fLic = document.getElementById('reg-driver-lic-file')?.files?.[0];
+    fB3 = document.getElementById('reg-driver-b3-file')?.files?.[0];
     if (!cin || !plate || !vmodel || !vcolor) {
       toast('Fill all delivery partner and vehicle fields', 'error');
       return;
     }
-    if (!fCin || !fLic) {
-      toast('Upload photos of your CIN and driving licence', 'error');
+    if (!fCin || !fLic || !fB3) {
+      toast('Upload CIN, driving licence, and B3 document', 'error');
       return;
     }
-    if (fCin.size > 8 * 1024 * 1024 || fLic.size > 8 * 1024 * 1024) {
-      toast('Each image must be under 8 MB', 'error');
+    if (fCin.size > 8 * 1024 * 1024 || fLic.size > 8 * 1024 * 1024 || fB3.size > 8 * 1024 * 1024) {
+      toast('Each uploaded document must be under 8 MB', 'error');
       return;
     }
   }
@@ -2320,6 +2371,7 @@ async function doRegister() {
 
     var cinUrl = '';
     var licUrl = '';
+    var b3Url = '';
     if (isDriver && typeof SB.uploadStorageObject === 'function') {
       var cinBlob = await compressImageFileToJpegBlob(fCin, 1600, 0.82);
       var licBlob = await compressImageFileToJpegBlob(fLic, 1600, 0.82);
@@ -2347,6 +2399,20 @@ async function doRegister() {
         }
         licUrl = d2;
       }
+      try {
+        var b3IsPdf = String(fB3.type || '').toLowerCase().indexOf('pdf') >= 0;
+        if (b3IsPdf) {
+          var up3pdf = await SB.uploadStorageObject(_driverKycBucket(), pathBase + '-b3.pdf', fB3, 'application/pdf');
+          b3Url = up3pdf.publicUrl;
+        } else {
+          var b3Blob = await compressImageFileToJpegBlob(fB3, 1800, 0.84);
+          var up3img = await SB.uploadStorageObject(_driverKycBucket(), pathBase + '-b3.jpg', b3Blob, 'image/jpeg');
+          b3Url = up3img.publicUrl;
+        }
+      } catch (e3) {
+        toast('B3 upload failed. Please retry with a clearer file.', 'error');
+        return;
+      }
     } else if (isDriver) {
       toast('Registration client is missing storage support', 'error');
       return;
@@ -2370,6 +2436,7 @@ async function doRegister() {
       userPayload.vehicle_color = vcolor;
       userPayload.cin_document_url = cinUrl;
       userPayload.license_document_url = licUrl;
+      userPayload.b3_document_url = b3Url;
       userPayload.verified = false;
       userPayload.is_verified = false;
     }
