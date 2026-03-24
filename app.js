@@ -1396,10 +1396,25 @@ async function checkout() {
         <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Full Address *</label>
         <input id="co-address" type="text" placeholder="12 Rue Habib Bourguiba, Monastir" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
       </div>
+      <div style="margin-bottom:1.2rem;padding:0.9rem;border:1px solid rgba(107,63,212,0.14);border-radius:12px;background:#fcfbff">
+        <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.65rem">Payment Method *</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.45rem">
+          ${checkoutPaymentMethodTile('cash', '💵 Cash on Delivery')}
+          ${checkoutPaymentMethodTile('visa', '💳 Visa')}
+          ${checkoutPaymentMethodTile('mastercard', '💳 MasterCard')}
+          ${checkoutPaymentMethodTile('credit_card', '🏦 Credit Card')}
+          ${checkoutPaymentMethodTile('paypal', '🅿️ PayPal')}
+          ${checkoutPaymentMethodTile('e_dinar', '🇹🇳 e-Dinar')}
+          ${checkoutPaymentMethodTile('flouci', '📱 Flouci')}
+          ${checkoutPaymentMethodTile('konnect', '🔗 Konnect')}
+        </div>
+      </div>
+      <div id="co-payment-extra" style="margin-bottom:1.2rem"></div>
       ${!State.currentUser ? `<p style="font-size:0.75rem;color:#7b72a8;margin-bottom:1rem;text-align:center">💡 <a onclick="document.getElementById('checkout-modal').remove();showPage('auth')" style="color:#7c3aed;cursor:pointer">Sign in</a> to track your order easily</p>` : ''}
-      <button onclick="submitOrder()" style="width:100%;padding:1rem;background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:12px;font-size:0.9rem;font-weight:600;cursor:pointer;letter-spacing:0.05em">Place Order ✦</button>
+      <button id="co-submit-btn" onclick="submitOrder()" style="width:100%;padding:1rem;background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:12px;font-size:0.9rem;font-weight:600;cursor:pointer;letter-spacing:0.05em">Pay & Place Order ✦</button>
     </div>`;
   document.body.appendChild(modal);
+  installCheckoutPaymentUi();
 }
 
 function showForgotPassword() {
@@ -1456,17 +1471,32 @@ async function submitOrder() {
   
   if (!fname || !lname || !phone || !wilaya || !address) { toast('⚠️ Please fill all fields', 'error'); return; }
   
-  const btn = document.querySelector('#checkout-modal button:last-child');
+  const btn = document.getElementById('co-submit-btn');
+  const paymentMethod = getSelectedCheckoutPaymentMethod();
+  const paymentValidation = validateCheckoutPaymentDetails(paymentMethod);
+  if (!paymentValidation.ok) {
+    toast(paymentValidation.message, 'error');
+    return;
+  }
+  const paymentMeta = paymentValidation.meta || {};
   btn.textContent = 'Processing...';
   btn.disabled = true;
 
   try {
+    const chargeResult = await simulateCheckoutPayment(paymentMethod, paymentMeta);
+    if (!chargeResult.ok) {
+      toast(chargeResult.message || 'Payment was not completed', 'error');
+      btn.textContent = 'Pay & Place Order ✦';
+      btn.disabled = false;
+      return;
+    }
+
     // Get shop names from cart items
     const shopNames = [...new Set(State.cart.map(i => i.brand || i.shopName || 'Everest').filter(Boolean))].join(', ');
     
     const nowIso = new Date().toISOString();
     const deadlineIso = new Date(Date.now() + (90 * 60 * 1000)).toISOString();
-    const order = await SB.createOrder({
+    const baseOrderPayload = {
       user_id: State.currentUser?.id || null,
       items: State.cart,
       total: getCartTotal(),
@@ -1480,7 +1510,22 @@ async function submitOrder() {
       customer_last_name: lname,
       created_at: nowIso,
       delivery_deadline_at: deadlineIso
-    });
+    };
+    const extendedOrderPayload = {
+      ...baseOrderPayload,
+      payment_method: paymentMethod,
+      payment_provider: paymentProviderForMethod(paymentMethod),
+      payment_status: chargeResult.status || 'pending',
+      payment_transaction_ref: chargeResult.reference || null,
+      payment_meta: paymentMeta
+    };
+    let order;
+    try {
+      order = await SB.createOrder(extendedOrderPayload);
+    } catch (paymentFieldErr) {
+      // Backward-compat: orders table might not include payment_* columns yet.
+      order = await SB.createOrder(baseOrderPayload);
+    }
 
     document.getElementById('checkout-modal').remove();
     State.cart = [];
@@ -1511,9 +1556,161 @@ async function submitOrder() {
   } catch(e) {
     if (typeof STNLog !== 'undefined') STNLog.error('checkout.submitOrder', e, {});
     toast('⚠️ Order failed. Try again.', 'error');
-    const btn = document.querySelector('#checkout-modal button:last-child');
-    if (btn) { btn.textContent = 'Place Order ✦'; btn.disabled = false; }
+    const btn = document.getElementById('co-submit-btn');
+    if (btn) { btn.textContent = 'Pay & Place Order ✦'; btn.disabled = false; }
   }
+}
+
+function checkoutPaymentMethodTile(value, label) {
+  return `
+    <label style="display:flex;align-items:center;gap:0.45rem;padding:0.55rem 0.6rem;border:1px solid rgba(107,63,212,0.18);border-radius:10px;background:white;cursor:pointer;font-size:0.76rem;color:#3d3460">
+      <input type="radio" name="co-payment-method" value="${value}" ${value === 'cash' ? 'checked' : ''} style="accent-color:#7c3aed"/>
+      <span>${label}</span>
+    </label>
+  `;
+}
+
+function installCheckoutPaymentUi() {
+  const radios = document.querySelectorAll('input[name="co-payment-method"]');
+  radios.forEach(r => r.addEventListener('change', onCheckoutPaymentMethodChange));
+  onCheckoutPaymentMethodChange();
+}
+
+function getSelectedCheckoutPaymentMethod() {
+  return document.querySelector('input[name="co-payment-method"]:checked')?.value || 'cash';
+}
+
+function onCheckoutPaymentMethodChange() {
+  const method = getSelectedCheckoutPaymentMethod();
+  const extra = document.getElementById('co-payment-extra');
+  const btn = document.getElementById('co-submit-btn');
+  if (!extra) return;
+  if (btn) btn.textContent = method === 'cash' ? 'Place Order ✦' : 'Pay & Place Order ✦';
+
+  if (method === 'cash') {
+    extra.innerHTML = `<p style="font-size:0.78rem;color:#7b72a8;background:#f8f7ff;border:1px solid rgba(107,63,212,0.12);padding:0.7rem;border-radius:10px">You will pay in cash when your order arrives.</p>`;
+    return;
+  }
+
+  if (method === 'paypal') {
+    extra.innerHTML = `
+      <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.35rem">PayPal Email *</label>
+      <input id="co-paypal-email" type="email" placeholder="you@example.com" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
+    `;
+    return;
+  }
+
+  if (method === 'flouci' || method === 'konnect') {
+    extra.innerHTML = `
+      <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.35rem">Wallet Phone *</label>
+      <input id="co-wallet-phone" type="tel" placeholder="+216 XX XXX XXX" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
+    `;
+    return;
+  }
+
+  if (method === 'e_dinar') {
+    extra.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.7rem">
+        <div>
+          <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.35rem">e-Dinar Number *</label>
+          <input id="co-edinar-number" type="text" placeholder="1234 5678 9012 3456" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
+        </div>
+        <div>
+          <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.35rem">PIN *</label>
+          <input id="co-edinar-pin" type="password" maxlength="6" placeholder="****" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // Visa / MasterCard / Credit Card
+  extra.innerHTML = `
+    <div style="display:grid;gap:0.7rem">
+      <div>
+        <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.35rem">Card Number *</label>
+        <input id="co-card-number" type="text" placeholder="4242 4242 4242 4242" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.7rem">
+        <div>
+          <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.35rem">Expiry (MM/YY) *</label>
+          <input id="co-card-expiry" type="text" placeholder="12/28" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
+        </div>
+        <div>
+          <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.35rem">CVV *</label>
+          <input id="co-card-cvv" type="password" maxlength="4" placeholder="123" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
+        </div>
+      </div>
+      <div>
+        <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.35rem">Card Holder *</label>
+        <input id="co-card-holder" type="text" placeholder="MOHAMED TRABELSI" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
+      </div>
+    </div>
+  `;
+}
+
+function paymentProviderForMethod(method) {
+  if (method === 'visa') return 'visa';
+  if (method === 'mastercard') return 'mastercard';
+  if (method === 'credit_card') return 'bank_gateway';
+  if (method === 'paypal') return 'paypal';
+  if (method === 'e_dinar') return 'e_dinar';
+  if (method === 'flouci') return 'flouci';
+  if (method === 'konnect') return 'konnect';
+  return 'cash_on_delivery';
+}
+
+function validateCheckoutPaymentDetails(method) {
+  if (method === 'cash') return { ok: true, meta: {} };
+
+  if (method === 'paypal') {
+    const email = String(document.getElementById('co-paypal-email')?.value || '').trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return { ok: false, message: '⚠️ Enter a valid PayPal email' };
+    }
+    return { ok: true, meta: { paypal_email: email } };
+  }
+
+  if (method === 'flouci' || method === 'konnect') {
+    const phone = String(document.getElementById('co-wallet-phone')?.value || '').trim();
+    if (phone.replace(/\D/g, '').length < 8) {
+      return { ok: false, message: '⚠️ Enter a valid wallet phone number' };
+    }
+    return { ok: true, meta: { wallet_phone: phone } };
+  }
+
+  if (method === 'e_dinar') {
+    const number = String(document.getElementById('co-edinar-number')?.value || '').replace(/\s+/g, '');
+    const pin = String(document.getElementById('co-edinar-pin')?.value || '').trim();
+    if (number.length < 12) return { ok: false, message: '⚠️ Enter a valid e-Dinar number' };
+    if (!/^\d{4,6}$/.test(pin)) return { ok: false, message: '⚠️ Enter a valid e-Dinar PIN' };
+    return { ok: true, meta: { e_dinar_last4: number.slice(-4) } };
+  }
+
+  const cardNumberRaw = String(document.getElementById('co-card-number')?.value || '');
+  const cardNumber = cardNumberRaw.replace(/\D/g, '');
+  const expiry = String(document.getElementById('co-card-expiry')?.value || '').trim();
+  const cvv = String(document.getElementById('co-card-cvv')?.value || '').trim();
+  const holder = String(document.getElementById('co-card-holder')?.value || '').trim();
+  if (cardNumber.length < 13 || cardNumber.length > 19) return { ok: false, message: '⚠️ Enter a valid card number' };
+  if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(expiry)) return { ok: false, message: '⚠️ Enter expiry as MM/YY' };
+  if (!/^\d{3,4}$/.test(cvv)) return { ok: false, message: '⚠️ Enter a valid CVV' };
+  if (holder.length < 3) return { ok: false, message: '⚠️ Enter card holder name' };
+  return { ok: true, meta: { card_last4: cardNumber.slice(-4), card_holder: holder } };
+}
+
+function simulateCheckoutPayment(method) {
+  return new Promise((resolve) => {
+    // Front-end simulation placeholder until backend gateway webhooks are wired.
+    setTimeout(function () {
+      const ref = 'PAY-' + Date.now().toString(36).toUpperCase();
+      if (method === 'cash') {
+        resolve({ ok: true, status: 'pending', reference: ref });
+        return;
+      }
+      resolve({ ok: true, status: 'paid', reference: ref });
+    }, method === 'cash' ? 200 : 900);
+  });
 }
 
 // ── WISHLIST ──
