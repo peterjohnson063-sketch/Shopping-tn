@@ -2675,20 +2675,15 @@ function filterProducts(cat, btn) {
 }
 
 function searchProducts() {
-  const q = document.getElementById('prod-search')?.value?.trim()?.toLowerCase();
-  
-  // Add search query to filter state (we'll use this in filtering)
-  if (q) {
-    State.searchQuery = q;
-    toast(`🔍 Searching for "${q}"...`);
-  } else {
-    State.searchQuery = '';
-  }
-  
-  // Apply all filters including search
-  filterAndRenderProducts();
+  const q = String(document.getElementById('prod-search')?.value || '')
+    .trim()
+    .toLowerCase();
+  State.searchQuery = q;
+  // Keep one single filtering path for search + sidebar filters.
+  applyFilters();
   initReveal();
 }
+window.searchProducts = searchProducts;
 
 // ── TRACK ──
 async function renderTrack() {
@@ -6862,16 +6857,22 @@ function filterAndRenderProducts() {
   if (State.searchQuery) {
     const query = String(State.searchQuery).toLowerCase();
     filteredProducts = filteredProducts.filter(product => {
-      const name = String(product?.name || product?.title || '').toLowerCase();
-      const brand = String(product?.brand || '').toLowerCase();
-      const region = String(product?.region || '').toLowerCase();
-      const category = String(product?.category || product?.cat || '').toLowerCase();
-      return (
-        name.includes(query) ||
-        brand.includes(query) ||
-        region.includes(query) ||
-        category.includes(query)
-      );
+      const searchable = [
+        product?.name,
+        product?.title,
+        product?.brand,
+        product?.region,
+        product?.category,
+        product?.cat,
+        product?.desc,
+        product?.description,
+        product?.material,
+        product?.color,
+      ]
+        .filter(v => v !== undefined && v !== null)
+        .join(' ')
+        .toLowerCase();
+      return searchable.includes(query);
     });
   }
   
