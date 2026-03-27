@@ -1761,7 +1761,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
       </button>
       <div class="search-bar reveal products-page-search" style="flex:1;min-width:0">
         <div class="search-icon-wrap">⌕</div>
-        <input type="text" class="search-input" id="prod-search" placeholder="Search products, brands, regions…" onkeydown="if(event.key==='Enter')searchProducts()" oninput="if(this.value.length>2||this.value.length===0)searchProducts()"/>
+        <input type="text" class="search-input" id="prod-search" placeholder="Search products, brands, regions…" onkeydown="if(event.key==='Enter')searchProducts()" oninput="searchProducts()"/>
         <button class="search-btn" onclick="searchProducts()">Search</button>
       </div>
     </div>
@@ -2026,11 +2026,10 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 
         <!-- PHOTO -->
         <div id="sm-photo" style="aspect-ratio:4/3;border-radius:24px;border:2px solid rgba(107,63,212,0.15);position:relative;overflow:hidden;box-shadow:0 16px 50px rgba(74,31,168,0.14);transition:all .4s cubic-bezier(.4,0,.2,1);margin-bottom:1rem;background:#f5f2ff">
-          <img id="sm-img" src="" alt="" style="width:100%;height:100%;object-fit:cover;transition:all .5s ease;display:none"/>
-          <div id="sm-emoji-wrap" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:9rem;transition:all .4s">
-            <span id="sm-emoji">🪑</span>
-          </div>
-          <div id="sm-color-overlay" style="position:absolute;inset:0;opacity:0;transition:opacity .5s;mix-blend-mode:multiply;pointer-events:none"></div>
+          <div id="sm-scene-bg" style="position:absolute;inset:0;background-size:cover;background-position:center"></div>
+          <img id="sm-img" src="" alt="Customized furniture object" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center bottom;transition:all .5s ease;display:block;z-index:2"/>
+          <div id="sm-color-overlay" style="position:absolute;inset:0;opacity:0;transition:opacity .5s;mix-blend-mode:multiply;pointer-events:none;z-index:1"></div>
+          <div id="sm-object-tint" style="position:absolute;inset:0;opacity:0;transition:opacity .45s,background .3s;mix-blend-mode:multiply;pointer-events:none;z-index:3"></div>
           <div style="position:absolute;top:12px;left:12px;background:rgba(30,10,78,.85);backdrop-filter:blur(8px);color:white;font-size:.62rem;padding:.35rem .8rem;border-radius:20px;font-weight:600">🧑‍🎨 Ahmed Maalej · Ksar Hellal</div>
           <div style="position:absolute;top:12px;right:12px;background:rgba(5,150,105,.9);color:white;font-size:.6rem;padding:.3rem .7rem;border-radius:20px;font-weight:700">✓ Certifié</div>
           <div id="sm-dim-float" style="position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:rgba(30,10,78,.8);backdrop-filter:blur(8px);color:white;font-size:.72rem;padding:.4rem 1rem;border-radius:20px;font-weight:600;white-space:nowrap;transition:all .3s">
@@ -2039,12 +2038,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
         </div>
 
         <!-- PHOTO GALLERY ROW -->
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;margin-bottom:1.5rem" id="sm-gallery">
-          <div class="sm-gal-item active" onclick="smSelectGal(this,0)">🪑</div>
-          <div class="sm-gal-item" onclick="smSelectGal(this,1)">🪑</div>
-          <div class="sm-gal-item" onclick="smSelectGal(this,2)">🪑</div>
-          <div class="sm-gal-item" onclick="smSelectGal(this,3)">🪑</div>
-        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;margin-bottom:1.5rem" id="sm-gallery"></div>
 
         <!-- CARPENTER CARD -->
         <div style="background:white;border:1px solid rgba(107,63,212,0.12);border-radius:16px;padding:1.3rem;box-shadow:0 2px 8px rgba(74,31,168,0.06)">
@@ -2168,32 +2162,32 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;max-width:1100px;margin:0 auto">
         <div class="sm-inspo-card" onclick="smInspoClick(0,this)" title="Configurer cette pièce">
-          <div class="sm-inspo-img" style="background:linear-gradient(135deg,#D4A853,#8B5E3C)"><span style="font-size:4rem">🪑</span><div class="sm-inspo-badge">Chaise Bistrot</div></div>
+          <div class="sm-inspo-img" style="background-image:url('https://source.unsplash.com/1200x900/?oak,chair,interior&sig=101');background-size:cover;background-position:center"><div class="sm-inspo-badge">Chaise Bistrot</div></div>
           <div class="sm-inspo-info"><strong>Chaise Bistrot Chêne</strong><span>1,200 TND</span></div>
           <div class="sm-inspo-cta">✦ Configurer</div>
         </div>
         <div class="sm-inspo-card" onclick="smInspoClick(1,this)" title="Configurer cette pièce">
-          <div class="sm-inspo-img" style="background:linear-gradient(135deg,#5C3317,#8B5E3C)"><span style="font-size:4rem">🍽</span><div class="sm-inspo-badge">Table Famille</div></div>
+          <div class="sm-inspo-img" style="background-image:url('https://source.unsplash.com/1200x900/?oak,dining,table,interior&sig=102');background-size:cover;background-position:center"><div class="sm-inspo-badge">Table Famille</div></div>
           <div class="sm-inspo-info"><strong>Table à Manger 8 pers.</strong><span>3,800 TND</span></div>
           <div class="sm-inspo-cta">✦ Configurer</div>
         </div>
         <div class="sm-inspo-card" onclick="smInspoClick(2,this)" title="Configurer cette pièce">
-          <div class="sm-inspo-img" style="background:linear-gradient(135deg,#D4A853,#F5DEB3)"><span style="font-size:4rem">🛋</span><div class="sm-inspo-badge">Canapé Cadre</div></div>
+          <div class="sm-inspo-img" style="background-image:url('https://source.unsplash.com/1200x900/?wooden,sofa,scandinavian,interior&sig=103');background-size:cover;background-position:center"><div class="sm-inspo-badge">Canapé Cadre</div></div>
           <div class="sm-inspo-info"><strong>Canapé 3 Places</strong><span>4,200 TND</span></div>
           <div class="sm-inspo-cta">✦ Configurer</div>
         </div>
         <div class="sm-inspo-card" onclick="smInspoClick(3,this)" title="Configurer cette pièce">
-          <div class="sm-inspo-img" style="background:linear-gradient(135deg,#2C2C2C,#5C3317)"><span style="font-size:4rem">🚪</span><div class="sm-inspo-badge">Armoire Luxe</div></div>
+          <div class="sm-inspo-img" style="background-image:url('https://source.unsplash.com/1200x900/?wardrobe,wood,bedroom&sig=104');background-size:cover;background-position:center"><div class="sm-inspo-badge">Armoire Luxe</div></div>
           <div class="sm-inspo-info"><strong>Armoire 3 Portes</strong><span>5,500 TND</span></div>
           <div class="sm-inspo-cta">✦ Configurer</div>
         </div>
         <div class="sm-inspo-card" onclick="smInspoClick(4,this)" title="Configurer cette pièce">
-          <div class="sm-inspo-img" style="background:linear-gradient(135deg,#8B5E3C,#D4A853)"><span style="font-size:4rem">☕</span><div class="sm-inspo-badge">Table Scandinave</div></div>
+          <div class="sm-inspo-img" style="background-image:url('https://source.unsplash.com/1200x900/?coffee,table,wooden,living-room&sig=105');background-size:cover;background-position:center"><div class="sm-inspo-badge">Table Scandinave</div></div>
           <div class="sm-inspo-info"><strong>Table Basse Design</strong><span>1,450 TND</span></div>
           <div class="sm-inspo-cta">✦ Configurer</div>
         </div>
         <div class="sm-inspo-card" onclick="smInspoClick(5,this)" title="Configurer cette pièce">
-          <div class="sm-inspo-img" style="background:linear-gradient(135deg,#F5DEB3,#D4A853)"><span style="font-size:4rem">🪞</span><div class="sm-inspo-badge">Coiffeuse Vintage</div></div>
+          <div class="sm-inspo-img" style="background-image:url('https://source.unsplash.com/1200x900/?vanity,table,wood,mirror&sig=106');background-size:cover;background-position:center"><div class="sm-inspo-badge">Coiffeuse Vintage</div></div>
           <div class="sm-inspo-info"><strong>Coiffeuse avec Miroir</strong><span>2,100 TND</span></div>
           <div class="sm-inspo-cta">✦ Configurer</div>
         </div>
@@ -2243,13 +2237,17 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   .sm-clr{display:flex;flex-direction:column;align-items:center;gap:.4rem;cursor:none;transition:transform .15s}
   .sm-clr:hover{transform:scale(1.1)}
   .sm-clr span{font-size:.62rem;color:var(--text-muted);font-weight:500}
-  .sm-gal-item{aspect-ratio:1;background:var(--bg-2);border:2px solid rgba(107,63,212,0.12);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.8rem;cursor:none;transition:all .2s}
-  .sm-gal-item:hover,.sm-gal-item.active{border-color:var(--accent);background:var(--purple-pale);transform:scale(1.05)}
+  .sm-gal-item{aspect-ratio:1;background:var(--bg-2);border:2px solid rgba(107,63,212,0.12);border-radius:10px;display:block;cursor:none;transition:all .2s;overflow:hidden;position:relative}
+  .sm-gal-item::after{content:'';position:absolute;inset:0;background:rgba(30,10,78,.08);transition:opacity .2s}
+  .sm-gal-item:hover,.sm-gal-item.active{border-color:var(--accent);transform:scale(1.05)}
+  .sm-gal-item:hover::after,.sm-gal-item.active::after{opacity:0}
+  .sm-gal-thumb{width:100%;height:100%;background-size:cover;background-position:center}
   input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:white;border:2px solid #7c3aed;box-shadow:0 2px 8px rgba(124,58,237,.4);cursor:none;transition:transform .15s}
   input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2)}
   .sm-inspo-card{border-radius:16px;overflow:hidden;border:1px solid rgba(107,63,212,0.1);background:white;box-shadow:0 4px 16px rgba(74,31,168,0.08);transition:all .3s;cursor:pointer}
   .sm-inspo-card:hover{transform:translateY(-6px);box-shadow:0 12px 30px rgba(74,31,168,0.15);border-color:rgba(107,63,212,0.25)}
-  .sm-inspo-img{height:180px;display:flex;align-items:center;justify-content:center;position:relative}
+  .sm-inspo-img{height:180px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+  .sm-inspo-img::before{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(30,10,78,.05),rgba(30,10,78,.3))}
   .sm-inspo-badge{position:absolute;bottom:8px;left:8px;background:rgba(30,10,78,.8);color:white;font-size:.6rem;padding:.25rem .65rem;border-radius:20px;font-weight:600;backdrop-filter:blur(8px)}
   .sm-inspo-info{padding:.9rem 1rem;display:flex;justify-content:space-between;align-items:center}
   .sm-inspo-info strong{font-size:.8rem;color:var(--text-dark);font-weight:600}
@@ -2457,12 +2455,12 @@ function filterAndGo(cat) {
 </script>
 <script>
   const SM_PRODUCTS=[
-    {title:'Chaise en Chêne',desc:'Chaise artisanale en chêne massif de Ksar Hellal. Structure solide, finition soignée, disponible en plusieurs teintes.',emoji:'🪑',base:850,w:{min:40,max:60,val:45},d:{min:38,max:55,val:42},h:{min:80,max:100,val:88},locked:['Chêne massif','Assemblage tenon-mortaise','Vernis naturel'],gal:['🪑','🪑','🪑','🪑']},
-    {title:'Table à Manger',desc:'Grande table en chêne massif pour 6 à 8 personnes. Plateau épais 4cm, pieds carrés robustes, idéale pour les grandes familles.',emoji:'🍽',base:2800,w:{min:140,max:220,val:180},d:{min:80,max:110,val:90},h:{min:72,max:80,val:75},locked:['Chêne massif 4cm','Pieds carrés','Huile naturelle'],gal:['🍽','🍽','🍽','🍽']},
-    {title:'Canapé Cadre Chêne',desc:'Cadre de canapé en chêne avec accoudoirs sculptés à la main. Structure premium, coussins non inclus.',emoji:'🛋',base:3200,w:{min:160,max:240,val:200},d:{min:85,max:100,val:90},h:{min:75,max:90,val:82},locked:['Chêne massif','Pieds tournés','Vernis satiné'],gal:['🛋','🛋','🛋','🛋']},
-    {title:'Armoire en Chêne',desc:"Armoire en chêne massif avec portes battantes. Intérieur configurable, quincaillerie laiton. Garantie 15 ans structure.",emoji:'🚪',base:4500,w:{min:100,max:200,val:150},d:{min:50,max:70,val:60},h:{min:180,max:230,val:200},locked:['Chêne massif','Quincaillerie laiton','Fond contreplaqué'],gal:['🚪','🚪','🚪','🚪']},
-    {title:'Table Basse',desc:"Table basse en chêne au plateau légèrement bombé. Pieds en épingle acier noir. Design scandinave-tunisien unique.",emoji:'☕',base:1200,w:{min:80,max:130,val:100},d:{min:50,max:80,val:60},h:{min:38,max:50,val:42},locked:['Chêne massif','Pieds acier noir','Finition huile'],gal:['☕','☕','☕','☕']},
-    {title:'Coiffeuse avec Miroir',desc:"Coiffeuse en chêne avec miroir intégré et tiroirs. Finition dorée sur les poignées. Élégance vintage tunisienne.",emoji:'🪞',base:1800,w:{min:80,max:120,val:100},d:{min:40,max:55,val:45},h:{min:140,max:180,val:160},locked:['Chêne massif','Miroir 5mm','Poignées laiton'],gal:['🪞','🪞','🪞','🪞']}
+    {title:'Chaise en Chêne',desc:'Chaise artisanale en chêne massif de Ksar Hellal. Structure solide, finition soignée, disponible en plusieurs teintes.',base:850,w:{min:40,max:60,val:45},d:{min:38,max:55,val:42},h:{min:80,max:100,val:88},locked:['Chêne massif','Assemblage tenon-mortaise','Vernis naturel'],scene:'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%23f7f5ff"/><stop offset="1" stop-color="%23ece7ff"/></linearGradient></defs><rect width="1200" height="900" fill="url(%23g)"/><ellipse cx="600" cy="760" rx="360" ry="48" fill="%23d9d0ff" opacity=".45"/></svg>',objectImages:['https://pngimg.com/d/chair_PNG6871.png','https://pngimg.com/d/chair_PNG6881.png','https://pngimg.com/d/chair_PNG6865.png','https://pngimg.com/d/chair_PNG6899.png'],images:['https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1400&q=80','https://images.unsplash.com/photo-1517705008128-361805f42e86?auto=format&fit=crop&w=1400&q=80','https://images.unsplash.com/photo-1519710164239-da123dc03ef4?auto=format&fit=crop&w=1400&q=80','https://images.unsplash.com/photo-1484101403633-562f891dc89a?auto=format&fit=crop&w=1400&q=80']},
+    {title:'Table à Manger',desc:'Grande table en chêne massif pour 6 à 8 personnes. Plateau épais 4cm, pieds carrés robustes, idéale pour les grandes familles.',base:2800,w:{min:140,max:220,val:180},d:{min:80,max:110,val:90},h:{min:72,max:80,val:75},locked:['Chêne massif 4cm','Pieds carrés','Huile naturelle'],mask:'polygon(13% 37%,89% 37%,92% 86%,10% 86%)',images:['https://source.unsplash.com/1200x900/?oak,dining,table&sig=11','https://source.unsplash.com/1200x900/?wood,dining,room,table&sig=12','https://source.unsplash.com/1200x900/?dining,table,interior,decor&sig=13','https://source.unsplash.com/1200x900/?family,dining,table,wood&sig=14']},
+    {title:'Canapé Cadre Chêne',desc:'Cadre de canapé en chêne avec accoudoirs sculptés à la main. Structure premium, coussins non inclus.',base:3200,w:{min:160,max:240,val:200},d:{min:85,max:100,val:90},h:{min:75,max:90,val:82},locked:['Chêne massif','Pieds tournés','Vernis satiné'],mask:'polygon(9% 35%,92% 35%,96% 85%,5% 85%)',images:['https://source.unsplash.com/1200x900/?wooden,sofa,living-room&sig=21','https://source.unsplash.com/1200x900/?sofa,scandinavian,interior&sig=22','https://source.unsplash.com/1200x900/?oak,sofa,design&sig=23','https://source.unsplash.com/1200x900/?minimalist,sofa,decor&sig=24']},
+    {title:'Armoire en Chêne',desc:"Armoire en chêne massif avec portes battantes. Intérieur configurable, quincaillerie laiton. Garantie 15 ans structure.",base:4500,w:{min:100,max:200,val:150},d:{min:50,max:70,val:60},h:{min:180,max:230,val:200},locked:['Chêne massif','Quincaillerie laiton','Fond contreplaqué'],mask:'polygon(23% 8%,77% 8%,82% 90%,18% 90%)',images:['https://source.unsplash.com/1200x900/?oak,wardrobe,bedroom&sig=31','https://source.unsplash.com/1200x900/?wood,closet,interior&sig=32','https://source.unsplash.com/1200x900/?cabinet,wooden,bedroom&sig=33','https://source.unsplash.com/1200x900/?wardrobe,luxury,interior&sig=34']},
+    {title:'Table Basse',desc:"Table basse en chêne au plateau légèrement bombé. Pieds en épingle acier noir. Design scandinave-tunisien unique.",base:1200,w:{min:80,max:130,val:100},d:{min:50,max:80,val:60},h:{min:38,max:50,val:42},locked:['Chêne massif','Pieds acier noir','Finition huile'],mask:'polygon(16% 39%,87% 39%,90% 82%,13% 82%)',images:['https://source.unsplash.com/1200x900/?coffee,table,wood,living-room&sig=41','https://source.unsplash.com/1200x900/?wooden,coffee-table,interior&sig=42','https://source.unsplash.com/1200x900/?scandinavian,coffee,table&sig=43','https://source.unsplash.com/1200x900/?decor,table,wood,modern&sig=44']},
+    {title:'Coiffeuse avec Miroir',desc:"Coiffeuse en chêne avec miroir intégré et tiroirs. Finition dorée sur les poignées. Élégance vintage tunisienne.",base:1800,w:{min:80,max:120,val:100},d:{min:40,max:55,val:45},h:{min:140,max:180,val:160},locked:['Chêne massif','Miroir 5mm','Poignées laiton'],mask:'polygon(22% 10%,79% 10%,84% 92%,16% 92%)',images:['https://source.unsplash.com/1200x900/?vanity,table,wood,mirror&sig=51','https://source.unsplash.com/1200x900/?dresser,mirror,interior&sig=52','https://source.unsplash.com/1200x900/?bedroom,vanity,decor&sig=53','https://source.unsplash.com/1200x900/?makeup,table,wood&sig=54']}
   ];
   let smCurrent=0,smColor='#D4A853';
 
@@ -2473,11 +2471,39 @@ function filterAndGo(cat) {
     const p=SM_PRODUCTS[idx];
     document.getElementById('sm-title').textContent=p.title;
     document.getElementById('sm-desc').textContent=p.desc;
-    const em=document.getElementById('sm-emoji');
-    em.style.transform='scale(0) rotate(-15deg)';em.style.opacity='0';
-    setTimeout(()=>{em.textContent=p.emoji;em.style.transition='all .5s cubic-bezier(.34,1.56,.64,1)';em.style.transform='scale(1) rotate(0)';em.style.opacity='1';},180);
+    const img=document.getElementById('sm-img');
     const gal=document.getElementById('sm-gallery');
-    if(gal) gal.querySelectorAll('.sm-gal-item').forEach((g,i)=>{g.textContent=p.gal[i]||p.emoji;});
+    const thumbs = Array.isArray(p.objectImages) && p.objectImages.length ? p.objectImages : p.images;
+    if(gal && Array.isArray(thumbs)) {
+      gal.innerHTML = thumbs.map((url,i)=>`<div class="sm-gal-item ${i===0?'active':''}" onclick="smSelectGal(this,${i})"><div class="sm-gal-thumb" style="background-image:url('${url}')"></div></div>`).join('');
+    }
+    const scene = document.getElementById('sm-scene-bg');
+    if (scene) {
+      scene.style.backgroundImage = `url('${p.scene || (p.images && p.images[0]) || ''}')`;
+    }
+    if(img) {
+      const obj0 = (Array.isArray(p.objectImages) && p.objectImages[0]) ? p.objectImages[0] : ((Array.isArray(p.images) && p.images[0]) ? p.images[0] : '');
+      img.src = obj0;
+      img.alt = p.title + ' object preview';
+      img.style.display = 'block';
+      img.onerror = function () {
+        // Fallback so preview never breaks.
+        this.onerror = null;
+        this.src = (Array.isArray(p.images) && p.images[0]) ? p.images[0] : '';
+      };
+    }
+    const tint = document.getElementById('sm-object-tint');
+    if (tint) {
+      const obj0 = (Array.isArray(p.objectImages) && p.objectImages[0]) ? p.objectImages[0] : '';
+      tint.style.webkitMaskImage = obj0 ? `url('${obj0}')` : 'none';
+      tint.style.maskImage = obj0 ? `url('${obj0}')` : 'none';
+      tint.style.webkitMaskRepeat = 'no-repeat';
+      tint.style.maskRepeat = 'no-repeat';
+      tint.style.webkitMaskPosition = 'center bottom';
+      tint.style.maskPosition = 'center bottom';
+      tint.style.webkitMaskSize = 'contain';
+      tint.style.maskSize = 'contain';
+    }
     ['width','depth','height'].forEach(dim=>{
       const el=document.getElementById('sm-'+dim);
       const pd=dim==='width'?p.w:dim==='depth'?p.d:p.h;
@@ -2494,6 +2520,26 @@ function filterAndGo(cat) {
   function smSelectGal(el,idx){
     document.querySelectorAll('.sm-gal-item').forEach(g=>g.classList.remove('active'));
     el.classList.add('active');
+    const p = SM_PRODUCTS[smCurrent];
+    const img = document.getElementById('sm-img');
+    if (img && p) {
+      const obj = Array.isArray(p.objectImages) && p.objectImages[idx] ? p.objectImages[idx] : (Array.isArray(p.images) && p.images[idx] ? p.images[idx] : '');
+      if (obj) img.src = obj;
+      const tint = document.getElementById('sm-object-tint');
+      if (tint && obj) {
+        tint.style.webkitMaskImage = `url('${obj}')`;
+        tint.style.maskImage = `url('${obj}')`;
+      }
+    }
+    const scene = document.getElementById('sm-scene-bg');
+    if (scene && p) {
+      // Keep a stable clean background when using cutout object images.
+      if (!(Array.isArray(p.objectImages) && p.objectImages.length) && Array.isArray(p.images) && p.images[idx]) {
+        scene.style.backgroundImage = `url('${p.images[idx]}')`;
+      } else if (p.scene) {
+        scene.style.backgroundImage = `url('${p.scene}')`;
+      }
+    }
   }
 
   function updateSM(){
@@ -2535,7 +2581,12 @@ function filterAndGo(cat) {
     btn.querySelector('div').style.boxShadow='0 0 0 2.5px #7c3aed';
     document.getElementById('sm-color-name').textContent=name;
     const ov=document.getElementById('sm-color-overlay');
-    ov.style.background=color;ov.style.opacity='0.18';
+    ov.style.background=color;ov.style.opacity='0';
+    const objTint = document.getElementById('sm-object-tint');
+    if (objTint) {
+      objTint.style.background = color;
+      objTint.style.opacity = '0.65';
+    }
     if(typeof toast==='function') toast('🎨 '+name+' sélectionné','default');
   }
 
@@ -2548,7 +2599,7 @@ function filterAndGo(cat) {
     setTimeout(()=>{succ.style.display='none';},3500);
     // Add to real cart
     if(typeof State !== 'undefined') {
-      const cartItem = { id: 'SM-'+Date.now(), name: p.title, price: total, emoji: '🪑', quantity: 1, custom: true };
+      const cartItem = { id: 'SM-'+Date.now(), name: p.title, price: total, emoji: '🛋️', image: (p.images && p.images[0]) || null, quantity: 1, custom: true };
       State.cart.push(cartItem);
       if(typeof STN !== 'undefined') STN.DB.set('cart', State.cart);
       if(typeof updateCartBadge === 'function') updateCartBadge();
@@ -2575,8 +2626,16 @@ function filterAndGo(cat) {
     }
   }
 
-  document.addEventListener('DOMContentLoaded',()=>updateSM());
-  setTimeout(updateSM,200);
+  document.addEventListener('DOMContentLoaded',()=>{
+    const firstTab = document.querySelector('.sm-tab');
+    if (firstTab) selectSMProduct(0, firstTab);
+    updateSM();
+  });
+  setTimeout(()=>{
+    const firstTab = document.querySelector('.sm-tab');
+    if (firstTab) selectSMProduct(0, firstTab);
+    updateSM();
+  },200);
   </script>
 <!-- SCRIPTS -->
 <script src="supabase-fixed.js"></script>
