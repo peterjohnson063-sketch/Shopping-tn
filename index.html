@@ -2683,6 +2683,7 @@ function filterAndGo(cat) {
 <script src="supabase-fixed.js"></script>
 <script src="data.js"></script>
 <script src="app.js"></script>
+<script src="yasmine-context.js"></script>
 <script src="yasmine.js"></script>
 <script>
 (function() {
@@ -2717,6 +2718,7 @@ function filterAndGo(cat) {
   <!-- Quick actions -->
   <div style="padding:0.7rem 1rem;display:flex;gap:0.5rem;flex-wrap:wrap;border-bottom:1px solid rgba(107,63,212,0.1)">
     <button onclick="AI.quick('Quels sont vos produits vedettes?')" style="background:#f0eeff;border:none;color:#7c3aed;padding:0.3rem 0.7rem;border-radius:20px;font-size:0.7rem;cursor:pointer">🛋️ Produits</button>
+    <button type="button" onclick="AI.quick('Where is my order and when will it arrive?')" style="background:#f0eeff;border:none;color:#7c3aed;padding:0.3rem 0.7rem;border-radius:20px;font-size:0.7rem;cursor:pointer">📦 My order</button>
     <button onclick="AI.quick('Comment fonctionne la livraison?')" style="background:#f0eeff;border:none;color:#7c3aed;padding:0.3rem 0.7rem;border-radius:20px;font-size:0.7rem;cursor:pointer">🚚 Livraison</button>
   </div>
   <!-- Messages -->

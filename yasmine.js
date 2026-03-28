@@ -374,7 +374,15 @@ var AI = (function(){
   var currentLang = 'fr';
   var isOpen = false;
 
-  var SYSTEM = `You are Yasmine, the AI assistant for Everest — Hit Your Dreams — Tunisia's premium artisan marketplace. You help customers find products, answer questions about delivery, artisans, and orders. You speak Arabic, French, and English — auto-detect the language. Always be warm, helpful, and bring conversations back to Everest naturally. Key facts: artisans from Monastir, Ksar Hellal, Sfax, Nabeul. Delivery 24-48h in Tunisia. Free shipping over 500 TND. Promo codes: EVEREST10 (10% off), SAHEL20 (20% off), WELCOME50 (50 TND off). Products include furniture, ceramics, lighting, rugs, bedroom sets.`;
+  var SYSTEM = `You are Yasmine, the AI assistant for Everest — Hit Your Dreams — Tunisia's premium artisan marketplace. You help customers and vendors: products, delivery, artisans, orders, and vendor rules (ethics, new-only items, packaging, blind shipping, WYSIWYG photos). You speak Arabic, French, and English — auto-detect the language. Be warm and accurate.
+
+Rules you must follow:
+- When the message includes a block "LIVE DATA", treat it as the ONLY source of truth for that user's orders on this device. Never invent tracking numbers, statuses, or delivery dates. If LIVE DATA shows no orders, say you cannot see their orders here and suggest signing in or opening the Track page / pasting an STN- tracking code.
+- For "when will my order arrive", combine the current status from LIVE DATA with general Everest info: preparation plus delivery often fits within about 24–48h in Tunisia when things run smoothly — but do not promise a specific hour or day unless LIVE DATA includes an explicit timestamp you can quote.
+- Vendors never receive customer personal data (blind flow); only order id and line items for preparation.
+- You cannot process payments or change orders; direct users to the site UI or support for that.
+
+Everest facts: artisans from Monastir, Ksar Hellal, Sfax, Nabeul. Delivery often 24–48h in Tunisia. Free shipping over 500 TND. Promo codes: EVEREST10 (10% off), SAHEL20 (20% off), WELCOME50 (50 TND off). Products include furniture, ceramics, lighting, rugs, bedroom sets.`;
 
   function sendMessage(userMsg){
     if(!userMsg || !userMsg.trim()) return;
@@ -385,9 +393,21 @@ var AI = (function(){
     var xhr = new XMLHttpRequest();
     xhr.open('POST', 'https://yasmine-proxy.bensalemyassine063.workers.dev', true);
     xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.timeout = 12000;
 
-    var messages = [{role:'user', parts:[{text: SYSTEM}]}, {role:'model', parts:[{text:'Bonjour! Je suis Yasmine.'}]}];
+    var liveCtx = '';
+    try {
+      if (typeof window.EverestYasmineContext !== 'undefined' && typeof window.EverestYasmineContext.build === 'function') {
+        liveCtx = window.EverestYasmineContext.build(userMsg);
+      }
+    } catch (ctxErr) {
+      liveCtx = '';
+    }
+    var fullSystem =
+      SYSTEM +
+      '\n\n=== LIVE DATA (authoritative for this turn; session/browser only) ===\n' +
+      (liveCtx || '(none)');
+
+    var messages = [{role:'user', parts:[{text: fullSystem}]}, {role:'model', parts:[{text:'Bonjour! Je suis Yasmine.'}]}];
     history.slice(-10).forEach(function(m){
       messages.push({role: m.role === 'user' ? 'user' : 'model', parts:[{text: m.content}]});
     });

@@ -32,6 +32,10 @@ const State = {
   countdownInterval: null,
 };
 
+try {
+  window.__EVEREST_STATE__ = State;
+} catch (e) {}
+
 const DELIVERY_STATUS_FLOW = [
   'pending',
   'confirmed',
@@ -1546,6 +1550,13 @@ async function submitOrder() {
       // Backward-compat: orders table might not include payment_* columns yet.
       order = await SB.createOrder(baseOrderPayload);
     }
+
+    try {
+      var olist = STN.DB.get('orders') || [];
+      olist.push(order);
+      STN.DB.set('orders', olist);
+      State.orders = olist;
+    } catch (ePersist) {}
 
     document.getElementById('checkout-modal').remove();
     State.cart = [];
@@ -6485,6 +6496,22 @@ async function uploadProduct() {
   if (!State.currentUser || State.currentUser.role !== 'vendor') {
     toast('⚠️ You must be signed in as a vendor to upload.', 'error');
     return;
+  }
+
+  if (typeof EverestListingPolicy !== 'undefined' && typeof EverestListingPolicy.check === 'function') {
+    var _pol = EverestListingPolicy.check(title, desc);
+    if (_pol && _pol.blocked) {
+      var _why = (_pol.reasons || [])
+        .filter(function (r) {
+          return r && r.severity === 'block';
+        })
+        .map(function (r) {
+          return r.message;
+        })
+        .join(' ');
+      toast('⚠️ Listing blocked (Everest vendor rules): ' + (_why || 'Please revise title and description.'), 'error');
+      return;
+    }
   }
 
   var vendorIdRes = await resolveVendorIdForProductUpload();
