@@ -3,7 +3,7 @@
 var TRANSLATIONS={
   en:{
     'nav-home':'Home','nav-products':'Collections','nav-carpenter':'Custom Furniture',
-    'nav-track':'Track','nav-loyalty':'Rewards','nav-about':'About','signin-btn':'Sign In',
+    'nav-track':'Track','nav-loyalty':'Rewards','nav-about':'About','nav-about-vendor':'Rules for Vendors','signin-btn':'Sign In',
     'hero-badge':"Tunisias #1 Artisan Marketplace",
     'hero-search':'Search products, artisans, regions...','hero-search-btn':'Search',
     'stat-products':'Products','stat-regions':'Regions','stat-satisfaction':'Satisfaction','stat-delivery':'Max Delivery',
@@ -25,7 +25,7 @@ var TRANSLATIONS={
   },
   fr:{
     'nav-home':'Accueil','nav-products':'Collections','nav-carpenter':'Sur Mesure',
-    'nav-track':'Suivi','nav-loyalty':'Recompenses','nav-about':'A Propos','signin-btn':'Connexion',
+    'nav-track':'Suivi','nav-loyalty':'Recompenses','nav-about':'A Propos','nav-about-vendor':'Règles vendeurs','signin-btn':'Connexion',
     'hero-badge':'Marketplace Artisanal N1 en Tunisie',
     'hero-search':'Rechercher produits, artisans...','hero-search-btn':'Rechercher',
     'stat-products':'Produits','stat-regions':'Regions','stat-satisfaction':'Satisfaction','stat-delivery':'Livraison Max',
@@ -52,6 +52,7 @@ var TRANSLATIONS={
     'nav-track':'\u062a\u062a\u0628\u0639',
     'nav-loyalty':'\u0627\u0644\u0645\u0643\u0627\u0641\u0622\u062a',
     'nav-about':'\u0645\u0646 \u0646\u062d\u0646',
+    'nav-about-vendor':'\u0642\u0648\u0627\u0639\u062f \u0627\u0644\u0628\u0627\u0626\u0639\u064a\u0646',
     'signin-btn':'\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644',
     'hero-badge':'\u0645\u0646\u0635\u0629 \u0627\u0644\u062d\u0631\u0641 \u0627\u0644\u0623\u0648\u0644\u0649 \u0641\u064a \u062a\u0648\u0646\u0633',
     'hero-search':'\u0627\u0628\u062d\u062b \u0639\u0646 \u0645\u0646\u062a\u062c\u0627\u062a...',

@@ -560,7 +560,27 @@ function updateNavUser() {
   }
   var dli = document.getElementById('nav-drawer-driver-item');
   if (dli) dli.style.display = State.currentUser && State.currentUser.role === 'driver' ? 'block' : 'none';
+  syncAboutNavLink();
   syncBottomNavActive(State.currentPage || 'home');
+}
+
+/** About nav = customer story; vendors see Rules for Vendors (same route, different label + body). */
+function syncAboutNavLink() {
+  var isVendor = State.currentUser && State.currentUser.role === 'vendor';
+  var key = isVendor ? 'nav-about-vendor' : 'nav-about';
+  var navBtn = document.getElementById('navbtn-about');
+  if (navBtn) navBtn.setAttribute('data-lang', key);
+  document.querySelectorAll('.nav-drawer-link[data-lang]').forEach(function (el) {
+    var prev = el.getAttribute('data-lang');
+    if (prev === 'nav-about' || prev === 'nav-about-vendor') el.setAttribute('data-lang', key);
+  });
+  if (typeof window.STNI18N !== 'undefined' && window.STNI18N.t) {
+    var label = window.STNI18N.t(key);
+    if (navBtn) navBtn.textContent = label;
+    document.querySelectorAll('.nav-drawer-link').forEach(function (el) {
+      if (el.getAttribute('data-lang') === key) el.textContent = label;
+    });
+  }
 }
 
 // ── PAGE NAVIGATION ──
@@ -6716,9 +6736,14 @@ function renderLoyalty() {
   setTimeout(function() { document.querySelectorAll('#page-loyalty .reveal').forEach(function(el){el.classList.add('visible');}); }, 100);
 }
 
-// ── ABOUT ──
+// ── ABOUT (customers) / RULES FOR VENDORS ──
 function renderAbout() {
-  // Make all reveal elements visible immediately
+  var isVendor = State.currentUser && State.currentUser.role === 'vendor';
+  var cust = document.getElementById('about-customer-wrap');
+  var vend = document.getElementById('about-vendor-wrap');
+  if (cust) cust.style.display = isVendor ? 'none' : '';
+  if (vend) vend.style.display = isVendor ? 'block' : 'none';
+  syncAboutNavLink();
   setTimeout(function() {
     document.querySelectorAll('#page-about .reveal').forEach(function(el) {
       el.classList.add('visible');
