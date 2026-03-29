@@ -626,6 +626,13 @@ var AI = (function(){
   function friendlyAiErrorSummary(raw) {
     if (!raw || typeof raw !== 'string') return '';
     var s = raw;
+    if (/leaked|reported as leaked|use another API key/i.test(s)) {
+      return currentLang === 'ar'
+        ? 'حظر Google هذا المفتاح لأنه ظهر علناً. أنشئ مفتاحاً جديداً في AI Studio، احذف القديم، حدّث سر GitHub GEMINI_API_KEY وأعد النشر. لا تلصق المفتاح في الدردشة أو Git.'
+        : currentLang === 'en'
+          ? 'Google disabled this key (it was exposed publicly—e.g. chat, screenshot, or git). Create a new key at https://aistudio.google.com/apikey , revoke the old one, update GitHub secret GEMINI_API_KEY, run Actions deploy again. Never commit or paste keys.'
+          : 'Google a bloqué cette clé (exposition publique). Créez une **nouvelle** clé dans AI Studio, révoquez l’ancienne, mettez à jour le secret **GEMINI_API_KEY** sur GitHub, relancez le déploiement.';
+    }
     if (/API key expired|API_KEY_INVALID|invalid API key|API key not valid|Please renew|PERMISSION_DENIED/i.test(s)) {
       return currentLang === 'ar'
         ? 'تحقق من مفتاح Gemini: سر GitHub GEMINI_API_KEY أو gemini-key.local.js أو Worker — مفتاح AI Studio + مرجع HTTP للموقع.'
