@@ -381,6 +381,30 @@ var AI = (function(){
    * Model order: 2.5 Lite/Flash first. 429/503 → try next model. Worker optional fallback if no browser key.
    */
   var YASMINE_WORKER_URL = 'https://yasmine-proxy.bensalemyassine063.workers.dev';
+
+  /** Empty string = Worker disabled. If unset, default URL is used (non–github.io only unless you set this explicitly). */
+  function getYasmineWorkerUrl() {
+    try {
+      if (typeof window !== 'undefined' && typeof window.EVEREST_YASMINE_WORKER_URL === 'string') {
+        return window.EVEREST_YASMINE_WORKER_URL.trim();
+      }
+    } catch (eW) {}
+    return YASMINE_WORKER_URL;
+  }
+
+  /**
+   * github.io: do not use the default third-party Worker (often wrong/expired key). Use Actions-injected everest-env.js or set EVEREST_YASMINE_WORKER_URL to your own Worker.
+   */
+  function useWorkerFallback() {
+    var url = getYasmineWorkerUrl();
+    if (!url) return false;
+    try {
+      var host = location.hostname || '';
+      if (host.indexOf('github.io') === -1) return true;
+      return typeof window !== 'undefined' && typeof window.EVEREST_YASMINE_WORKER_URL === 'string';
+    } catch (eG) {}
+    return true;
+  }
   var GEMINI_MODEL_DEFAULTS = [
     'gemini-2.5-flash-lite',
     'gemini-2.5-flash',
@@ -527,8 +551,13 @@ var AI = (function(){
   }
 
   function requestWorkerProxy(contents, userMsg, onDone) {
+    var workerUrl = getYasmineWorkerUrl();
+    if (!workerUrl) {
+      onDone(null, userMsg);
+      return;
+    }
     var xhr = new XMLHttpRequest();
-    xhr.open('POST', YASMINE_WORKER_URL, true);
+    xhr.open('POST', workerUrl, true);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.timeout = 30000;
     xhr.onload = function () {
@@ -706,6 +735,11 @@ Everest facts: artisans from Monastir, Ksar Hellal, Sfax, Nabeul, Kairouan and t
       return;
     }
 
+    if (!useWorkerFallback()) {
+      finishWithFallback(userMsg);
+      return;
+    }
+
     requestWorkerProxy(messages, userMsg, function (workerResult) {
       if (workerResult === '__handled__') return;
       if (hasKey) {
@@ -800,14 +834,20 @@ Everest facts: artisans from Monastir, Ksar Hellal, Sfax, Nabeul, Kairouan and t
   function quickBtn(text){ sendMessage(text); }
 
   try {
-    if (typeof console !== 'undefined' && console.info) {
-      console.info(
-        '[Everest Yasmine]',
-        getGeminiApiKey() && (location.protocol === 'http:' || location.protocol === 'https:')
-          ? 'Browser Gemini only on http(s) — saves quota (no Worker + browser double calls).'
-          : 'Worker → browser fallback if key present.',
-        YASMINE_WORKER_URL
-      );
+    if (typeof console !== 'undefined') {
+      var k0 = getGeminiApiKey();
+      var http0 = location.protocol === 'http:' || location.protocol === 'https:';
+      if (k0 && http0 && console.info) {
+        console.info('[Everest Yasmine] Browser Gemini (AI Studio key in page).');
+      } else if (useWorkerFallback() && console.info) {
+        console.info('[Everest Yasmine] No browser key — Worker fallback:', getYasmineWorkerUrl());
+      } else if (console.warn) {
+        console.warn(
+          '[Everest Yasmine] No browser API key on this origin. If GitHub Pages: repo → Settings → Secrets → GEMINI_API_KEY, Pages → Build with Actions, push main. ' +
+            'Then open /everest-env.js — it must show window.EVEREST_GEMINI_API_KEY = \'AIza…\'. Clear site data if the PWA cached old JS. ' +
+            'Optional: set window.EVEREST_YASMINE_WORKER_URL to your own Worker before yasmine.js.'
+        );
+      }
     }
   } catch (eLog) {}
 
