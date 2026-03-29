@@ -416,6 +416,14 @@ var AI = (function(){
   /** Last Google/Worker error text (no secrets) — shown if chat falls back. Not related to Supabase. */
   var _yasmineLastAiError = '';
 
+  function yLogWarn() {
+    try {
+      if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+        console.warn.apply(console, arguments);
+      }
+    } catch (eLw) {}
+  }
+
   function getGeminiApiKey() {
     try {
       var env = typeof window !== 'undefined' && window.__EVEREST_ENV__;
@@ -521,7 +529,7 @@ var AI = (function(){
         try {
           data = JSON.parse(text);
         } catch (parseEx) {
-          console.warn('[Yasmine] Gemini JSON parse', parseEx);
+          yLogWarn('[Yasmine] Gemini JSON parse', parseEx);
           requestGeminiDirect(contents, modelsArr, modelIndex + 1, onDone);
           return;
         }
@@ -537,7 +545,7 @@ var AI = (function(){
           var code = data.error.code;
           var em = (data.error.message || String(data.error.status || '')).slice(0, 220);
           _yasmineLastAiError = 'Gemini (' + model + '): ' + em;
-          console.warn('[Yasmine]', _yasmineLastAiError);
+          yLogWarn('[Yasmine]', _yasmineLastAiError);
           if (isGeminiHardStopError(code, em)) {
             onDone(null);
             return;
@@ -563,7 +571,7 @@ var AI = (function(){
     xhr.onload = function () {
       if (xhr.status !== 200) {
         _yasmineLastAiError = 'Worker HTTP ' + xhr.status;
-        console.warn('[Yasmine]', _yasmineLastAiError);
+        yLogWarn('[Yasmine]', _yasmineLastAiError);
         removeTyping();
         onDone(null, userMsg);
         return;
@@ -574,7 +582,7 @@ var AI = (function(){
         if (data.error) {
           var wm = (data.error.message || String(data.error.code || '')).slice(0, 220);
           _yasmineLastAiError = 'Worker: ' + wm;
-          console.warn('[Yasmine]', _yasmineLastAiError);
+          yLogWarn('[Yasmine]', _yasmineLastAiError);
           onDone(null, userMsg);
           return;
         }
@@ -594,13 +602,13 @@ var AI = (function(){
     };
     xhr.onerror = function () {
       _yasmineLastAiError = 'Worker: network error (blocked, offline, or CORS)';
-      console.warn('[Yasmine]', _yasmineLastAiError);
+      yLogWarn('[Yasmine]', _yasmineLastAiError);
       removeTyping();
       onDone(null, userMsg);
     };
     xhr.ontimeout = function () {
       _yasmineLastAiError = 'Worker: request timed out';
-      console.warn('[Yasmine]', _yasmineLastAiError);
+      yLogWarn('[Yasmine]', _yasmineLastAiError);
       removeTyping();
       onDone(null, userMsg);
     };
@@ -841,8 +849,8 @@ Everest facts: artisans from Monastir, Ksar Hellal, Sfax, Nabeul, Kairouan and t
         console.info('[Everest Yasmine] Browser Gemini (AI Studio key in page).');
       } else if (useWorkerFallback() && console.info) {
         console.info('[Everest Yasmine] No browser key — Worker fallback:', getYasmineWorkerUrl());
-      } else if (console.warn) {
-        console.warn(
+      } else {
+        yLogWarn(
           '[Everest Yasmine] No browser API key on this origin. If GitHub Pages: repo → Settings → Secrets → GEMINI_API_KEY, Pages → Build with Actions, push main. ' +
             'Then open /everest-env.js — it must show window.EVEREST_GEMINI_API_KEY = \'AIza…\'. Clear site data if the PWA cached old JS. ' +
             'Optional: set window.EVEREST_YASMINE_WORKER_URL to your own Worker before yasmine.js.'
