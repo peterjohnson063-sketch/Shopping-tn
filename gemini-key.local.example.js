@@ -1,7 +1,6 @@
 /* Copy to gemini-key.local.js (same folder as index.html). Gitignored.
-   Flow: Cloudflare Worker is tried first; browser uses this key only as fallback on http(s).
-   API: v1beta — tries gemini-2.0-flash, gemini-flash-latest, etc. (see yasmine.js).
+   Key = Google AI Studio → Create API key (free tier). Restrict key: HTTP referrers include your live URL.
 
-   Live site: upload gemini-key.local.js next to index.html, or set Worker secret only:
-   workers/yasmine-proxy/README.md */
+   Live (GitHub Pages): set repo secret GEMINI_API_KEY; push to main — Actions injects everest-env.js as window.EVEREST_GEMINI_API_KEY.
+   Or upload gemini-key.local.js on the host. Optional Worker: workers/yasmine-proxy/README.md */
 window.EVEREST_GEMINI_API_KEY = 'AIzaSy…';

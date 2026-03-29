@@ -375,10 +375,10 @@ var AI = (function(){
   var isOpen = false;
 
   /**
-   * AI path on http(s) + gemini-key.local.js: browser Gemini only (no Worker double-call).
-   * Model order: 2.5 Lite/Flash first (often different quota than 2.0; see ai.google.dev models). 429/503 → try next model.
-   * Hard-stop only: bad API key / permission. sessionStorage remembers last model that succeeded; cleared if every model fails.
-   * Worker: workers/yasmine-proxy/README.md
+   * Google AI Studio keys use the Generative Language API (free tier / rate limits per AI Studio).
+   * Same REST as documented at https://ai.google.dev/gemini-api/docs — not Vertex AI billing.
+   * Live key: repo secret GEMINI_API_KEY → Actions writes everest-env.js (window.EVEREST_GEMINI_API_KEY), or gemini-key.local.js locally.
+   * Model order: 2.5 Lite/Flash first. 429/503 → try next model. Worker optional fallback if no browser key.
    */
   var YASMINE_WORKER_URL = 'https://yasmine-proxy.bensalemyassine063.workers.dev';
   var GEMINI_MODEL_DEFAULTS = [
@@ -388,11 +388,18 @@ var AI = (function(){
     'gemini-flash-latest',
   ];
   var MODEL_OK_STORAGE = 'everest_yasmine_ok_model';
-  var GEMINI_API_ROOT = 'https://generativelanguage.googleapis.com/v1beta/models/';
+  var GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
   /** Last Google/Worker error text (no secrets) — shown if chat falls back. Not related to Supabase. */
   var _yasmineLastAiError = '';
 
   function getGeminiApiKey() {
+    try {
+      var env = typeof window !== 'undefined' && window.__EVEREST_ENV__;
+      if (env && typeof env === 'object') {
+        var ek = String(env.GEMINI_API_KEY || env.EVEREST_GEMINI_API_KEY || '').trim();
+        if (ek) return ek;
+      }
+    } catch (eEnv) {}
     try {
       if (typeof window !== 'undefined' && window.EVEREST_GEMINI_API_KEY) {
         var wk = String(window.EVEREST_GEMINI_API_KEY).trim();
@@ -444,7 +451,17 @@ var AI = (function(){
     return false;
   }
 
-  /** Remember working model in sessionStorage. */
+  function fetchWithTimeout(url, options, timeoutMs) {
+    var ctrl = new AbortController();
+    var id = setTimeout(function () {
+      ctrl.abort();
+    }, timeoutMs);
+    return fetch(url, Object.assign({}, options, { signal: ctrl.signal })).finally(function () {
+      clearTimeout(id);
+    });
+  }
+
+  /** POST :generateContent — AI Studio / Generative Language API (browser key in query per Google REST). */
   function requestGeminiDirect(contents, modelsArr, modelIndex, onDone) {
     var key = getGeminiApiKey();
     if (!key || !modelsArr || modelIndex >= modelsArr.length) {
@@ -457,14 +474,33 @@ var AI = (function(){
       return;
     }
     var model = modelsArr[modelIndex];
-    var url = GEMINI_API_ROOT + model + ':generateContent?key=' + encodeURIComponent(key);
-    var xhr = new XMLHttpRequest();
-    xhr.open('POST', url, true);
-    xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.timeout = 45000;
-    xhr.onload = function () {
-      try {
-        var data = JSON.parse(xhr.responseText);
+    var url =
+      GEMINI_API_BASE +
+      '/models/' +
+      encodeURIComponent(model) +
+      ':generateContent?key=' +
+      encodeURIComponent(key);
+    fetchWithTimeout(
+      url,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: contents }),
+      },
+      45000
+    )
+      .then(function (r) {
+        return r.text();
+      })
+      .then(function (text) {
+        var data;
+        try {
+          data = JSON.parse(text);
+        } catch (parseEx) {
+          console.warn('[Yasmine] Gemini JSON parse', parseEx);
+          requestGeminiDirect(contents, modelsArr, modelIndex + 1, onDone);
+          return;
+        }
         var parsed = parseGeminiJson(data);
         if (parsed.text) {
           try {
@@ -483,22 +519,11 @@ var AI = (function(){
             return;
           }
         }
-      } catch (ex) {
-        console.warn('[Yasmine] Gemini parse', ex);
-      }
-      requestGeminiDirect(contents, modelsArr, modelIndex + 1, onDone);
-    };
-    xhr.onerror = function () {
-      requestGeminiDirect(contents, modelsArr, modelIndex + 1, onDone);
-    };
-    xhr.ontimeout = function () {
-      requestGeminiDirect(contents, modelsArr, modelIndex + 1, onDone);
-    };
-    try {
-      xhr.send(JSON.stringify({ contents: contents }));
-    } catch (sendEx) {
-      requestGeminiDirect(contents, modelsArr, modelIndex + 1, onDone);
-    }
+        requestGeminiDirect(contents, modelsArr, modelIndex + 1, onDone);
+      })
+      .catch(function () {
+        requestGeminiDirect(contents, modelsArr, modelIndex + 1, onDone);
+      });
   }
 
   function requestWorkerProxy(contents, userMsg, onDone) {
@@ -566,10 +591,10 @@ var AI = (function(){
     var s = raw;
     if (/API key expired|API_KEY_INVALID|invalid API key|API key not valid|Please renew|PERMISSION_DENIED/i.test(s)) {
       return currentLang === 'ar'
-        ? 'تحقق من مفتاح Gemini: سرّ Cloudflare Worker (GEMINI_API_KEY) و/أو ملف gemini-key.local.js.'
+        ? 'تحقق من مفتاح Gemini: سر GitHub GEMINI_API_KEY أو gemini-key.local.js أو Worker — مفتاح AI Studio + مرجع HTTP للموقع.'
         : currentLang === 'en'
-          ? 'Check your Gemini key: Cloudflare Worker secret GEMINI_API_KEY and/or gemini-key.local.js (must match AI Studio).'
-          : 'Vérifiez la clé Gemini : secret Worker GEMINI_API_KEY et/ou gemini-key.local.js (AI Studio).';
+          ? 'Check your Gemini key: GitHub secret GEMINI_API_KEY (Pages deploy), gemini-key.local.js, or Worker GEMINI_API_KEY — must be an AI Studio key with your site URL in HTTP referrers.'
+          : 'Vérifiez la clé Gemini : secret GitHub GEMINI_API_KEY (déploiement Pages), gemini-key.local.js, ou secret Worker — clé AI Studio + référents HTTP du site.';
     }
     if (/429|quota|RESOURCE_EXHAUSTED|rate limit|Too Many Requests|billing|exceeded your current quota/i.test(s)) {
       return currentLang === 'ar'
@@ -598,10 +623,10 @@ var AI = (function(){
   function offlineCloudUnavailableMessage() {
     var hint =
       currentLang === 'ar'
-        ? '\n\n**مهم:** ياسمين تستخدم **Google Gemini** فقط — **ليس** Supabase ولا SQL. إن كانت هذه نسخة منشورة: ارفع `gemini-key.local.js` بجانب `index.html`، أو أضف نطاق موقعك في قيود **HTTP referrers** لمفتاح API في Google Cloud، أو صلّح مفتاح الـ Worker على Cloudflare.'
+        ? '\n\n**مهم:** ياسمين تستخدم **Google AI Studio**. للموقع المنشور: أضف سر **GEMINI_API_KEY** في GitHub وشغّل GitHub Actions، أو ارفع `gemini-key.local.js`، أو Worker. أضف رابط موقعك في قيود **HTTP referrers** للمفتاح.'
         : currentLang === 'en'
-          ? '\n\n**Important:** Yasmine uses **Google Gemini** only — **not** Supabase or SQL. If this is your live site: upload `gemini-key.local.js` next to `index.html` (with a valid `AIza…` key), **or** add your site URL under the API key’s **HTTP referrer** restrictions in Google Cloud, **or** fix the Gemini secret on your Cloudflare Worker.'
-          : '\n\n**Important :** Yasmine utilise **Google Gemini** uniquement — **pas** Supabase ni SQL. Sur le site en ligne : déployez `gemini-key.local.js` à côté de `index.html`, ou autorisez l’URL du site dans les **référents HTTP** de la clé API Google, ou corrigez le secret Gemini du Worker Cloudflare.';
+          ? '\n\n**Important:** Yasmine uses **Google AI Studio** (Generative Language API) — **not** Supabase/SQL. Live site: add repository secret **GEMINI_API_KEY** and deploy with **GitHub Actions** (see `.github/workflows/deploy-github-pages.yml`), **or** upload `gemini-key.local.js`, **or** use a Cloudflare Worker secret. Always allow your site URL under the key’s **HTTP referrer** restrictions.'
+          : '\n\n**Important :** Yasmine utilise **Google AI Studio** (API Generative Language). En ligne : secret dépôt **GEMINI_API_KEY** + déploiement **GitHub Actions**, ou `gemini-key.local.js`, ou Worker Cloudflare. Autorisez l’URL du site dans les **référents HTTP** de la clé.';
     var tech = '';
     if (_yasmineLastAiError) {
       var fr = friendlyAiErrorSummary(_yasmineLastAiError);
