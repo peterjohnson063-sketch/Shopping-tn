@@ -4,4 +4,4 @@
 
    Live site: upload gemini-key.local.js next to index.html, or set Worker secret only:
    workers/yasmine-proxy/README.md */
-window.EVEREST_GEMINI_API_KEY = 'AIzaSy…';
+window.EVEREST_GEMINI_API_KEY = 'AIzaSyApGwkeucofgLdb_y2YtpVdajPxmOzPwaU';
