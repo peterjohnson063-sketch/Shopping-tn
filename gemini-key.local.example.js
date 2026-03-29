@@ -1,6 +1,4 @@
-/* Copy to gemini-key.local.js (same folder as index.html). Gitignored.
-   Key = Google AI Studio → Create API key (free tier). Restrict key: HTTP referrers include your live URL.
-
-   Live (GitHub Pages): set repo secret GEMINI_API_KEY; push to main — Actions injects everest-env.js as window.EVEREST_GEMINI_API_KEY.
-   Or upload gemini-key.local.js on the host. Optional Worker: workers/yasmine-proxy/README.md */
+/* gemini-key.local.js is committed as an empty stub (no 404 on GitHub Pages).
+   Put a real AIza key only in: (1) GitHub secret GEMINI_API_KEY for Actions, or (2) temporarily in gemini-key.local.js for local dev — never push keys.
+   Restrict key: HTTP referrers must include your live URL. Optional Worker: workers/yasmine-proxy/README.md */
 window.EVEREST_GEMINI_API_KEY = 'AIzaSy…';

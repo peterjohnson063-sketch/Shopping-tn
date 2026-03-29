@@ -1,5 +1,4 @@
 # Local secrets — never commit
-gemini-key.local.js
 .env
 .env.local
 workers/yasmine-proxy/.dev.vars

@@ -26,6 +26,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Require GEMINI_API_KEY secret
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -z "${GEMINI_API_KEY}" ]; then
+            echo "::error::Add repository secret GEMINI_API_KEY (Settings → Secrets → Actions). It cannot be empty for this deploy."
+            exit 1
+          fi
+
       - name: Build site and inject Gemini key into everest-env.js
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -43,7 +52,7 @@ jobs:
           from pathlib import Path
           key = os.environ.get("GEMINI_API_KEY") or ""
 
-          def js_single_quoted(s: str) -> str:
+          def js_single_quoted(s):
               return "'" + s.replace("\\", "\\\\").replace("'", "\\'").replace("\r", "").replace("\n", "\\n") + "'"
 
           Path("_site/everest-env.js").write_text(
