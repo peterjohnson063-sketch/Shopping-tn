@@ -44,6 +44,125 @@
     return orders;
   }
 
+  function loadProductsArray(st) {
+    var prods = st && Array.isArray(st.products) && st.products.length ? st.products : [];
+    if (prods.length === 0 && typeof STN !== 'undefined' && STN.DB && typeof STN.DB.get === 'function') {
+      var dbP = STN.DB.get('products');
+      if (Array.isArray(dbP) && dbP.length) prods = dbP;
+    }
+    return prods;
+  }
+
+  function normalizeForProductMatch(str) {
+    return String(str || '')
+      .toLowerCase()
+      .replace(/['']/g, '')
+      .replace(/[^a-z0-9\u0600-\u06ff\s]/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function queryTokensForProducts(userMsg) {
+    var n = normalizeForProductMatch(userMsg);
+    var parts = n.split(/\s+/).filter(function (t) {
+      return t.length >= 2;
+    });
+    var stop = {
+      le: 1,
+      la: 1,
+      les: 1,
+      un: 1,
+      une: 1,
+      des: 1,
+      de: 1,
+      du: 1,
+      et: 1,
+      ou: 1,
+      est: 1,
+      vous: 1,
+      nous: 1,
+      pour: 1,
+      sur: 1,
+      pas: 1,
+      the: 1,
+      a: 1,
+      an: 1,
+      is: 1,
+      are: 1,
+      do: 1,
+      you: 1,
+      have: 1,
+      does: 1,
+      we: 1,
+      everest: 1,
+      yasmine: 1,
+      can: 1,
+      what: 1,
+      how: 1,
+      about: 1,
+      tell: 1,
+      me: 1,
+      there: 1,
+      any: 1,
+      some: 1,
+      this: 1,
+      that: 1,
+      with: 1,
+      from: 1,
+      vendez: 1,
+      vend: 1,
+      sell: 1,
+      selling: 1,
+      product: 1,
+      produit: 1,
+    };
+    return parts.filter(function (t) {
+      return !stop[t];
+    });
+  }
+
+  function scoreProductAgainstQuery(p, tokens, rawNorm) {
+    var blob = normalizeForProductMatch(
+      (p.name || '') +
+        ' ' +
+        (p.description || '') +
+        ' ' +
+        (p.category || '') +
+        ' ' +
+        (p.shop_name || p.shopName || p.vendor || '')
+    );
+    var score = 0;
+    var i;
+    if (rawNorm.length >= 4 && blob.indexOf(rawNorm) !== -1) score += 12;
+    for (i = 0; i < tokens.length; i++) {
+      var t = tokens[i];
+      if (t.length >= 4 && blob.indexOf(t) !== -1) score += 3;
+      else if (t.length >= 3 && blob.indexOf(t) !== -1) score += 2;
+      else if (t.length >= 2 && blob.indexOf(t) !== -1) score += 1;
+    }
+    return score;
+  }
+
+  /** Products whose name/description/category overlap the user message (best first). */
+  function collectRelevantProducts(userMsg, prods) {
+    if (!prods || !prods.length) return [];
+    var rawNorm = normalizeForProductMatch(userMsg);
+    var tokens = queryTokensForProducts(userMsg);
+    var scored = prods.map(function (p) {
+      return { p: p, s: scoreProductAgainstQuery(p, tokens, rawNorm) };
+    });
+    scored.sort(function (a, b) {
+      return b.s - a.s;
+    });
+    return scored
+      .filter(function (x) {
+        return x.s > 0;
+      })
+      .map(function (x) {
+        return x.p;
+      });
+  }
+
   /** @returns {{ relevant: object[], user: object|null, needle: string|null }} */
   function collectRelevantOrders(userMsg) {
     var st = getState();
@@ -137,17 +256,31 @@
       return '📞 Pour nous joindre : passez par le site (page « À propos » ou votre commande). Équipe généralement disponible 9h–21h. Pas de numéro public affiché ici — le site protège votre demande.';
     }
 
-    // Smartphones / electronics (Everest is crafts marketplace)
+    // Public leadership (About page) — accurate when cloud AI is down
     if (
-      /\biphone\b|\bipad\b|smartphone|smart\s*phone|android\s*phone|google\s*pixel|galaxy\s*s\d|\bphones\b|mobile\s*phone|cell\s*phone|هاتف\s*ذكي|آيفون|أندرويد|تبيعو\s*ف\s*تيليفونات/i.test(
+      /\bowner\b|owns everest|who owns|founder|co-?founder|\bceo\b|\bcto\b|who (runs|founded|started) everest|patron|propriétaire|proprietaire|pdg|fondateur|dirigeant|leadership|the team|yassine ben salem|yassine|ben salem|amina trabelsi|khaled sfaxsi|sarra nabeuli|المؤسس|المالك|صاحب|من يملك|رئيس|مؤسس|ياسين/i.test(
         lower
       )
     ) {
       if (safeLang === 'ar')
-        return '📱 Everest متخصصة في الحرف والديكور التونسي (أثاث، سيراميك، إنارة…). لا نبيع الهواتف أو الإلكترونيات الاستهلاكية. تصفح «المجموعات» لرؤية منتجاتنا الحرفية!';
+        return '👤 حسب صفحة «من نحن» العامة على الموقع: **ياسين بن سالم** — المدير العام والمؤسس (من المنستير). **أمينة الطرابلسي** — CTO، مهندسة full-stack من قصر هلال، صممت منصة Everest. أيضاً: **خالد الصفاقسي** رئيس التصميم، **سارة النابلي** مسؤولة الحرفيين. للسيرة الكاملة افتح **من نحن** في الموقع.';
       if (safeLang === 'en')
-        return '📱 Everest focuses on Tunisian crafts & home (furniture, ceramics, lighting…). We don’t sell smartphones or consumer electronics. Open **Collections** to browse real artisan products!';
-      return '📱 Everest, c’est l’artisanat & la maison tunisienne (meubles, céramique, luminaires…). Pas de smartphones / électronique grand public. Ouvrez **Collections** pour voir le catalogue !';
+        return '👤 From Everest’s public **About** page: **Yassine Ben Salem** — CEO & Founder (from Monastir). **Amina Trabelsi** — CTO, full-stack engineer from Ksar Hellal who architected the platform. Also **Khaled Sfaxsi** (Head of Design) and **Sarra Nabeuli** (Head of Artisans). Open **About** on the site for full bios.';
+      return '👤 D’après la page publique **À propos** : **Yassine Ben Salem** — PDG & fondateur (Monastir). **Amina Trabelsi** — CTO, ingénieure full-stack de Ksar Hellal, architecte de la plateforme. Aussi **Khaled Sfaxsi** (design) et **Sarra Nabeuli** (artisans). Voir **À propos** pour les bios complètes.';
+    }
+
+    // Phones, PCs, laptops — not Everest’s catalog (crafts & home)
+    if (
+      /\biphone\b|\bipad\b|smartphone|smart\s*phone|android\s*phone|google\s*pixel|galaxy\s*s\d|\bphones\b|mobile\s*phone|cell\s*phone|هاتف\s*ذكي|آيفون|أندرويد|تبيعو\s*ف\s*تيليفونات|\bpc\b|\blaptops?\b|\bmacbooks?\b|gaming\s*pc|\bdesktop\s*pc\b|workstation|mac\s*mini|imac|ordinateur(\s*portable)?|حاسوب|كمبيوتر|لابتوب/i.test(
+        lower
+      ) &&
+      !/meuble|furniture|canap|sofa|desk\s*chair|bureau\s*en|kitchen|decor|étagère|etagere/i.test(lower)
+    ) {
+      if (safeLang === 'ar')
+        return '📱 Everest سوق للحرف التونسية والمنزل (أثاث، سيراميك، إنارة، سجاد…). **لا نبيع** هواتف، أجهزة كمبيوتر، لابتوب، أو إلكترونيات استهلاكية كمتجر تقني. تصفح **المجموعات** لكتالوجنا الحقيقي.';
+      if (safeLang === 'en')
+        return '📱 Everest is a **Tunisian crafts & home** marketplace (furniture, ceramics, lighting, rugs…). We **do not** sell phones, PCs, laptops, or consumer electronics as a tech store. Browse **Collections** for what we actually offer.';
+      return '📱 Everest, c’est l’**artisanat & la maison** tunisienne (meubles, céramique, luminaires…). Nous ne vendons pas smartphones, **PC**, portables ou électronique grand public comme un magasin tech. Ouvrez **Collections** pour le catalogue réel.';
     }
 
     var orderIntent =
@@ -217,11 +350,59 @@
   /**
    * Text block appended to Yasmine's system prompt — real data from this browser session only.
    */
+  function appendCatalogLines(lines, userMsg, st) {
+    var prods = loadProductsArray(st);
+    var cats = typeof STN !== 'undefined' && STN.PRODUCT_CATEGORIES ? STN.PRODUCT_CATEGORIES : [];
+    if (cats.length) {
+      lines.push(
+        'Shop categories (slugs): ' +
+          cats
+            .map(function (c) {
+              return (c.slug || '') + '=' + (c.label || c.name || '');
+            })
+            .join('; ')
+      );
+    }
+    if (!prods.length) {
+      lines.push(
+        'CATALOG_ON_DEVICE: empty (not loaded in this browser). Do NOT claim an item is unavailable — say you cannot see live inventory here; ask user to open Collections or refresh the page.'
+      );
+      return;
+    }
+    lines.push('CATALOG_ON_DEVICE: ' + prods.length + ' product(s) visible here — treat listed names as proof Everest shows them on this device.');
+    var matched = collectRelevantProducts(userMsg, prods);
+    if (matched.length) {
+      lines.push('MATCHED_PRODUCTS_FOR_THIS_QUESTION (use these first; user likely asked about one of these):');
+      matched.slice(0, 18).forEach(function (p) {
+        lines.push(
+          '- ' +
+            (p.name || 'Item') +
+            ' | id:' +
+            (p.id != null ? p.id : '—') +
+            ' | ~' +
+            (p.price != null ? p.price : '?') +
+            ' TND | cat:' +
+            (p.category || '—')
+        );
+      });
+    }
+    var maxNames = 100;
+    var nameBits = prods.slice(0, maxNames).map(function (p) {
+      var nm = p.name || 'Item';
+      return p.price != null ? nm + ' (' + p.price + ' TND)' : nm;
+    });
+    lines.push('ALL_VISIBLE_NAMES: ' + nameBits.join(' | '));
+    if (prods.length > maxNames) {
+      lines.push('(... +' + (prods.length - maxNames) + ' more products on site — Collections has the full list)');
+    }
+  }
+
   function buildYasmineContext(userMsg) {
     var lines = [];
     var st = getState();
     if (!st) {
       lines.push('(Everest app state not linked — order lookup unavailable.)');
+      appendCatalogLines(lines, userMsg, null);
       return lines.join('\n');
     }
 
@@ -271,20 +452,7 @@
       });
     }
 
-    var prods = Array.isArray(st.products) && st.products.length ? st.products : [];
-    if (prods.length === 0 && typeof STN !== 'undefined' && STN.DB && typeof STN.DB.get === 'function') {
-      var dbP2 = STN.DB.get('products');
-      if (Array.isArray(dbP2) && dbP2.length) prods = dbP2;
-    }
-    if (prods.length) {
-      var sample = prods
-        .slice(0, 15)
-        .map(function (p) {
-          return (p.name || 'Product') + ' ~' + (p.price != null ? p.price : '?') + ' TND';
-        })
-        .join(' · ');
-      lines.push('Sample catalog on this device: ' + sample);
-    }
+    appendCatalogLines(lines, userMsg, st);
 
     if (u && u.role === 'vendor') {
       lines.push(

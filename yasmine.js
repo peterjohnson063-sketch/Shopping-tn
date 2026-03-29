@@ -375,13 +375,22 @@ var AI = (function(){
   var isOpen = false;
 
   /**
-   * Real Gemini key from Google AI Studio (starts with AIza…). The string "gen-lang-client-0424037557" is a project/client label, not an API key — Google rejects it.
-   * Set window.EVEREST_GEMINI_API_KEY, or localStorage everest_gemini_api_key, or paste below. Restrict the key by HTTP referrer in Google Cloud.
+   * AI path on http(s) + gemini-key.local.js: browser Gemini only (no Worker double-call).
+   * Model order: 2.5 Lite/Flash first (often different quota than 2.0; see ai.google.dev models). 429/503 → try next model.
+   * Hard-stop only: bad API key / permission. sessionStorage remembers last model that succeeded; cleared if every model fails.
+   * Worker: workers/yasmine-proxy/README.md
    */
-  var GEMINI_DEFAULT_KEY = '';
-  var GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b'];
-  var GEMINI_API_ROOT = 'https://generativelanguage.googleapis.com/v1beta/models/';
   var YASMINE_WORKER_URL = 'https://yasmine-proxy.bensalemyassine063.workers.dev';
+  var GEMINI_MODEL_DEFAULTS = [
+    'gemini-2.5-flash-lite',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-flash-latest',
+  ];
+  var MODEL_OK_STORAGE = 'everest_yasmine_ok_model';
+  var GEMINI_API_ROOT = 'https://generativelanguage.googleapis.com/v1beta/models/';
+  /** Last Google/Worker error text (no secrets) — shown if chat falls back. Not related to Supabase. */
+  var _yasmineLastAiError = '';
 
   function getGeminiApiKey() {
     try {
@@ -396,7 +405,7 @@ var AI = (function(){
         if (ls && String(ls).trim()) return String(ls).trim();
       }
     } catch (e1) {}
-    return GEMINI_DEFAULT_KEY;
+    return '';
   }
 
   function parseGeminiJson(data) {
@@ -407,14 +416,47 @@ var AI = (function(){
     return { text: null, err: { message: 'no candidates' } };
   }
 
-  /** Try official Gemini REST from the browser; cycles models on quota/invalid. */
-  function requestGeminiDirect(contents, modelIndex, onDone) {
+  function buildGeminiModelList() {
+    var seen = {};
+    var out = [];
+    try {
+      var ok = sessionStorage.getItem(MODEL_OK_STORAGE);
+      if (ok && String(ok).indexOf('gemini-') === 0) {
+        out.push(String(ok).trim());
+        seen[out[0]] = true;
+      }
+    } catch (e0) {}
+    for (var i = 0; i < GEMINI_MODEL_DEFAULTS.length; i++) {
+      var m = GEMINI_MODEL_DEFAULTS[i];
+      if (!seen[m]) {
+        out.push(m);
+        seen[m] = true;
+      }
+    }
+    return out;
+  }
+
+  /** Stop retries only when another model cannot help (invalid key, blocked). 429 = try next model. */
+  function isGeminiHardStopError(code, msg) {
+    var s = String(msg || '');
+    if (code === 403) return true;
+    if (code === 400 && /API key|API_KEY|invalid.*key|PERMISSION_DENIED/i.test(s)) return true;
+    return false;
+  }
+
+  /** Remember working model in sessionStorage. */
+  function requestGeminiDirect(contents, modelsArr, modelIndex, onDone) {
     var key = getGeminiApiKey();
-    if (!key || modelIndex >= GEMINI_MODELS.length) {
+    if (!key || !modelsArr || modelIndex >= modelsArr.length) {
+      if (key && modelsArr && modelIndex >= modelsArr.length && modelIndex > 0) {
+        try {
+          sessionStorage.removeItem(MODEL_OK_STORAGE);
+        } catch (eClr) {}
+      }
       onDone(null);
       return;
     }
-    var model = GEMINI_MODELS[modelIndex];
+    var model = modelsArr[modelIndex];
     var url = GEMINI_API_ROOT + model + ':generateContent?key=' + encodeURIComponent(key);
     var xhr = new XMLHttpRequest();
     xhr.open('POST', url, true);
@@ -425,25 +467,37 @@ var AI = (function(){
         var data = JSON.parse(xhr.responseText);
         var parsed = parseGeminiJson(data);
         if (parsed.text) {
+          try {
+            sessionStorage.setItem(MODEL_OK_STORAGE, model);
+          } catch (eS) {}
           onDone(parsed.text);
           return;
         }
-        if (data.error) console.warn('[Yasmine] Gemini ' + model + ':', data.error.code || '', (data.error.message || '').slice(0, 120));
+        if (data.error) {
+          var code = data.error.code;
+          var em = (data.error.message || String(data.error.status || '')).slice(0, 220);
+          _yasmineLastAiError = 'Gemini (' + model + '): ' + em;
+          console.warn('[Yasmine]', _yasmineLastAiError);
+          if (isGeminiHardStopError(code, em)) {
+            onDone(null);
+            return;
+          }
+        }
       } catch (ex) {
         console.warn('[Yasmine] Gemini parse', ex);
       }
-      requestGeminiDirect(contents, modelIndex + 1, onDone);
+      requestGeminiDirect(contents, modelsArr, modelIndex + 1, onDone);
     };
     xhr.onerror = function () {
-      requestGeminiDirect(contents, modelIndex + 1, onDone);
+      requestGeminiDirect(contents, modelsArr, modelIndex + 1, onDone);
     };
     xhr.ontimeout = function () {
-      requestGeminiDirect(contents, modelIndex + 1, onDone);
+      requestGeminiDirect(contents, modelsArr, modelIndex + 1, onDone);
     };
     try {
       xhr.send(JSON.stringify({ contents: contents }));
     } catch (sendEx) {
-      requestGeminiDirect(contents, modelIndex + 1, onDone);
+      requestGeminiDirect(contents, modelsArr, modelIndex + 1, onDone);
     }
   }
 
@@ -453,29 +507,24 @@ var AI = (function(){
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.timeout = 30000;
     xhr.onload = function () {
-      removeTyping();
       if (xhr.status !== 200) {
+        _yasmineLastAiError = 'Worker HTTP ' + xhr.status;
+        console.warn('[Yasmine]', _yasmineLastAiError);
+        removeTyping();
         onDone(null, userMsg);
         return;
       }
       try {
         var data = JSON.parse(xhr.responseText);
+        // Do not stop here: let the caller try browser Gemini (when a key exists) before offline fallback.
         if (data.error) {
-          var quotaNote = '';
-          if (data.error.code === 429 || (data.error.message && String(data.error.message).indexOf('quota') !== -1)) {
-            quotaNote =
-              currentLang === 'ar'
-                ? '\n\n_(حدّ الاستخدام المجاني للذكاء الاصطناعي ممتلئ حالياً — استخدم صفحة التتبع للحالة الدقيقة.)_'
-                : currentLang === 'en'
-                  ? '\n\n_(Cloud AI quota is full right now — use **Track** for exact order status.)_'
-                  : '\n\n_(Quota IA cloud saturée — utilisez **Suivi** pour le statut exact.)_';
-          }
-          var fallback = getOfflineReply(userMsg) + quotaNote;
-          history.push({ role: 'assistant', content: fallback });
-          appendMsg('bot', fallback);
-          onDone('__handled__', userMsg);
+          var wm = (data.error.message || String(data.error.code || '')).slice(0, 220);
+          _yasmineLastAiError = 'Worker: ' + wm;
+          console.warn('[Yasmine]', _yasmineLastAiError);
+          onDone(null, userMsg);
           return;
         }
+        removeTyping();
         var parsed = parseGeminiJson(data);
         if (parsed.text) {
           history.push({ role: 'assistant', content: parsed.text });
@@ -486,13 +535,18 @@ var AI = (function(){
       } catch (e) {
         console.log('Worker parse error:', e);
       }
+      removeTyping();
       onDone(null, userMsg);
     };
     xhr.onerror = function () {
+      _yasmineLastAiError = 'Worker: network error (blocked, offline, or CORS)';
+      console.warn('[Yasmine]', _yasmineLastAiError);
       removeTyping();
       onDone(null, userMsg);
     };
     xhr.ontimeout = function () {
+      _yasmineLastAiError = 'Worker: request timed out';
+      console.warn('[Yasmine]', _yasmineLastAiError);
       removeTyping();
       onDone(null, userMsg);
     };
@@ -506,18 +560,81 @@ var AI = (function(){
     appendMsg('bot', fb);
   }
 
-  var SYSTEM = `You are Yasmine, the AI assistant for Everest — Hit Your Dreams — Tunisia's premium artisan marketplace. You help customers and vendors: products, delivery, artisans, orders, and vendor rules (ethics, new-only items, packaging, blind shipping, WYSIWYG photos). You speak Arabic, French, and English — auto-detect the language. Be warm and accurate.
+  /** User-facing hint — avoids echoing raw Google strings like "API key expired" in the chat bubble. */
+  function friendlyAiErrorSummary(raw) {
+    if (!raw || typeof raw !== 'string') return '';
+    var s = raw;
+    if (/API key expired|API_KEY_INVALID|invalid API key|API key not valid|Please renew|PERMISSION_DENIED/i.test(s)) {
+      return currentLang === 'ar'
+        ? 'تحقق من مفتاح Gemini: سرّ Cloudflare Worker (GEMINI_API_KEY) و/أو ملف gemini-key.local.js.'
+        : currentLang === 'en'
+          ? 'Check your Gemini key: Cloudflare Worker secret GEMINI_API_KEY and/or gemini-key.local.js (must match AI Studio).'
+          : 'Vérifiez la clé Gemini : secret Worker GEMINI_API_KEY et/ou gemini-key.local.js (AI Studio).';
+    }
+    if (/429|quota|RESOURCE_EXHAUSTED|rate limit|Too Many Requests|billing|exceeded your current quota/i.test(s)) {
+      return currentLang === 'ar'
+        ? 'حصّة Google Gemini ممتلئة أو محدودة. افتح aistudio.google.com → الاستخدام/الفوترة، أو انتظر قليلاً وأعد المحاولة.'
+        : currentLang === 'en'
+          ? 'Google Gemini quota or rate limit (free tier fills fast). Open aistudio.google.com → check usage / billing, or wait a few minutes.'
+          : 'Quota ou limite Google Gemini. Ouvrez aistudio.google.com → usage / facturation, ou attendez quelques minutes.';
+    }
+    if (/503|UNAVAILABLE|high demand|overloaded|Service Unavailable|try again later|temporarily unavailable/i.test(s)) {
+      return currentLang === 'ar'
+        ? 'خوادم Google مشغولة مؤقتاً (503). انتظر دقيقة أو دقيقتين وأعد السؤال — ليس خطأ في إعدادات الموقع.'
+        : currentLang === 'en'
+          ? 'Google Gemini is temporarily overloaded (503). Wait 1–2 minutes and try again — this is not your site configuration.'
+          : 'Google Gemini est temporairement saturé (503). Attendez 1–2 minutes et réessayez — ce n’est pas un problème de configuration du site.';
+    }
+    if (/404|is not found|not supported for generateContent/i.test(s)) {
+      return currentLang === 'ar'
+        ? 'نموذج Gemini غير متاح لهذا المفتاح — حدّث المشروع أو جرّب مفتاحاً من AI Studio.'
+        : currentLang === 'en'
+          ? 'Gemini model not available for this key — update the app or verify the key in AI Studio.'
+          : 'Modèle Gemini indisponible pour cette clé — mettez à jour l’app ou vérifiez la clé AI Studio.';
+    }
+    return s.slice(0, 160);
+  }
+
+  function offlineCloudUnavailableMessage() {
+    var hint =
+      currentLang === 'ar'
+        ? '\n\n**مهم:** ياسمين تستخدم **Google Gemini** فقط — **ليس** Supabase ولا SQL. إن كانت هذه نسخة منشورة: ارفع `gemini-key.local.js` بجانب `index.html`، أو أضف نطاق موقعك في قيود **HTTP referrers** لمفتاح API في Google Cloud، أو صلّح مفتاح الـ Worker على Cloudflare.'
+        : currentLang === 'en'
+          ? '\n\n**Important:** Yasmine uses **Google Gemini** only — **not** Supabase or SQL. If this is your live site: upload `gemini-key.local.js` next to `index.html` (with a valid `AIza…` key), **or** add your site URL under the API key’s **HTTP referrer** restrictions in Google Cloud, **or** fix the Gemini secret on your Cloudflare Worker.'
+          : '\n\n**Important :** Yasmine utilise **Google Gemini** uniquement — **pas** Supabase ni SQL. Sur le site en ligne : déployez `gemini-key.local.js` à côté de `index.html`, ou autorisez l’URL du site dans les **référents HTTP** de la clé API Google, ou corrigez le secret Gemini du Worker Cloudflare.';
+    var tech = '';
+    if (_yasmineLastAiError) {
+      var fr = friendlyAiErrorSummary(_yasmineLastAiError);
+      if (fr) tech = '\n\n_(' + fr + ')_';
+    }
+    if (currentLang === 'ar')
+      return 'تعذّر الاتصال بـ Google Gemini. **من نحن** و**تتبع** + **STN-** يعملان دائمًا.' + hint + tech;
+    if (currentLang === 'en')
+      return 'Could not reach **Google Gemini** (AI for this chat). **About** and **Track** (STN-) still work.' + hint + tech;
+    return 'Impossible de joindre **Google Gemini** (IA de ce chat). **À propos** et **Suivi** (STN-) fonctionnent.' + hint + tech;
+  }
+
+  var SYSTEM = `You are Yasmine, the AI assistant for Everest — Hit Your Dreams — Tunisia's premium artisan marketplace (also described as a digital mall for curated Tunisian crafts). You are a capable general assistant for anything about Everest, shopping on the site, artisans, logistics, and vendor rules. Speak Arabic, French, or English and match the user's language.
+
+How to answer:
+- Be natural and conversational — not a rigid FAQ bot. Use the knowledge below plus LIVE DATA when present.
+- **Products / “do you have X?”**: If LIVE DATA includes **MATCHED_PRODUCTS_FOR_THIS_QUESTION** or **ALL_VISIBLE_NAMES** and the user’s item appears there (same or very close name), you **must** say Everest **does** list it on this device and point them to **Collections** for photos and checkout. **Never** say “we don’t have it” or “we don’t sell that” when the name appears in LIVE DATA. If **CATALOG_ON_DEVICE** is empty, say you cannot see live inventory on this browser yet and ask them to open **Collections** or refresh — do not invent stock.
+- If the user asks something you truly cannot infer from this brief or LIVE DATA (private deals, unreleased features, legal advice, other companies), say clearly that you do not have verified public information and point them to the About page or site support — do not invent facts.
+- For "who owns Everest" / founder / CEO: the public About page lists Yassine Ben Salem as CEO & Founder (from Monastir), Amina Trabelsi as CTO (from Ksar Hellal, platform architecture), Khaled Sfaxsi as Head of Design, Sarra Nabeuli as Head of Artisans. There is no single "owner" in a legal sense in your brief — describe the leadership team accurately and suggest About for full bios.
+- Product scope: Everest focuses on handmade / artisan Tunisian goods — furniture, ceramics, lighting, rugs, decor, fragrances, custom furniture, bedroom sets, etc. It is NOT a consumer electronics or computer store: no laptops, gaming PCs, phones, tablets, or generic tech unless clearly artisanal decor (e.g. decorative lamp). If asked about PCs, Macs, phones, etc., explain kindly that those are outside the marketplace focus and suggest browsing Collections for real catalog categories.
+- Platform & system (high level): customers browse vendors' new products, checkout on the site, pay cash on delivery (COD) across Tunisia; online card payment (e.g. Konnect) may be described as coming soon if asked. Vendors prepare orders; drivers get only delivery-needed data; vendors do not see customer personal data (blind shipping) — only order id and line items. Orders can be tracked with STN- codes on the Track page. Vendor rules include ethics, new-only items, no medicines, no weapons/illegal goods, WYSIWYG photos, professional packaging, verified reviews after purchase.
 
 Rules you must follow:
-- When the message includes a block "LIVE DATA", treat it as the ONLY source of truth for that user's orders on this device. Never invent tracking numbers, statuses, or delivery dates. If LIVE DATA shows no orders, say you cannot see their orders here and suggest signing in or opening the Track page / pasting an STN- tracking code.
+- When the message includes a block "LIVE DATA", treat it as the ONLY source of truth for that user's **orders** and **catalog names on this device**. Never invent tracking numbers, statuses, or delivery dates. If LIVE DATA shows no orders, say you cannot see their orders here and suggest signing in or opening the Track page / pasting an STN- tracking code.
 - For "when will my order arrive", combine the current status from LIVE DATA with general Everest info: preparation plus delivery often fits within about 24–48h in Tunisia when things run smoothly — but do not promise a specific hour or day unless LIVE DATA includes an explicit timestamp you can quote.
 - Vendors never receive customer personal data (blind flow); only order id and line items for preparation.
 - You cannot process payments or change orders; direct users to the site UI or support for that.
 
-Everest facts: artisans from Monastir, Ksar Hellal, Sfax, Nabeul. Delivery often 24–48h in Tunisia. Free shipping over 500 TND. Promo codes: EVEREST10 (10% off), SAHEL20 (20% off), WELCOME50 (50 TND off). Products include furniture, ceramics, lighting, rugs, bedroom sets.`;
+Everest facts: artisans from Monastir, Ksar Hellal, Sfax, Nabeul, Kairouan and the Sahel; mission connects Sahel craftsmanship with customers in 50+ countries (as on About). Delivery often 24–48h in Tunisia. Free shipping over 500 TND. Promo codes: EVEREST10 (10% off), SAHEL20 (20% off), WELCOME50 (50 TND off). Sample product lines: furniture, ceramics, lighting, rugs, bedroom sets, custom furniture. Values: artisan-first, sustainable craft, quality.`;
 
   function sendMessage(userMsg){
     if(!userMsg || !userMsg.trim()) return;
+    _yasmineLastAiError = '';
     history.push({role:'user', content: userMsg});
     appendMsg('user', userMsg);
     appendMsg('bot', '...', true);
@@ -540,17 +657,44 @@ Everest facts: artisans from Monastir, Ksar Hellal, Sfax, Nabeul. Delivery often
       messages.push({role: m.role === 'user' ? 'user' : 'model', parts:[{text: m.content}]});
     });
 
-    requestGeminiDirect(messages, 0, function (directText) {
-      if (directText) {
-        removeTyping();
-        history.push({ role: 'assistant', content: directText });
-        appendMsg('bot', directText);
-        return;
-      }
-      requestWorkerProxy(messages, userMsg, function (workerResult) {
-        if (workerResult === '__handled__') return;
+    function pushAssistant(directText) {
+      removeTyping();
+      history.push({ role: 'assistant', content: directText });
+      appendMsg('bot', directText);
+    }
+
+    var modelsList = buildGeminiModelList();
+    var hasKey = !!getGeminiApiKey();
+    var isHttp = false;
+    try {
+      isHttp = location.protocol === 'http:' || location.protocol === 'https:';
+    } catch (eP) {}
+
+    if (hasKey && isHttp) {
+      requestGeminiDirect(messages, modelsList, 0, function (directText) {
+        if (directText) {
+          pushAssistant(directText);
+          return;
+        }
         finishWithFallback(userMsg);
       });
+      return;
+    }
+
+    requestWorkerProxy(messages, userMsg, function (workerResult) {
+      if (workerResult === '__handled__') return;
+      if (hasKey) {
+        appendMsg('bot', '...', true);
+        requestGeminiDirect(messages, modelsList, 0, function (directText) {
+          if (directText) {
+            pushAssistant(directText);
+            return;
+          }
+          finishWithFallback(userMsg);
+        });
+        return;
+      }
+      finishWithFallback(userMsg);
     });
   }
 
@@ -569,68 +713,34 @@ Everest facts: artisans from Monastir, Ksar Hellal, Sfax, Nabeul. Delivery often
     if(m.match(/^(hi|hello|hey|salut|bonjour|bonsoir|مرحبا|السلام|هلا|coucou|slt)/))
       return ar ? 'مرحبا! أنا ياسمين، مساعدتك في Everest 🛍️ كيف يمكنني مساعدتك اليوم؟' : en ? 'Hi! I am Yasmine, your Everest assistant 🛍️ How can I help you today?' : 'Bonjour! Je suis Yasmine, votre assistante Everest 🛍️ Comment puis-je vous aider?';
 
-    // How are you
-    if(m.includes('how are') || m.includes('comment tu') || m.includes('comment vas') || m.includes('كيف حالك'))
-      return ar ? 'أنا بخير شكراً! مستعدة لمساعدتك في إيجاد أفضل المنتجات التونسية 😊' : en ? 'I am great, thank you! Ready to help you find the best Tunisian crafts 😊' : 'Je vais très bien merci! Prête à vous aider trouver les meilleurs produits tunisiens 😊';
+    // How are you (casual English / typos: "how u doing", "how r u", etc.)
+    if (
+      m.includes('how are') ||
+      /\bhow\s+are\s*u\b/.test(m) ||
+      /\bhow\s*r\s*u\b/.test(m) ||
+      /\bhow\s*(u|you)\s*(doing|doin|going)\b/.test(m) ||
+      /\bhow\s*u\s*(doing|doin|going)\b/.test(m) ||
+      /how[^a-z0-9]*u[^a-z0-9]*(?:doing|doin|going)\b/i.test(msg) ||
+      /\bhow's\s*it\s*going\b/.test(m) ||
+      /\bhow\s+is\s+it\s+going\b/.test(m) ||
+      /\bwhat'?s\s+up\b/.test(m) ||
+      /\bwhats\s+up\b/.test(m) ||
+      /\bwassup\b/.test(m) ||
+      m.trim() === 'sup' ||
+      /^sup\s/.test(m) ||
+      m.includes('comment tu') ||
+      m.includes('comment vas') ||
+      m.includes('ça va') ||
+      m.includes('ca va') ||
+      m.includes('tu vas bien') ||
+      m.includes('كيف حالك') ||
+      m.includes('كيفك') ||
+      m.includes('شنوا أحوالك')
+    )
+      return ar ? 'أنا بخير شكراً! مستعدة لمساعدتك في إيجاد أفضل المنتجات التونسية 😊' : en ? 'I am doing great, thanks! 😊 I am here for Everest — crafts, orders, delivery, anything you need.' : 'Je vais tr\u00e8s bien merci! \ud83d\ude0a Je suis l\u00e0 pour Everest — produits, commandes, livraison, tout ce qu\u2019il vous faut.';
 
-    // Delivery
-    if(m.includes('livr') || m.includes('delivery') || m.includes('shipping') || m.includes('توصيل') || m.includes('شحن'))
-      return ar ? '🚚 التوصيل خلال 24-48 ساعة في كامل تونس. مجاني للطلبات فوق 500 دينار! نصل لكل الولايات.' : en ? '🚚 Delivery in 24-48h across all of Tunisia. FREE for orders over 500 TND! We deliver to all regions.' : '🚚 Livraison en 24-48h partout en Tunisie. GRATUITE pour les commandes au-dessus de 500 TND!';
-
-    // Price / cost
-    if(m.includes('prix') || m.includes('price') || m.includes('cost') || m.includes('combien') || m.includes('سعر') || m.includes('ثمن') || m.includes('how much'))
-      return ar ? '💰 أسعارنا تبدأ من 29 دينار للإكسسوارات وتصل لـ 4500 دينار للأثاث الفاخر. جميع الأسعار بالدينار التونسي.' : en ? '💰 Our prices start from 29 TND for accessories up to 4,500 TND for premium furniture. All prices in Tunisian Dinar.' : '💰 Nos prix commencent à 29 TND pour les accessoires jusqu a 4 500 TND pour les meubles premium.';
-
-    // Sofa / furniture / canape
-    if(m.includes('sofa') || m.includes('canap') || m.includes('fauteuil') || m.includes('أريكة') || m.includes('كنبة') || m.includes('meuble') || m.includes('furniture'))
-      return ar ? '🛋️ لدينا أثاث فاخر من حرفيي المنستير وقصر هلال! الأريكة السلطانية المخملية 3,299 دينار، وأريكة نجمة الصحراء 2,800 دينار. كلها مصنوعة يدوياً!' : en ? '🛋️ We have luxury furniture from Monastir & Ksar Hellal artisans! The Velvet Sultan Sofa 3,299 TND, Desert Star Sofa 2,800 TND. All handcrafted!' : '🛋️ Nous avons des meubles de luxe des artisans de Monastir & Ksar Hellal! Canapé Sultan Velours 3 299 TND, tout fait à la main!';
-
-    // Rug / carpet / kilim / tapis
-    if(m.includes('rug') || m.includes('carpet') || m.includes('kilim') || m.includes('tapis') || m.includes('سجادة') || m.includes('زربية'))
-      return ar ? '🏺 سجادنا الكيليم مصنوع يدوياً من كيروان! أسعار تبدأ من 450 دينار. ألوان وأنماط تقليدية أصيلة.' : en ? '🏺 Our Kilim rugs are handwoven in Kairouan! Prices from 450 TND. Authentic traditional patterns and colors.' : '🏺 Nos tapis Kilim sont tissés à la main à Kairouan! Prix à partir de 450 TND. Motifs traditionnels authentiques.';
-
-    // Lighting / lantern / lampe / lustre
-    if(m.includes('light') || m.includes('lamp') || m.includes('lantern') || m.includes('lustre') || m.includes('lampe') || m.includes('إنارة') || m.includes('فانوس') || m.includes('مصباح'))
-      return ar ? '💡 لدينا فوانيس وإنارة نحاسية مذهلة من صفاقس! الفانوس النحاسي السلطاني 185 دينار. يضفي جمالاً رائعاً لأي منزل.' : en ? '💡 We have stunning brass lanterns & lighting from Sfax! The Sultan Brass Lantern 185 TND. Adds a magical touch to any home.' : '💡 Nous avons de superbes lanternes et luminaires en laiton de Sfax! La Lanterne Sultan en Laiton 185 TND.';
-
-    // Ceramics / pottery / ceramique
-    if(m.includes('ceramic') || m.includes('ceramique') || m.includes('pottery') || m.includes('poterie') || m.includes('سيراميك') || m.includes('فخار'))
-      return ar ? '🏺 سيراميكنا مصنوع يدوياً من نابل وقابس! أسعار تبدأ من 45 دينار. ألوان زرقاء وبيضاء تقليدية رائعة.' : en ? '🏺 Our ceramics are handmade in Nabeul & Gabes! Prices from 45 TND. Beautiful traditional blue and white designs.' : '🏺 Notre céramique est faite à la main à Nabeul & Gabes! Prix à partir de 45 TND.';
-
-    // Sur mesure / custom / custom furniture
-    if(m.includes('sur mesure') || m.includes('custom') || m.includes('personaliz') || m.includes('حسب الطلب') || m.includes('مخصص'))
-      return ar ? '🪑 نعم! لدينا خدمة الأثاث حسب الطلب. يمكنك تخصيص اللون والحجم والتصميم. تواصل مع حرفيينا عبر صفحة "حسب الطلب"!' : en ? '🪑 Yes! We offer custom furniture service. You can customize color, size and design. Visit our "Custom Furniture" page to get started!' : '🪑 Oui! Nous proposons un service de meubles sur mesure. Personnalisez couleur, taille et design via la page "Sur Mesure"!';
-
-    // Artisans / who makes / qui fabrique
-    if(m.includes('artisan') || m.includes('who make') || m.includes('qui fabrique') || m.includes('حرفي') || m.includes('صانع'))
-      return ar ? '👨‍🎨 حرفيونا من أفضل المناطق التونسية: المنستير، قصر هلال، صفاقس، نابل، القيروان! كل منتج مصنوع يدوياً بحرفية تونسية أصيلة.' : en ? '👨‍🎨 Our artisans are from Tunisias finest regions: Monastir, Ksar Hellal, Sfax, Nabeul, Kairouan! Every product is handcrafted with authentic Tunisian expertise.' : '👨‍🎨 Nos artisans viennent des meilleures régions de Tunisie: Monastir, Ksar Hellal, Sfax, Nabeul, Kairouan!';
-
-    // Track order / suivi (avoid matching generic English "order" in unrelated phrases)
-    if(m.includes('track') || m.includes('suivi') || m.includes('تتبع') || /\bmy\s+order\b/.test(m) || m.includes('order status') || m.includes('commande') || m.includes('طلبي') || m.includes('stn-'))
-      return ar ? '📦 يمكنك تتبع طلبك من صفحة "تتبع"! أدخل رقم التتبع الذي تلقيته بعد الطلب. رقم التتبع يبدأ بـ STN-' : en ? '📦 You can track your order on the "Track" page! Enter the tracking number you received after ordering. Tracking numbers start with STN-' : '📦 Vous pouvez suivre votre commande sur la page "Suivi"! Entrez le numéro de suivi reçu après votre commande. Les numéros commencent par STN-';
-
-    // Return / retour / refund
-    if(m.includes('return') || m.includes('retour') || m.includes('refund') || m.includes('رجوع') || m.includes('استرجاع'))
-      return ar ? '↩️ سياسة الإرجاع: 30 يوماً لإرجاع أي منتج. المنتج يجب أن يكون بحالته الأصلية. تواصل معنا وسنرتب الاستلام.' : en ? '↩️ Return policy: 30 days to return any product. Item must be in original condition. Contact us and we will arrange pickup.' : '↩️ Politique de retour: 30 jours pour retourner tout produit. L article doit être en état original.';
-
-    // Payment / paiement
-    if(m.includes('pay') || m.includes('paiement') || m.includes('payment') || m.includes('دفع') || m.includes('كيف ندفع'))
-      return ar ? '💳 ندفع عند الاستلام (Cash on delivery) في كامل تونس! قريباً سنضيف الدفع الإلكتروني عبر Konnect.' : en ? '💳 We offer Cash on Delivery across all of Tunisia! Online payment via Konnect coming soon.' : '💳 Nous proposons le paiement à la livraison partout en Tunisie! Paiement en ligne via Konnect bientôt disponible.';
-
-    // Contact / help (avoid matching "iphone" via substring "phone")
-    if(m.includes('contact') || m.includes('help') || m.includes('aide') || m.includes('مساعدة') || m.includes('تواصل') || m.includes('téléphone') || m.includes('telephone') || m.includes('whatsapp') || m.includes('numéro') || m.includes('numero') || /\bphone\s*number\b/.test(m) || /\bcall\s*us\b/.test(m) || m.includes('your number'))
-      return ar ? '📞 للتواصل معنا: راسلنا عبر الموقع أو تفضل بزيارة صفحة "من نحن". فريقنا متاح 9 صباحاً - 9 مساءً!' : en ? '📞 Contact us via the website or visit our "About" page. Our team is available 9AM - 9PM!' : '📞 Contactez-nous via le site ou visitez notre page "À Propos". Notre équipe est disponible de 9h à 21h!';
-
-    // Products / what do you have
-    if(m.includes('product') || m.includes('produit') || m.includes('what do you') || m.includes('what you') || m.includes('منتج') || m.includes('ماذا عندك') || m.includes('collection'))
-      return ar ? '🛍️ لدينا تشكيلة واسعة: أثاث فاخر، سجاد كيليم، إنارة نحاسية، سيراميك، عطور، ديكور، وأثاث حسب الطلب! كلها من حرفيين تونسيين.' : en ? '🛍️ We have: luxury furniture, kilim rugs, brass lighting, ceramics, fragrances, decor, and custom furniture! All from Tunisian artisans.' : '🛍️ Nous avons: meubles de luxe, tapis kilim, luminaires en laiton, céramiques, parfums, déco, et meubles sur mesure!';
-
-    // About Everest / what is
-    if(m.includes('what is everest') || m.includes('what is shopping') || m.includes('about') || m.includes('qui etes') || m.includes('ما هو') || m.includes('من انتم'))
-      return ar ? '🇹🇳 Everest هي منصة التسوق الأولى للحرف اليدوية التونسية! نربط حرفيي الصحل من المنستير وقصر هلال بالعالم. كل منتج قصة وإرث!' : en ? '🇹🇳 Everest is Tunisia\'s #1 artisan marketplace! We connect Sahel craftsmen from Monastir & Ksar Hellal with the world. Every product tells a story!' : '🇹🇳 Everest est la 1ère marketplace artisanale de Tunisie! Nous connectons les artisans du Sahel avec le monde entier.';
-
-    // Default
-    return ar ? 'مرحبا! 😊 أنا ياسمين. يمكنني مساعدتك في: المنتجات، التوصيل، الطلبات، الأسعار، الحرفيين. ماذا تريد أن تعرف؟' : en ? 'Hi! 😊 I am Yasmine. I can help with: products, delivery, orders, prices, artisans. What would you like to know?' : 'Bonjour! 😊 Je suis Yasmine. Je peux vous aider avec: produits, livraison, commandes, prix, artisans. Que souhaitez-vous savoir?';
+    // No keyword catalog here — open questions need cloud AI. Honest fallback:
+    return offlineCloudUnavailableMessage();
   }
 
   function appendMsg(role, text, typing){
@@ -663,6 +773,18 @@ Everest facts: artisans from Monastir, Ksar Hellal, Sfax, Nabeul. Delivery often
   function handleKey(e){ if(e.key==='Enter') { var inp=document.getElementById('yasmine-input'); if(inp && inp.value.trim()){sendMessage(inp.value.trim());inp.value='';}} }
 
   function quickBtn(text){ sendMessage(text); }
+
+  try {
+    if (typeof console !== 'undefined' && console.info) {
+      console.info(
+        '[Everest Yasmine]',
+        getGeminiApiKey() && (location.protocol === 'http:' || location.protocol === 'https:')
+          ? 'Browser Gemini only on http(s) — saves quota (no Worker + browser double calls).'
+          : 'Worker → browser fallback if key present.',
+        YASMINE_WORKER_URL
+      );
+    }
+  } catch (eLog) {}
 
   return {
     toggle: toggle,
