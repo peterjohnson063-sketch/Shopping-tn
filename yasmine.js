@@ -316,7 +316,7 @@ function _applyLangToDom(lang) {
   if (hs && T['hero-search']) hs.placeholder = T['hero-search'];
   var cartTitle = document.querySelector('.cart-header h2');
   if (cartTitle && T['cart-title']) cartTitle.textContent = T['cart-title'];
-  var checkoutBtn = document.querySelector('[onclick="checkout()"]');
+  var checkoutBtn = document.getElementById('cart-checkout-btn');
   if (checkoutBtn && T['checkout-btn']) checkoutBtn.textContent = T['checkout-btn'] + ' \u2192';
   var trackInput = document.getElementById('track-num');
   if (trackInput && T['track-placeholder']) trackInput.placeholder = T['track-placeholder'];

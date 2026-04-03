@@ -30,6 +30,8 @@ const State = {
   vendorUploadImageUrls: [],
   flashInterval: null,
   countdownInterval: null,
+  /** Set on gift page before opening payment modal; cleared after order or when modal closes. */
+  pendingGift: null,
 };
 
 try {
@@ -633,6 +635,7 @@ function showPage(id) {
     driver: renderDriver,
     loyalty: renderLoyalty,
     about: renderAbout,
+    'gift-checkout': renderGiftCheckout,
   };
   
   console.log('🔄 Available renderers:', Object.keys(renderers));
@@ -1337,6 +1340,131 @@ function closeCart() {
   document.getElementById('cart-overlay').classList.remove('open');
 }
 
+function escHtml(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function closeCheckoutModal() {
+  State.pendingGift = null;
+  var m = document.getElementById('checkout-modal');
+  if (m) m.remove();
+}
+
+function openCheckoutFromCart() {
+  if (!State.currentUser || State.currentUser.id == null || State.currentUser.id === '') {
+    closeCart();
+    toast('Please create an account or sign in to checkout.', 'error');
+    showPage('auth');
+    return;
+  }
+  if (!State.cart.length) {
+    toast('Your cart is empty.', 'error');
+    return;
+  }
+  State.pendingGift = null;
+  checkout();
+}
+
+function openGiftCheckoutPage() {
+  if (!State.currentUser || State.currentUser.id == null || State.currentUser.id === '') {
+    closeCart();
+    toast('Please sign in to send a gift.', 'error');
+    showPage('auth');
+    return;
+  }
+  if (!State.cart.length) {
+    toast('Your cart is empty.', 'error');
+    return;
+  }
+  closeCart();
+  State.pendingGift = null;
+  showPage('gift-checkout');
+}
+
+function continueGiftCheckoutToPayment() {
+  if (!State.currentUser) {
+    showPage('auth');
+    return;
+  }
+  var gFull = document.getElementById('gift-rcp-fullname');
+  var gPhone = document.getElementById('gift-rcp-phone');
+  var gWilaya = document.getElementById('gift-rcp-wilaya');
+  var gAddr = document.getElementById('gift-rcp-address');
+  var full = gFull ? gFull.value.trim() : '';
+  var ph = gPhone ? gPhone.value.trim() : '';
+  var wy = gWilaya ? gWilaya.value.trim() : '';
+  var ad = gAddr ? gAddr.value.trim() : '';
+  if (!full || !ph || !wy || !ad) {
+    toast('⚠️ Please fill all recipient fields.', 'error');
+    return;
+  }
+  var revealEl = document.querySelector('input[name="gift-reveal-sender"]:checked');
+  if (!revealEl) {
+    toast('⚠️ Please choose whether the recipient should know who sent the gift.', 'error');
+    return;
+  }
+  State.pendingGift = {
+    fullName: full,
+    phone: ph,
+    wilaya: wy,
+    address: ad,
+    revealSender: revealEl.value === 'yes'
+  };
+  checkout();
+}
+
+function renderGiftCheckout() {
+  var root = document.getElementById('gift-checkout-root');
+  if (!root) return;
+  if (!State.currentUser || State.currentUser.id == null || State.currentUser.id === '') {
+    showPage('auth');
+    return;
+  }
+  if (!State.cart.length) {
+    root.innerHTML =
+      '<div style="text-align:center;padding:2rem 0"><p style="color:#7b72a8;margin-bottom:1.25rem">Your cart is empty.</p><button type="button" class="btn btn-gold" onclick="showPage(\'products\')">Browse products</button></div>';
+    return;
+  }
+  var total = getCartTotal();
+  root.innerHTML =
+    '<div style="margin-bottom:1.5rem;padding:1rem 1.15rem;border-radius:14px;background:#f8f7ff;border:1px solid rgba(107,63,212,0.15)">' +
+    '<p style="font-size:0.72rem;color:#7b72a8;margin:0 0 0.35rem">Cart total</p>' +
+    '<p style="font-size:1.35rem;font-family:Cormorant Garamond,serif;color:#7c3aed;font-weight:600;margin:0">' +
+    total.toLocaleString() +
+    ' TND</p></div>' +
+    '<div style="margin-bottom:1rem">' +
+    '<label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Recipient full name *</label>' +
+    '<input id="gift-rcp-fullname" type="text" placeholder="Who receives the package" style="width:100%;padding:0.75rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.88rem;outline:none;box-sizing:border-box;font-family:inherit"/>' +
+    '</div>' +
+    '<div style="margin-bottom:1rem">' +
+    '<label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Recipient phone *</label>' +
+    '<input id="gift-rcp-phone" type="tel" placeholder="+216 XX XXX XXX" style="width:100%;padding:0.75rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.88rem;outline:none;box-sizing:border-box;font-family:inherit"/>' +
+    '</div>' +
+    '<div style="margin-bottom:1rem">' +
+    '<label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Recipient wilaya *</label>' +
+    '<input id="gift-rcp-wilaya" type="text" placeholder="Monastir" style="width:100%;padding:0.75rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.88rem;outline:none;box-sizing:border-box;font-family:inherit"/>' +
+    '</div>' +
+    '<div style="margin-bottom:1.25rem">' +
+    '<label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Recipient full address *</label>' +
+    '<input id="gift-rcp-address" type="text" placeholder="Street, city, landmarks…" style="width:100%;padding:0.75rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.88rem;outline:none;box-sizing:border-box;font-family:inherit"/>' +
+    '</div>' +
+    '<div style="margin-bottom:1.35rem;padding:1rem 1.1rem;border:1px solid rgba(107,63,212,0.18);border-radius:14px;background:white">' +
+    '<p style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#7c3aed;margin:0 0 0.75rem">Should they know it is from you?</p>' +
+    '<label style="display:flex;align-items:flex-start;gap:0.55rem;cursor:pointer;font-size:0.84rem;color:#3d3460;line-height:1.4;margin-bottom:0.65rem">' +
+    '<input type="radio" name="gift-reveal-sender" value="yes" style="accent-color:#7c3aed;margin-top:0.2rem;flex-shrink:0"/>' +
+    '<span><strong>Yes</strong> — they may see your name on the package or a note (we follow your choice when packing).</span></label>' +
+    '<label style="display:flex;align-items:flex-start;gap:0.55rem;cursor:pointer;font-size:0.84rem;color:#3d3460;line-height:1.4">' +
+    '<input type="radio" name="gift-reveal-sender" value="no" style="accent-color:#7c3aed;margin-top:0.2rem;flex-shrink:0"/>' +
+    '<span><strong>No</strong> — surprise: do not show my name to the recipient; only the shop / delivery uses my details internally.</span></label>' +
+    '</div>' +
+    '<button type="button" class="btn btn-gold btn-full" onclick="continueGiftCheckoutToPayment()" style="margin-bottom:0.75rem">Continue to payment →</button>' +
+    '<button type="button" class="btn btn-ghost btn-sm btn-full" onclick="showPage(\'products\')">Keep shopping</button>';
+}
+
 function renderCartDrawer() {
   const body = document.getElementById('cart-body');
   if (!body) return;
@@ -1380,7 +1508,8 @@ function renderCartDrawer() {
       <div style="display:flex;justify-content:space-between;font-size:0.82rem;color:var(--text-muted);margin-bottom:0.4rem"><span>Subtotal</span><span>${subtotal.toLocaleString()} TND</span></div>
       <div style="display:flex;justify-content:space-between;font-size:0.82rem;color:var(--text-muted);margin-bottom:0.8rem"><span>Shipping</span><span style="color:var(--success)">Free</span></div>
       <div style="display:flex;justify-content:space-between;font-size:1rem;color:var(--champagne);font-weight:600;margin-bottom:1.2rem"><span>Total</span><span>${total.toLocaleString()} TND</span></div>
-      <button class="btn btn-gold btn-full" onclick="checkout()">Checkout →</button>
+      <button type="button" id="cart-checkout-btn" class="btn btn-gold btn-full" onclick="openCheckoutFromCart()" style="margin-bottom:0.55rem">Checkout →</button>
+      <button type="button" id="cart-gift-btn" class="btn btn-ghost btn-full" onclick="openGiftCheckoutPage()" style="border:1px solid rgba(219,39,119,0.35);color:#9d174d;font-weight:600">🎁 Send as a gift</button>
     </div>`;
 }
 
@@ -1396,98 +1525,120 @@ function applyPromo() {
   }
 }
 
-function toggleCheckoutGiftUi() {
-  var cb = document.getElementById('co-gift-toggle');
-  var box = document.getElementById('co-gift-fields');
-  var hint = document.getElementById('co-buyer-hint');
-  var on = cb && cb.checked;
-  if (box) box.style.display = on ? 'block' : 'none';
-  if (hint) hint.style.display = on ? 'block' : 'none';
-}
-
 async function checkout() {
-  // Show checkout form — works for guests AND logged in users
+  if (!State.currentUser || State.currentUser.id == null || State.currentUser.id === '') {
+    closeCart();
+    toast('Please create an account or sign in to checkout.', 'error');
+    showPage('auth');
+    return;
+  }
+
   closeCart();
-  
-  // Build checkout modal
-  const existing = document.getElementById('checkout-modal');
+
+  var pg = State.pendingGift;
+  var giftStep = !!pg;
+
+  var existing = document.getElementById('checkout-modal');
   if (existing) existing.remove();
-  
-  const modal = document.createElement('div');
+
+  var u = State.currentUser || {};
+  var uf = escHtml(u.firstName || u.first_name || '');
+  var ul = escHtml(u.lastName || u.last_name || '');
+  var up = escHtml(u.phone || '');
+  var uw = escHtml(u.wilaya || '');
+
+  var giftSummaryHtml = '';
+  if (giftStep) {
+    giftSummaryHtml =
+      '<div style="margin-bottom:1.25rem;padding:1rem 1.1rem;border:1px solid rgba(219,39,119,0.25);border-radius:14px;background:linear-gradient(135deg,#fdf2f8,#faf5ff)">' +
+      '<p style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#db2777;margin:0 0 0.65rem">Gift · Delivery to</p>' +
+      '<p style="margin:0 0 0.35rem;font-size:0.9rem;color:#1e0a4e"><strong>' +
+      escHtml(pg.fullName) +
+      '</strong></p>' +
+      '<p style="margin:0;font-size:0.8rem;color:#7b72a8">' +
+      escHtml(pg.phone) +
+      ' · ' +
+      escHtml(pg.wilaya) +
+      '</p>' +
+      '<p style="margin:0.5rem 0 0;font-size:0.8rem;color:#3d3460;line-height:1.4">' +
+      escHtml(pg.address) +
+      '</p>' +
+      '<p style="margin:0.75rem 0 0;font-size:0.75rem;color:#7b72a8;line-height:1.4">' +
+      (pg.revealSender
+        ? '✓ Recipient <strong>may</strong> know it is from you (your name can appear on the package or a note).'
+        : '✓ <strong>Surprise:</strong> do not show your name to the recipient on the package — only our team uses your details internally.') +
+      '</p></div>';
+  }
+
+  var buyerBlock = giftStep
+    ? '<div style="margin-bottom:1rem">' +
+      '<p style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#7c3aed;margin:0 0 0.65rem">Your contact (buyer)</p>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin-bottom:0.8rem">' +
+      '<div><label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">First name *</label>' +
+      '<input id="co-fname" type="text" value="' +
+      uf +
+      '" placeholder="Mohamed" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/></div>' +
+      '<div><label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Last name *</label>' +
+      '<input id="co-lname" type="text" value="' +
+      ul +
+      '" placeholder="Trabelsi" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/></div></div>' +
+      '<div style="margin-bottom:0.8rem"><label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Your phone *</label>' +
+      '<input id="co-phone" type="tel" value="' +
+      up +
+      '" placeholder="+216 XX XXX XXX" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/></div>' +
+      '<input type="hidden" id="co-wilaya" value=""/>' +
+      '<input type="hidden" id="co-address" value=""/>' +
+      '</div>'
+    : '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin-bottom:0.8rem">' +
+      '<div><label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">First Name *</label>' +
+      '<input id="co-fname" type="text" value="' +
+      uf +
+      '" placeholder="Mohamed" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/></div>' +
+      '<div><label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Last Name *</label>' +
+      '<input id="co-lname" type="text" value="' +
+      ul +
+      '" placeholder="Trabelsi" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/></div></div>' +
+      '<div style="margin-bottom:0.8rem"><label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Phone *</label>' +
+      '<input id="co-phone" type="tel" value="' +
+      up +
+      '" placeholder="+216 XX XXX XXX" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/></div>' +
+      '<div style="margin-bottom:0.8rem"><label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Wilaya *</label>' +
+      '<input id="co-wilaya" type="text" value="' +
+      uw +
+      '" placeholder="Monastir" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/></div>' +
+      '<div style="margin-bottom:1.5rem"><label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Full Address *</label>' +
+      '<input id="co-address" type="text" placeholder="12 Rue Habib Bourguiba, Monastir" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/></div>';
+
+  var modal = document.createElement('div');
   modal.id = 'checkout-modal';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(30,10,78,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
-  modal.innerHTML = `
-    <div style="background:white;border-radius:24px;padding:2.5rem;max-width:480px;width:100%;max-height:90vh;overflow-y:auto;position:relative">
-      <button onclick="document.getElementById('checkout-modal').remove()" style="position:absolute;top:1rem;right:1rem;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#7b72a8">✕</button>
-      <h3 style="font-family:'Cormorant Garamond',serif;font-size:1.8rem;color:#1e0a4e;margin-bottom:0.3rem">Complete Order</h3>
-      <p style="color:#7b72a8;font-size:0.8rem;margin-bottom:1.5rem">Total: <strong style="color:#7c3aed">${getCartTotal().toLocaleString()} TND</strong></p>
-      
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin-bottom:0.8rem">
-        <div>
-          <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">First Name *</label>
-          <input id="co-fname" type="text" value="${State.currentUser?.firstName || ''}" placeholder="Mohamed" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
-        </div>
-        <div>
-          <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Last Name *</label>
-          <input id="co-lname" type="text" value="${State.currentUser?.lastName || ''}" placeholder="Trabelsi" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
-        </div>
-      </div>
-      <div style="margin-bottom:0.8rem">
-        <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Phone *</label>
-        <input id="co-phone" type="tel" value="${State.currentUser?.phone || ''}" placeholder="+216 XX XXX XXX" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
-      </div>
-      <div style="margin-bottom:0.8rem">
-        <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Wilaya *</label>
-        <input id="co-wilaya" type="text" value="${State.currentUser?.wilaya || ''}" placeholder="Monastir" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
-      </div>
-      <div style="margin-bottom:1.5rem">
-        <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Full Address *</label>
-        <input id="co-address" type="text" placeholder="12 Rue Habib Bourguiba, Monastir" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
-      </div>
-      <div style="margin-bottom:1rem;padding:0.85rem 1rem;border:1px solid rgba(236,72,153,0.35);border-radius:14px;background:linear-gradient(135deg,#fdf2f8,#faf5ff)">
-        <label style="display:flex;align-items:flex-start;gap:0.65rem;cursor:pointer;font-size:0.82rem;color:#4c1d95;line-height:1.35">
-          <input type="checkbox" id="co-gift-toggle" onchange="toggleCheckoutGiftUi()" style="accent-color:#db2777;margin-top:0.2rem;flex-shrink:0"/>
-          <span><strong style="font-weight:700">Send as a gift</strong> — the order is delivered to the recipient you enter below (name, phone, address). They do not get an app account or notifications. If you are <strong>signed in</strong>, only you can track this gift; anyone with the code cannot.</span>
-        </label>
-        ${!State.currentUser ? '<p style="font-size:0.7rem;color:#b45309;margin:0.65rem 0 0 1.85rem;line-height:1.4">For stricter privacy, sign in before paying — then tracking stays on your account only.</p>' : ''}
-      </div>
-      <div id="co-gift-fields" style="display:none;margin-bottom:1.25rem;padding:1rem 1.1rem;border:1px solid rgba(107,63,212,0.2);border-radius:14px;background:#faf8ff">
-        <p style="font-size:0.75rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#7c3aed;margin:0 0 0.75rem">Gift recipient (delivery)</p>
-        <div style="margin-bottom:0.8rem">
-          <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Recipient full name *</label>
-          <input id="co-gift-fullname" type="text" placeholder="Full name of the person who receives the gift" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
-        </div>
-        <div style="margin-bottom:0.8rem">
-          <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Recipient phone *</label>
-          <input id="co-gift-phone" type="tel" placeholder="+216 XX XXX XXX" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
-        </div>
-        <div style="margin-bottom:0.8rem">
-          <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Recipient wilaya *</label>
-          <input id="co-gift-wilaya" type="text" placeholder="Monastir" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
-        </div>
-        <div>
-          <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Recipient address *</label>
-          <input id="co-gift-address" type="text" placeholder="Where they live — full address" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
-        </div>
-      </div>
-      <p id="co-buyer-hint" style="display:none;font-size:0.72rem;color:#7b72a8;margin:-0.5rem 0 1rem;line-height:1.4">The fields above are <strong style="color:#5b21b6">your</strong> details (who pays). The gift block is only for the person who will receive the delivery.</p>
-      <div style="margin-bottom:1.2rem;padding:0.9rem;border:1px solid rgba(107,63,212,0.14);border-radius:12px;background:#fcfbff">
-        <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.65rem">Payment Method *</label>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.45rem">
-          ${checkoutPaymentMethodTile('cash', '💵 Cash on Delivery')}
-          ${checkoutPaymentMethodTile('visa', '💳 Visa')}
-          ${checkoutPaymentMethodTile('mastercard', '💳 MasterCard')}
-          ${checkoutPaymentMethodTile('credit_card', '🏦 Credit Card')}
-          ${checkoutPaymentMethodTile('paypal', '🅿️ PayPal')}
-          ${checkoutPaymentMethodTile('e_dinar', '🇹🇳 e-Dinar')}
-          ${checkoutPaymentMethodTile('flouci', '📱 Flouci')}
-          ${checkoutPaymentMethodTile('konnect', '🔗 Konnect')}
-        </div>
-      </div>
-      <div id="co-payment-extra" style="margin-bottom:1.2rem"></div>
-      ${!State.currentUser ? `<p style="font-size:0.75rem;color:#7b72a8;margin-bottom:1rem;text-align:center">💡 <a onclick="document.getElementById('checkout-modal').remove();showPage('auth')" style="color:#7c3aed;cursor:pointer">Sign in</a> to track your order easily</p>` : ''}
-      <button id="co-submit-btn" onclick="submitOrder()" style="width:100%;padding:1rem;background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:12px;font-size:0.9rem;font-weight:600;cursor:pointer;letter-spacing:0.05em">Pay & Place Order ✦</button>
-    </div>`;
+  modal.style.cssText =
+    'position:fixed;inset:0;background:rgba(30,10,78,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  modal.innerHTML =
+    '<div style="background:white;border-radius:24px;padding:2.5rem;max-width:480px;width:100%;max-height:90vh;overflow-y:auto;position:relative">' +
+    '<button type="button" onclick="closeCheckoutModal()" style="position:absolute;top:1rem;right:1rem;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#7b72a8">✕</button>' +
+    '<h3 style="font-family:Cormorant Garamond,serif;font-size:1.8rem;color:#1e0a4e;margin-bottom:0.3rem">' +
+    (giftStep ? 'Pay for your gift' : 'Complete order') +
+    '</h3>' +
+    '<p style="color:#7b72a8;font-size:0.8rem;margin-bottom:1.5rem">Total: <strong style="color:#7c3aed">' +
+    getCartTotal().toLocaleString() +
+    ' TND</strong></p>' +
+    giftSummaryHtml +
+    buyerBlock +
+    '<div style="margin-bottom:1.2rem;padding:0.9rem;border:1px solid rgba(107,63,212,0.14);border-radius:12px;background:#fcfbff">' +
+    '<label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.65rem">Payment method *</label>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.45rem">' +
+    checkoutPaymentMethodTile('cash', '💵 Cash on Delivery') +
+    checkoutPaymentMethodTile('visa', '💳 Visa') +
+    checkoutPaymentMethodTile('mastercard', '💳 MasterCard') +
+    checkoutPaymentMethodTile('credit_card', '🏦 Credit Card') +
+    checkoutPaymentMethodTile('paypal', '🅿️ PayPal') +
+    checkoutPaymentMethodTile('e_dinar', '🇹🇳 e-Dinar') +
+    checkoutPaymentMethodTile('flouci', '📱 Flouci') +
+    checkoutPaymentMethodTile('konnect', '🔗 Konnect') +
+    '</div></div>' +
+    '<div id="co-payment-extra" style="margin-bottom:1.2rem"></div>' +
+    '<button type="button" id="co-submit-btn" onclick="submitOrder()" style="width:100%;padding:1rem;background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:12px;font-size:0.9rem;font-weight:600;cursor:pointer;letter-spacing:0.05em">Pay & Place Order ✦</button>' +
+    '</div>';
   document.body.appendChild(modal);
   installCheckoutPaymentUi();
 }
@@ -1530,6 +1681,7 @@ function submitForgotPassword() {
 }
 
 function closeSuccessModal() {
+  State.pendingGift = null;
   const m = document.getElementById('success-modal');
   if (m) m.remove();
   const c = document.getElementById('checkout-modal');
@@ -1538,28 +1690,37 @@ function closeSuccessModal() {
 }
 
 async function submitOrder() {
-  const fname = document.getElementById('co-fname')?.value?.trim();
-  const lname = document.getElementById('co-lname')?.value?.trim();
-  const phone = document.getElementById('co-phone')?.value?.trim();
-  const wilaya = document.getElementById('co-wilaya')?.value?.trim();
-  const address = document.getElementById('co-address')?.value?.trim();
-  const giftToggle = document.getElementById('co-gift-toggle');
-  const isGift = !!(giftToggle && giftToggle.checked);
+  const pg = State.pendingGift;
+  const isGift = !!pg;
 
-  let shipFname = fname;
-  let shipLname = lname;
-  let shipPhone = phone;
-  let shipWilaya = wilaya;
-  let shipAddress = address;
+  let fname;
+  let lname;
+  let phone;
+  let wilaya;
+  let address;
+  let shipFname;
+  let shipLname;
+  let shipPhone;
+  let shipWilaya;
+  let shipAddress;
   let notesExtra = '';
 
   if (isGift) {
-    const gFull = document.getElementById('co-gift-fullname')?.value?.trim();
-    const gPhone = document.getElementById('co-gift-phone')?.value?.trim();
-    const gWilaya = document.getElementById('co-gift-wilaya')?.value?.trim();
-    const gAddr = document.getElementById('co-gift-address')?.value?.trim();
+    fname = document.getElementById('co-fname')?.value?.trim();
+    lname = document.getElementById('co-lname')?.value?.trim();
+    phone = document.getElementById('co-phone')?.value?.trim();
+    wilaya = '';
+    address = '';
+    if (!fname || !lname || !phone) {
+      toast('⚠️ Please fill your name and phone (buyer contact).', 'error');
+      return;
+    }
+    const gFull = String(pg.fullName || '').trim();
+    const gPhone = String(pg.phone || '').trim();
+    const gWilaya = String(pg.wilaya || '').trim();
+    const gAddr = String(pg.address || '').trim();
     if (!gFull || !gPhone || !gWilaya || !gAddr) {
-      toast('⚠️ Please fill all gift recipient fields', 'error');
+      toast('⚠️ Gift details are incomplete. Go back to the gift page.', 'error');
       return;
     }
     const parts = gFull.split(/\s+/).filter(Boolean);
@@ -1568,18 +1729,36 @@ async function submitOrder() {
     shipPhone = gPhone;
     shipWilaya = gWilaya;
     shipAddress = gAddr;
-    notesExtra =
-      '🎁 Gift order — Purchaser: ' +
-      fname +
-      ' ' +
-      lname +
-      ' (' +
-      phone +
-      ') | Delivers to: ' +
-      gFull;
+    const revealTxt = pg.revealSender
+      ? 'Recipient may know the sender — OK to include buyer name on packing slip or note.'
+      : 'Anonymous to recipient — do NOT put buyer name on package or note; purchaser (internal only): ' +
+        fname +
+        ' ' +
+        lname +
+        ' (' +
+        phone +
+        ').';
+    notesExtra = '🎁 Gift order — ' + revealTxt + ' | Delivers to: ' + gFull;
+  } else {
+    fname = document.getElementById('co-fname')?.value?.trim();
+    lname = document.getElementById('co-lname')?.value?.trim();
+    phone = document.getElementById('co-phone')?.value?.trim();
+    wilaya = document.getElementById('co-wilaya')?.value?.trim();
+    address = document.getElementById('co-address')?.value?.trim();
+    shipFname = fname;
+    shipLname = lname;
+    shipPhone = phone;
+    shipWilaya = wilaya;
+    shipAddress = address;
+    notesExtra = '';
   }
 
-  if (!fname || !lname || !phone || !wilaya || !address) { toast('⚠️ Please fill all fields', 'error'); return; }
+  if (!isGift) {
+    if (!fname || !lname || !phone || !wilaya || !address) {
+      toast('⚠️ Please fill all fields', 'error');
+      return;
+    }
+  }
   
   const btn = document.getElementById('co-submit-btn');
   const paymentMethod = getSelectedCheckoutPaymentMethod();
@@ -1614,7 +1793,7 @@ async function submitOrder() {
       wilaya: shipWilaya,
       address: shipAddress,
       phone: shipPhone,
-      notes: isGift ? notesExtra : fname + ' ' + lname,
+      notes: isGift ? notesExtra : fname + ' ' + lname + (wilaya ? ' · ' + wilaya : ''),
       client_name: (shipFname + ' ' + shipLname).trim(),
       customer_first_name: shipFname,
       customer_last_name: shipLname,
@@ -1660,6 +1839,7 @@ async function submitOrder() {
     } catch (ePersist) {}
 
     document.getElementById('checkout-modal').remove();
+    State.pendingGift = null;
     State.cart = [];
     State.promoApplied = null;
     STN.DB.set('cart', []);
@@ -1671,14 +1851,10 @@ async function submitOrder() {
     successModal.style.cssText = 'position:fixed;inset:0;background:rgba(30,10,78,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
     const trackNum = order.tracking_number;
     const giftSuccess = isGift || orderIsGiftOrder(order);
-    const giftHintSignedIn =
-      '<p style="font-size:0.78rem;color:#9d174d;margin-bottom:1.5rem;line-height:1.45">Gift: the recipient is not notified by the app. Only your signed-in account can track this order — keep the code private for a surprise.</p>';
-    const giftHintGuest =
-      '<p style="font-size:0.78rem;color:#9d174d;margin-bottom:1.5rem;line-height:1.45">Gift: the recipient is not notified by the app. You checked out as a guest — anyone with this code could look it up. Next time, sign in first to lock tracking to your account only.</p>';
+    const giftHintText =
+      '<p style="font-size:0.78rem;color:#9d174d;margin-bottom:1.5rem;line-height:1.45">Gift: the recipient is not notified by the app. Only your account can track this order — keep the code private if you want a surprise.</p>';
     const trackHint = giftSuccess
-      ? State.currentUser && State.currentUser.id != null
-        ? giftHintSignedIn
-        : giftHintGuest
+      ? giftHintText
       : '<p style="font-size:0.78rem;color:#7b72a8;margin-bottom:1.5rem">Save this number to track your order!</p>';
     successModal.innerHTML = `
       <div style="background:white;border-radius:24px;padding:2.5rem;max-width:420px;width:100%;text-align:center">
