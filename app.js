@@ -800,6 +800,21 @@ function orderCustomerFullName(order) {
   return full || String(order.userName || 'Customer');
 }
 
+function orderIsGiftOrder(order) {
+  if (!order) return false;
+  if (order.is_gift === true || order.is_gift === 'true' || order.is_gift === 1) return true;
+  var n = String(order.notes || '');
+  return n.indexOf('🎁 Gift order —') === 0;
+}
+
+function giftTrackingAllowedForViewer(order) {
+  if (!orderIsGiftOrder(order)) return true;
+  var uid = order.user_id != null && order.user_id !== '' ? String(order.user_id) : '';
+  if (!uid) return true;
+  if (!State.currentUser || State.currentUser.id == null) return false;
+  return String(State.currentUser.id) === uid;
+}
+
 function driverOpenMapsByKey(key) {
   var list = State.driverOrdersList || [];
   var o = list.find(function (x) {
@@ -1381,6 +1396,15 @@ function applyPromo() {
   }
 }
 
+function toggleCheckoutGiftUi() {
+  var cb = document.getElementById('co-gift-toggle');
+  var box = document.getElementById('co-gift-fields');
+  var hint = document.getElementById('co-buyer-hint');
+  var on = cb && cb.checked;
+  if (box) box.style.display = on ? 'block' : 'none';
+  if (hint) hint.style.display = on ? 'block' : 'none';
+}
+
 async function checkout() {
   // Show checkout form — works for guests AND logged in users
   closeCart();
@@ -1420,6 +1444,33 @@ async function checkout() {
         <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Full Address *</label>
         <input id="co-address" type="text" placeholder="12 Rue Habib Bourguiba, Monastir" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
       </div>
+      <div style="margin-bottom:1rem;padding:0.85rem 1rem;border:1px solid rgba(236,72,153,0.35);border-radius:14px;background:linear-gradient(135deg,#fdf2f8,#faf5ff)">
+        <label style="display:flex;align-items:flex-start;gap:0.65rem;cursor:pointer;font-size:0.82rem;color:#4c1d95;line-height:1.35">
+          <input type="checkbox" id="co-gift-toggle" onchange="toggleCheckoutGiftUi()" style="accent-color:#db2777;margin-top:0.2rem;flex-shrink:0"/>
+          <span><strong style="font-weight:700">Send as a gift</strong> — the order is delivered to the recipient you enter below (name, phone, address). They do not get an app account or notifications. If you are <strong>signed in</strong>, only you can track this gift; anyone with the code cannot.</span>
+        </label>
+        ${!State.currentUser ? '<p style="font-size:0.7rem;color:#b45309;margin:0.65rem 0 0 1.85rem;line-height:1.4">For stricter privacy, sign in before paying — then tracking stays on your account only.</p>' : ''}
+      </div>
+      <div id="co-gift-fields" style="display:none;margin-bottom:1.25rem;padding:1rem 1.1rem;border:1px solid rgba(107,63,212,0.2);border-radius:14px;background:#faf8ff">
+        <p style="font-size:0.75rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#7c3aed;margin:0 0 0.75rem">Gift recipient (delivery)</p>
+        <div style="margin-bottom:0.8rem">
+          <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Recipient full name *</label>
+          <input id="co-gift-fullname" type="text" placeholder="Full name of the person who receives the gift" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
+        </div>
+        <div style="margin-bottom:0.8rem">
+          <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Recipient phone *</label>
+          <input id="co-gift-phone" type="tel" placeholder="+216 XX XXX XXX" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
+        </div>
+        <div style="margin-bottom:0.8rem">
+          <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Recipient wilaya *</label>
+          <input id="co-gift-wilaya" type="text" placeholder="Monastir" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
+        </div>
+        <div>
+          <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Recipient address *</label>
+          <input id="co-gift-address" type="text" placeholder="Where they live — full address" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
+        </div>
+      </div>
+      <p id="co-buyer-hint" style="display:none;font-size:0.72rem;color:#7b72a8;margin:-0.5rem 0 1rem;line-height:1.4">The fields above are <strong style="color:#5b21b6">your</strong> details (who pays). The gift block is only for the person who will receive the delivery.</p>
       <div style="margin-bottom:1.2rem;padding:0.9rem;border:1px solid rgba(107,63,212,0.14);border-radius:12px;background:#fcfbff">
         <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.65rem">Payment Method *</label>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.45rem">
@@ -1492,7 +1543,42 @@ async function submitOrder() {
   const phone = document.getElementById('co-phone')?.value?.trim();
   const wilaya = document.getElementById('co-wilaya')?.value?.trim();
   const address = document.getElementById('co-address')?.value?.trim();
-  
+  const giftToggle = document.getElementById('co-gift-toggle');
+  const isGift = !!(giftToggle && giftToggle.checked);
+
+  let shipFname = fname;
+  let shipLname = lname;
+  let shipPhone = phone;
+  let shipWilaya = wilaya;
+  let shipAddress = address;
+  let notesExtra = '';
+
+  if (isGift) {
+    const gFull = document.getElementById('co-gift-fullname')?.value?.trim();
+    const gPhone = document.getElementById('co-gift-phone')?.value?.trim();
+    const gWilaya = document.getElementById('co-gift-wilaya')?.value?.trim();
+    const gAddr = document.getElementById('co-gift-address')?.value?.trim();
+    if (!gFull || !gPhone || !gWilaya || !gAddr) {
+      toast('⚠️ Please fill all gift recipient fields', 'error');
+      return;
+    }
+    const parts = gFull.split(/\s+/).filter(Boolean);
+    shipFname = parts[0] || gFull;
+    shipLname = parts.length > 1 ? parts.slice(1).join(' ') : shipFname;
+    shipPhone = gPhone;
+    shipWilaya = gWilaya;
+    shipAddress = gAddr;
+    notesExtra =
+      '🎁 Gift order — Purchaser: ' +
+      fname +
+      ' ' +
+      lname +
+      ' (' +
+      phone +
+      ') | Delivers to: ' +
+      gFull;
+  }
+
   if (!fname || !lname || !phone || !wilaya || !address) { toast('⚠️ Please fill all fields', 'error'); return; }
   
   const btn = document.getElementById('co-submit-btn');
@@ -1525,13 +1611,13 @@ async function submitOrder() {
       items: State.cart,
       total: getCartTotal(),
       status: 'pending',
-      wilaya,
-      address,
-      phone,
-      notes: fname + ' ' + lname,
-      client_name: (fname + ' ' + lname).trim(),
-      customer_first_name: fname,
-      customer_last_name: lname,
+      wilaya: shipWilaya,
+      address: shipAddress,
+      phone: shipPhone,
+      notes: isGift ? notesExtra : fname + ' ' + lname,
+      client_name: (shipFname + ' ' + shipLname).trim(),
+      customer_first_name: shipFname,
+      customer_last_name: shipLname,
       created_at: nowIso,
       delivery_deadline_at: deadlineIso
     };
@@ -1543,13 +1629,28 @@ async function submitOrder() {
       payment_transaction_ref: chargeResult.reference || null,
       payment_meta: paymentMeta
     };
-    let order;
-    try {
-      order = await SB.createOrder(extendedOrderPayload);
-    } catch (paymentFieldErr) {
-      // Backward-compat: orders table might not include payment_* columns yet.
-      order = await SB.createOrder(baseOrderPayload);
+    var payloadsToTry = [];
+    if (isGift) {
+      payloadsToTry.push({ ...extendedOrderPayload, is_gift: true });
     }
+    payloadsToTry.push(extendedOrderPayload);
+    if (isGift) {
+      payloadsToTry.push({ ...baseOrderPayload, is_gift: true });
+    }
+    payloadsToTry.push(baseOrderPayload);
+
+    let order;
+    let lastCreateErr = null;
+    for (var pi = 0; pi < payloadsToTry.length; pi++) {
+      try {
+        order = await SB.createOrder(payloadsToTry[pi]);
+        lastCreateErr = null;
+        break;
+      } catch (createErr) {
+        lastCreateErr = createErr;
+      }
+    }
+    if (!order && lastCreateErr) throw lastCreateErr;
 
     try {
       var olist = STN.DB.get('orders') || [];
@@ -1569,17 +1670,27 @@ async function submitOrder() {
     successModal.id = 'success-modal';
     successModal.style.cssText = 'position:fixed;inset:0;background:rgba(30,10,78,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
     const trackNum = order.tracking_number;
+    const giftSuccess = isGift || orderIsGiftOrder(order);
+    const giftHintSignedIn =
+      '<p style="font-size:0.78rem;color:#9d174d;margin-bottom:1.5rem;line-height:1.45">Gift: the recipient is not notified by the app. Only your signed-in account can track this order — keep the code private for a surprise.</p>';
+    const giftHintGuest =
+      '<p style="font-size:0.78rem;color:#9d174d;margin-bottom:1.5rem;line-height:1.45">Gift: the recipient is not notified by the app. You checked out as a guest — anyone with this code could look it up. Next time, sign in first to lock tracking to your account only.</p>';
+    const trackHint = giftSuccess
+      ? State.currentUser && State.currentUser.id != null
+        ? giftHintSignedIn
+        : giftHintGuest
+      : '<p style="font-size:0.78rem;color:#7b72a8;margin-bottom:1.5rem">Save this number to track your order!</p>';
     successModal.innerHTML = `
       <div style="background:white;border-radius:24px;padding:2.5rem;max-width:420px;width:100%;text-align:center">
-        <div style="font-size:3rem;margin-bottom:1rem">🎉</div>
-        <h3 style="font-family:'Cormorant Garamond',serif;font-size:1.8rem;color:#1e0a4e;margin-bottom:0.5rem">Order Confirmed!</h3>
+        <div style="font-size:3rem;margin-bottom:1rem">${giftSuccess ? '🎁' : '🎉'}</div>
+        <h3 style="font-family:'Cormorant Garamond',serif;font-size:1.8rem;color:#1e0a4e;margin-bottom:0.5rem">${giftSuccess ? 'Gift order confirmed!' : 'Order Confirmed!'}</h3>
         <p style="color:#7b72a8;font-size:0.85rem;margin-bottom:1.5rem">Your tracking number:</p>
         <div style="background:#f8f7ff;border:1px solid rgba(124,58,237,0.2);border-radius:12px;padding:1rem;margin-bottom:1.5rem">
           <p style="font-family:'Cormorant Garamond',serif;font-size:1.5rem;color:#7c3aed;font-weight:600;letter-spacing:0.1em">${trackNum}</p>
           <button onclick="navigator.clipboard?.writeText('${trackNum}');toast('✦ Copied!','success')" style="background:none;border:none;color:#7b72a8;font-size:0.72rem;cursor:pointer;margin-top:0.3rem">📋 Copy</button>
         </div>
-        <p style="font-size:0.78rem;color:#7b72a8;margin-bottom:1.5rem">Save this number to track your order!</p>
-        <button onclick="closeSuccessModal()" style="width:100%;padding:0.9rem;background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:12px;font-size:0.9rem;cursor:pointer">Track My Order →</button>
+        ${trackHint}
+        <button onclick="closeSuccessModal()" style="width:100%;padding:0.9rem;background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:12px;font-size:0.9rem;font-weight:600;cursor:pointer">Track My Order →</button>
       </div>`;
     document.body.appendChild(successModal);
     showCelebrationOverlay();
@@ -2942,7 +3053,7 @@ async function renderTrack() {
             return `<div style="background:white;border:1px solid rgba(107,63,212,0.15);border-radius:16px;padding:1.5rem;margin-bottom:1rem;cursor:pointer;transition:all 0.2s" onclick="document.getElementById('track-num').value='${order.tracking_number}';trackOrder()" onmouseover="this.style.borderColor='#7c3aed'" onmouseout="this.style.borderColor='rgba(107,63,212,0.15)'">
               <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
                 <div>
-                  <p style="font-size:0.7rem;color:#7b72a8;margin-bottom:0.2rem">Tracking Number</p>
+                  <p style="font-size:0.7rem;color:#7b72a8;margin-bottom:0.2rem">Tracking Number ${orderIsGiftOrder(order) ? '<span style="margin-left:0.35rem;color:#db2777;font-weight:700">🎁 Gift</span>' : ''}</p>
                   <p style="font-family:'Cormorant Garamond',serif;font-size:1.1rem;color:#1e0a4e;font-weight:600">${order.tracking_number}</p>
                 </div>
                 <span style="background:${color}20;color:${color};padding:0.3rem 0.8rem;border-radius:20px;font-size:0.72rem;font-weight:600;text-transform:uppercase">● ${order.status}</span>
@@ -2990,6 +3101,13 @@ async function trackOrder() {
       resultDiv.style.display = 'none';
       emptyDiv.style.display = 'block';
       toast('⚠️ Order not found. Check your tracking number!', 'error');
+      return;
+    }
+
+    if (!giftTrackingAllowedForViewer(order)) {
+      resultDiv.style.display = 'none';
+      emptyDiv.style.display = 'block';
+      toast('This gift order can only be tracked by the buyer. Sign in with the account that placed the order.', 'error');
       return;
     }
 
@@ -9038,4 +9156,3 @@ function centerOnDriver() {
   
   toast('📍 Centered on driver location', 'success');
 }
-
