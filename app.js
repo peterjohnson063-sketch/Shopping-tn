@@ -1976,6 +1976,9 @@ async function hydrateCheckoutYasmineNotice() {
     try {
       var ex = await EverestYasmineRouting.buildOrderExtraForGroup(g.items, State.products || [], State.products || []);
       if (ex.yasmine_routing_status === 'preorder') {
+        if (ex.yasmine_meta && ex.yasmine_meta.logistics_cutoff_16h) {
+          continue;
+        }
         anyPreorder = true;
         var rd = ex.estimated_ready_at ? new Date(ex.estimated_ready_at) : null;
         var ds =
@@ -2753,15 +2756,12 @@ async function openProductDetail(productId) {
     var vid = p.vendorId != null ? p.vendorId : p.vendor_id;
     if (!vid || typeof SB === 'undefined' || !SB.getVendor) {
       if (typeof EverestYasmineRouting !== 'undefined' && EverestYasmineRouting.isPastLogisticsCutoff && EverestYasmineRouting.isPastLogisticsCutoff()) {
-        el.textContent = 'Next logistics day — same-day handover closed after 4:00 PM Tunisia time.';
+        el.textContent =
+          'Next logistics day — Everest’s same-day handover window (Tunisia, 4:00 PM) has closed; your order lines up with tomorrow’s logistics run, not seller delay.';
         el.style.color = 'var(--warning)';
         var pre0a = document.getElementById('detail-preorder-note');
         var pre0ab = document.getElementById('detail-preorder-btn');
-        if (pre0a) {
-          pre0a.style.display = '';
-          pre0a.textContent =
-            'Everest uses Tunisia civil time (Africa/Tunis). After 4:00 PM, new orders join the next logistics day — routes and handovers are planned for the following operating window. Use Track after checkout for full details.';
-        }
+        if (pre0a) pre0a.style.display = 'none';
         if (pre0ab) pre0ab.style.display = 'none';
       } else {
         el.textContent = 'Fast Delivery (24h)';

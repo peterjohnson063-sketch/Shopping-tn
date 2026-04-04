@@ -400,8 +400,8 @@ var EverestYasmineRouting = (function () {
         original_vendor_id: null,
         estimated_ready_at: readyCut.toISOString(),
         yasmine_meta: Object.assign({}, meta, { step: 'tunis_logistics_cutoff', logistics_cutoff_16h: true }),
-        customerNote:
-          'Same-day logistics handover has closed (4:00 PM Tunisia time). Your order is queued for the next logistics day. Track will show confirmation, preparation, and delivery milestones as they happen.',
+        /** No toast / duplicate copy — checkout shows one logistics banner; not “seller not ready”. */
+        customerNote: null,
       };
     }
 
@@ -591,7 +591,7 @@ var EverestYasmineRouting = (function () {
         text: 'Next logistics day — same-day handover closed after 4:00 PM Tunisia time.',
         tone: 'warn',
         hoursLine: '',
-        preorder: true,
+        preorder: false,
         logisticsCutoff: true,
       };
     }
