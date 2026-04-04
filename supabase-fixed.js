@@ -636,14 +636,6 @@ const SB = {
     return data && data[0] ? data[0] : null;
   },
   /** Count vendors already assigned a promotion slot (first 100 cohort). */
-  async countPromotionVendors() {
-    try {
-      const data = await this.req('GET', 'vendors', null, '?select=id&promotion_slot=not.is.null');
-      return Array.isArray(data) ? data.length : 0;
-    } catch (e) {
-      return 0;
-    }
-  },
   async createAdminAlert(row) {
     const data = await this.req('POST', 'admin_alerts', row);
     return data && data[0] ? data[0] : null;

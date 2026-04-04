@@ -5606,17 +5606,6 @@ async function verifyVendor(userId) {
     if (typeof STNLog !== 'undefined') STNLog.warn('verifyVendor', e && e.message);
   }
 
-  var promoCount = 0;
-  try {
-    if (typeof SB !== 'undefined' && SB.countPromotionVendors) promoCount = await SB.countPromotionVendors();
-  } catch (e2) {}
-  var slot = null;
-  var commissionRate = 0.05;
-  if (promoCount < 100) {
-    slot = promoCount + 1;
-    commissionRate = 0.01;
-  }
-
   try {
     if (typeof SB !== 'undefined' && SB.getVendor && SB.upsertVendor) {
       var vr = await SB.getVendor(String(userId));
@@ -5632,22 +5621,15 @@ async function verifyVendor(userId) {
         onboarding_status: 'active',
         sahel_verified: true,
         sahel_verified_at: new Date().toISOString(),
-        commission_rate: commissionRate,
-        promotion_slot: slot,
         updated_at: new Date().toISOString(),
       });
     }
   } catch (e3) {
     if (typeof STNLog !== 'undefined') STNLog.warn('verifyVendor.vendorsRow', e3 && e3.message);
-    toast('User approved — run migration `20260405180000_sahel_phase1_core.sql` to sync vendor commission fields.', 'default');
+    toast('User approved — run migration `20260405180000_sahel_phase1_core.sql` if vendor fields fail to save.', 'default');
   }
 
-  toast(
-    'Partner approved for Sahel routing. Commission: ' +
-      (commissionRate <= 0.011 ? '1% (promo cohort' + (slot != null ? ' #' + slot : '') + ')' : '5% (standard)') +
-      '.',
-    'success'
-  );
+  toast('Partner approved for Sahel routing.', 'success');
   switchAdmin('vendors');
 }
 
@@ -5993,7 +5975,6 @@ async function everestSyncVendorDefaults(vendorId) {
         consecutive_timeout_orders: 0,
         onboarding_status: 'inactive',
         sahel_verified: false,
-        commission_rate: 0.01,
         updated_at: new Date().toISOString(),
       });
       return;

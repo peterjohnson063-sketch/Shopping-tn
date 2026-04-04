@@ -253,7 +253,6 @@ var EverestYasmineRouting = (function () {
       consecutive_timeout_orders: 0,
       onboarding_status: 'inactive',
       sahel_verified: false,
-      commission_rate: 0.01,
     };
     if (defaults && typeof defaults === 'object') Object.assign(base, defaults);
     try {
