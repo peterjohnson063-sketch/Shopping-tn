@@ -6,6 +6,53 @@ var EverestYasmineRouting = (function () {
   var ACCEPT_MS = 15 * 60 * 1000;
   var PROCESSING_MS = 24 * 60 * 60 * 1000;
 
+  /** All logistics / same-day cutoffs use Tunisia civil time (Africa/Tunis). */
+  var EVEREST_TZ = 'Africa/Tunis';
+  /** Hard cutoff: same-day handover to cave & drivers ends at 16:00 Tunis (inclusive — after this, next-day delivery messaging). */
+  var LOGISTICS_CUTOFF_HOUR = 16;
+
+  function tunisMinutesFromMidnight(d) {
+    var dt = d ? new Date(d) : new Date();
+    if (isNaN(dt.getTime())) dt = new Date();
+    var parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: EVEREST_TZ,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(dt);
+    var h = 0;
+    var m = 0;
+    parts.forEach(function (p) {
+      if (p.type === 'hour') h = parseInt(p.value, 10) || 0;
+      if (p.type === 'minute') m = parseInt(p.value, 10) || 0;
+    });
+    return h * 60 + m;
+  }
+
+  /** 0 = Sunday … 6 = Saturday (Tunis calendar). */
+  function tunisWeekdayIndex(d) {
+    var dt = d ? new Date(d) : new Date();
+    if (isNaN(dt.getTime())) dt = new Date();
+    var w = new Intl.DateTimeFormat('en-US', { timeZone: EVEREST_TZ, weekday: 'short' }).format(dt);
+    var map = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+    return map[w] != null ? map[w] : 0;
+  }
+
+  /** True from 16:00:00 Tunis through 23:59 — same-day logistics window closed (cave & routes). */
+  function isPastLogisticsCutoff(atDate) {
+    return tunisMinutesFromMidnight(atDate) >= LOGISTICS_CUTOFF_HOUR * 60;
+  }
+
+  function getProductListingDeliveryLine() {
+    if (isPastLogisticsCutoff(new Date())) {
+      return { text: 'Will be delivered tomorrow.', tone: 'cutoff' };
+    }
+    return {
+      text: 'Order before 4:00 PM (Tunis time) for same-day logistics handover.',
+      tone: 'ok',
+    };
+  }
+
   /** Wilayas treated as Sahel for May launch routing (admin still confirms on verify). */
   var SAHEL_WILAYAS = [
     'Monastir',
@@ -131,19 +178,20 @@ var EverestYasmineRouting = (function () {
     var sched = weeklySchedule && typeof weeklySchedule === 'object' ? weeklySchedule : {};
     var d = atDate ? new Date(atDate) : new Date();
     if (isNaN(d.getTime())) d = new Date();
-    var dk = dayKeys()[d.getDay()];
+    var dk = dayKeys()[tunisWeekdayIndex(d)];
     var day = getDayScheduleFor(sched, dk);
     if (!day || day.closed) return false;
     var oMin = timeToMinutes(day.open || day.start || '08:00');
     var cMin = timeToMinutes(day.close || day.end || '16:00');
     if (cMin <= oMin) return false;
-    var nowMin = d.getHours() * 60 + d.getMinutes();
+    var nowMin = tunisMinutesFromMidnight(d);
     return nowMin >= oMin && nowMin <= cMin;
   }
 
   /** In Service + inside weekly hours (15‑min SOS). Away / break / closed day or after hours → pre-order path. */
   function vendorImmediateSosEligible(row) {
     if (!row) return false;
+    if (isPastLogisticsCutoff(new Date())) return false;
     if (!vendorRoutingEligible(row)) return false;
     if (row.service_status === 'away' || row.service_status === 'scheduled_break') return false;
     if (row.service_status !== 'active') return false;
@@ -336,6 +384,20 @@ var EverestYasmineRouting = (function () {
     var vrow = await ensureVendorRow(primaryVid);
     var meta = { sku_dnas: skuDnas, primary_vendor: String(primaryVid) };
 
+    if (isPastLogisticsCutoff(new Date())) {
+      var readyCut = estimatedReadyFromSchedule(vrow.weekly_schedule, new Date());
+      return {
+        vendor_id: String(primaryVid),
+        yasmine_routing_status: 'preorder',
+        acceptance_deadline_at: null,
+        original_vendor_id: null,
+        estimated_ready_at: readyCut.toISOString(),
+        yasmine_meta: Object.assign({}, meta, { step: 'tunis_logistics_cutoff', logistics_cutoff_16h: true }),
+        customerNote:
+          'Same-day logistics (before 4:00 PM Tunis) has closed. Will be delivered tomorrow — Track will update when your order progresses.',
+      };
+    }
+
     if (vendorImmediateSosEligible(vrow)) {
       var dl = new Date(Date.now() + ACCEPT_MS).toISOString();
       return {
@@ -517,6 +579,15 @@ var EverestYasmineRouting = (function () {
 
   function productDeliveryHint(product, vendorRow) {
     ensureProductSku(product);
+    if (isPastLogisticsCutoff(new Date())) {
+      return {
+        text: 'Will be delivered tomorrow.',
+        tone: 'warn',
+        hoursLine: '',
+        preorder: true,
+        logisticsCutoff: true,
+      };
+    }
     if (!vendorRow) {
       return {
         text: 'Standard Everest dispatch — we will confirm timing after checkout.',
@@ -576,5 +647,10 @@ var EverestYasmineRouting = (function () {
     normalizeWilaya: normalizeWilaya,
     isWilayaInSahel: isWilayaInSahel,
     vendorRoutingEligible: vendorRoutingEligible,
+    EVEREST_TZ: EVEREST_TZ,
+    LOGISTICS_CUTOFF_HOUR: LOGISTICS_CUTOFF_HOUR,
+    tunisMinutesFromMidnight: tunisMinutesFromMidnight,
+    isPastLogisticsCutoff: isPastLogisticsCutoff,
+    getProductListingDeliveryLine: getProductListingDeliveryLine,
   };
 })();

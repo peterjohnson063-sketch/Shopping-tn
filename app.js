@@ -329,6 +329,66 @@ async function init() {
   renderHome();
   setTimeout(initReveal, 80);
   startPreorderReadyNotifier();
+  startEverestLogisticsClockTick();
+  startTrackOrderNotifyPoller();
+}
+
+/** Re-render shop grids when Tunis 4:00 PM cutoff crosses (same-day → next-day messaging). */
+function startEverestLogisticsClockTick() {
+  if (window.__everestLogisticsTick) return;
+  var lastCut =
+    typeof EverestYasmineRouting !== 'undefined' && EverestYasmineRouting.isPastLogisticsCutoff
+      ? EverestYasmineRouting.isPastLogisticsCutoff()
+      : null;
+  window.__everestLogisticsTick = setInterval(function () {
+    if (typeof EverestYasmineRouting === 'undefined' || !EverestYasmineRouting.isPastLogisticsCutoff) return;
+    var nowCut = EverestYasmineRouting.isPastLogisticsCutoff();
+    if (lastCut === null) {
+      lastCut = nowCut;
+      return;
+    }
+    if (lastCut !== nowCut) {
+      lastCut = nowCut;
+      try {
+        if (State.currentPage === 'home') renderHome();
+        else if (State.currentPage === 'products') filterAndRenderProducts();
+        else if (State.currentPage === 'wishlist') renderWishlist();
+      } catch (e) {}
+    }
+  }, 30000);
+}
+
+/** After hub departure scan, DB schedules track_notify_scheduled_at (next day 11:00 Tunis); poll and toast. */
+function startTrackOrderNotifyPoller() {
+  if (window.__everestTrackNotifyPoller) return;
+  function sessionKey(oid) {
+    return 'stn_track_notify_done_' + oid;
+  }
+  async function tick() {
+    if (!State.currentUser || !State.currentUser.id || typeof SB === 'undefined' || !SB.getUserOrders) return;
+    try {
+      var list = await SB.getUserOrders(State.currentUser.id);
+      if (!Array.isArray(list)) return;
+      var now = Date.now();
+      for (var i = 0; i < list.length; i++) {
+        var o = list[i];
+        var oid = String(o.id != null ? o.id : '');
+        if (!oid) continue;
+        if (!o.track_notify_scheduled_at) continue;
+        if (o.track_notify_sent_at) continue;
+        if (new Date(o.track_notify_scheduled_at).getTime() > now) continue;
+        if (sessionStorage.getItem(sessionKey(oid))) continue;
+        sessionStorage.setItem(sessionKey(oid), '1');
+        var tr = o.tracking_number || oid;
+        toast('📦 Track your order — ' + tr + ' — open Track for live updates.', 'success');
+        try {
+          await SB.updateOrder(oid, { track_notify_sent_at: new Date().toISOString() });
+        } catch (e) {}
+      }
+    } catch (e) {}
+  }
+  tick();
+  window.__everestTrackNotifyPoller = setInterval(tick, 60000);
 }
 
 /** Polls buyer orders; toasts when a pre-order moves to an active/confirmed state. */
@@ -973,6 +1033,26 @@ async function loadDriverOrdersList() {
   });
 }
 
+async function driverHubDepartureScan(orderKey) {
+  if (!isDriverVerified(State.currentUser)) {
+    toast('Your driver account is not verified yet', 'error');
+    return;
+  }
+  var at = new Date().toISOString();
+  try {
+    if (typeof SB !== 'undefined' && SB.updateOrder) {
+      await SB.updateOrder(orderKey, { hub_departure_scanned_at: at });
+    }
+  } catch (e) {
+    if (typeof STNLog !== 'undefined') STNLog.warn('driverHubDepartureScan', e && e.message);
+    toast('Could not record hub scan — run SQL migration `20260406120000_hub_departure_track_notify.sql`.', 'error');
+    return;
+  }
+  toast('Hub departure recorded — customer Track reminder is scheduled for 11:00 AM next day (Tunis time).', 'success');
+  renderDriver();
+}
+window.driverHubDepartureScan = driverHubDepartureScan;
+
 async function driverMarkOutForDelivery(orderKey) {
   if (!isDriverVerified(State.currentUser)) {
     toast('Your driver account is not verified yet', 'error');
@@ -1224,6 +1304,11 @@ function renderDriver() {
             '\')">Optimized route</button>' +
             (accepted && canDeliver
               ? '<button type="button" class="btn btn-ghost btn-sm" onclick="startDriverGpsForOrder(\'' + safeKey + '\')">Share GPS</button>'
+              : '') +
+            (accepted && canDeliver && !o.hub_departure_scanned_at
+              ? '<button type="button" class="btn btn-sm" style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;font-weight:700" onclick="driverHubDepartureScan(\'' +
+                safeKey +
+                '\')">Scan hub departure</button>'
               : '') +
             (accepted && showOut
               ? '<button type="button" class="btn btn-ghost btn-sm" onclick="driverMarkOutForDelivery(\'' + safeKey + '\')">Out for delivery</button>'
@@ -1827,6 +1912,11 @@ async function hydrateCheckoutYasmineNotice() {
   var groups = groupCartByVendor(State.cart);
   var blocks = [];
   var anyPreorder = false;
+  if (EverestYasmineRouting.isPastLogisticsCutoff && EverestYasmineRouting.isPastLogisticsCutoff()) {
+    blocks.push(
+      '<div style="padding:0.55rem 0.75rem;border-radius:10px;background:#fffbeb;border:1px solid #fde68a;font-size:0.78rem;color:#92400e;line-height:1.45">⏰ Same-day logistics (Tunis) closes at <strong>4:00 PM</strong>. Your order is scheduled for the next logistics day — payment still completes normally.</div>'
+    );
+  }
   for (var i = 0; i < groups.length; i++) {
     var g = groups[i];
     try {
@@ -2353,6 +2443,19 @@ function productCardMediaHTML(p) {
   const to = p.bgTo || '#4a2080';
   return `<div class="product-emoji" style="background:linear-gradient(135deg,${from},${to})">${p.emoji || '📦'}</div>`;
 }
+function productCardDeliveryFootnoteHtml() {
+  if (typeof EverestYasmineRouting === 'undefined' || !EverestYasmineRouting.getProductListingDeliveryLine) return '';
+  var dl = EverestYasmineRouting.getProductListingDeliveryLine();
+  var col = dl.tone === 'cutoff' ? '#b45309' : '#64748b';
+  return (
+    '<div class="product-logistics-hint" style="font-size:0.68rem;color:' +
+    col +
+    ';margin-top:0.45rem;line-height:1.35;font-weight:600">' +
+    _cardEscapeAttr(dl.text) +
+    '</div>'
+  );
+}
+
 function productCardHTML(p) {
   const isWished = State.wishlist.some(function (w) {
     return String(w) === String(p.id);
@@ -2381,6 +2484,7 @@ function productCardHTML(p) {
         ${p.oldPrice ? `<span class="price-old">${p.oldPrice.toLocaleString()} TND</span>` : ''}
         <button class="btn btn-gold btn-sm" style="margin-left:auto;padding:0.45rem 1rem;font-size:0.65rem" onclick='addToCart(${JSON.stringify(p.id)})'>+ Cart</button>
       </div>
+      ${productCardDeliveryFootnoteHtml()}
     </div>
   </div>`;
 }
@@ -2608,13 +2712,26 @@ async function openProductDetail(productId) {
     if (!el) return;
     var vid = p.vendorId != null ? p.vendorId : p.vendor_id;
     if (!vid || typeof SB === 'undefined' || !SB.getVendor) {
-      el.textContent = 'Fast Delivery (24h)';
-      el.style.color = 'var(--success)';
+      if (typeof EverestYasmineRouting !== 'undefined' && EverestYasmineRouting.isPastLogisticsCutoff && EverestYasmineRouting.isPastLogisticsCutoff()) {
+        el.textContent = 'Will be delivered tomorrow.';
+        el.style.color = 'var(--warning)';
+        var pre0a = document.getElementById('detail-preorder-note');
+        var pre0ab = document.getElementById('detail-preorder-btn');
+        if (pre0a) {
+          pre0a.style.display = '';
+          pre0a.textContent =
+            'Same-day logistics (Tunis) closes at 4:00 PM. New handovers go to the next logistics day.';
+        }
+        if (pre0ab) pre0ab.style.display = 'none';
+      } else {
+        el.textContent = 'Fast Delivery (24h)';
+        el.style.color = 'var(--success)';
+        var pre0 = document.getElementById('detail-preorder-note');
+        var pre0b = document.getElementById('detail-preorder-btn');
+        if (pre0) pre0.style.display = 'none';
+        if (pre0b) pre0b.style.display = 'none';
+      }
       if (hoursEl) hoursEl.textContent = '';
-      var pre0 = document.getElementById('detail-preorder-note');
-      var pre0b = document.getElementById('detail-preorder-btn');
-      if (pre0) pre0.style.display = 'none';
-      if (pre0b) pre0b.style.display = 'none';
       return;
     }
     SB.getVendor(String(vid))
@@ -2633,8 +2750,9 @@ async function openProductDetail(productId) {
           if (h.preorder) {
             if (preN) {
               preN.style.display = '';
-              preN.textContent =
-                'This item may ship on a short preparation window. Checkout and Track show your estimated ready date.';
+              preN.textContent = h.logisticsCutoff
+                ? 'Will be delivered tomorrow. Same-day logistics (Tunis) closes at 4:00 PM — cave & drivers finalize routes for today.'
+                : 'This item may ship on a short preparation window. Checkout and Track show your estimated ready date.';
             }
             if (preB) preB.style.display = '';
           } else {
@@ -6068,7 +6186,7 @@ async function mountEverestVendorServiceUI(containerId) {
     '<div style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1rem">' +
     '<div><p style="font-size:0.72rem;font-weight:700;color:#7b72a8;margin:0 0 0.35rem;font-family:Outfit,sans-serif">In Service / Out of Service</p>' +
     '<p style="margin:0;font-size:0.88rem;color:#1e0a4e;font-weight:600">When you are In Service, new orders can reach you (15 min to accept).</p>' +
-    '<p style="margin:0.4rem 0 0;font-size:0.74rem;color:#6b7280;max-width:32rem;line-height:1.45">Use the table: choose which days you take orders and set hours (default 08:00–16:00). Shoppers do not see this — Everest uses it to route and estimate ready times.</p></div>' +
+    '<p style="margin:0.4rem 0 0;font-size:0.74rem;color:#6b7280;max-width:32rem;line-height:1.45">Use the table: choose which days you take orders and set hours (default 08:00–16:00). Same-day handover to the cave ends at <strong>4:00 PM Tunis time</strong> (Africa/Tunis). Shoppers do not see this grid — Everest uses it to route and estimate ready times.</p></div>' +
     '<label style="display:flex;align-items:center;gap:0.65rem;cursor:pointer;font-weight:600;color:#1e0a4e;flex-shrink:0">' +
     '<span style="font-size:0.8rem">' +
     (on ? 'In Service' : 'Out of Service') +
