@@ -333,6 +333,42 @@ async function init() {
   startTrackOrderNotifyPoller();
 }
 
+function syncMainNavHeight() {
+  var nav = document.getElementById('main-nav');
+  if (!nav) return;
+  document.documentElement.style.setProperty('--stn-main-nav-h', nav.offsetHeight + 'px');
+}
+
+/**
+ * Top bar only when Tunisia time is ≥ 16:00 (Africa/Tunis via EverestYasmineRouting.isPastLogisticsCutoff).
+ * Before 4:00 PM there: no bar — not based on the visitor’s local clock.
+ */
+function syncLogisticsCutoffBanner() {
+  var bar = document.getElementById('everest-logistics-cutoff-bar');
+  syncMainNavHeight();
+  if (!bar) return;
+  var past =
+    typeof EverestYasmineRouting !== 'undefined' &&
+    EverestYasmineRouting.isPastLogisticsCutoff &&
+    EverestYasmineRouting.isPastLogisticsCutoff();
+  if (past) {
+    var text = 'Will be delivered tomorrow.';
+    if (EverestYasmineRouting.getProductListingDeliveryLine) {
+      var dl = EverestYasmineRouting.getProductListingDeliveryLine();
+      if (dl && dl.text) text = dl.text;
+    }
+    bar.textContent = text;
+    bar.classList.add('everest-logistics-cutoff-bar--visible');
+    bar.removeAttribute('hidden');
+    document.body.classList.add('everest-logistics-cutoff-bar-visible');
+  } else {
+    bar.textContent = '';
+    bar.classList.remove('everest-logistics-cutoff-bar--visible');
+    bar.setAttribute('hidden', '');
+    document.body.classList.remove('everest-logistics-cutoff-bar-visible');
+  }
+}
+
 /** Re-render shop grids when Tunis 4:00 PM cutoff crosses (same-day → next-day messaging). */
 function startEverestLogisticsClockTick() {
   if (window.__everestLogisticsTick) return;
@@ -340,9 +376,10 @@ function startEverestLogisticsClockTick() {
     typeof EverestYasmineRouting !== 'undefined' && EverestYasmineRouting.isPastLogisticsCutoff
       ? EverestYasmineRouting.isPastLogisticsCutoff()
       : null;
-  window.__everestLogisticsTick = setInterval(function () {
+  function tick() {
     if (typeof EverestYasmineRouting === 'undefined' || !EverestYasmineRouting.isPastLogisticsCutoff) return;
     var nowCut = EverestYasmineRouting.isPastLogisticsCutoff();
+    syncLogisticsCutoffBanner();
     if (lastCut === null) {
       lastCut = nowCut;
       return;
@@ -355,7 +392,10 @@ function startEverestLogisticsClockTick() {
         else if (State.currentPage === 'wishlist') renderWishlist();
       } catch (e) {}
     }
-  }, 30000);
+  }
+  tick();
+  /** Re-check often so the bar appears soon after 16:00 Tunis without relying on device local time. */
+  window.__everestLogisticsTick = setInterval(tick, 15000);
 }
 
 /** After hub departure scan, DB schedules track_notify_scheduled_at (next day 11:00 Tunis); poll and toast. */
@@ -581,6 +621,11 @@ function initNav() {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && document.body.classList.contains('nav-drawer-open')) toggleNavDrawer(false);
   });
+  syncMainNavHeight();
+  window.addEventListener('resize', function () {
+    syncMainNavHeight();
+    syncLogisticsCutoffBanner();
+  });
 }
 
 /** Delegated clicks: Approve / Verify driver (avoids fragile inline onclick). */
@@ -690,6 +735,8 @@ function updateNavUser() {
   if (dli) dli.style.display = State.currentUser && State.currentUser.role === 'driver' ? 'block' : 'none';
   syncAboutNavLink();
   syncBottomNavActive(State.currentPage || 'home');
+  syncMainNavHeight();
+  syncLogisticsCutoffBanner();
 }
 
 /** About nav = customer story; vendors see Rules for Vendors (same route, different label + body). */
@@ -780,6 +827,7 @@ function showPage(id) {
     setTimeout(() => { if(typeof setLang === 'function') setLang(lang, { silent: true, internal: true }); }, 100);
   }
   syncBottomNavActive(id);
+  syncLogisticsCutoffBanner();
   return false;
 }
 
@@ -2443,19 +2491,6 @@ function productCardMediaHTML(p) {
   const to = p.bgTo || '#4a2080';
   return `<div class="product-emoji" style="background:linear-gradient(135deg,${from},${to})">${p.emoji || '📦'}</div>`;
 }
-function productCardDeliveryFootnoteHtml() {
-  if (typeof EverestYasmineRouting === 'undefined' || !EverestYasmineRouting.getProductListingDeliveryLine) return '';
-  var dl = EverestYasmineRouting.getProductListingDeliveryLine();
-  var col = dl.tone === 'cutoff' ? '#b45309' : '#64748b';
-  return (
-    '<div class="product-logistics-hint" style="font-size:0.68rem;color:' +
-    col +
-    ';margin-top:0.45rem;line-height:1.35;font-weight:600">' +
-    _cardEscapeAttr(dl.text) +
-    '</div>'
-  );
-}
-
 function productCardHTML(p) {
   const isWished = State.wishlist.some(function (w) {
     return String(w) === String(p.id);
@@ -2484,7 +2519,6 @@ function productCardHTML(p) {
         ${p.oldPrice ? `<span class="price-old">${p.oldPrice.toLocaleString()} TND</span>` : ''}
         <button class="btn btn-gold btn-sm" style="margin-left:auto;padding:0.45rem 1rem;font-size:0.65rem" onclick='addToCart(${JSON.stringify(p.id)})'>+ Cart</button>
       </div>
-      ${productCardDeliveryFootnoteHtml()}
     </div>
   </div>`;
 }

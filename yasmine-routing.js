@@ -14,11 +14,13 @@ var EverestYasmineRouting = (function () {
   function tunisMinutesFromMidnight(d) {
     var dt = d ? new Date(d) : new Date();
     if (isNaN(dt.getTime())) dt = new Date();
+    /** Wall clock in Tunisia (UTC+1, no DST) — not the visitor's local timezone. */
     var parts = new Intl.DateTimeFormat('en-GB', {
       timeZone: EVEREST_TZ,
-      hour: '2-digit',
-      minute: '2-digit',
+      hour: 'numeric',
+      minute: 'numeric',
       hour12: false,
+      hourCycle: 'h23',
     }).formatToParts(dt);
     var h = 0;
     var m = 0;
@@ -38,7 +40,7 @@ var EverestYasmineRouting = (function () {
     return map[w] != null ? map[w] : 0;
   }
 
-  /** True from 16:00:00 Tunis through 23:59 — same-day logistics window closed (cave & routes). */
+  /** True from 16:00:00 Africa/Tunis through 23:59 — before that, same-day messaging still applies. */
   function isPastLogisticsCutoff(atDate) {
     return tunisMinutesFromMidnight(atDate) >= LOGISTICS_CUTOFF_HOUR * 60;
   }
