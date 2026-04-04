@@ -46,6 +46,44 @@ var EverestYasmineRouting = (function () {
     return ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
   }
 
+  /** Default: Mon–Fri 08:00–16:00 open; Sat–Sun closed (vendors can change in the app). */
+  function defaultWeeklySchedule() {
+    var o = {};
+    ['mon', 'tue', 'wed', 'thu', 'fri'].forEach(function (d) {
+      o[d] = { open: '08:00', close: '16:00' };
+    });
+    ['sat', 'sun'].forEach(function (d) {
+      o[d] = { closed: true };
+    });
+    return o;
+  }
+
+  /** Short text for buyers (product page). */
+  function formatWeeklyScheduleForBuyer(sched) {
+    if (!sched || typeof sched !== 'object') return '';
+    var order = [
+      { k: 'mon', l: 'Mon' },
+      { k: 'tue', l: 'Tue' },
+      { k: 'wed', l: 'Wed' },
+      { k: 'thu', l: 'Thu' },
+      { k: 'fri', l: 'Fri' },
+      { k: 'sat', l: 'Sat' },
+      { k: 'sun', l: 'Sun' },
+    ];
+    var parts = [];
+    order.forEach(function (x) {
+      var day = sched[x.k];
+      if (!day) return;
+      if (day.closed) parts.push(x.l + ' closed');
+      else {
+        var a = (day.open || day.start || '08:00').toString().slice(0, 5);
+        var b = (day.close || day.end || '16:00').toString().slice(0, 5);
+        parts.push(x.l + ' ' + a + '–' + b);
+      }
+    });
+    return parts.join(' · ');
+  }
+
   /** Next calendar moment when vendor is "open" per weekly_schedule + 24h processing buffer. */
   function estimatedReadyFromSchedule(weeklySchedule, fromDate) {
     var sched = weeklySchedule && typeof weeklySchedule === 'object' ? weeklySchedule : {};
@@ -84,7 +122,12 @@ var EverestYasmineRouting = (function () {
   async function ensureVendorRow(vendorId, defaults) {
     var row = await getVendorRow(vendorId);
     if (row) return row;
-    var base = { id: String(vendorId), service_status: 'away', weekly_schedule: {}, consecutive_timeout_orders: 0 };
+    var base = {
+      id: String(vendorId),
+      service_status: 'away',
+      weekly_schedule: defaultWeeklySchedule(),
+      consecutive_timeout_orders: 0,
+    };
     if (defaults && typeof defaults === 'object') Object.assign(base, defaults);
     try {
       if (SB.upsertVendor) await SB.upsertVendor(base);
@@ -345,11 +388,12 @@ var EverestYasmineRouting = (function () {
 
   function productDeliveryHint(product, vendorRow) {
     ensureProductSku(product);
+    var hoursLine = formatWeeklyScheduleForBuyer(vendorRow && vendorRow.weekly_schedule);
     if (!vendorRow) {
-      return { text: 'Fast Delivery (24h)', tone: 'ok' };
+      return { text: 'Fast Delivery (24h)', tone: 'ok', hoursLine: hoursLine };
     }
     if (vendorIsActive(vendorRow)) {
-      return { text: 'Fast Delivery (24h)', tone: 'ok' };
+      return { text: 'Fast Delivery (24h)', tone: 'ok', hoursLine: hoursLine };
     }
     var sched = vendorRow.weekly_schedule;
     var hasSched = sched && typeof sched === 'object' && Object.keys(sched).length > 0;
@@ -358,9 +402,10 @@ var EverestYasmineRouting = (function () {
       return {
         text: 'Delayed Delivery — Ready on ' + r.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
         tone: 'warn',
+        hoursLine: hoursLine,
       };
     }
-    return { text: 'Processing starts in 48h — ask for availability', tone: 'muted' };
+    return { text: 'Processing starts in 48h — ask for availability', tone: 'muted', hoursLine: hoursLine };
   }
 
   var _heartbeat = null;
@@ -376,6 +421,8 @@ var EverestYasmineRouting = (function () {
     ensureProductSku: ensureProductSku,
     computeSkuDna: computeSkuDna,
     vendorIsActive: vendorIsActive,
+    defaultWeeklySchedule: defaultWeeklySchedule,
+    formatWeeklyScheduleForBuyer: formatWeeklyScheduleForBuyer,
     estimatedReadyFromSchedule: estimatedReadyFromSchedule,
     preorderMessage: preorderMessage,
     getVendorRow: getVendorRow,

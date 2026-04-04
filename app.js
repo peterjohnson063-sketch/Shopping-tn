@@ -2444,7 +2444,8 @@ async function openProductDetail(productId) {
           ${p.oldPrice ? `<span class="price-old" style="margin-left:0.8rem">${p.oldPrice.toLocaleString()} TND</span>` : ''}
         </div>
         <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.8;margin-bottom:1.5rem">${p.desc}</p>
-        <div id="detail-delivery-hint" style="font-size:0.78rem;font-weight:600;margin-bottom:1rem;color:var(--success)">Loading delivery estimate…</div>
+        <div id="detail-delivery-hint" style="font-size:0.78rem;font-weight:600;margin-bottom:0.45rem;color:var(--success)">Loading delivery estimate…</div>
+        <div id="detail-shop-hours" style="font-size:0.72rem;color:var(--text-muted);margin-bottom:1rem;line-height:1.45"></div>
         ${p.specs ? `
         <div style="margin-bottom:1.5rem">
           ${Object.entries(p.specs).map(([k,v]) => `<div class="spec-row"><span class="spec-key">${k.charAt(0).toUpperCase()+k.slice(1)}</span><span class="spec-val">${v}</span></div>`).join('')}
@@ -2499,11 +2500,13 @@ async function openProductDetail(productId) {
   hydrateProductDetailVendor(p);
   (function hydrateDetailDelivery() {
     var el = document.getElementById('detail-delivery-hint');
+    var hoursEl = document.getElementById('detail-shop-hours');
     if (!el) return;
     var vid = p.vendorId != null ? p.vendorId : p.vendor_id;
     if (!vid || typeof SB === 'undefined' || !SB.getVendor) {
       el.textContent = 'Fast Delivery (24h)';
       el.style.color = 'var(--success)';
+      if (hoursEl) hoursEl.textContent = '';
       return;
     }
     SB.getVendor(String(vid))
@@ -2513,14 +2516,25 @@ async function openProductDetail(productId) {
           el.textContent = h.text;
           el.style.color =
             h.tone === 'ok' ? 'var(--success)' : h.tone === 'warn' ? 'var(--warning)' : 'var(--text-muted)';
+          if (hoursEl) {
+            if (h.hoursLine) {
+              hoursEl.textContent = 'Shop hours: ' + h.hoursLine;
+              hoursEl.style.display = '';
+            } else {
+              hoursEl.textContent = '';
+              hoursEl.style.display = 'none';
+            }
+          }
         } else {
           el.textContent = 'Fast Delivery (24h)';
           el.style.color = 'var(--success)';
+          if (hoursEl) hoursEl.textContent = '';
         }
       })
       .catch(function () {
         el.textContent = 'Fast Delivery (24h)';
         el.style.color = 'var(--success)';
+        if (hoursEl) hoursEl.textContent = '';
       });
   })();
 }
@@ -2878,7 +2892,10 @@ async function doLogin() {
     updateNavUser();
     toast(`✦ Welcome back, ${State.currentUser.firstName || local.firstName}!`, 'success');
     if (State.currentUser.role === 'admin') showPage('admin');
-    else if (State.currentUser.role === 'vendor') showPage('vendor');
+    else if (State.currentUser.role === 'vendor') {
+      void everestSyncVendorDefaults(State.currentUser.id);
+      showPage('vendor');
+    }
     else if (State.currentUser.role === 'driver') showPage('driver');
     else showPage('home');
     return;
@@ -2905,7 +2922,10 @@ async function doLogin() {
     updateNavUser();
     toast(`✦ Welcome back, ${user.first_name}!`, 'success');
     if (user.role === 'admin') showPage('admin');
-    else if (user.role === 'vendor') showPage('vendor');
+    else if (user.role === 'vendor') {
+      void everestSyncVendorDefaults(State.currentUser.id);
+      showPage('vendor');
+    }
     else if (user.role === 'driver') showPage('driver');
     else showPage('home');
   } catch(e) {
@@ -3119,6 +3139,7 @@ async function doRegister() {
     STN.DB.set('currentUser', State.currentUser);
     updateNavUser();
     if (isVendor) {
+      void everestSyncVendorDefaults(State.currentUser.id);
       toast(`✦ Welcome ${shopName}! Your vendor account is pending verification.`, 'success');
       showPage('vendor');
     } else if (isDriver) {
@@ -3739,6 +3760,10 @@ function renderAccount() {
       : '<button class="btn btn-ghost btn-sm" onclick="showPage(\'track\')">My Orders</button>\n          <button class="btn btn-ghost btn-sm" onclick="showPage(\'wishlist\')">Wishlist (' +
         State.wishlist.length +
         ')</button>';
+  var vendorScheduleBlock =
+    role === 'vendor'
+      ? '<div class="glass-lg reveal" style="padding:1.5rem 1.75rem;margin-bottom:2rem;border:1px solid rgba(124,58,237,0.18)"><span class="eyebrow">Seller</span><h2 style="font-size:1.35rem;margin:0.45rem 0 0.5rem;color:var(--champagne)">Hours &amp; In / Out of service</h2><p style="font-size:0.82rem;color:var(--text-muted);margin:0 0 1rem;max-width:36rem">Same settings as <strong>Seller hub → ⏰ Hours &amp; Service</strong>. Customers see your weekly hours on product pages.</p><div id="account-vendor-service-panel"></div></div>'
+      : '';
   const page = document.getElementById('page-account');
   if (!page) return;
   page.innerHTML = `
@@ -3748,6 +3773,7 @@ function renderAccount() {
       <h1 class="display" style="font-size:3rem">Hello, <em class="gold-text">${fn || 'there'}!</em></h1>
       <div class="divider center"></div>
     </div>
+    ${vendorScheduleBlock}
     <div class="grid-2" style="gap:2rem;margin-bottom:3rem">
       <div class="glass-lg reveal" style="padding:2rem">
         <div style="display:flex;align-items:center;gap:1.2rem;margin-bottom:1.5rem">
@@ -3785,6 +3811,12 @@ function renderAccount() {
       </div>
     </div>
   </div>`;
+  if (role === 'vendor') {
+    setTimeout(function () {
+      void everestSyncVendorDefaults(State.currentUser.id);
+      void mountEverestVendorServiceUI('account-vendor-service-panel');
+    }, 0);
+  }
 }
 
 // ── ADMIN ──
@@ -5572,6 +5604,209 @@ async function adminDeleteUserAccount(userId) {
   switchAdmin(activeSection);
 }
 
+// ── VENDOR SERVICE: weekly hours (Mon–Sun, default Mon–Fri 08:00–16:00) + In/Out of service ──
+var EVS_DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+var EVS_DAY_LABELS = {
+  mon: 'Monday',
+  tue: 'Tuesday',
+  wed: 'Wednesday',
+  thu: 'Thursday',
+  fri: 'Friday',
+  sat: 'Saturday',
+  sun: 'Sunday',
+};
+
+function evsSuffix(containerId) {
+  return String(containerId || 'x').replace(/[^a-zA-Z0-9]/g, '_');
+}
+
+async function everestSyncVendorDefaults(vendorId) {
+  if (!vendorId || typeof SB === 'undefined' || !SB.getVendor || !SB.upsertVendor) return;
+  var id = String(vendorId);
+  try {
+    var row = await SB.getVendor(id);
+    var def =
+      typeof EverestYasmineRouting !== 'undefined' && EverestYasmineRouting.defaultWeeklySchedule
+        ? EverestYasmineRouting.defaultWeeklySchedule()
+        : {};
+    if (!row) {
+      await SB.upsertVendor({
+        id: id,
+        service_status: 'away',
+        weekly_schedule: def,
+        consecutive_timeout_orders: 0,
+        updated_at: new Date().toISOString(),
+      });
+      return;
+    }
+    var ws = row.weekly_schedule;
+    if (!ws || typeof ws !== 'object' || Object.keys(ws).length === 0) {
+      await SB.upsertVendor({
+        id: id,
+        service_status: row.service_status || 'away',
+        weekly_schedule: def,
+        consecutive_timeout_orders: row.consecutive_timeout_orders || 0,
+        updated_at: new Date().toISOString(),
+      });
+    }
+  } catch (e) {
+    if (typeof STNLog !== 'undefined') STNLog.warn('everestSyncVendorDefaults', e && e.message);
+  }
+}
+
+async function mountEverestVendorServiceUI(containerId) {
+  var el = document.getElementById(containerId);
+  if (!el || !State.currentUser || State.currentUser.role !== 'vendor') {
+    if (el) el.innerHTML = '';
+    return;
+  }
+  await everestSyncVendorDefaults(State.currentUser.id);
+  var id = String(State.currentUser.id);
+  var row = null;
+  try {
+    row = await SB.getVendor(id);
+  } catch (e) {}
+  var suf = evsSuffix(containerId);
+  var def =
+    typeof EverestYasmineRouting !== 'undefined' && EverestYasmineRouting.defaultWeeklySchedule
+      ? EverestYasmineRouting.defaultWeeklySchedule()
+      : {};
+  var sched = (row && row.weekly_schedule) || def;
+  var merged = Object.assign({}, def, sched);
+  var on = row && row.service_status === 'active';
+
+  var rows = EVS_DAY_KEYS.map(function (d) {
+    var day = merged[d] || {};
+    var closed = !!day.closed;
+    var start = (day.open || day.start || '08:00').toString().slice(0, 5);
+    var end = (day.close || day.end || '16:00').toString().slice(0, 5);
+    return (
+      '<tr style="border-bottom:1px solid #f3f4f6">' +
+      '<td style="padding:0.55rem 0.35rem;font-size:0.82rem;font-weight:600;color:#374151">' +
+      EVS_DAY_LABELS[d] +
+      '</td>' +
+      '<td style="padding:0.55rem 0.35rem;text-align:center"><input type="checkbox" class="evs-day-open" data-suf="' +
+      suf +
+      '" data-day="' +
+      d +
+      '" id="evs-open-' +
+      d +
+      '-' +
+      suf +
+      '" ' +
+      (!closed ? 'checked' : '') +
+      ' style="width:1.1rem;height:1.1rem;accent-color:#7c3aed"/></td>' +
+      '<td style="padding:0.55rem 0.35rem"><input type="time" class="evs-day-start" data-suf="' +
+      suf +
+      '" data-day="' +
+      d +
+      '" id="evs-start-' +
+      d +
+      '-' +
+      suf +
+      '" value="' +
+      start +
+      '" style="width:100%;padding:0.35rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.8rem"/></td>' +
+      '<td style="padding:0.55rem 0.35rem"><input type="time" class="evs-day-end" data-suf="' +
+      suf +
+      '" data-day="' +
+      d +
+      '" id="evs-end-' +
+      d +
+      '-' +
+      suf +
+      '" value="' +
+      end +
+      '" style="width:100%;padding:0.35rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.8rem"/></td>' +
+      '</tr>'
+    );
+  }).join('');
+
+  var safeJson = JSON.stringify(containerId);
+  el.innerHTML =
+    '<div style="background:white;border:1px solid #e5e7eb;border-radius:14px;padding:1.25rem 1.35rem;box-shadow:0 1px 3px rgba(0,0,0,0.06)">' +
+    '<div style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1rem">' +
+    '<div><p style="font-size:0.72rem;font-weight:700;color:#7b72a8;margin:0 0 0.35rem;font-family:Outfit,sans-serif">In Service / Out of Service</p>' +
+    '<p style="margin:0;font-size:0.88rem;color:#1e0a4e;font-weight:600">When you are In Service, new orders can reach you (15 min to accept).</p>' +
+    '<p style="margin:0.4rem 0 0;font-size:0.74rem;color:#6b7280;max-width:32rem;line-height:1.45">Use the table: choose which days you take orders and set hours (default 08:00–16:00). Customers see this on your product pages.</p></div>' +
+    '<label style="display:flex;align-items:center;gap:0.65rem;cursor:pointer;font-weight:600;color:#1e0a4e;flex-shrink:0">' +
+    '<span style="font-size:0.8rem">' +
+    (on ? 'In Service' : 'Out of Service') +
+    '</span>' +
+    '<input type="checkbox" ' +
+    (on ? 'checked ' : '') +
+    'onchange="toggleEverestVendorService(this.checked)" style="width:2.75rem;height:1.45rem;accent-color:#7c3aed"/></label>' +
+    '</div>' +
+    '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.8rem">' +
+    '<thead><tr style="background:#f9fafb;color:#6b7280;text-align:left">' +
+    '<th style="padding:0.55rem 0.35rem">Day</th>' +
+    '<th style="padding:0.55rem 0.35rem;text-align:center">Taking orders</th>' +
+    '<th style="padding:0.55rem 0.35rem">From</th>' +
+    '<th style="padding:0.55rem 0.35rem">To</th>' +
+    '</tr></thead><tbody>' +
+    rows +
+    '</tbody></table></div>' +
+    '<div style="margin-top:1rem;display:flex;flex-wrap:wrap;gap:0.65rem;align-items:center">' +
+    '<button type="button" onclick="saveEverestVendorSchedule(' +
+    safeJson +
+    ')" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.7rem 1.35rem;border-radius:10px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif">Save weekly hours</button>' +
+    '<span style="font-size:0.72rem;color:#9ca3af">Tip: Mon–Fri 08:00–16:00, weekend off — adjust anytime.</span>' +
+    '</div></div>';
+
+  el.querySelectorAll('.evs-day-open').forEach(function (cb) {
+    function sync() {
+      var tr = cb.closest('tr');
+      if (!tr) return;
+      var times = tr.querySelectorAll('input[type="time"]');
+      var ok = cb.checked;
+      times.forEach(function (t) {
+        t.disabled = !ok;
+        t.style.opacity = ok ? '1' : '0.45';
+      });
+    }
+    cb.addEventListener('change', sync);
+    sync();
+  });
+}
+
+async function saveEverestVendorSchedule(containerId) {
+  if (!State.currentUser || State.currentUser.role !== 'vendor') return;
+  var id = String(State.currentUser.id);
+  var suf = evsSuffix(containerId);
+  var sched = {};
+  EVS_DAY_KEYS.forEach(function (d) {
+    var cb = document.getElementById('evs-open-' + d + '-' + suf);
+    var st = document.getElementById('evs-start-' + d + '-' + suf);
+    var en = document.getElementById('evs-end-' + d + '-' + suf);
+    if (!cb) return;
+    if (!cb.checked) sched[d] = { closed: true };
+    else sched[d] = { open: (st && st.value) || '08:00', close: (en && en.value) || '16:00' };
+  });
+  var row = null;
+  try {
+    row = await SB.getVendor(id);
+  } catch (e) {}
+  try {
+    await SB.upsertVendor({
+      id: id,
+      service_status: (row && row.service_status) || 'away',
+      weekly_schedule: sched,
+      consecutive_timeout_orders: (row && row.consecutive_timeout_orders) || 0,
+      updated_at: new Date().toISOString(),
+    });
+    toast('Weekly hours saved. Shoppers will see this on your products.', 'success');
+  } catch (e2) {
+    toast('Could not save hours. Run the Yasmine SQL migration in Supabase.', 'error');
+  }
+  refreshEverestVendorServiceMounts();
+}
+
+function refreshEverestVendorServiceMounts() {
+  ['vendor-yasmine-service-panel', 'vendor-overview-service-panel', 'vendor-hours-service-panel', 'account-vendor-service-panel'].forEach(function (tid) {
+    if (document.getElementById(tid)) void mountEverestVendorServiceUI(tid);
+  });
+}
+
 // ── VENDOR DASHBOARD (PROFESSIONAL) ──
 function renderVendorDashboard() {
   if (typeof STNLog !== 'undefined') STNLog.debug('vendor.dashboard', 'renderVendorDashboard', STNLog.sanitize(State.currentUser));
@@ -5629,6 +5864,7 @@ function toggleEverestVendorService(inService) {
     if (window.dashboard && typeof window.dashboard.renderServicePanel === 'function') {
       window.dashboard.renderServicePanel();
     }
+    refreshEverestVendorServiceMounts();
   })();
 }
 
@@ -5665,7 +5901,7 @@ function buildProfessionalDashboardHTML() {
         <div>
           <p class="dash-pro-eyebrow">Seller workspace</p>
           <h1 class="dash-pro-hero-title">Performance</h1>
-          <p class="dash-pro-hero-sub">Live GMV, fulfillment, catalog exposure, and logistics — tuned for daily operations on Everest.</p>
+          <p class="dash-pro-hero-sub">Live GMV, fulfillment, and logistics. Set <strong>Hours &amp; In/Out service</strong> in the card below — same as Seller hub.</p>
         </div>
         <div class="dash-pro-hero-meta">
           <div class="dash-pro-shop" id="vendor-name"></div>
@@ -5798,6 +6034,8 @@ class ProfessionalVendorDashboard {
         throw new Error('Vendor authentication required');
       }
 
+      await everestSyncVendorDefaults(this.vendorData.id);
+
       // Load data from Supabase
       await this.loadData();
       
@@ -5889,27 +6127,7 @@ class ProfessionalVendorDashboard {
   }
 
   async renderServicePanel() {
-    var el = document.getElementById('vendor-yasmine-service-panel');
-    if (!el || !this.vendorData) return;
-    var vid = String(this.vendorData.id);
-    var row = null;
-    try {
-      if (typeof SB !== 'undefined' && SB.getVendor) row = await SB.getVendor(vid);
-    } catch (e) {}
-    var on = row && row.service_status === 'active';
-    el.innerHTML =
-      '<div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1rem">' +
-      '<div><p style="font-size:0.72rem;font-weight:700;color:#7b72a8;margin:0 0 0.35rem;font-family:Outfit,sans-serif">Service management</p>' +
-      '<p style="margin:0;font-size:0.9rem;color:#1e0a4e;font-weight:600">In Service / Out of Service</p>' +
-      '<p style="margin:0.35rem 0 0;font-size:0.75rem;color:#7b72a8">In Service: new orders require a 15-minute acceptance (Yasmine SOS).</p></div>' +
-      '<label style="display:flex;align-items:center;gap:0.65rem;cursor:pointer;font-weight:600;color:#1e0a4e">' +
-      '<span style="font-size:0.8rem">' +
-      (on ? 'In Service' : 'Out of Service') +
-      '</span>' +
-      '<input type="checkbox" ' +
-      (on ? 'checked ' : '') +
-      'onchange="toggleEverestVendorService(this.checked)" style="width:2.75rem;height:1.45rem;accent-color:#7c3aed"/></label>' +
-      '</div>';
+    await mountEverestVendorServiceUI('vendor-yasmine-service-panel');
   }
 
   renderHeader() {
@@ -6426,6 +6644,7 @@ function buildVendorHTML() {
   var isVerified = u.verified;
   var tabs = [
     {id:'overview', label:'Overview'},
+    {id:'hours', label:'⏰ Hours & Service'},
     {id:'dashboard', label:'📊 Dashboard'},
     {id:'upload', label:'Upload Product'},
     {id:'inventory', label:'My Products'},
@@ -6542,6 +6761,7 @@ function switchVendorSection(section) {
         }).join('');
 
     content.innerHTML = '<div>'
+      +'<div id="vendor-overview-service-panel" style="margin-bottom:1.5rem"></div>'
       +'<div style="margin-bottom:1.5rem"><h1 style="font-size:1.5rem;font-weight:700;color:#111827">Welcome back, '+(u.first_name||u.firstName||u.name||'Vendor')+'! 👋</h1>'
       +'<p style="color:#6b7280;font-size:0.875rem">'+today+'</p></div>'
       +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem">'
@@ -6559,6 +6779,7 @@ function switchVendorSection(section) {
       +'<div style="display:flex;flex-direction:column;gap:1rem">'
       +'<div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.25rem">'
       +'<h3 style="font-size:0.9rem;font-weight:600;color:#111827;margin-bottom:0.875rem">Quick Actions</h3>'
+      +'<button onclick="switchVendorSection(\'hours\')" style="width:100%;background:#fffbeb;color:#92400e;border:1px solid #fde68a;padding:0.65rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif;margin-bottom:0.5rem;display:block">⏰ Hours &amp; In/Out service</button>'
       +'<button onclick="switchVendorSection(\'upload\')" style="width:100%;background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.65rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif;margin-bottom:0.5rem;display:block">+ Upload Product</button>'
       +'<button onclick="switchVendorSection(\'orders\')" style="width:100%;background:#f5f3ff;color:#7c3aed;border:1px solid #e9d5ff;padding:0.65rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif;margin-bottom:0.5rem;display:block">View Orders</button>'
       +'<button onclick="showPage(\'products\')" style="width:100%;background:#f9fafb;color:#374151;border:1px solid #e5e7eb;padding:0.65rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif;display:block">View Store</button>'
@@ -6569,6 +6790,21 @@ function switchVendorSection(section) {
       +'<div style="font-size:0.75rem;opacity:0.8">'+statusDesc+'</div>'
       +'</div>'
       +'</div></div></div>';
+    setTimeout(function () {
+      void everestSyncVendorDefaults(u.id);
+      void mountEverestVendorServiceUI('vendor-overview-service-panel');
+    }, 0);
+
+  } else if (section === 'hours') {
+    content.innerHTML =
+      '<div style="max-width:920px;margin:0 auto">' +
+      '<p style="font-size:1.15rem;font-weight:700;color:#111827;margin-bottom:0.35rem">Hours &amp; service</p>' +
+      '<p style="color:#6b7280;font-size:0.875rem;margin-bottom:1rem">Set when you take orders and prepare shipments. Customers see this on your product pages.</p>' +
+      '<div id="vendor-hours-service-panel"></div></div>';
+    setTimeout(function () {
+      void everestSyncVendorDefaults(u.id);
+      void mountEverestVendorServiceUI('vendor-hours-service-panel');
+    }, 0);
 
   } else if (section === 'upload') {
     content.innerHTML = `
