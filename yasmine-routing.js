@@ -49,7 +49,7 @@ var EverestYasmineRouting = (function () {
     if (isPastLogisticsCutoff(new Date())) {
       return {
         text:
-          'Same-day logistics handover has closed for today (4:00 PM Tunisia time, Africa/Tunis). New orders are scheduled for the next logistics day — confirmation and delivery updates appear in Track.',
+          'Next Day Delivery — same-day handover has closed (after 4:00 PM Tunisia time, Africa/Tunis). Your order follows the next logistics run; confirmation and updates appear in Track.',
         tone: 'cutoff',
       };
     }

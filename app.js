@@ -32,6 +32,8 @@ const State = {
   countdownInterval: null,
   /** Set on gift page before opening payment modal; cleared after order or when modal closes. */
   pendingGift: null,
+  /** { lat, lng, capturedAt, accuracy } from Geolocation at checkout, or null */
+  checkoutGeo: null,
 };
 
 try {
@@ -331,6 +333,8 @@ async function init() {
   startPreorderReadyNotifier();
   startEverestLogisticsClockTick();
   startTrackOrderNotifyPoller();
+  parseEverestDeepLinks();
+  initEverestFCM();
 }
 
 function syncMainNavHeight() {
@@ -353,7 +357,7 @@ function syncLogisticsCutoffBanner() {
     EverestYasmineRouting.isPastLogisticsCutoff();
   if (past) {
     var text =
-      'Same-day logistics handover has closed for today (4:00 PM Tunisia time, Africa/Tunis). New orders are scheduled for the next logistics day — confirmation and delivery updates appear in Track.';
+      'Next Day Delivery — same-day handover closed (after 4:00 PM Tunisia time). Your order follows the next logistics run; updates in Track.';
     if (EverestYasmineRouting.getProductListingDeliveryLine) {
       var dl = EverestYasmineRouting.getProductListingDeliveryLine();
       if (dl && dl.text) text = dl.text;
@@ -404,6 +408,161 @@ function startEverestLogisticsClockTick() {
   window.__everestLogisticsTick = setInterval(tick, 15000);
 }
 
+/** Public URL that opens Track with the order code (for notifications & FCM data payload). */
+function everestTrackOrderUrl(tracking) {
+  var t = String(tracking || '').trim();
+  var base = window.location.origin + (window.location.pathname || '/');
+  var sep = base.indexOf('?') >= 0 ? '&' : '?';
+  return base + sep + 'openTrack=' + encodeURIComponent(t);
+}
+
+function parseEverestDeepLinks() {
+  try {
+    var u = new URL(window.location.href);
+    var ot = u.searchParams.get('openTrack');
+    if (!ot || typeof showPage !== 'function') return;
+    showPage('track');
+    setTimeout(function () {
+      var inp = document.getElementById('track-num');
+      if (inp) {
+        inp.value = ot;
+        if (typeof trackOrder === 'function') void trackOrder();
+      }
+    }, 450);
+  } catch (e) {}
+}
+
+/** Browser Notification + optional FCM foreground; server should send FCM at 11:00 for closed-tab users. */
+function triggerTrackReminderNotification(trackingCode) {
+  var tr = String(trackingCode || '').trim();
+  var mapUrl = everestTrackOrderUrl(tr);
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try {
+      new Notification('Everest — Track your order', {
+        body: tr + ' — Tap to open live map & tracking',
+        icon: '/assets/everest-logo.png',
+        tag: 'everest-track-' + tr,
+        data: { url: mapUrl, tracking: tr },
+      });
+    } catch (e) {}
+  }
+}
+
+function everestFCMSaveToken(token) {
+  if (!token || !State.currentUser || !State.currentUser.id || typeof SB === 'undefined' || !SB.updateUser) return;
+  return SB.updateUser(State.currentUser.id, {
+    fcm_token: token,
+    fcm_token_updated_at: new Date().toISOString(),
+  });
+}
+
+/** Re-fetch FCM token after login so `users.fcm_token` matches the signed-in account. */
+function everestFCMRefreshUserToken() {
+  if (typeof firebase === 'undefined') return;
+  var cfg = window.STN_FIREBASE_CONFIG;
+  if (!cfg || !cfg.apiKey || !cfg.messagingSenderId) return;
+  try {
+    if (!firebase.apps || firebase.apps.length === 0) {
+      firebase.initializeApp(cfg);
+    }
+    var messaging = firebase.messaging();
+    var vapid = window.STN_FCM_VAPID_KEY || '';
+    if (!vapid || !State.currentUser || !State.currentUser.id) return;
+    return navigator.serviceWorker
+      .getRegistration()
+      .then(function (reg) {
+        if (!reg) return null;
+        return messaging.getToken({ vapidKey: vapid, serviceWorkerRegistration: reg });
+      })
+      .then(function (token) {
+        return everestFCMSaveToken(token);
+      })
+      .catch(function () {});
+  } catch (e) {}
+}
+
+/**
+ * Firebase Cloud Messaging (web): register SW, request permission, save token on user row.
+ * Configure firebase-config.js. For 11:00 push when the tab is closed, send via FCM HTTP v1 (server) using this token.
+ */
+function initEverestFCM() {
+  if (typeof firebase === 'undefined') return;
+  var cfg = window.STN_FIREBASE_CONFIG;
+  if (!cfg || !cfg.apiKey || !cfg.messagingSenderId) return;
+  try {
+    if (!firebase.apps || firebase.apps.length === 0) {
+      firebase.initializeApp(cfg);
+    }
+    var messaging = firebase.messaging();
+    if (!window.__everestFcmForeground) {
+      messaging.onMessage(function (payload) {
+        var n = payload.notification || {};
+        var t = n.title || 'Everest';
+        var b = n.body || '';
+        if (b) toast(t + ' — ' + b, 'default');
+      });
+      window.__everestFcmForeground = true;
+    }
+    if (window.__everestFcmCoreReady) {
+      everestFCMRefreshUserToken();
+      return;
+    }
+    if (!('serviceWorker' in navigator)) return;
+    window.__everestFcmCoreReady = true;
+    var vapid = window.STN_FCM_VAPID_KEY || '';
+    navigator.serviceWorker
+      .register('firebase-messaging-sw.js', { scope: './' })
+      .then(function (reg) {
+        return Notification.requestPermission().then(function (perm) {
+          if (perm !== 'granted' || !vapid) return null;
+          return messaging.getToken({ vapidKey: vapid, serviceWorkerRegistration: reg });
+        });
+      })
+      .then(function (token) {
+        return everestFCMSaveToken(token);
+      })
+      .catch(function () {});
+  } catch (e) {
+    if (typeof STNLog !== 'undefined') STNLog.warn('initEverestFCM', e && e.message);
+  }
+}
+
+function requestCheckoutGeolocation() {
+  State.checkoutGeo = null;
+  var el = document.getElementById('co-geo-status');
+  if (!el) return;
+  if (!navigator.geolocation) {
+    el.innerHTML =
+      '<p style="margin:0;font-size:0.72rem;color:#94a3b8">Location services are not available in this browser.</p>';
+    return;
+  }
+  el.innerHTML =
+    '<p style="margin:0;font-size:0.72rem;color:#7b72a8">Requesting your location for delivery routing…</p>';
+  navigator.geolocation.getCurrentPosition(
+    function (pos) {
+      State.checkoutGeo = {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        capturedAt: new Date().toISOString(),
+        accuracy: pos.coords.accuracy,
+      };
+      if (el) {
+        el.innerHTML =
+          '<p style="margin:0;font-size:0.72rem;color:#059669">✓ Location saved with your order (±' +
+          Math.round(pos.coords.accuracy) +
+          ' m).</p>';
+      }
+    },
+    function () {
+      if (el) {
+        el.innerHTML =
+          '<p style="margin:0;font-size:0.72rem;color:#94a3b8">Location not shared — you can still complete checkout.</p>';
+      }
+    },
+    { enableHighAccuracy: true, timeout: 18000, maximumAge: 0 }
+  );
+}
+
 /** After hub departure scan, DB schedules track_notify_scheduled_at (next day 11:00 Tunis); poll and toast. */
 function startTrackOrderNotifyPoller() {
   if (window.__everestTrackNotifyPoller) return;
@@ -426,7 +585,11 @@ function startTrackOrderNotifyPoller() {
         if (sessionStorage.getItem(sessionKey(oid))) continue;
         sessionStorage.setItem(sessionKey(oid), '1');
         var tr = o.tracking_number || oid;
-        toast('📦 Track your order — ' + tr + ' — open Track for live updates.', 'success');
+        toast(
+          '📦 Next-day track reminder — ' + tr + ' — open Track for live map & updates.',
+          'success'
+        );
+        triggerTrackReminderNotification(tr);
         try {
           await SB.updateOrder(oid, { track_notify_sent_at: new Date().toISOString() });
         } catch (e) {}
@@ -1866,6 +2029,7 @@ async function checkout() {
     giftSummaryHtml +
     buyerBlock +
     '<div id="co-yasmine-notice" style="margin-bottom:1rem"></div>' +
+    '<div id="co-geo-status" style="margin-bottom:0.85rem"></div>' +
     '<div style="margin-bottom:1.2rem;padding:0.9rem;border:1px solid rgba(107,63,212,0.14);border-radius:12px;background:#fcfbff">' +
     '<label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.65rem">Payment method *</label>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.45rem">' +
@@ -1883,6 +2047,7 @@ async function checkout() {
   document.body.appendChild(modal);
   installCheckoutPaymentUi();
   void hydrateCheckoutYasmineNotice();
+  requestCheckoutGeolocation();
 }
 
 function showForgotPassword() {
@@ -1956,6 +2121,9 @@ function stripYasmineOrderFields(o) {
   delete x.original_vendor_id;
   delete x.estimated_ready_at;
   delete x.yasmine_meta;
+  delete x.customer_lat;
+  delete x.customer_lng;
+  delete x.checkout_geo_captured_at;
   return x;
 }
 
@@ -2150,6 +2318,11 @@ async function submitOrder() {
         tracking_number: trackingRef,
       };
       Object.assign(baseOrderPayload, yx);
+      if (State.checkoutGeo && State.checkoutGeo.lat != null && State.checkoutGeo.lng != null) {
+        baseOrderPayload.customer_lat = State.checkoutGeo.lat;
+        baseOrderPayload.customer_lng = State.checkoutGeo.lng;
+        baseOrderPayload.checkout_geo_captured_at = State.checkoutGeo.capturedAt || new Date().toISOString();
+      }
 
       var extendedOrderPayload = Object.assign({}, baseOrderPayload, {
         payment_method: paymentMethod,
@@ -2212,6 +2385,7 @@ async function submitOrder() {
 
     document.getElementById('checkout-modal').remove();
     State.pendingGift = null;
+    State.checkoutGeo = null;
     State.cart = [];
     State.promoApplied = null;
     STN.DB.set('cart', []);
@@ -3169,6 +3343,7 @@ async function doLogin() {
     await healCurrentUserFromSupabase();
     STN.DB.set('currentUser', State.currentUser);
     updateNavUser();
+    everestFCMRefreshUserToken();
     toast(`✦ Welcome back, ${State.currentUser.firstName || local.firstName}!`, 'success');
     if (State.currentUser.role === 'admin') showPage('admin');
     else if (State.currentUser.role === 'hub') showPage('hub');
@@ -3197,6 +3372,7 @@ async function doLogin() {
     await healCurrentUserFromSupabase();
     STN.DB.set('currentUser', State.currentUser);
     updateNavUser();
+    everestFCMRefreshUserToken();
     toast(`✦ Welcome back, ${user.first_name}!`, 'success');
     if (user.role === 'admin') showPage('admin');
     else if (user.role === 'hub') showPage('hub');
