@@ -2280,6 +2280,14 @@ async function submitOrder() {
     var customerNotes = [];
     var createdOrders = [];
     var lastCreateErr = null;
+    var checkoutGeoPatch = null;
+    if (State.checkoutGeo && State.checkoutGeo.lat != null && State.checkoutGeo.lng != null) {
+      checkoutGeoPatch = {
+        customer_lat: State.checkoutGeo.lat,
+        customer_lng: State.checkoutGeo.lng,
+        checkout_geo_captured_at: State.checkoutGeo.capturedAt || new Date().toISOString(),
+      };
+    }
 
     for (var gi = 0; gi < groups.length; gi++) {
       var g = groups[gi];
@@ -2318,11 +2326,7 @@ async function submitOrder() {
         tracking_number: trackingRef,
       };
       Object.assign(baseOrderPayload, yx);
-      if (State.checkoutGeo && State.checkoutGeo.lat != null && State.checkoutGeo.lng != null) {
-        baseOrderPayload.customer_lat = State.checkoutGeo.lat;
-        baseOrderPayload.customer_lng = State.checkoutGeo.lng;
-        baseOrderPayload.checkout_geo_captured_at = State.checkoutGeo.capturedAt || new Date().toISOString();
-      }
+      // Checkout GPS is PATCHed after insert so missing DB columns cannot block order creation.
 
       var extendedOrderPayload = Object.assign({}, baseOrderPayload, {
         payment_method: paymentMethod,
@@ -2347,7 +2351,7 @@ async function submitOrder() {
         } catch (createErr) {
           lastCreateErr = createErr;
           var msg = String(createErr && createErr.message ? createErr.message : '');
-          if (/column|schema|could not find|PGRST/i.test(msg)) {
+          if (/column|schema|could not find|42703|PGRST/i.test(msg)) {
             try {
               order = await SB.createOrder(stripYasmineOrderFields(payloadsToTry[pi]));
               lastCreateErr = null;
@@ -2360,6 +2364,16 @@ async function submitOrder() {
       }
       if (order) {
         if (!order.tracking_number && trackingRef) order.tracking_number = trackingRef;
+        if (checkoutGeoPatch && order.id != null) {
+          try {
+            var geoUpdated = await SB.updateOrder(order.id, checkoutGeoPatch);
+            if (geoUpdated && typeof geoUpdated === 'object') Object.assign(order, geoUpdated);
+            else Object.assign(order, checkoutGeoPatch);
+          } catch (geoErr) {
+            var geoMsg = String(geoErr && geoErr.message ? geoErr.message : '');
+            if (typeof STNLog !== 'undefined') STNLog.warn('checkout.geoPatch', geoMsg.slice(0, 220));
+          }
+        }
         createdOrders.push(order);
       }
     }
