@@ -1,6 +1,7 @@
 // ── SUPABASE CONFIG ──
 // Public anon key: safe to ship in the browser only if Row Level Security (RLS) policies protect all tables.
 // Never commit a service_role key. Prefer env injection at build time for non-demo apps.
+// SQL migrations must be run on this same project (ref kmwqffaphhcbzboiwosj) or the DB schema and app will disagree.
 const SUPABASE_URL = 'https://kmwqffaphhcbzboiwosj.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imttd3FmZmFwaGhjYnpib2l3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNDEwNDgsImV4cCI6MjA4ODkxNzA0OH0.aaMK_w3SH8vHBOjjbcH5yO04Bxjgfn4azeePUzAUYjM';
 
