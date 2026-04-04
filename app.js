@@ -531,11 +531,11 @@ function updateNavUser() {
       el.style.color = 'white';
       el.textContent = navLabelForHeader('Admin Dashboard', 'Admin');
       el.onclick = function(){ showPage('admin'); };
-    } else if (role === 'vendor') {
+    }     else if (role === 'vendor') {
       el.style.background = 'linear-gradient(135deg,#059669,#047857)';
       el.style.color = 'white';
       el.textContent = navLabelForHeader('My Dashboard', 'Dashboard');
-      el.onclick = function(){ showPage('vendor'); };
+      el.onclick = function(){ showVendorHubOrOnboarding(); };
     } else if (role === 'driver') {
       el.style.background = 'linear-gradient(135deg,#0ea5e9,#0369a1)';
       el.style.color = 'white';
@@ -642,6 +642,7 @@ function showPage(id) {
     loyalty: renderLoyalty,
     about: renderAbout,
     'gift-checkout': renderGiftCheckout,
+    'vendor-hours': renderVendorHoursOnboarding,
   };
   
   console.log('🔄 Available renderers:', Object.keys(renderers));
@@ -708,7 +709,7 @@ function mobileNavAccount() {
   }
   var role = State.currentUser.role;
   if (role === 'admin') showPage('admin');
-  else if (role === 'vendor') showPage('vendor');
+  else if (role === 'vendor') showVendorHubOrOnboarding();
   else if (role === 'driver') showPage('driver');
   else showPage('account');
 }
@@ -718,7 +719,7 @@ function syncBottomNavActive(pageId) {
   if (!nav) return;
   nav.querySelectorAll('.bottom-nav__btn').forEach(function (b) { b.classList.remove('active'); });
   var map = { home: 'bottomnav-home', products: 'bottomnav-products', track: 'bottomnav-track' };
-  var accountPages = { account: 1, auth: 1, vendor: 1, admin: 1, 'vendor-dashboard': 1, driver: 1 };
+  var accountPages = { account: 1, auth: 1, vendor: 1, 'vendor-hours': 1, admin: 1, 'vendor-dashboard': 1, driver: 1 };
   if (accountPages[pageId]) {
     var acc = document.getElementById('bottomnav-account');
     if (acc) acc.classList.add('active');
@@ -1637,6 +1638,7 @@ async function checkout() {
     ' TND</strong></p>' +
     giftSummaryHtml +
     buyerBlock +
+    '<div id="co-yasmine-notice" style="margin-bottom:1rem"></div>' +
     '<div style="margin-bottom:1.2rem;padding:0.9rem;border:1px solid rgba(107,63,212,0.14);border-radius:12px;background:#fcfbff">' +
     '<label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.65rem">Payment method *</label>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.45rem">' +
@@ -1654,6 +1656,7 @@ async function checkout() {
     '</div>';
   document.body.appendChild(modal);
   installCheckoutPaymentUi();
+  void hydrateCheckoutYasmineNotice();
 }
 
 function showForgotPassword() {
@@ -1728,6 +1731,48 @@ function stripYasmineOrderFields(o) {
   delete x.estimated_ready_at;
   delete x.yasmine_meta;
   return x;
+}
+
+async function hydrateCheckoutYasmineNotice() {
+  var el = document.getElementById('co-yasmine-notice');
+  var btn = document.getElementById('co-submit-btn');
+  if (!el || typeof EverestYasmineRouting === 'undefined') return;
+  var groups = groupCartByVendor(State.cart);
+  var blocks = [];
+  var anyPreorder = false;
+  for (var i = 0; i < groups.length; i++) {
+    var g = groups[i];
+    try {
+      var ex = await EverestYasmineRouting.buildOrderExtraForGroup(g.items, State.products || [], State.products || []);
+      if (ex.yasmine_routing_status === 'preorder') {
+        anyPreorder = true;
+        var rd = ex.estimated_ready_at ? new Date(ex.estimated_ready_at) : null;
+        var ds =
+          rd && !isNaN(rd.getTime())
+            ? rd.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })
+            : '';
+        var note = ex.customerNote ? String(ex.customerNote) : '';
+        blocks.push(
+          '<div style="padding:0.65rem 0.75rem;border-radius:10px;background:#fffbeb;border:1px solid #fde68a;font-size:0.78rem;color:#92400e;line-height:1.45">📅 <strong>Pre-order</strong> for one seller' +
+            (ds ? ' — estimated ready by <strong>' + escHtml(ds) + '</strong>.' : '.') +
+            (note ? '<br/><span style="opacity:0.95">' + escHtml(note) + '</span>' : '') +
+            '</div>'
+        );
+      } else if (ex.yasmine_routing_status === 'pending_acceptance') {
+        blocks.push(
+          '<div style="padding:0.55rem 0.75rem;border-radius:10px;background:#f0fdf4;border:1px solid #bbf7d0;font-size:0.76rem;color:#166534;line-height:1.4">⚡ This seller can accept within ~15 minutes (in service).</div>'
+        );
+      }
+    } catch (e) {}
+  }
+  el.innerHTML =
+    blocks.length > 0
+      ? '<p style="font-size:0.7rem;font-weight:700;color:#7b72a8;margin:0 0 0.5rem;letter-spacing:0.06em;text-transform:uppercase">Delivery timing</p>' +
+        blocks.join('')
+      : '';
+  if (btn) {
+    btn.textContent = anyPreorder ? 'Pay & place pre-order ✦' : 'Pay & Place Order ✦';
+  }
 }
 
 async function submitOrder() {
@@ -2445,18 +2490,20 @@ async function openProductDetail(productId) {
         </div>
         <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.8;margin-bottom:1.5rem">${p.desc}</p>
         <div id="detail-delivery-hint" style="font-size:0.78rem;font-weight:600;margin-bottom:0.45rem;color:var(--success)">Loading delivery estimate…</div>
-        <div id="detail-shop-hours" style="font-size:0.72rem;color:var(--text-muted);margin-bottom:1rem;line-height:1.45"></div>
+        <div id="detail-shop-hours" style="font-size:0.72rem;color:var(--text-muted);margin-bottom:0.5rem;line-height:1.45"></div>
+        <div id="detail-preorder-note" style="display:none;font-size:0.75rem;color:#92400e;margin-bottom:1rem;padding:0.55rem 0.65rem;background:#fffbeb;border-radius:8px;border:1px solid #fde68a;line-height:1.45"></div>
         ${p.specs ? `
         <div style="margin-bottom:1.5rem">
           ${Object.entries(p.specs).map(([k,v]) => `<div class="spec-row"><span class="spec-key">${k.charAt(0).toUpperCase()+k.slice(1)}</span><span class="spec-val">${v}</span></div>`).join('')}
         </div>` : ''}
-        <div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:1.2rem">
+        <div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:1.2rem;flex-wrap:wrap">
           <div class="qty-selector">
             <button class="qty-btn" onclick="changeDetailQty(-1)">−</button>
             <div class="qty-display" id="detail-qty">1</div>
             <button class="qty-btn" onclick="changeDetailQty(1)">+</button>
           </div>
-          <button class="btn btn-gold" style="flex:1" onclick='addToCart(${JSON.stringify(p.id)});closeModal("product-modal")'>Add to Cart</button>
+          <button class="btn btn-gold" style="flex:1;min-width:140px" onclick='addToCart(${JSON.stringify(p.id)});closeModal("product-modal")'>Add to Cart</button>
+          <button type="button" id="detail-preorder-btn" class="btn" style="display:none;flex:1;min-width:140px;background:white;color:#92400e;border:2px solid #fbbf24;font-weight:600" onclick='addToCart(${JSON.stringify(p.id)});closeModal("product-modal");toast("Pre-order — see timing at checkout.", "success")'>Pre-order</button>
           <button class="wishlist-btn ${State.wishlist.some(function (w) { return String(w) === String(p.id); }) ? 'active' : ''}" data-wish="${_detailEscapeAttr(String(p.id))}" onclick='toggleWishlist(${JSON.stringify(p.id)})'>${State.wishlist.some(function (w) { return String(w) === String(p.id); }) ? '♥' : '♡'}</button>
         </div>
         <div style="font-size:0.75rem;color:var(--text-muted)">📦 In stock: ${p.stock} units · 🚚 Free delivery · 🔄 30-day returns</div>
@@ -2507,6 +2554,10 @@ async function openProductDetail(productId) {
       el.textContent = 'Fast Delivery (24h)';
       el.style.color = 'var(--success)';
       if (hoursEl) hoursEl.textContent = '';
+      var pre0 = document.getElementById('detail-preorder-note');
+      var pre0b = document.getElementById('detail-preorder-btn');
+      if (pre0) pre0.style.display = 'none';
+      if (pre0b) pre0b.style.display = 'none';
       return;
     }
     SB.getVendor(String(vid))
@@ -2525,16 +2576,37 @@ async function openProductDetail(productId) {
               hoursEl.style.display = 'none';
             }
           }
+          var preN = document.getElementById('detail-preorder-note');
+          var preB = document.getElementById('detail-preorder-btn');
+          if (h.preorder) {
+            if (preN) {
+              preN.style.display = '';
+              preN.textContent =
+                'Seller is not taking live orders right now. You can still pre-order — checkout shows the estimated ready date.';
+            }
+            if (preB) preB.style.display = '';
+          } else {
+            if (preN) preN.style.display = 'none';
+            if (preB) preB.style.display = 'none';
+          }
         } else {
           el.textContent = 'Fast Delivery (24h)';
           el.style.color = 'var(--success)';
           if (hoursEl) hoursEl.textContent = '';
+          var preN2 = document.getElementById('detail-preorder-note');
+          var preB2 = document.getElementById('detail-preorder-btn');
+          if (preN2) preN2.style.display = 'none';
+          if (preB2) preB2.style.display = 'none';
         }
       })
       .catch(function () {
         el.textContent = 'Fast Delivery (24h)';
         el.style.color = 'var(--success)';
         if (hoursEl) hoursEl.textContent = '';
+        var preN3 = document.getElementById('detail-preorder-note');
+        var preB3 = document.getElementById('detail-preorder-btn');
+        if (preN3) preN3.style.display = 'none';
+        if (preB3) preB3.style.display = 'none';
       });
   })();
 }
@@ -2892,10 +2964,7 @@ async function doLogin() {
     updateNavUser();
     toast(`✦ Welcome back, ${State.currentUser.firstName || local.firstName}!`, 'success');
     if (State.currentUser.role === 'admin') showPage('admin');
-    else if (State.currentUser.role === 'vendor') {
-      void everestSyncVendorDefaults(State.currentUser.id);
-      showPage('vendor');
-    }
+    else if (State.currentUser.role === 'vendor') showVendorHubOrOnboarding();
     else if (State.currentUser.role === 'driver') showPage('driver');
     else showPage('home');
     return;
@@ -2922,10 +2991,7 @@ async function doLogin() {
     updateNavUser();
     toast(`✦ Welcome back, ${user.first_name}!`, 'success');
     if (user.role === 'admin') showPage('admin');
-    else if (user.role === 'vendor') {
-      void everestSyncVendorDefaults(State.currentUser.id);
-      showPage('vendor');
-    }
+    else if (user.role === 'vendor') showVendorHubOrOnboarding();
     else if (user.role === 'driver') showPage('driver');
     else showPage('home');
   } catch(e) {
@@ -3141,7 +3207,8 @@ async function doRegister() {
     if (isVendor) {
       void everestSyncVendorDefaults(State.currentUser.id);
       toast(`✦ Welcome ${shopName}! Your vendor account is pending verification.`, 'success');
-      showPage('vendor');
+      if (needsVendorHoursOnboarding()) showPage('vendor-hours');
+      else showPage('vendor');
     } else if (isDriver) {
       toast(`✦ Welcome, ${fname}! Your documents are under review — you can accept deliveries after an admin verifies you.`, 'success');
       if (insertFallback > 0) {
@@ -5019,55 +5086,127 @@ async function switchAdmin(section) {
       var vendors = merged.filter(function (u) {
         return u.role === 'vendor';
       });
-      var vendorRows = vendors.length === 0
-      ? '<tr><td colspan="7" style="text-align:center;padding:3rem;color:#9ca3af">No vendors yet</td></tr>'
-      : vendors.map(function(v) {
-          var isBanned = v.banned;
-          var isTimedOut = v.timeout_until && new Date(v.timeout_until) > new Date();
-          var timeoutLeft = isTimedOut ? Math.ceil((new Date(v.timeout_until)-new Date())/3600000)+'h left' : '';
-          var vProds = State.products.filter(function(p){ return p.vendorId===v.id || p.brand===(v.shop_name||v.shopName); }).length;
-          var sb = isBanned ? '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#fee2e2;color:#dc2626">Banned</span>'
-            : isTimedOut ? '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#fef3c7;color:#d97706">Timeout '+timeoutLeft+'</span>'
-            : v.verified ? '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#dcfce7;color:#166534">Approved</span>'
-            : '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#fef9c3;color:#92400e">Pending</span>';
-          var act = '';
-          if (!v.verified && !isBanned) act += '<button data-action="approve" data-id="'+v.id+'" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;margin-right:0.3rem">Approve</button>';
-          act += isBanned
-            ? '<button data-action="unban" data-id="'+v.id+'" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer">Unban</button>'
-            : '<button data-action="timeout" data-id="'+v.id+'" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;margin-right:0.3rem">Timeout</button><button data-action="ban" data-id="'+v.id+'" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;margin-right:0.3rem">Ban</button>';
-          act +=
-            '<button data-action="delete-account" data-id="' +
-            v.id +
-            '" style="background:#0f172a;color:#fff;border:none;padding:0.25rem 0.55rem;border-radius:6px;font-size:0.68rem;cursor:pointer;font-weight:700">Delete</button>';
-          return '<tr style="border-top:1px solid #f3f4f6'+(isBanned?';background:#fff5f5':'')+'">'
-            +'<td style="padding:0.75rem 1rem;font-size:0.82rem;font-weight:600;color:'+(isBanned?'#ef4444':'#111827')+'">'+(v.first_name||v.firstName||'')+' '+(v.last_name||v.lastName||'')+(isTimedOut?' <small style="color:#f59e0b">'+timeoutLeft+'</small>':'')+'</td>'
-            +'<td style="padding:0.75rem 1rem;font-size:0.78rem;color:#6b7280">'+v.email+'</td>'
-            +'<td style="padding:0.75rem 1rem;font-size:0.78rem;font-weight:600;color:#374151">'+(v.shop_name||v.shopName||'-')+'</td>'
-            +'<td style="padding:0.75rem 1rem;font-size:0.78rem;color:#374151">'+(v.wilaya||'-')+'</td>'
-            +'<td style="padding:0.75rem 1rem;font-size:0.78rem;font-weight:600;color:#7c3aed">'+vProds+'</td>'
-            +'<td style="padding:0.75rem 1rem">'+sb+'</td>'
-            +'<td style="padding:0.75rem 1rem">'+act+'</td>'
-            +'</tr>';
-        }).join('');
-      pane.innerHTML =
-        '<div><div style="margin-bottom:1.5rem"><h1 style="font-size:1.5rem;font-weight:700;color:#111827">Vendors</h1><p style="color:#6b7280;font-size:0.875rem">' +
-        vendors.length +
-        ' vendors · <strong>Approve</strong> pending shops, or <strong>Ban</strong> to reject.</p></div><div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f9fafb"><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Vendor</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Email</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Shop</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Wilaya</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Products</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Status</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Actions</th></tr></thead><tbody>' +
-        vendorRows +
-        '</tbody></table></div></div></div>';
-      var vtbl = pane.querySelector('table');
-      if (vtbl)
-        vtbl.addEventListener('click', function (e) {
-          var b = e.target.closest('[data-action]');
-          if (!b) return;
-          var id = b.dataset.id,
-            action = b.dataset.action;
-          if (action === 'approve') verifyVendor(id);
-          else if (action === 'ban') banUser(id);
-          else if (action === 'timeout') timeoutUser(id);
-          else if (action === 'unban') unbanUser(id);
-          else if (action === 'delete-account') adminDeleteUserAccount(id);
-        });
+      if (vendors.length === 0) {
+        pane.innerHTML =
+          '<div><div style="margin-bottom:1.5rem"><h1 style="font-size:1.5rem;font-weight:700;color:#111827">Vendors</h1><p style="color:#6b7280;font-size:0.875rem">0 vendors · <strong>Approve</strong> pending shops, or <strong>Ban</strong> to reject.</p></div><div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f9fafb"><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Vendor</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Email</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Shop</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Wilaya</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Products</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Hours &amp; service</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Status</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Actions</th></tr></thead><tbody><tr><td colspan="8" style="text-align:center;padding:3rem;color:#9ca3af">No vendors yet</td></tr></tbody></table></div></div></div>';
+        return;
+      }
+      Promise.all(
+        vendors.map(function (v) {
+          return (async function () {
+            var isBanned = v.banned;
+            var isTimedOut = v.timeout_until && new Date(v.timeout_until) > new Date();
+            var timeoutLeft = isTimedOut ? Math.ceil((new Date(v.timeout_until) - new Date()) / 3600000) + 'h left' : '';
+            var vProds = State.products.filter(function (p) {
+              return p.vendorId === v.id || p.brand === (v.shop_name || v.shopName);
+            }).length;
+            var sb = isBanned
+              ? '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#fee2e2;color:#dc2626">Banned</span>'
+              : isTimedOut
+              ? '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#fef3c7;color:#d97706">Timeout ' + timeoutLeft + '</span>'
+              : v.verified
+              ? '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#dcfce7;color:#166534">Approved</span>'
+              : '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#fef9c3;color:#92400e">Pending</span>';
+            var act = '';
+            if (!v.verified && !isBanned)
+              act +=
+                '<button data-action="approve" data-id="' +
+                v.id +
+                '" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;margin-right:0.3rem">Approve</button>';
+            act += isBanned
+              ? '<button data-action="unban" data-id="' +
+                v.id +
+                '" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer">Unban</button>'
+              : '<button data-action="timeout" data-id="' +
+                v.id +
+                '" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;margin-right:0.3rem">Timeout</button><button data-action="ban" data-id="' +
+                v.id +
+                '" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;margin-right:0.3rem">Ban</button>';
+            act +=
+              '<button data-action="delete-account" data-id="' +
+              v.id +
+              '" style="background:#0f172a;color:#fff;border:none;padding:0.25rem 0.55rem;border-radius:6px;font-size:0.68rem;cursor:pointer;font-weight:700">Delete</button>';
+            var hoursCell = '—';
+            try {
+              if (typeof SB !== 'undefined' && SB.getVendor) {
+                var vr = await SB.getVendor(String(v.id));
+                if (vr) {
+                  var fmt =
+                    typeof EverestYasmineRouting !== 'undefined' && EverestYasmineRouting.formatWeeklyScheduleForBuyer
+                      ? EverestYasmineRouting.formatWeeklyScheduleForBuyer(vr.weekly_schedule || {})
+                      : '';
+                  var st = (vr.service_status || '—').toString();
+                  hoursCell =
+                    '<div style="font-size:0.65rem;color:#374151;line-height:1.35;max-width:260px">' +
+                    (fmt ? escHtml(fmt) : '<span style="color:#9ca3af">No schedule</span>') +
+                    '</div><div style="font-size:0.6rem;color:#6b7280;margin-top:0.25rem">In/Out: <strong>' +
+                    escHtml(st) +
+                    '</strong></div>';
+                }
+              }
+            } catch (eh) {}
+            return (
+              '<tr style="border-top:1px solid #f3f4f6' +
+              (isBanned ? ';background:#fff5f5' : '') +
+              '">' +
+              '<td style="padding:0.75rem 1rem;font-size:0.82rem;font-weight:600;color:' +
+              (isBanned ? '#ef4444' : '#111827') +
+              '">' +
+              (v.first_name || v.firstName || '') +
+              ' ' +
+              (v.last_name || v.lastName || '') +
+              (isTimedOut ? ' <small style="color:#f59e0b">' + timeoutLeft + '</small>' : '') +
+              '</td>' +
+              '<td style="padding:0.75rem 1rem;font-size:0.78rem;color:#6b7280">' +
+              escHtml(v.email || '') +
+              '</td>' +
+              '<td style="padding:0.75rem 1rem;font-size:0.78rem;font-weight:600;color:#374151">' +
+              escHtml(v.shop_name || v.shopName || '-') +
+              '</td>' +
+              '<td style="padding:0.75rem 1rem;font-size:0.78rem;color:#374151">' +
+              escHtml(v.wilaya || '-') +
+              '</td>' +
+              '<td style="padding:0.75rem 1rem;font-size:0.78rem;font-weight:600;color:#7c3aed">' +
+              vProds +
+              '</td>' +
+              '<td style="padding:0.75rem 1rem;vertical-align:top">' +
+              hoursCell +
+              '</td>' +
+              '<td style="padding:0.75rem 1rem">' +
+              sb +
+              '</td>' +
+              '<td style="padding:0.75rem 1rem">' +
+              act +
+              '</td>' +
+              '</tr>'
+            );
+          })();
+        })
+      ).then(function (rows) {
+        var pane2 = document.getElementById('admin-content');
+        var navV2 = document.getElementById('adm-nav-vendors');
+        if (!pane2 || !navV2 || !navV2.classList.contains('adm-active')) return;
+        var vendorRows = rows.join('');
+        pane2.innerHTML =
+          '<div><div style="margin-bottom:1.5rem"><h1 style="font-size:1.5rem;font-weight:700;color:#111827">Vendors</h1><p style="color:#6b7280;font-size:0.875rem">' +
+          vendors.length +
+          ' vendors · Weekly hours and In/Out status come from each seller profile (Yasmine).</p></div><div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f9fafb"><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Vendor</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Email</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Shop</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Wilaya</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Products</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Hours &amp; service</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Status</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Actions</th></tr></thead><tbody>' +
+          vendorRows +
+          '</tbody></table></div></div></div>';
+        var vtbl = pane2.querySelector('table');
+        if (vtbl)
+          vtbl.addEventListener('click', function (e) {
+            var b = e.target.closest('[data-action]');
+            if (!b) return;
+            var id = b.dataset.id,
+              action = b.dataset.action;
+            if (action === 'approve') verifyVendor(id);
+            else if (action === 'ban') banUser(id);
+            else if (action === 'timeout') timeoutUser(id);
+            else if (action === 'unban') unbanUser(id);
+            else if (action === 'delete-account') adminDeleteUserAccount(id);
+          });
+      });
     });
   }
 }
@@ -5795,6 +5934,10 @@ async function saveEverestVendorSchedule(containerId) {
       updated_at: new Date().toISOString(),
     });
     toast('Weekly hours saved. Shoppers will see this on your products.', 'success');
+    if (containerId === 'vendor-onboarding-service-panel') {
+      markVendorHoursOnboardingDone();
+      showPage('vendor');
+    }
   } catch (e2) {
     toast('Could not save hours. Run the Yasmine SQL migration in Supabase.', 'error');
   }
@@ -5802,9 +5945,70 @@ async function saveEverestVendorSchedule(containerId) {
 }
 
 function refreshEverestVendorServiceMounts() {
-  ['vendor-yasmine-service-panel', 'vendor-overview-service-panel', 'vendor-hours-service-panel', 'account-vendor-service-panel'].forEach(function (tid) {
+  [
+    'vendor-yasmine-service-panel',
+    'vendor-overview-service-panel',
+    'vendor-hours-service-panel',
+    'account-vendor-service-panel',
+    'vendor-onboarding-service-panel',
+  ].forEach(function (tid) {
     if (document.getElementById(tid)) void mountEverestVendorServiceUI(tid);
   });
+}
+
+function vendorHoursOnboardingStorageKey(uid) {
+  return 'stn_vendor_hours_done_' + String(uid);
+}
+
+function needsVendorHoursOnboarding() {
+  if (!State.currentUser || State.currentUser.role !== 'vendor') return false;
+  try {
+    return !localStorage.getItem(vendorHoursOnboardingStorageKey(State.currentUser.id));
+  } catch (e) {
+    return false;
+  }
+}
+
+function markVendorHoursOnboardingDone() {
+  if (!State.currentUser || State.currentUser.id == null) return;
+  try {
+    localStorage.setItem(vendorHoursOnboardingStorageKey(State.currentUser.id), '1');
+  } catch (e) {}
+}
+
+function finishVendorHoursOnboardingSkip() {
+  markVendorHoursOnboardingDone();
+  showPage('vendor');
+}
+
+/** After login / nav: sync vendor row then Seller hub or first-time hours page. */
+function showVendorHubOrOnboarding() {
+  if (!State.currentUser || State.currentUser.role !== 'vendor') return;
+  void everestSyncVendorDefaults(State.currentUser.id);
+  if (needsVendorHoursOnboarding()) showPage('vendor-hours');
+  else showPage('vendor');
+}
+
+function renderVendorHoursOnboarding() {
+  if (!State.currentUser || State.currentUser.role !== 'vendor') {
+    showPage('auth');
+    return;
+  }
+  var page = document.getElementById('page-vendor-hours');
+  if (!page) return;
+  page.innerHTML =
+    '<div style="background:linear-gradient(180deg,#f8f7ff 0%,#fff 42%);min-height:100vh;padding:2rem 1.25rem 3rem">' +
+    '<div style="max-width:720px;margin:0 auto">' +
+    '<p style="font-size:0.72rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#7c3aed;margin:0 0 0.75rem">Seller setup</p>' +
+    '<h1 style="font-family:Cormorant Garamond,Georgia,serif;font-size:2rem;color:#1e0a4e;margin:0 0 0.65rem;font-weight:600">When you are open</h1>' +
+    '<p style="color:#6b7280;font-size:0.9rem;line-height:1.55;margin:0 0 1.5rem;border-bottom:1px solid #f3f4f6;padding-bottom:1.25rem">Set your weekly hours and In/Out service. Shoppers see this on your products; admins see your schedule here. You can edit anytime in Seller hub.</p>' +
+    '<div id="vendor-onboarding-service-panel"></div>' +
+    '<div style="margin-top:1.5rem;display:flex;flex-wrap:wrap;gap:0.65rem;align-items:center">' +
+    '<button type="button" onclick="finishVendorHoursOnboardingSkip()" style="background:white;color:#6b7280;border:1px solid #e5e7eb;padding:0.7rem 1.25rem;border-radius:10px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif">Continue to Seller Hub</button>' +
+    '<span style="font-size:0.72rem;color:#9ca3af">Saving weekly hours also takes you to Seller hub.</span>' +
+    '</div></div></div>';
+  void everestSyncVendorDefaults(State.currentUser.id);
+  void mountEverestVendorServiceUI('vendor-onboarding-service-panel');
 }
 
 // ── VENDOR DASHBOARD (PROFESSIONAL) ──
@@ -6535,17 +6739,17 @@ function scrollToVendorAnalyticsAnchor() {
 }
 
 function viewAllOrders() {
-  showPage('vendor');
+  showVendorHubOrOnboarding();
   setTimeout(function () {
-    switchVendorSection('orders');
-  }, 80);
+    if (State.currentPage === 'vendor') switchVendorSection('orders');
+  }, 120);
 }
 
 function addProduct() {
-  showPage('vendor');
+  showVendorHubOrOnboarding();
   setTimeout(function () {
-    switchVendorSection('upload');
-  }, 80);
+    if (State.currentPage === 'vendor') switchVendorSection('upload');
+  }, 120);
 }
 
 function viewAnalytics() {

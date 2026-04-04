@@ -42,8 +42,51 @@ var EverestYasmineRouting = (function () {
     return !!(row && row.service_status === 'active');
   }
 
+  /** True when seller is In Service and current local time is inside their weekly open/close window. */
+  function timeToMinutes(t) {
+    var s = String(t || '08:00').trim();
+    var parts = s.split(':');
+    var h = parseInt(parts[0], 10);
+    var m = parseInt(parts[1], 10);
+    if (isNaN(h)) h = 0;
+    if (isNaN(m)) m = 0;
+    return Math.min(24 * 60 - 1, Math.max(0, h * 60 + m));
+  }
+
   function dayKeys() {
     return ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+  }
+
+  function getDayScheduleFor(sched, dk) {
+    if (!sched || typeof sched !== 'object') return null;
+    return (
+      sched[dk] ||
+      sched[dk.toUpperCase()] ||
+      sched[dk.charAt(0).toUpperCase() + dk.slice(1)] ||
+      null
+    );
+  }
+
+  function isVendorWithinWeeklyHours(weeklySchedule, atDate) {
+    var sched = weeklySchedule && typeof weeklySchedule === 'object' ? weeklySchedule : {};
+    var d = atDate ? new Date(atDate) : new Date();
+    if (isNaN(d.getTime())) d = new Date();
+    var dk = dayKeys()[d.getDay()];
+    var day = getDayScheduleFor(sched, dk);
+    if (!day || day.closed) return false;
+    var oMin = timeToMinutes(day.open || day.start || '08:00');
+    var cMin = timeToMinutes(day.close || day.end || '16:00');
+    if (cMin <= oMin) return false;
+    var nowMin = d.getHours() * 60 + d.getMinutes();
+    return nowMin >= oMin && nowMin <= cMin;
+  }
+
+  /** In Service + inside weekly hours (15‑min SOS). Away / break / closed day or after hours → pre-order path. */
+  function vendorImmediateSosEligible(row) {
+    if (!row) return false;
+    if (row.service_status === 'away' || row.service_status === 'scheduled_break') return false;
+    if (row.service_status !== 'active') return false;
+    return isVendorWithinWeeklyHours(row.weekly_schedule, new Date());
   }
 
   /** Default: Mon–Fri 08:00–16:00 open; Sat–Sun closed (vendors can change in the app). */
@@ -84,7 +127,7 @@ var EverestYasmineRouting = (function () {
     return parts.join(' · ');
   }
 
-  /** Next calendar moment when vendor is "open" per weekly_schedule + 24h processing buffer. */
+  /** Next estimated ready time: next time seller can process + 24h buffer (pre-order). */
   function estimatedReadyFromSchedule(weeklySchedule, fromDate) {
     var sched = weeklySchedule && typeof weeklySchedule === 'object' ? weeklySchedule : {};
     var start = fromDate ? new Date(fromDate) : new Date();
@@ -93,21 +136,41 @@ var EverestYasmineRouting = (function () {
     for (var d = 0; d < 14; d++) {
       var probe = new Date(start.getTime() + d * 86400000);
       var dk = keys[probe.getDay()];
-      var day = sched[dk] || sched[dk.toUpperCase()] || sched[dk.charAt(0).toUpperCase() + dk.slice(1)];
-      if (day && day.closed) continue;
-      if (day && (day.open || day.start)) {
-        var ready = new Date(probe.getFullYear(), probe.getMonth(), probe.getDate(), 12, 0, 0, 0);
-        ready.setTime(ready.getTime() + PROCESSING_MS);
-        return ready;
+      var day = getDayScheduleFor(sched, dk);
+      if (!day || day.closed) continue;
+      if (!(day.open || day.start || day.close || day.end)) continue;
+      var oMin = timeToMinutes(day.open || day.start || '08:00');
+      var cMin = timeToMinutes(day.close || day.end || '16:00');
+      if (cMin <= oMin) continue;
+      var y = probe.getFullYear();
+      var mo = probe.getMonth();
+      var dayNum = probe.getDate();
+      var midnight = new Date(y, mo, dayNum, 0, 0, 0, 0).getTime();
+      var dayStartMs = midnight + oMin * 60000;
+      var dayEndMs = midnight + cMin * 60000;
+      var t = start.getTime();
+      if (d === 0) {
+        if (t < dayStartMs) return new Date(dayStartMs + PROCESSING_MS);
+        if (t >= dayStartMs && t <= dayEndMs) return new Date(t + PROCESSING_MS);
+        continue;
       }
+      return new Date(dayStartMs + PROCESSING_MS);
     }
-    var fallback = new Date(start.getTime() + 48 * 3600000 + PROCESSING_MS);
-    return fallback;
+    return new Date(start.getTime() + 48 * 3600000 + PROCESSING_MS);
   }
 
   function preorderMessage(readyDate) {
-    var ds = readyDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-    return 'Pre-order now. Ready by ' + ds;
+    var ds = readyDate.toLocaleDateString(undefined, {
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    return (
+      'Pre-order: this seller is closed or out of service right now. Estimated ready by ' +
+      ds +
+      '. Need it faster? Remove their items or shop another seller.'
+    );
   }
 
   async function getVendorRow(vendorId) {
@@ -177,7 +240,7 @@ var EverestYasmineRouting = (function () {
     var candidates = findAlternateVendorIds(allProducts, skuDnas, excludeId);
     for (var i = 0; i < candidates.length; i++) {
       var vr = await getVendorRow(candidates[i]);
-      if (vendorIsActive(vr)) return candidates[i];
+      if (vendorImmediateSosEligible(vr)) return candidates[i];
     }
     return null;
   }
@@ -210,7 +273,7 @@ var EverestYasmineRouting = (function () {
     var vrow = await ensureVendorRow(primaryVid);
     var meta = { sku_dnas: skuDnas, primary_vendor: String(primaryVid) };
 
-    if (vendorIsActive(vrow)) {
+    if (vendorImmediateSosEligible(vrow)) {
       var dl = new Date(Date.now() + ACCEPT_MS).toISOString();
       return {
         vendor_id: String(primaryVid),
@@ -390,22 +453,29 @@ var EverestYasmineRouting = (function () {
     ensureProductSku(product);
     var hoursLine = formatWeeklyScheduleForBuyer(vendorRow && vendorRow.weekly_schedule);
     if (!vendorRow) {
-      return { text: 'Fast Delivery (24h)', tone: 'ok', hoursLine: hoursLine };
+      return { text: 'Fast Delivery (24h)', tone: 'ok', hoursLine: hoursLine, preorder: false };
     }
-    if (vendorIsActive(vendorRow)) {
-      return { text: 'Fast Delivery (24h)', tone: 'ok', hoursLine: hoursLine };
+    if (vendorImmediateSosEligible(vendorRow)) {
+      return {
+        text: 'Fast dispatch — seller is in service now (within their hours).',
+        tone: 'ok',
+        hoursLine: hoursLine,
+        preorder: false,
+      };
     }
     var sched = vendorRow.weekly_schedule;
     var hasSched = sched && typeof sched === 'object' && Object.keys(sched).length > 0;
-    if (hasSched) {
-      var r = estimatedReadyFromSchedule(sched, new Date());
-      return {
-        text: 'Delayed Delivery — Ready on ' + r.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
-        tone: 'warn',
-        hoursLine: hoursLine,
-      };
-    }
-    return { text: 'Processing starts in 48h — ask for availability', tone: 'muted', hoursLine: hoursLine };
+    var r = hasSched ? estimatedReadyFromSchedule(sched, new Date()) : new Date(Date.now() + 48 * 3600000 + PROCESSING_MS);
+    var ds = r.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+    return {
+      text:
+        'Pre-order — seller is out of service or outside their hours. Typical ready by ' +
+        ds +
+        '.',
+      tone: 'warn',
+      hoursLine: hoursLine,
+      preorder: true,
+    };
   }
 
   var _heartbeat = null;
@@ -421,6 +491,8 @@ var EverestYasmineRouting = (function () {
     ensureProductSku: ensureProductSku,
     computeSkuDna: computeSkuDna,
     vendorIsActive: vendorIsActive,
+    vendorImmediateSosEligible: vendorImmediateSosEligible,
+    isVendorWithinWeeklyHours: isVendorWithinWeeklyHours,
     defaultWeeklySchedule: defaultWeeklySchedule,
     formatWeeklyScheduleForBuyer: formatWeeklyScheduleForBuyer,
     estimatedReadyFromSchedule: estimatedReadyFromSchedule,
