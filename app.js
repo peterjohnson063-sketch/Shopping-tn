@@ -4453,6 +4453,29 @@ function dashTopWilayas(orders, limit) {
     .slice(0, limit || 6);
 }
 
+function _dashTunisiaDateKey(d) {
+  if (!d || isNaN(d.getTime())) return '';
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Africa/Tunis',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(d);
+  } catch (e) {
+    return d.getFullYear() + '-' + (d.getMonth() + 1 < 10 ? '0' : '') + (d.getMonth() + 1) + '-' + (d.getDate() < 10 ? '0' : '') + d.getDate();
+  }
+}
+
+/** Orders whose created_at falls on a given calendar day in Tunisia (Africa/Tunis). */
+function dashOrdersForTunisiaDay(orders, dayKey) {
+  if (!dayKey) dayKey = _dashTunisiaDateKey(new Date());
+  return (orders || []).filter(function (o) {
+    if (!o.created_at) return false;
+    return _dashTunisiaDateKey(new Date(o.created_at)) === dayKey;
+  });
+}
+
 function dashTopVendors(orders, users, limit) {
   var map = {};
   orders.forEach(function (o) {
@@ -4543,6 +4566,11 @@ function buildAdminOverviewHTML(orders, users, products) {
     return (p.stock || 0) < 5;
   }).length;
 
+  var tunisiaToday = _dashTunisiaDateKey(new Date());
+  var todayOrders = dashOrdersForTunisiaDay(orders, tunisiaToday);
+  var todayRev = dashSumRevenue(todayOrders);
+  var todayAov = todayOrders.length ? Math.round(todayRev / Math.max(todayOrders.length, 1)) : 0;
+
   var kpi = [
     {
       label: 'Gross sales (all time)',
@@ -4623,7 +4651,7 @@ function buildAdminOverviewHTML(orders, users, products) {
 
   var topVHtml =
     topV.length === 0
-      ? '<p style="padding:0.5rem 0;color:#7b72a8;font-size:0.8rem">No vendor-attributed orders in the loaded data yet.</p>'
+      ? '<p style="padding:0.5rem 0;color:#7b72a8;font-size:0.8rem">No partner-attributed GMV in this dataset yet — orders need <code>vendor_id</code> / shop linkage.</p>'
       : topV
           .map(function (v) {
             return (
@@ -4662,6 +4690,49 @@ function buildAdminOverviewHTML(orders, users, products) {
       );
     })
     .join('');
+
+  var todayRowsHtml =
+    todayOrders.length === 0
+      ? '<tr><td colspan="5" style="text-align:center;padding:1.5rem;color:#7b72a8">No orders yet today (Tunisia)</td></tr>'
+      : todayOrders
+          .slice()
+          .sort(function (a, b) {
+            return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+          })
+          .slice(0, 24)
+          .map(function (o) {
+            var sb = orderStatusBadge(o.status || 'pending');
+            var partnerLabel = (o.shop_names && String(o.shop_names).trim())
+              ? String(o.shop_names).trim()
+              : (function () {
+                  var vid = o.vendor_id != null ? o.vendor_id : o.vendorId;
+                  if (!vid) return 'Everest';
+                  var u = users.find(function (x) {
+                    return String(x.id) === String(vid);
+                  });
+                  return u
+                    ? String(u.shop_name || u.shopName || u.first_name || 'Partner').substring(0, 36)
+                    : 'Partner #' + vid;
+                })();
+            return (
+              '<tr><td class="dash-pro-mono" style="color:#7c3aed;font-weight:700">' +
+              _dashEscapeHtml(String(o.tracking_number || o.id || '—')) +
+              '</td><td>' +
+              _dashEscapeHtml(String(o.client_name || o.phone || 'Guest')) +
+              '</td><td style="font-size:0.72rem">' +
+              _dashEscapeHtml(partnerLabel) +
+              '</td><td class="dash-pro-mono">' +
+              dashOrderTotal(o).toLocaleString() +
+              ' TND</td><td><span class="dash-pro-pill" style="background:' +
+              sb.bg +
+              ';color:' +
+              sb.fg +
+              '">' +
+              _dashEscapeHtml(sb.label) +
+              '</span></td></tr>'
+            );
+          })
+          .join('');
 
   var recentRows =
     orders.length === 0
@@ -4710,9 +4781,36 @@ function buildAdminOverviewHTML(orders, users, products) {
   return (
     '<div>' +
     '<div style="margin-bottom:1.5rem">' +
-    '<h1 class="dash-pro-hero-title">Marketplace overview</h1>' +
-    '<p class="dash-pro-hero-sub">Figures load from Supabase (orders, users) and your live product catalog. Week-over-week % appears only when the prior week had dated orders — nothing is invented.</p>' +
+    '<h1 class="dash-pro-hero-title">Command center</h1>' +
+    '<p class="dash-pro-hero-sub">Staff-only operations view. <strong>Partner / seller names</strong> appear here for routing — customers only see Everest storefront. Figures load from Supabase; <strong>today</strong> uses Tunisia civil time (Africa/Tunis).</p>' +
     '</div>' +
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.35rem">' +
+    '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);color:#f8fafc;border-radius:14px;padding:1.1rem 1.25rem;border:1px solid rgba(148,163,184,0.25)">' +
+    '<div style="font-size:0.62rem;margin:0 0 0.4rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#94a3b8">Today · Tunisia</div>' +
+    '<div style="font-size:1.65rem;font-weight:800;letter-spacing:-0.02em">' +
+    todayOrders.length +
+    '</div>' +
+    '<div style="font-size:0.72rem;color:#94a3b8;margin-top:0.2rem">orders placed</div></div>' +
+    '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);color:#f8fafc;border-radius:14px;padding:1.1rem 1.25rem;border:1px solid rgba(148,163,184,0.25)">' +
+    '<div style="font-size:0.62rem;margin:0 0 0.4rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#94a3b8">Revenue today</div>' +
+    '<div style="font-size:1.65rem;font-weight:800;letter-spacing:-0.02em">' +
+    todayRev.toLocaleString() +
+    ' TND</div>' +
+    '<div style="font-size:0.72rem;color:#94a3b8;margin-top:0.2rem">AOV ~' +
+    todayAov.toLocaleString() +
+    ' TND</div></div>' +
+    '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);color:#f8fafc;border-radius:14px;padding:1.1rem 1.25rem;border:1px solid rgba(148,163,184,0.25)">' +
+    '<div style="font-size:0.62rem;margin:0 0 0.4rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#94a3b8">Calendar date</div>' +
+    '<div style="font-size:1.05rem;font-weight:800">' +
+    tunisiaToday +
+    '</div>' +
+    '<div style="font-size:0.72rem;color:#94a3b8;margin-top:0.2rem">Africa/Tunis</div></div>' +
+    '</div>' +
+    '<div class="dash-pro-card" style="margin-bottom:1.25rem">' +
+    '<div class="dash-pro-card-h"><span>Today’s orders (Tunisia)</span><button type="button" onclick="window.__admOrdersFilter=\'today\';switchAdmin(\'orders\')">Pipeline · today</button></div>' +
+    '<div class="dash-pro-table-wrap"><table class="dash-pro-table"><thead><tr><th>Tracking</th><th>Customer</th><th>Partner</th><th>Total</th><th>Status</th></tr></thead><tbody>' +
+    todayRowsHtml +
+    '</tbody></table></div></div>' +
     '<div class="dash-pro-kpi-grid">' +
     kpiHtml +
     '</div>' +
@@ -4754,7 +4852,7 @@ function buildAdminOverviewHTML(orders, users, products) {
     ' total</span></div><div style="padding:0 1.2rem 1rem">' +
     funnelRows +
     '</div></div>' +
-    '<div class="dash-pro-card"><div class="dash-pro-card-h"><span>Top vendors by GMV</span><button type="button" onclick="switchAdmin(\'vendors\')">Manage</button></div><div style="padding:0 1.2rem 1rem">' +
+    '<div class="dash-pro-card"><div class="dash-pro-card-h"><span>Top partners by GMV (staff)</span><button type="button" onclick="switchAdmin(\'vendors\')">Manage</button></div><div style="padding:0 1.2rem 1rem">' +
     topVHtml +
     '</div></div>' +
     '<div class="dash-pro-callout">' +
@@ -4767,7 +4865,7 @@ function buildAdminOverviewHTML(orders, users, products) {
     '</div>' +
     '</div></div>' +
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem;margin-top:1.25rem">' +
-    '<div class="dash-pro-card"><div class="dash-pro-card-h"><span>Top SKUs (units)</span></div><div style="padding:0 1.2rem 1rem">' +
+    '<div class="dash-pro-card"><div class="dash-pro-card-h"><span>Top products (units sold)</span></div><div style="padding:0 1.2rem 1rem">' +
     topPHtml +
     '</div></div>' +
     '<div class="dash-pro-card"><div class="dash-pro-card-h"><span>Demand by wilaya</span></div><div style="padding:0 1.2rem 1rem">' +
@@ -4814,7 +4912,7 @@ function buildAdminHTML() {
   return (
     '<div class="dash-pro">' +
     '<div class="dash-pro-topbar">' +
-    '<div class="dash-pro-brand"><span class="dash-pro-brand-mark">●</span> Everest admin</div>' +
+    '<div class="dash-pro-brand"><span class="dash-pro-brand-mark">●</span> Everest command center</div>' +
     '<div class="dash-pro-tabs">' +
     tabsHTML +
     '</div></div>' +
@@ -4858,6 +4956,10 @@ async function switchAdmin(section) {
       if (typeof STNLog !== 'undefined') STNLog.warn('admin.overview.getOrders', e && e.message);
     }
     try {
+      STN.DB.set('orders', orders);
+      State.orders = orders;
+    } catch (ePersist) {}
+    try {
       users = await mergeLocalAndRemoteUsersForAdmin();
     } catch (e2) {
       if (typeof STNLog !== 'undefined') STNLog.warn('admin.overview.mergeUsers', e2 && e2.message);
@@ -4876,9 +4978,10 @@ async function switchAdmin(section) {
   } catch (e) {
     if (typeof STNLog !== 'undefined') STNLog.warn('admin.tab.getOrders', e && e.message);
   }
-
-  const vendors = users.filter(u => u.role === 'vendor');
-  const revenue = dashSumRevenue(orders);
+  try {
+    STN.DB.set('orders', orders);
+    State.orders = orders;
+  } catch (ePersist2) {}
 
   if (section === 'orders') {
     try {
@@ -4886,22 +4989,40 @@ async function switchAdmin(section) {
     } catch (mu) {
       if (typeof STNLog !== 'undefined') STNLog.warn('admin.orders.mergeUsers', mu && mu.message);
     }
+    if (typeof window.__admOrdersFilter === 'undefined') window.__admOrdersFilter = 'today';
+    var admOrdScope = window.__admOrdersFilter === 'all' ? 'all' : 'today';
+    var ordersDisplay =
+      admOrdScope === 'today' ? dashOrdersForTunisiaDay(orders, _dashTunisiaDateKey(new Date())) : orders;
+    var revenueDisp = dashSumRevenue(ordersDisplay);
     var driverUsers = users.filter(function (u) {
       return u.role === 'driver' && isDriverVerified(u);
     });
+    var btnTodayStyle =
+      admOrdScope === 'today'
+        ? 'background:#0f172a;color:#fff;border:1px solid #0f172a;'
+        : 'background:#fff;color:#374151;border:1px solid #e5e7eb;';
+    var btnAllStyle =
+      admOrdScope === 'all'
+        ? 'background:#0f172a;color:#fff;border:1px solid #0f172a;'
+        : 'background:#fff;color:#374151;border:1px solid #e5e7eb;';
     content.innerHTML = `
       <div>
-        <div style="margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between">
+        <div style="margin-bottom:1.25rem;display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:1rem">
           <div>
-            <h1 style="font-size:1.5rem;font-weight:700;color:#111827">Orders</h1>
-            <p style="color:#6b7280;font-size:0.875rem">${orders.length} total orders · ${revenue.toLocaleString()} TND total revenue</p>
+            <h1 style="font-size:1.5rem;font-weight:800;color:#0f172a;margin:0;letter-spacing:-0.02em">Orders pipeline</h1>
+            <p style="color:#64748b;font-size:0.875rem;margin:0.35rem 0 0">${ordersDisplay.length} orders · ${revenueDisp.toLocaleString()} TND · <strong>${admOrdScope === 'today' ? 'Today (Tunisia)' : 'All time'}</strong></p>
+            <p style="font-size:0.72rem;color:#94a3b8;margin:0.4rem 0 0;max-width:40rem">Staff see partner shop names for routing. Customers only see Everest — never individual seller identities on the storefront.</p>
+          </div>
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+            <button type="button" onclick="window.__admOrdersFilter='today';switchAdmin('orders')" style="${btnTodayStyle}padding:0.5rem 1rem;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer">Today · TN</button>
+            <button type="button" onclick="window.__admOrdersFilter='all';switchAdmin('orders')" style="${btnAllStyle}padding:0.5rem 1rem;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer">All time</button>
           </div>
         </div>
         <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
           <div style="overflow-x:auto">
             <table style="width:100%;border-collapse:collapse">
               <thead><tr style="background:#f9fafb">${['Tracking #','Client','Shop','Wilaya / Address','Items','Total','Status','Driver','Date','Action'].map(h=>`<th style="text-align:left;padding:0.75rem 0.875rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap">${h}</th>`).join('')}</tr></thead>
-              <tbody>${orders.length===0?'<tr><td colspan="10" style="text-align:center;padding:3rem;color:#9ca3af">No orders yet</td></tr>':[...orders].reverse().map(o=>{
+              <tbody>${ordersDisplay.length===0?'<tr><td colspan="10" style="text-align:center;padding:3rem;color:#9ca3af">No orders in this view</td></tr>':[...ordersDisplay].reverse().map(o=>{
                 var oid = o.id != null ? o.id : o.tracking_number;
                 var assignedDrv = o.driver_id || o.driverId;
                 var drvOpts = '<option value="">—</option>';
@@ -5219,61 +5340,55 @@ async function switchAdmin(section) {
       };
     });
   } else if (section === 'logistics') {
+    try {
+      var mergedFleet = await mergeLocalAndRemoteUsersForAdmin();
+      window.__adminFleetUsers = mergedFleet;
+    } catch (eFu) {
+      window.__adminFleetUsers = [];
+      if (typeof STNLog !== 'undefined') STNLog.warn('admin.logistics.mergeUsers', eFu && eFu.message);
+    }
     content.innerHTML = `
       <div>
-        <div style="margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between">
+        <div style="margin-bottom:1.25rem;display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:1rem">
           <div>
-            <h1 style="font-size:1.5rem;font-weight:700;color:#111827">🗺️ Live Logistics Map</h1>
-            <p style="color:#6b7280;font-size:0.875rem">Real-time order tracking and delivery management</p>
+            <h1 style="font-size:1.55rem;font-weight:800;color:#0f172a;margin:0;letter-spacing:-0.03em">Live fleet & logistics</h1>
+            <p style="color:#64748b;font-size:0.88rem;margin:0.4rem 0 0;max-width:46rem">Each <strong>vehicle</strong> groups active deliveries by <code>driver_id</code>. Click a truck for driver details, stops, totals, and <strong>hub departure</strong> time. Unassigned active orders show as packages. Staff-only view.</p>
           </div>
-          <div style="display:flex;gap:0.5rem">
-            <button onclick="refreshLogisticsMap()" style="background:#7c3aed;color:white;border:none;padding:0.6rem 1rem;border-radius:8px;font-size:0.8rem;cursor:pointer;font-weight:600">🔄 Refresh</button>
-            <button onclick="centerOnDriver()" style="background:#059669;color:white;border:none;padding:0.6rem 1rem;border-radius:8px;font-size:0.8rem;cursor:pointer;font-weight:600">📍 Center on Driver</button>
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+            <button onclick="refreshLogisticsMap()" style="background:#0f172a;color:white;border:none;padding:0.55rem 1rem;border-radius:10px;font-size:0.8rem;cursor:pointer;font-weight:700">Refresh data</button>
+            <button onclick="centerOnFleet()" style="background:#059669;color:white;border:none;padding:0.55rem 1rem;border-radius:10px;font-size:0.8rem;cursor:pointer;font-weight:700">Fit map</button>
           </div>
         </div>
         <div id="logistics-kpi-row"></div>
-        
-        <!-- Map Container -->
-        <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.08)">
-          <!-- Map Controls -->
-          <div style="background:#f8f9fa;border-bottom:1px solid #e5e7eb;padding:1rem;display:flex;align-items:center;justify-content:space-between">
-            <div style="display:flex;gap:1rem;align-items:center">
-              <span style="font-size:0.85rem;font-weight:600;color:#374151">Orders:</span>
-              <span id="logistics-order-count" style="background:#7c3aed;color:white;padding:0.3rem 0.8rem;border-radius:20px;font-size:0.75rem;font-weight:600">0</span>
+        <div style="background:white;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(15,23,42,0.08)">
+          <div style="background:linear-gradient(90deg,#f8fafc,#eef2ff);border-bottom:1px solid #e5e7eb;padding:0.85rem 1.1rem;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0.75rem">
+            <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
+              <span style="font-size:0.78rem;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.06em">Active legs</span>
+              <span id="logistics-order-count" style="background:#7c3aed;color:white;padding:0.25rem 0.75rem;border-radius:999px;font-size:0.75rem;font-weight:700">0</span>
             </div>
-            <div style="display:flex;gap:1rem;align-items:center">
-              <span style="font-size:0.85rem;font-weight:600;color:#374151">Active:</span>
-              <span id="logistics-active-count" style="background:#059669;color:white;padding:0.3rem 0.8rem;border-radius:20px;font-size:0.75rem;font-weight:600">0</span>
+            <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
+              <span style="font-size:0.78rem;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.06em">Vehicles on map</span>
+              <span id="logistics-active-count" style="background:#059669;color:white;padding:0.25rem 0.75rem;border-radius:999px;font-size:0.75rem;font-weight:700">0</span>
             </div>
           </div>
-          
-          <!-- Map -->
-          <div id="logistics-map" style="height:500px;position:relative;background:#f0f4f8">
-            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:#9ca3af">
+          <div id="logistics-map" style="height:min(520px,70vh);min-height:360px;position:relative;background:#0f172a">
+            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:#94a3b8">
               <div style="font-size:2rem;margin-bottom:0.5rem">🗺️</div>
-              <p style="font-size:0.9rem;">Loading interactive map...</p>
-              <p style="font-size:0.75rem;color:#6b7280;margin-top:0.5rem">Orders with coordinates will appear here</p>
+              <p style="font-size:0.9rem;">Loading map…</p>
             </div>
           </div>
-          
-          <!-- Order List -->
-          <div style="background:#f8f9fa;border-top:1px solid #e5e7eb;padding:1rem;max-height:300px;overflow-y:auto">
-            <h3 style="font-size:0.95rem;font-weight:600;color:#111827;margin-bottom:1rem">Active Deliveries</h3>
-            <div id="logistics-order-list" style="display:flex;flex-direction:column;gap:0.75rem">
-              <div style="text-align:center;padding:2rem;color:#9ca3af">
-                <div style="font-size:2rem;margin-bottom:0.5rem">📦</div>
-                <p style="font-weight:500;margin-bottom:0.5rem">No active deliveries</p>
-                <p style="font-size:0.875rem;">Orders with delivery coordinates will appear here</p>
-              </div>
-            </div>
+          <div style="background:#f8fafc;border-top:1px solid #e5e7eb;padding:1rem;max-height:320px;overflow-y:auto">
+            <h3 style="font-size:0.85rem;font-weight:800;color:#0f172a;margin:0 0 0.75rem;text-transform:uppercase;letter-spacing:0.06em">Same list — scroll for details</h3>
+            <div id="logistics-order-list" style="display:flex;flex-direction:column;gap:0.75rem"></div>
           </div>
         </div>
       </div>
     `;
-    
+
     renderAdminLogisticsKpis();
-    // Initialize map after DOM is ready
-    setTimeout(() => initializeLogisticsMap(), 100);
+    setTimeout(function () {
+      initializeLogisticsMap();
+    }, 80);
     
   } else if (section === 'vendor-dashboard') {
     // Check if user is a vendor
@@ -10107,7 +10222,129 @@ async function refreshVendorData() {
 }
 let logisticsMap = null;
 let orderMarkers = [];
+let fleetMarkers = [];
 let driverMarker = null;
+
+function adminFleetGroupedOrders(orders) {
+  var byDriver = {};
+  var orphans = [];
+  (orders || []).forEach(function (o) {
+    var st = normalizeOrderStatus(o.status);
+    if (st === 'delivered' || st === 'canceled' || st === 'cancelled') return;
+    var did = o.driver_id != null ? o.driver_id : o.driverId;
+    var hasDriver = did != null && String(did).trim() !== '';
+    if (hasDriver) {
+      var k = String(did);
+      if (!byDriver[k]) byDriver[k] = [];
+      byDriver[k].push(o);
+    } else if (DELIVERY_ACTIVE_STATUSES.has(st)) {
+      orphans.push(o);
+    }
+  });
+  return { byDriver: byDriver, orphans: orphans };
+}
+
+function adminFleetMarkerLatLng(ordersList) {
+  if (!ordersList || !ordersList.length) return null;
+  for (var i = 0; i < ordersList.length; i++) {
+    var o = ordersList[i];
+    if (o.driver_lat != null && o.driver_lng != null && !Number.isNaN(+o.driver_lat) && !Number.isNaN(+o.driver_lng)) {
+      return [+o.driver_lat, +o.driver_lng];
+    }
+  }
+  return resolveOrderDestinationLatLng(ordersList[0]);
+}
+
+function adminFleetDriverBlockHtml(driverId) {
+  var users = window.__adminFleetUsers || [];
+  var d = users.find(function (u) {
+    return u.role === 'driver' && String(u.id) === String(driverId);
+  });
+  if (!d) {
+    return (
+      '<p style="margin:0 0 8px;font-size:12px;color:#64748b">Driver #' +
+      _detailEscapeHtml(String(driverId)) +
+      ' — profile not in synced staff list. Open <strong>Drivers</strong> tab.</p>'
+    );
+  }
+  var fn = (d.first_name || d.firstName || '').trim();
+  var ln = (d.last_name || d.lastName || '').trim();
+  var plate = (d.vehicle_plate_number || d.vehiclePlateNumber || '—').toString();
+  var vm = (d.vehicle_model || d.vehicleModel || '').toString();
+  var vc = (d.vehicle_color || d.vehicleColor || '').toString();
+  return (
+    '<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #e2e8f0">' +
+    '<div style="font-size:14px;font-weight:800;color:#0f172a">' +
+    _detailEscapeHtml((fn + ' ' + ln).trim() || 'Driver') +
+    '</div>' +
+    '<div style="font-size:11px;color:#475569;margin-top:4px;line-height:1.45">' +
+    _detailEscapeHtml(d.phone || '') +
+    ' · ' +
+    _detailEscapeHtml(d.email || '') +
+    '</div>' +
+    '<div style="font-size:11px;color:#64748b;margin-top:4px">Vehicle: ' +
+    _detailEscapeHtml(plate) +
+    ' · ' +
+    _detailEscapeHtml((vm + ' ' + vc).trim() || '—') +
+    '</div>' +
+    '<div style="font-size:10px;color:#94a3b8;margin-top:4px">ID ' +
+    _detailEscapeHtml(String(d.id)) +
+    ' · Wilaya ' +
+    _detailEscapeHtml(d.wilaya || '—') +
+    '</div></div>'
+  );
+}
+
+function adminFleetOrdersPopupHtml(driverId, list) {
+  var head = adminFleetDriverBlockHtml(driverId);
+  var rows = (list || []).map(function (o) {
+    var hub = o.hub_departure_scanned_at
+      ? new Date(o.hub_departure_scanned_at).toLocaleString('fr-TN', { timeZone: 'Africa/Tunis' })
+      : '—';
+    var sb = orderStatusBadge(o.status);
+    return (
+      '<tr><td style="padding:5px 4px;font-size:11px;vertical-align:top">' +
+      _detailEscapeHtml(String(o.tracking_number || o.id)) +
+      '</td><td style="padding:5px 4px;font-size:11px;vertical-align:top">' +
+      _detailEscapeHtml(String(o.client_name || o.phone || 'Guest')) +
+      '</td><td style="padding:5px 4px;font-size:11px;vertical-align:top">' +
+      _detailEscapeHtml(String(o.wilaya || '')) +
+      '</td><td style="padding:5px 4px;font-size:10px;vertical-align:top;max-width:120px">' +
+      _detailEscapeHtml(String(o.address || '').substring(0, 80)) +
+      '</td><td style="padding:5px 4px;font-size:11px;white-space:nowrap">' +
+      dashOrderTotal(o).toLocaleString() +
+      '</td><td style="padding:5px 4px;font-size:10px">' +
+      _detailEscapeHtml(sb.label) +
+      '</td><td style="padding:5px 4px;font-size:10px;color:#64748b;white-space:nowrap">' +
+      _detailEscapeHtml(hub) +
+      '</td></tr>'
+    );
+  }).join('');
+  return (
+    '<div style="min-width:300px;max-width:440px;font-family:Outfit,sans-serif">' +
+    head +
+    '<div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin:0 0 6px">Orders on this run</div>' +
+    '<table style="width:100%;border-collapse:collapse"><thead><tr style="font-size:9px;color:#94a3b8;text-transform:uppercase">' +
+    '<th align="left">Track</th><th align="left">Customer</th><th align="left">Wilaya</th><th align="left">Ship to</th><th align="left">Total</th><th align="left">Status</th><th align="left">Hub departure</th>' +
+    '</tr></thead><tbody>' +
+    rows +
+    '</tbody></table></div>'
+  );
+}
+
+function logisticsAdminFleetIcon(count) {
+  return L.divIcon({
+    html:
+      '<div style="position:relative">' +
+      '<div style="background:linear-gradient(135deg,#0f172a,#334155);color:#fff;width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:19px;border:3px solid #fff;box-shadow:0 4px 16px rgba(15,23,42,0.5)">🚚</div>' +
+      '<div style="position:absolute;top:-5px;right:-5px;background:#7c3aed;color:#fff;font-size:10px;font-weight:800;border-radius:999px;padding:2px 7px;border:2px solid #fff">' +
+      count +
+      '</div></div>',
+    className: 'admin-fleet-vehicle-marker',
+    iconSize: [46, 46],
+    iconAnchor: [23, 46],
+  });
+}
 
 function computeLogisticsKpis(orders) {
   var list = Array.isArray(orders) ? orders : [];
@@ -10184,12 +10421,6 @@ function initializeLogisticsMap() {
       maxZoom: 18,
     }).addTo(logisticsMap);
     
-    // Add custom styling for better Tunisia visibility
-    L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors, Tiles style by Humanitarian OpenStreetMap Team',
-      maxZoom: 18,
-    }).addTo(logisticsMap);
-    
     // Load order markers
     loadOrderMarkers();
     
@@ -10209,65 +10440,68 @@ function initializeLogisticsMap() {
   }
 }
 
-// Load order markers on map
+// Load fleet + package markers (admin logistics)
 function loadOrderMarkers() {
   if (!logisticsMap) return;
-  
-  // Clear existing markers
-  orderMarkers.forEach(marker => logisticsMap.removeLayer(marker));
+
+  orderMarkers.forEach(function (marker) {
+    logisticsMap.removeLayer(marker);
+  });
   orderMarkers = [];
-  
+  fleetMarkers.forEach(function (marker) {
+    logisticsMap.removeLayer(marker);
+  });
+  fleetMarkers = [];
+
   const orders = STN.DB.get('orders') || [];
-  const ordersWithCoords = orders.filter(function (order) {
-    const st = String(order.status || '').toLowerCase();
-    return (
-      st === 'shipped' ||
-      st === 'processing' ||
-      st === 'transit' ||
-      st === 'out_for_delivery' ||
-      st === 'out-for-delivery'
-    );
+  var grouped = adminFleetGroupedOrders(orders);
+  var driverKeys = Object.keys(grouped.byDriver);
+  var fleetCount = 0;
+  var packageOnly = [];
+
+  driverKeys.forEach(function (did) {
+    var list = grouped.byDriver[did];
+    if (!list || !list.length) return;
+    var pt = adminFleetMarkerLatLng(list);
+    if (!pt || pt.length < 2) return;
+    fleetCount++;
+    var m = L.marker([pt[0], pt[1]], { icon: logisticsAdminFleetIcon(list.length) }).addTo(logisticsMap);
+    m.bindPopup(adminFleetOrdersPopupHtml(did, list), { maxWidth: 480 });
+    fleetMarkers.push(m);
   });
 
-  document.getElementById('logistics-order-count').textContent = ordersWithCoords.length;
-  document.getElementById('logistics-active-count').textContent = ordersWithCoords.filter(function (o) {
-    return String(o.status || '').toLowerCase() === 'shipped';
-  }).length;
-
-  ordersWithCoords.forEach(function (order) {
-    const pt = resolveOrderDestinationLatLng(order);
+  grouped.orphans.forEach(function (order) {
+    var pt = resolveOrderDestinationLatLng(order);
     if (!pt || pt.length < 2) return;
-    const marker = L.marker([pt[0], pt[1]], {
-      icon: logisticsEverestPackageIcon(),
-    }).addTo(logisticsMap);
-      
-      // Add popup with order details
-      const popupContent = `
-        <div style="min-width: 200px; font-family: Outfit, sans-serif;">
-          <h4 style="margin: 0 0 8px 0; color: #1e0a4e; font-size: 14px;">
-            Order #${order.tracking_number || order.id}
-          </h4>
-          <div style="font-size: 12px; color: #374151; line-height: 1.4;">
-            <div><strong>Customer:</strong> ${order.phone || 'Guest'}</div>
-            <div><strong>Location:</strong> ${order.wilaya || 'Tunisia'}</div>
-            <div><strong>Status:</strong> <span style="
-              background: ${order.status === 'delivered' ? '#dcfce7' : order.status === 'shipped' ? '#dbeafe' : '#fef9c3'};
-              color: ${order.status === 'delivered' ? '#166534' : order.status === 'shipped' ? '#1d4ed8' : '#92400e'};
-              padding: 2px 6px;
-              border-radius: 12px;
-              font-size: 11px;
-              font-weight: 600;
-            ">${order.status || 'pending'}</span></div>
-            <div><strong>Total:</strong> ${(order.total || 0).toLocaleString()} TND</div>
-          </div>
-        </div>
-      `;
-      
+    packageOnly.push(order);
+    var marker = L.marker([pt[0], pt[1]], { icon: logisticsEverestPackageIcon() }).addTo(logisticsMap);
+    var popupContent =
+      '<div style="min-width:200px;font-family:Outfit,sans-serif;font-size:12px;color:#334155">' +
+      '<strong style="color:#1e0a4e">#' +
+      _detailEscapeHtml(String(order.tracking_number || order.id)) +
+      '</strong><br/>' +
+      _detailEscapeHtml(String(order.client_name || order.phone || 'Guest')) +
+      ' · ' +
+      _detailEscapeHtml(String(order.wilaya || '')) +
+      '<br/><strong>' +
+      (order.total != null ? Number(order.total).toLocaleString() : '0') +
+      ' TND</strong> · ' +
+      _detailEscapeHtml(orderStatusBadge(order.status).label) +
+      '</div>';
     marker.bindPopup(popupContent);
     orderMarkers.push(marker);
   });
 
-  updateOrderList(ordersWithCoords);
+  var activeList = driverKeys.reduce(function (acc, k) {
+    return acc.concat(grouped.byDriver[k] || []);
+  }, []).concat(grouped.orphans);
+
+  var oc = document.getElementById('logistics-order-count');
+  if (oc) oc.textContent = String(activeList.length);
+  var ac = document.getElementById('logistics-active-count');
+  if (ac) ac.textContent = String(fleetCount);
+
+  updateOrderList(activeList);
 }
 
 // Show order popup
@@ -10375,59 +10609,43 @@ function updateOrderList(orders) {
 }
 
 // Refresh logistics map
-function refreshLogisticsMap() {
-  if (logisticsMap) {
-    loadOrderMarkers();
-    renderAdminLogisticsKpis();
-    toast('🔄 Map refreshed with latest order data', 'success');
-  } else {
-    toast('⚠️ Map not loaded yet', 'error');
-  }
-}
-
-// Center on driver (mock implementation)
-function centerOnDriver() {
+async function refreshLogisticsMap() {
   if (!logisticsMap) {
-    toast('⚠️ Map not loaded yet', 'error');
+    toast('Map not loaded yet', 'error');
     return;
   }
-  
-  // Mock driver location - in real app, this would come from GPS tracking
-  const driverLocation = [36.8065, 10.1815]; // Tunis coordinates
-  
-  // Add/update driver marker
-  if (driverMarker) {
-    logisticsMap.removeLayer(driverMarker);
+  try {
+    if (typeof SB !== 'undefined' && SB.getOrders) {
+      var rx = await SB.getOrders();
+      if (Array.isArray(rx)) {
+        STN.DB.set('orders', rx);
+        State.orders = rx;
+      }
+    }
+  } catch (e) {
+    if (typeof STNLog !== 'undefined') STNLog.warn('refreshLogisticsMap', e && e.message);
   }
-  
-  const driverIcon = L.divIcon({
-    html: `
-      <div style="
-        background: linear-gradient(135deg, #059669, #047857);
-        color: white;
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 18px;
-        box-shadow: 0 3px 10px rgba(5, 150, 105, 0.4);
-        border: 3px solid white;
-        animation: pulse 2s infinite;
-      ">
-        🚚
-      </div>
-    `,
-    className: 'driver-marker',
-    iconSize: [40, 40],
-    iconAnchor: [20, 40]
-  });
-  
-  driverMarker = L.marker(driverLocation, { icon: driverIcon }).addTo(logisticsMap);
-  
-  // Center map on driver
-  logisticsMap.setView(driverLocation, 10);
-  
-  toast('📍 Centered on driver location', 'success');
+  try {
+    var merged = await mergeLocalAndRemoteUsersForAdmin();
+    window.__adminFleetUsers = merged;
+  } catch (e2) {}
+  loadOrderMarkers();
+  renderAdminLogisticsKpis();
+  toast('Fleet data refreshed', 'success');
+}
+
+function centerOnFleet() {
+  if (!logisticsMap) {
+    toast('Map not ready', 'error');
+    return;
+  }
+  var layers = fleetMarkers.concat(orderMarkers);
+  if (layers.length === 0) {
+    logisticsMap.setView([33.8869, 9.5375], 7);
+    toast('No active markers', 'default');
+    return;
+  }
+  var fg = L.featureGroup(layers);
+  logisticsMap.fitBounds(fg.getBounds().pad(0.12));
+  toast('Map fitted to vehicles & stops', 'success');
 }
