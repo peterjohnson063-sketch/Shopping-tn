@@ -579,8 +579,9 @@ const SB = {
     return data[0] || null;
   },
   async findOrder(ref) {
-    const r = String(ref == null ? '' : ref).trim();
-    if (!r) return null;
+    const raw = String(ref == null ? '' : ref).trim();
+    if (!raw) return null;
+    const r = raw.replace(/\s+/g, '').replace(/_/g, '-');
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(r)) {
       const byUuid = await this.getOrder(r);
       if (byUuid) return byUuid;
@@ -589,8 +590,28 @@ const SB = {
       const byId = await this.getOrder(r);
       if (byId) return byId;
     }
-    const data = await this.req('GET', 'orders', null, `?tracking_number=eq.${encodeURIComponent(r)}&limit=1`);
-    return Array.isArray(data) && data[0] ? data[0] : null;
+    const tryTrackingEq = async (q) => {
+      const data = await this.req('GET', 'orders', null, `?tracking_number=eq.${encodeURIComponent(q)}&limit=1`);
+      return Array.isArray(data) && data[0] ? data[0] : null;
+    };
+    const tryTrackingIlike = async (q) => {
+      try {
+        const data = await this.req('GET', 'orders', null, `?tracking_number=ilike.${encodeURIComponent(q)}&limit=1`);
+        return Array.isArray(data) && data[0] ? data[0] : null;
+      } catch (e) {
+        return null;
+      }
+    };
+    let row = await tryTrackingEq(r);
+    if (row) return row;
+    row = await tryTrackingEq(r.toUpperCase());
+    if (row) return row;
+    row = await tryTrackingEq(r.toLowerCase());
+    if (row) return row;
+    row = await tryTrackingIlike(r);
+    if (row) return row;
+    row = await tryTrackingIlike(r.toUpperCase());
+    return row;
   },
   async createOrder(order) {
     const data = await this.req('POST', 'orders', order);

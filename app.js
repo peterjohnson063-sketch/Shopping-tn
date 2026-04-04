@@ -328,6 +328,57 @@ async function init() {
   applyReviewAggregatesToProducts();
   renderHome();
   setTimeout(initReveal, 80);
+  startPreorderReadyNotifier();
+}
+
+/** Polls buyer orders; toasts when a pre-order moves to an active/confirmed state (seller back / accepted). */
+function startPreorderReadyNotifier() {
+  if (window.__everestPreorderPoller) return;
+  var baseline = null;
+  function sessionKey(oid) {
+    return 'stn_preorder_toast_' + oid;
+  }
+  async function tick() {
+    if (!State.currentUser || !State.currentUser.id) return;
+    try {
+      var list = [];
+      if (typeof SB !== 'undefined' && SB.getUserOrders) {
+        list = await SB.getUserOrders(State.currentUser.id);
+      }
+      if (!Array.isArray(list)) return;
+      var snap = {};
+      for (var i = 0; i < list.length; i++) {
+        var o = list[i];
+        var oid = String(o.id != null ? o.id : '');
+        if (!oid) continue;
+        snap[oid] = {
+          y: String(o.yasmine_routing_status || ''),
+          s: String(o.status || ''),
+        };
+      }
+      if (baseline) {
+        Object.keys(snap).forEach(function (oid) {
+          var prev = baseline[oid];
+          var cur = snap[oid];
+          if (!prev || !cur || prev.y !== 'preorder') return;
+          if (sessionStorage.getItem(sessionKey(oid))) return;
+          var upgraded =
+            (cur.y && cur.y !== 'preorder') ||
+            cur.s === 'confirmed' ||
+            cur.s === 'processing' ||
+            cur.s === 'ready' ||
+            cur.s === 'shipped';
+          if (upgraded) {
+            sessionStorage.setItem(sessionKey(oid), '1');
+            toast('Your Everest order is updated — open Track to follow your package.', 'success');
+          }
+        });
+      }
+      baseline = snap;
+    } catch (e) {}
+  }
+  tick();
+  window.__everestPreorderPoller = setInterval(tick, 120000);
 }
 
 /** Re-render product-driven UI after catalog updates (home grids, shop grid). */
@@ -1362,6 +1413,36 @@ function escHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+/** Public tracking ref — always set client-side so Track and Supabase stay in sync. */
+function generateEverestTrackingNumber() {
+  var t = Date.now().toString(36).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  var r = Math.random().toString(36).substring(2, 8).toUpperCase();
+  return 'EVR-' + t.slice(-8) + '-' + r;
+}
+
+function normalizeTrackingInput(val) {
+  return String(val == null ? '' : val)
+    .trim()
+    .replace(/\s+/g, '')
+    .replace(/_/g, '-');
+}
+
+/** Fallback when API/RLS cannot resolve (order exists in this browser session). */
+function findOrderInLocalStorage(ref) {
+  var r = normalizeTrackingInput(ref);
+  if (!r) return null;
+  var ru = r.toUpperCase();
+  var orders = STN.DB.get('orders') || [];
+  for (var i = 0; i < orders.length; i++) {
+    var o = orders[i];
+    var t = normalizeTrackingInput(o.tracking_number || '');
+    var id = String(o.id != null ? o.id : '');
+    if (t && t.toUpperCase() === ru) return o;
+    if (id && (id === r || id.toUpperCase() === ru)) return o;
+  }
+  return null;
+}
+
 function closeCheckoutModal() {
   State.pendingGift = null;
   var m = document.getElementById('checkout-modal');
@@ -1642,7 +1723,6 @@ async function checkout() {
     '<div style="margin-bottom:1.2rem;padding:0.9rem;border:1px solid rgba(107,63,212,0.14);border-radius:12px;background:#fcfbff">' +
     '<label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.65rem">Payment method *</label>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.45rem">' +
-    checkoutPaymentMethodTile('cash', '💵 Cash on Delivery') +
     checkoutPaymentMethodTile('visa', '💳 Visa') +
     checkoutPaymentMethodTile('mastercard', '💳 MasterCard') +
     checkoutPaymentMethodTile('credit_card', '🏦 Credit Card') +
@@ -1885,6 +1965,7 @@ async function submitOrder() {
         return s + i.price * i.qty;
       }, 0);
       var share = cartSubtotal > 0 ? (totalVal * gSub) / cartSubtotal : totalVal / Math.max(1, groups.length);
+      var trackingRef = generateEverestTrackingNumber();
 
       var yasmineExtra = {};
       if (typeof EverestYasmineRouting !== 'undefined') {
@@ -1912,6 +1993,7 @@ async function submitOrder() {
         customer_last_name: shipLname,
         created_at: nowIso,
         delivery_deadline_at: deadlineIso,
+        tracking_number: trackingRef,
       };
       Object.assign(baseOrderPayload, yx);
 
@@ -1949,7 +2031,10 @@ async function submitOrder() {
           }
         }
       }
-      if (order) createdOrders.push(order);
+      if (order) {
+        if (!order.tracking_number && trackingRef) order.tracking_number = trackingRef;
+        createdOrders.push(order);
+      }
     }
 
     if (!createdOrders.length && lastCreateErr) throw lastCreateErr;
@@ -1984,10 +2069,10 @@ async function submitOrder() {
     successModal.style.cssText = 'position:fixed;inset:0;background:rgba(30,10,78,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
     const trackNum = createdOrders
       .map(function (o) {
-        return o.tracking_number;
+        return o.tracking_number || o.id;
       })
       .filter(Boolean)
-      .join(' · ') || order.tracking_number;
+      .join(' · ') || (order && (order.tracking_number || order.id));
     const giftSuccess = isGift || orderIsGiftOrder(order);
     const giftHintText =
       '<p style="font-size:0.78rem;color:#9d174d;margin-bottom:1.5rem;line-height:1.45">Gift: the recipient is not notified by the app. Only your account can track this order — keep the code private if you want a surprise.</p>';
@@ -2020,7 +2105,7 @@ async function submitOrder() {
 function checkoutPaymentMethodTile(value, label) {
   return `
     <label style="display:flex;align-items:center;gap:0.45rem;padding:0.55rem 0.6rem;border:1px solid rgba(107,63,212,0.18);border-radius:10px;background:white;cursor:pointer;font-size:0.76rem;color:#3d3460">
-      <input type="radio" name="co-payment-method" value="${value}" ${value === 'cash' ? 'checked' : ''} style="accent-color:#7c3aed"/>
+      <input type="radio" name="co-payment-method" value="${value}" ${value === 'visa' ? 'checked' : ''} style="accent-color:#7c3aed"/>
       <span>${label}</span>
     </label>
   `;
@@ -2033,7 +2118,7 @@ function installCheckoutPaymentUi() {
 }
 
 function getSelectedCheckoutPaymentMethod() {
-  return document.querySelector('input[name="co-payment-method"]:checked')?.value || 'cash';
+  return document.querySelector('input[name="co-payment-method"]:checked')?.value || 'visa';
 }
 
 function onCheckoutPaymentMethodChange() {
@@ -2041,12 +2126,7 @@ function onCheckoutPaymentMethodChange() {
   const extra = document.getElementById('co-payment-extra');
   const btn = document.getElementById('co-submit-btn');
   if (!extra) return;
-  if (btn) btn.textContent = method === 'cash' ? 'Place Order ✦' : 'Pay & Place Order ✦';
-
-  if (method === 'cash') {
-    extra.innerHTML = `<p style="font-size:0.78rem;color:#7b72a8;background:#f8f7ff;border:1px solid rgba(107,63,212,0.12);padding:0.7rem;border-radius:10px">You will pay in cash when your order arrives.</p>`;
-    return;
-  }
+  if (btn) btn.textContent = 'Pay & Place Order ✦';
 
   if (method === 'paypal') {
     extra.innerHTML = `
@@ -2113,12 +2193,10 @@ function paymentProviderForMethod(method) {
   if (method === 'e_dinar') return 'e_dinar';
   if (method === 'flouci') return 'flouci';
   if (method === 'konnect') return 'konnect';
-  return 'cash_on_delivery';
+  return 'everest_online';
 }
 
 function validateCheckoutPaymentDetails(method) {
-  if (method === 'cash') return { ok: true, meta: {} };
-
   if (method === 'paypal') {
     const email = String(document.getElementById('co-paypal-email')?.value || '').trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -2160,12 +2238,8 @@ function simulateCheckoutPayment(method) {
     // Front-end simulation placeholder until backend gateway webhooks are wired.
     setTimeout(function () {
       const ref = 'PAY-' + Date.now().toString(36).toUpperCase();
-      if (method === 'cash') {
-        resolve({ ok: true, status: 'pending', reference: ref });
-        return;
-      }
       resolve({ ok: true, status: 'paid', reference: ref });
-    }, method === 'cash' ? 200 : 900);
+    }, 900);
   });
 }
 
@@ -2288,7 +2362,7 @@ function productCardHTML(p) {
       </div>
     </div>
     <div class="product-body">
-      <div class="product-brand">${p.brand} · ${p.region}</div>
+      <div class="product-brand">Everest · ${p.region || ''}</div>
       <div class="product-name">${p.name}</div>
       <div class="product-rating">
         <span class="stars" style="letter-spacing:2px">${'★'.repeat(Math.floor(p.rating))}${'☆'.repeat(5-Math.floor(p.rating))}</span>
@@ -2362,22 +2436,13 @@ async function hydrateProductDetailVendor(p) {
   const nameEl = document.getElementById('detail-vendor-name');
   const wrap = document.getElementById('detail-vendor-logo-wrap');
   const thumbInner = document.getElementById('detail-vendor-thumb-inner');
-  const fallbackName = p.brand || 'Everest Partner';
+  const fallbackName = 'Everest';
 
   const setEverest = () => {
     window.__detailVendorMainHtml = _everestPartnerGalleryMainHtml();
     const inner = _everestPartnerIconSmallHtml();
     if (wrap) wrap.innerHTML = inner;
     if (thumbInner) thumbInner.innerHTML = inner;
-  };
-
-  const setFromUrl = (url) => {
-    const safe = _detailEscapeAttr(String(url));
-    const thumbImg = `<img src="${safe}" alt="" style="width:100%;height:100%;object-fit:cover"/>`;
-    const mainImg = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:1rem"><img src="${safe}" alt="" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:12px"/></div>`;
-    window.__detailVendorMainHtml = mainImg;
-    if (wrap) wrap.innerHTML = thumbImg;
-    if (thumbInner) thumbInner.innerHTML = thumbImg;
   };
 
   const refreshMainIfVendorThumbActive = () => {
@@ -2403,23 +2468,8 @@ async function hydrateProductDetailVendor(p) {
       refreshMainIfVendorThumbActive();
       return;
     }
-    const displayName =
-      u.shop_name ||
-      u.shopName ||
-      u.name ||
-      [u.first_name, u.last_name].filter(Boolean).join(' ') ||
-      [u.firstName, u.lastName].filter(Boolean).join(' ') ||
-      fallbackName;
-    if (nameEl) nameEl.textContent = displayName;
-
-    const rawLogo =
-      u.vendor_logo_url ||
-      u.logo_url ||
-      u.vendor_logo ||
-      u.avatar_url ||
-      (typeof u.avatar === 'string' && /^https?:\/\//i.test(u.avatar) ? u.avatar : null);
-    if (rawLogo) setFromUrl(rawLogo);
-    else setEverest();
+    if (nameEl) nameEl.textContent = 'Everest';
+    setEverest();
   } catch (e) {
     if (typeof STNLog !== 'undefined') STNLog.warn('product.detail.vendor', 'fetch failed', { message: e && e.message });
     setEverest();
@@ -2445,7 +2495,7 @@ async function openProductDetail(productId) {
     toast('Product details panel is missing. Reload the page.', 'error');
     return;
   }
-  const fallbackName = p.brand || 'Everest Partner';
+  const fallbackName = 'Everest';
 
   const productImages = _productImageList(p);
   const productSrc = productImages[0] || '';
@@ -2476,7 +2526,7 @@ async function openProductDetail(productId) {
             <div style="font-size:0.8rem;color:var(--text-muted)"><span style="font-weight:600">Sold by: </span><span id="detail-vendor-name" style="font-weight:600;color:var(--champagne)">${_detailEscapeHtml(fallbackName)}</span></div>
           </div>
         </div>
-        <div class="product-brand" style="margin-bottom:0.3rem">${p.brand} · ${p.region}</div>
+        <div class="product-brand" style="margin-bottom:0.3rem">Everest · ${_detailEscapeHtml(String(p.region || ''))}</div>
         <h2 style="font-family:var(--font-display);font-size:1.8rem;font-weight:300;color:var(--champagne);margin-bottom:0.8rem">${p.name}</h2>
         <div class="product-rating" style="margin-bottom:1rem">
           <span class="stars" style="font-size:0.9rem;letter-spacing:2px">${'★'.repeat(Math.floor(p.rating))}${'☆'.repeat(5-Math.floor(p.rating))}</span>
@@ -2789,10 +2839,7 @@ function renderAuth() {
           </label>
         </div>
         <div id="reg-vendor-fields" style="display:none;margin-bottom:1.5rem;padding:1rem;background:#f8f7ff;border-radius:12px;border:1px solid rgba(107,63,212,0.15)">
-          <div class="form-group" style="margin-bottom:1rem">
-            <label class="form-label">Shop/Brand Name *</label>
-            <input type="text" class="form-input" id="reg-shop" placeholder="ex: Ateliers Maalej"/>
-          </div>
+          <p style="font-size:0.78rem;color:#5b21b6;line-height:1.5;margin-bottom:1rem">Everest is the storefront and brand. Your artisan profile is private to operations — customers see products under Everest.</p>
           <div class="form-group">
             <label class="form-label">What do you make?</label>
             <select class="form-select" id="reg-specialty">
@@ -3051,10 +3098,8 @@ async function doRegister() {
 
   const isVendor = document.getElementById('reg-is-vendor')?.checked;
   const isDriver = document.getElementById('reg-is-driver')?.checked;
-  const shopName = document.getElementById('reg-shop')?.value?.trim();
   const specialty = document.getElementById('reg-specialty')?.value;
   if (isVendor && isDriver) { toast('⚠️ Choose either vendor or delivery partner, not both', 'error'); return; }
-  if (isVendor && !shopName) { toast('⚠️ Please enter your shop name', 'error'); return; }
 
   var cin = '';
   var plate = '';
@@ -3147,7 +3192,7 @@ async function doRegister() {
       points: 100,
       verified: isVendor || isDriver ? false : true,
       avatar: isVendor ? '🏪' : isDriver ? '🚚' : '👤',
-      shop_name: shopName || null,
+      shop_name: isVendor ? 'Everest' : null,
       specialty: specialty || null
     };
     if (isDriver) {
@@ -3206,7 +3251,7 @@ async function doRegister() {
     updateNavUser();
     if (isVendor) {
       void everestSyncVendorDefaults(State.currentUser.id);
-      toast(`✦ Welcome ${shopName}! Your vendor account is pending verification.`, 'success');
+      toast(`✦ Welcome to Everest selling! Your vendor account is pending verification.`, 'success');
       if (needsVendorHoursOnboarding()) showPage('vendor-hours');
       else showPage('vendor');
     } else if (isDriver) {
@@ -3467,7 +3512,8 @@ let trackingSubTokens = [];
 let trackingUpdateInterval = null;
 
 async function trackOrder() {
-  const num = document.getElementById('track-num')?.value?.trim().toUpperCase();
+  const raw = document.getElementById('track-num')?.value?.trim();
+  const num = normalizeTrackingInput(raw);
   if (!num) { toast('⚠️ Please enter a tracking number', 'error'); return; }
 
   const resultDiv = document.getElementById('track-result');
@@ -3480,7 +3526,13 @@ async function trackOrder() {
   resultDiv.innerHTML = '<div style="text-align:center;padding:3rem"><div style="font-size:2rem;animation:spin 1s linear infinite;display:inline-block">⏳</div><p style="color:#7b72a8;margin-top:1rem">Looking up your order...</p></div>';
 
   try {
-    const order = await SB.findOrder(num);
+    var order = null;
+    try {
+      if (typeof SB !== 'undefined' && SB.findOrder) order = await SB.findOrder(num);
+    } catch (e1) {
+      if (typeof STNLog !== 'undefined') STNLog.warn('track.findOrder.remote', e1 && e1.message);
+    }
+    if (!order) order = findOrderInLocalStorage(num);
     if (!order) {
       resultDiv.style.display = 'none';
       emptyDiv.style.display = 'block';
@@ -7031,7 +7083,7 @@ function switchVendorSection(section) {
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
             <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Product Name *</label><input type="text" id="vp-title" placeholder="e.g. Velvet Sultan Sofa" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
-            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Brand Name *</label><input type="text" id="vp-brand" placeholder="Your brand" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
+            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Brand</label><input type="text" id="vp-brand" value="Everest" readonly tabindex="-1" title="Listings use the Everest brand" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box;background:#f9fafb;color:#4b5563"/></div>
           </div>
           <div style="margin-bottom:1rem"><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Description *</label><textarea id="vp-desc" placeholder="Describe your product..." style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;min-height:100px;resize:vertical;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"></textarea></div>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
@@ -7436,7 +7488,7 @@ async function deleteVendorProduct(productId) {
 
 async function uploadProduct() {
   const title = document.getElementById('vp-title')?.value?.trim();
-  const brand = document.getElementById('vp-brand')?.value?.trim();
+  const brand = 'Everest';
   const parentSku = document.getElementById('vp-parent-sku')?.value?.trim();
   const colorId = (document.getElementById('vp-color-id')?.value?.trim() || 'default');
   const sizeId = (document.getElementById('vp-size-id')?.value?.trim() || 'one');
@@ -7470,8 +7522,8 @@ async function uploadProduct() {
     return;
   }
 
-  if (!title || !brand || !desc || !Number.isFinite(price) || !Number.isFinite(stock)) {
-    toast('⚠️ Please fill all required fields (name, brand, description, price, stock).', 'error');
+  if (!title || !desc || !Number.isFinite(price) || !Number.isFinite(stock)) {
+    toast('⚠️ Please fill all required fields (name, description, price, stock).', 'error');
     return;
   }
 
@@ -7858,7 +7910,6 @@ const FilterState = {
   inStock: true,
   outOfStock: false,
   freeShipping: false,
-  cashOnDelivery: false,
   onSale: false,
   sortBy: 'featured'
 };
@@ -7961,8 +8012,7 @@ function applyFilters() {
   // Update special offer filters
   const offerCheckboxes = document.querySelectorAll('.offer-item input[type="checkbox"]');
   FilterState.freeShipping = offerCheckboxes[0]?.checked || false;
-  FilterState.cashOnDelivery = offerCheckboxes[1]?.checked || false;
-  FilterState.onSale = offerCheckboxes[2]?.checked || false;
+  FilterState.onSale = offerCheckboxes[1]?.checked || false;
   
   // Update active filters display
   updateActiveFiltersBar();
@@ -8014,9 +8064,6 @@ function updateActiveFiltersBar() {
   // Add special offer filters
   if (FilterState.freeShipping) {
     activeFilters.push({ type: 'offer', value: 'free-shipping', label: 'Free Shipping' });
-  }
-  if (FilterState.cashOnDelivery) {
-    activeFilters.push({ type: 'offer', value: 'cod', label: 'Cash on Delivery' });
   }
   if (FilterState.onSale) {
     activeFilters.push({ type: 'offer', value: 'sale', label: 'On Sale' });
@@ -8070,7 +8117,7 @@ function removeFilter(type, value) {
       }
       break;
     case 'offer':
-      const offerIndex = ['free-shipping', 'cod', 'sale'].indexOf(value);
+      const offerIndex = ['free-shipping', 'sale'].indexOf(value);
       const offerCheckbox = document.querySelectorAll('.offer-item input[type="checkbox"]')[offerIndex];
       if (offerCheckbox) offerCheckbox.checked = false;
       break;
@@ -8112,7 +8159,6 @@ function clearAllFilters() {
   FilterState.inStock = true;
   FilterState.outOfStock = false;
   FilterState.freeShipping = false;
-  FilterState.cashOnDelivery = false;
   FilterState.onSale = false;
   
   updatePriceSlider();

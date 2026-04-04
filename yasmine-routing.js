@@ -212,7 +212,7 @@ var EverestYasmineRouting = (function () {
     });
   }
 
-  /** Vendors (other than excludeId) that list products with every sku_dna and are active. */
+  /** Same SKU_DNA (parent_sku + color + size) across catalog = Amazon-style substitute when primary seller is closed. */
   function findAlternateVendorIds(allProducts, skuDnas, excludeId) {
     if (!skuDnas.length || !Array.isArray(allProducts)) return [];
     var ex = excludeId != null ? String(excludeId) : '';
