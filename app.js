@@ -352,7 +352,8 @@ function syncLogisticsCutoffBanner() {
     EverestYasmineRouting.isPastLogisticsCutoff &&
     EverestYasmineRouting.isPastLogisticsCutoff();
   if (past) {
-    var text = 'Will be delivered tomorrow.';
+    var text =
+      'Same-day logistics handover has closed for today (4:00 PM Tunisia time, Africa/Tunis). New orders are scheduled for the next logistics day — confirmation and delivery updates appear in Track.';
     if (EverestYasmineRouting.getProductListingDeliveryLine) {
       var dl = EverestYasmineRouting.getProductListingDeliveryLine();
       if (dl && dl.text) text = dl.text;
@@ -361,11 +362,16 @@ function syncLogisticsCutoffBanner() {
     bar.classList.add('everest-logistics-cutoff-bar--visible');
     bar.removeAttribute('hidden');
     document.body.classList.add('everest-logistics-cutoff-bar-visible');
+    requestAnimationFrame(function () {
+      var h = bar.offsetHeight;
+      if (h > 0) document.documentElement.style.setProperty('--stn-logistics-bar-h', h + 'px');
+    });
   } else {
     bar.textContent = '';
     bar.classList.remove('everest-logistics-cutoff-bar--visible');
     bar.setAttribute('hidden', '');
     document.body.classList.remove('everest-logistics-cutoff-bar-visible');
+    document.documentElement.style.removeProperty('--stn-logistics-bar-h');
   }
 }
 
@@ -1962,7 +1968,7 @@ async function hydrateCheckoutYasmineNotice() {
   var anyPreorder = false;
   if (EverestYasmineRouting.isPastLogisticsCutoff && EverestYasmineRouting.isPastLogisticsCutoff()) {
     blocks.push(
-      '<div style="padding:0.55rem 0.75rem;border-radius:10px;background:#fffbeb;border:1px solid #fde68a;font-size:0.78rem;color:#92400e;line-height:1.45">⏰ Same-day logistics (Tunis) closes at <strong>4:00 PM</strong>. Your order is scheduled for the next logistics day — payment still completes normally.</div>'
+      '<div style="padding:0.55rem 0.75rem;border-radius:10px;background:#fffbeb;border:1px solid #fde68a;font-size:0.78rem;color:#92400e;line-height:1.45"><strong>Logistics cutoff (Tunisia)</strong> — Same-day handover to our network has closed for today (after <strong>4:00 PM</strong> local time, Africa/Tunis). Your order is placed on the <strong>next logistics day</strong>. Checkout and payment proceed as usual; detailed timing and milestones appear in <strong>Track</strong> after you place the order.</div>'
     );
   }
   for (var i = 0; i < groups.length; i++) {
@@ -2747,14 +2753,14 @@ async function openProductDetail(productId) {
     var vid = p.vendorId != null ? p.vendorId : p.vendor_id;
     if (!vid || typeof SB === 'undefined' || !SB.getVendor) {
       if (typeof EverestYasmineRouting !== 'undefined' && EverestYasmineRouting.isPastLogisticsCutoff && EverestYasmineRouting.isPastLogisticsCutoff()) {
-        el.textContent = 'Will be delivered tomorrow.';
+        el.textContent = 'Next logistics day — same-day handover closed after 4:00 PM Tunisia time.';
         el.style.color = 'var(--warning)';
         var pre0a = document.getElementById('detail-preorder-note');
         var pre0ab = document.getElementById('detail-preorder-btn');
         if (pre0a) {
           pre0a.style.display = '';
           pre0a.textContent =
-            'Same-day logistics (Tunis) closes at 4:00 PM. New handovers go to the next logistics day.';
+            'Everest uses Tunisia civil time (Africa/Tunis). After 4:00 PM, new orders join the next logistics day — routes and handovers are planned for the following operating window. Use Track after checkout for full details.';
         }
         if (pre0ab) pre0ab.style.display = 'none';
       } else {
@@ -2785,7 +2791,7 @@ async function openProductDetail(productId) {
             if (preN) {
               preN.style.display = '';
               preN.textContent = h.logisticsCutoff
-                ? 'Will be delivered tomorrow. Same-day logistics (Tunis) closes at 4:00 PM — cave & drivers finalize routes for today.'
+                ? 'Same-day logistics handover has closed for today (4:00 PM Tunisia time). Your order is scheduled for the next logistics day; partner preparation and dispatch follow our standard operating window. Track shows the latest status.'
                 : 'This item may ship on a short preparation window. Checkout and Track show your estimated ready date.';
             }
             if (preB) preB.style.display = '';

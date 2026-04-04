@@ -47,10 +47,15 @@ var EverestYasmineRouting = (function () {
 
   function getProductListingDeliveryLine() {
     if (isPastLogisticsCutoff(new Date())) {
-      return { text: 'Will be delivered tomorrow.', tone: 'cutoff' };
+      return {
+        text:
+          'Same-day logistics handover has closed for today (4:00 PM Tunisia time, Africa/Tunis). New orders are scheduled for the next logistics day — confirmation and delivery updates appear in Track.',
+        tone: 'cutoff',
+      };
     }
     return {
-      text: 'Order before 4:00 PM (Tunis time) for same-day logistics handover.',
+      text:
+        'Order before 4:00 PM Tunisia time (Africa/Tunis) to qualify for same-day logistics handover, subject to product availability and partner preparation. After checkout, Track shows live status.',
       tone: 'ok',
     };
   }
@@ -396,7 +401,7 @@ var EverestYasmineRouting = (function () {
         estimated_ready_at: readyCut.toISOString(),
         yasmine_meta: Object.assign({}, meta, { step: 'tunis_logistics_cutoff', logistics_cutoff_16h: true }),
         customerNote:
-          'Same-day logistics (before 4:00 PM Tunis) has closed. Will be delivered tomorrow — Track will update when your order progresses.',
+          'Same-day logistics handover has closed (4:00 PM Tunisia time). Your order is queued for the next logistics day. Track will show confirmation, preparation, and delivery milestones as they happen.',
       };
     }
 
@@ -583,7 +588,7 @@ var EverestYasmineRouting = (function () {
     ensureProductSku(product);
     if (isPastLogisticsCutoff(new Date())) {
       return {
-        text: 'Will be delivered tomorrow.',
+        text: 'Next logistics day — same-day handover closed after 4:00 PM Tunisia time.',
         tone: 'warn',
         hoursLine: '',
         preorder: true,
