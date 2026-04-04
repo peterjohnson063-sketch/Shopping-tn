@@ -428,6 +428,12 @@ async function initializeProducts() {
     State.products = Array.isArray(cached) ? cached : [];
   }
   applyReviewAggregatesToProducts();
+  if (typeof EverestYasmineRouting !== 'undefined' && EverestYasmineRouting.ensureProductSku) {
+    State.products = State.products.map(function (p) {
+      return EverestYasmineRouting.ensureProductSku(p);
+    });
+    STN.DB.set('products', State.products);
+  }
   refreshProductViewsAfterCatalogLoad();
 }
 
@@ -1290,12 +1296,19 @@ function addToCart(productId) {
   if (existing) {
     existing.qty++;
   } else {
+    var skuP = product;
+    if (typeof EverestYasmineRouting !== 'undefined' && EverestYasmineRouting.ensureProductSku) {
+      skuP = EverestYasmineRouting.ensureProductSku(product);
+    }
     State.cart.push({
       id: canonicalId,
       name: product.name,
       price: product.price,
       emoji: product.emoji,
       qty: 1,
+      sku_dna: skuP.sku_dna,
+      vendor_id: skuP.vendor_id != null ? skuP.vendor_id : skuP.vendorId,
+      parent_sku: skuP.parent_sku,
     });
   }
   STN.DB.set('cart', State.cart);
@@ -1689,6 +1702,34 @@ function closeSuccessModal() {
   showPage('track');
 }
 
+/** Split cart lines by product vendor for Yasmine routing (one order per seller). */
+function groupCartByVendor(cart) {
+  var map = {};
+  for (var i = 0; i < (cart || []).length; i++) {
+    var c = cart[i];
+    var p = State.products.find(function (pr) {
+      return String(pr.id) === String(c.id);
+    });
+    var vid = p ? (p.vendor_id != null ? p.vendor_id : p.vendorId) : c.vendor_id;
+    var key = vid != null && String(vid).trim() !== '' ? String(vid) : '_unknown';
+    if (!map[key]) map[key] = { vendorKey: key, items: [] };
+    map[key].items.push(c);
+  }
+  return Object.keys(map).map(function (k) {
+    return map[k];
+  });
+}
+
+function stripYasmineOrderFields(o) {
+  var x = Object.assign({}, o);
+  delete x.yasmine_routing_status;
+  delete x.acceptance_deadline_at;
+  delete x.original_vendor_id;
+  delete x.estimated_ready_at;
+  delete x.yasmine_meta;
+  return x;
+}
+
 async function submitOrder() {
   const pg = State.pendingGift;
   const isGift = !!pg;
@@ -1780,60 +1821,107 @@ async function submitOrder() {
       return;
     }
 
-    // Get shop names from cart items
-    const shopNames = [...new Set(State.cart.map(i => i.brand || i.shopName || 'Everest').filter(Boolean))].join(', ');
-    
+    if (typeof EverestYasmineRouting !== 'undefined') EverestYasmineRouting.startVendorStaleChecker();
+
     const nowIso = new Date().toISOString();
     const deadlineIso = new Date(Date.now() + (90 * 60 * 1000)).toISOString();
-    const baseOrderPayload = {
-      user_id: State.currentUser?.id || null,
-      items: State.cart,
-      total: getCartTotal(),
-      status: 'pending',
-      wilaya: shipWilaya,
-      address: shipAddress,
-      phone: shipPhone,
-      notes: isGift ? notesExtra : fname + ' ' + lname + (wilaya ? ' · ' + wilaya : ''),
-      client_name: (shipFname + ' ' + shipLname).trim(),
-      customer_first_name: shipFname,
-      customer_last_name: shipLname,
-      created_at: nowIso,
-      delivery_deadline_at: deadlineIso
-    };
-    const extendedOrderPayload = {
-      ...baseOrderPayload,
-      payment_method: paymentMethod,
-      payment_provider: paymentProviderForMethod(paymentMethod),
-      payment_status: chargeResult.status || 'pending',
-      payment_transaction_ref: chargeResult.reference || null,
-      payment_meta: paymentMeta
-    };
-    var payloadsToTry = [];
-    if (isGift) {
-      payloadsToTry.push({ ...extendedOrderPayload, is_gift: true });
-    }
-    payloadsToTry.push(extendedOrderPayload);
-    if (isGift) {
-      payloadsToTry.push({ ...baseOrderPayload, is_gift: true });
-    }
-    payloadsToTry.push(baseOrderPayload);
+    var groups = groupCartByVendor(State.cart);
+    var cartSubtotal = State.cart.reduce(function (s, i) {
+      return s + i.price * i.qty;
+    }, 0);
+    var totalVal = getCartTotal();
+    var customerNotes = [];
+    var createdOrders = [];
+    var lastCreateErr = null;
 
-    let order;
-    let lastCreateErr = null;
-    for (var pi = 0; pi < payloadsToTry.length; pi++) {
-      try {
-        order = await SB.createOrder(payloadsToTry[pi]);
-        lastCreateErr = null;
-        break;
-      } catch (createErr) {
-        lastCreateErr = createErr;
+    for (var gi = 0; gi < groups.length; gi++) {
+      var g = groups[gi];
+      var gSub = g.items.reduce(function (s, i) {
+        return s + i.price * i.qty;
+      }, 0);
+      var share = cartSubtotal > 0 ? (totalVal * gSub) / cartSubtotal : totalVal / Math.max(1, groups.length);
+
+      var yasmineExtra = {};
+      if (typeof EverestYasmineRouting !== 'undefined') {
+        try {
+          yasmineExtra = await EverestYasmineRouting.buildOrderExtraForGroup(g.items, State.products, State.products);
+        } catch (ye) {
+          if (typeof STNLog !== 'undefined') STNLog.warn('yasmine.buildOrderExtra', ye && ye.message);
+        }
       }
+      if (yasmineExtra.customerNote) customerNotes.push(yasmineExtra.customerNote);
+      var yx = Object.assign({}, yasmineExtra);
+      delete yx.customerNote;
+
+      var baseOrderPayload = {
+        user_id: State.currentUser?.id || null,
+        items: g.items,
+        total: share,
+        status: 'pending',
+        wilaya: shipWilaya,
+        address: shipAddress,
+        phone: shipPhone,
+        notes: isGift ? notesExtra : fname + ' ' + lname + (wilaya ? ' · ' + wilaya : ''),
+        client_name: (shipFname + ' ' + shipLname).trim(),
+        customer_first_name: shipFname,
+        customer_last_name: shipLname,
+        created_at: nowIso,
+        delivery_deadline_at: deadlineIso,
+      };
+      Object.assign(baseOrderPayload, yx);
+
+      var extendedOrderPayload = Object.assign({}, baseOrderPayload, {
+        payment_method: paymentMethod,
+        payment_provider: paymentProviderForMethod(paymentMethod),
+        payment_status: chargeResult.status || 'pending',
+        payment_transaction_ref: chargeResult.reference || null,
+        payment_meta: paymentMeta,
+      });
+
+      var payloadsToTry = [];
+      if (isGift) payloadsToTry.push(Object.assign({}, extendedOrderPayload, { is_gift: true }));
+      payloadsToTry.push(extendedOrderPayload);
+      if (isGift) payloadsToTry.push(Object.assign({}, baseOrderPayload, { is_gift: true }));
+      payloadsToTry.push(baseOrderPayload);
+
+      var order = null;
+      for (var pi = 0; pi < payloadsToTry.length; pi++) {
+        try {
+          order = await SB.createOrder(payloadsToTry[pi]);
+          lastCreateErr = null;
+          break;
+        } catch (createErr) {
+          lastCreateErr = createErr;
+          var msg = String(createErr && createErr.message ? createErr.message : '');
+          if (/column|schema|could not find|PGRST/i.test(msg)) {
+            try {
+              order = await SB.createOrder(stripYasmineOrderFields(payloadsToTry[pi]));
+              lastCreateErr = null;
+              break;
+            } catch (eStrip) {
+              lastCreateErr = eStrip;
+            }
+          }
+        }
+      }
+      if (order) createdOrders.push(order);
     }
-    if (!order && lastCreateErr) throw lastCreateErr;
+
+    if (!createdOrders.length && lastCreateErr) throw lastCreateErr;
+
+    if (customerNotes.length) {
+      customerNotes.forEach(function (n) {
+        if (n) toast(n, 'default');
+      });
+    }
+
+    var order = createdOrders[0];
 
     try {
       var olist = STN.DB.get('orders') || [];
-      olist.push(order);
+      for (var oi = 0; oi < createdOrders.length; oi++) {
+        olist.push(createdOrders[oi]);
+      }
       STN.DB.set('orders', olist);
       State.orders = olist;
     } catch (ePersist) {}
@@ -1849,7 +1937,12 @@ async function submitOrder() {
     const successModal = document.createElement('div');
     successModal.id = 'success-modal';
     successModal.style.cssText = 'position:fixed;inset:0;background:rgba(30,10,78,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
-    const trackNum = order.tracking_number;
+    const trackNum = createdOrders
+      .map(function (o) {
+        return o.tracking_number;
+      })
+      .filter(Boolean)
+      .join(' · ') || order.tracking_number;
     const giftSuccess = isGift || orderIsGiftOrder(order);
     const giftHintText =
       '<p style="font-size:0.78rem;color:#9d174d;margin-bottom:1.5rem;line-height:1.45">Gift: the recipient is not notified by the app. Only your account can track this order — keep the code private if you want a surprise.</p>';
@@ -2351,6 +2444,7 @@ async function openProductDetail(productId) {
           ${p.oldPrice ? `<span class="price-old" style="margin-left:0.8rem">${p.oldPrice.toLocaleString()} TND</span>` : ''}
         </div>
         <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.8;margin-bottom:1.5rem">${p.desc}</p>
+        <div id="detail-delivery-hint" style="font-size:0.78rem;font-weight:600;margin-bottom:1rem;color:var(--success)">Loading delivery estimate…</div>
         ${p.specs ? `
         <div style="margin-bottom:1.5rem">
           ${Object.entries(p.specs).map(([k,v]) => `<div class="spec-row"><span class="spec-key">${k.charAt(0).toUpperCase()+k.slice(1)}</span><span class="spec-val">${v}</span></div>`).join('')}
@@ -2403,6 +2497,32 @@ async function openProductDetail(productId) {
   openModal('product-modal');
   bindProductDetailThumbs(p);
   hydrateProductDetailVendor(p);
+  (function hydrateDetailDelivery() {
+    var el = document.getElementById('detail-delivery-hint');
+    if (!el) return;
+    var vid = p.vendorId != null ? p.vendorId : p.vendor_id;
+    if (!vid || typeof SB === 'undefined' || !SB.getVendor) {
+      el.textContent = 'Fast Delivery (24h)';
+      el.style.color = 'var(--success)';
+      return;
+    }
+    SB.getVendor(String(vid))
+      .then(function (vr) {
+        if (typeof EverestYasmineRouting !== 'undefined' && EverestYasmineRouting.productDeliveryHint) {
+          var h = EverestYasmineRouting.productDeliveryHint(p, vr);
+          el.textContent = h.text;
+          el.style.color =
+            h.tone === 'ok' ? 'var(--success)' : h.tone === 'warn' ? 'var(--warning)' : 'var(--text-muted)';
+        } else {
+          el.textContent = 'Fast Delivery (24h)';
+          el.style.color = 'var(--success)';
+        }
+      })
+      .catch(function () {
+        el.textContent = 'Fast Delivery (24h)';
+        el.style.color = 'var(--success)';
+      });
+  })();
 }
 
 let detailQty = 1;
@@ -5485,6 +5605,59 @@ function renderVendorDashboard() {
   initializeProfessionalDashboard();
 }
 
+function toggleEverestVendorService(inService) {
+  if (!State.currentUser || State.currentUser.role !== 'vendor') return;
+  var id = String(State.currentUser.id);
+  (async function () {
+    var existing = null;
+    try {
+      if (typeof SB !== 'undefined' && SB.getVendor) existing = await SB.getVendor(id);
+    } catch (e) {}
+    try {
+      await SB.upsertVendor({
+        id: id,
+        service_status: inService ? 'active' : 'away',
+        last_active_at: new Date().toISOString(),
+        weekly_schedule: (existing && existing.weekly_schedule) || {},
+        consecutive_timeout_orders: (existing && existing.consecutive_timeout_orders) || 0,
+        updated_at: new Date().toISOString(),
+      });
+      toast(inService ? 'You are In Service — fast dispatch' : 'You are now Out of Service', 'success');
+    } catch (e2) {
+      toast('Could not update service status. Run supabase/migrations/20260404120000_yasmine_service_routing.sql in Supabase.', 'error');
+    }
+    if (window.dashboard && typeof window.dashboard.renderServicePanel === 'function') {
+      window.dashboard.renderServicePanel();
+    }
+  })();
+}
+
+function vendorAcceptYasmineOrder(orderId) {
+  if (!orderId || typeof EverestYasmineRouting === 'undefined') return;
+  var vid = State.currentUser && State.currentUser.id != null ? String(State.currentUser.id) : '';
+  var list = (window.dashboard && window.dashboard.orders) || [];
+  var found = list.find(function (x) {
+    return String(x.id) === String(orderId);
+  });
+  if (found) {
+    var ov = found.vendor_id != null ? found.vendor_id : found.vendorId;
+    if (ov != null && String(ov) !== vid) {
+      toast('This order is not assigned to your shop.', 'error');
+      return;
+    }
+  }
+  EverestYasmineRouting.vendorAcceptOrder(orderId).then(function (r) {
+    if (r.ok) toast('Order accepted', 'success');
+    else toast('Could not accept order', 'error');
+    var d = window.dashboard;
+    if (d && typeof d.loadData === 'function') {
+      d.loadData().then(function () {
+        d.renderDashboard();
+      });
+    }
+  });
+}
+
 function buildProfessionalDashboardHTML() {
   return `
     <div class="dashboard-container dash-pro-root">
@@ -5504,6 +5677,8 @@ function buildProfessionalDashboardHTML() {
           <button type="button" class="btn btn-sm" style="background:#fff;color:#b91c1c;border:1px solid rgba(220,38,38,0.35)" onclick="deleteMyAccount()">Delete account</button>
         </div>
       </div>
+
+      <div class="panel" id="vendor-yasmine-service-panel" style="margin:0 0 1.25rem 0;border-radius:16px;border:1px solid var(--dp-border, rgba(107,63,212,0.15));padding:1rem 1.25rem;background:#fff"></div>
 
       <div class="kpi-grid" id="kpi-grid">
         <div class="loading">
@@ -5590,6 +5765,7 @@ async function initializeProfessionalDashboard() {
   try {
     window.dashboard = new ProfessionalVendorDashboard();
     await window.dashboard.init();
+    if (typeof EverestYasmineRouting !== 'undefined') EverestYasmineRouting.startVendorStaleChecker();
     if (typeof STNLog !== 'undefined') STNLog.info('vendor.proDashboard', 'ready', {});
   } catch (error) {
     if (typeof STNLog !== 'undefined') STNLog.error('vendor.proDashboard.init', error, {});
@@ -5700,10 +5876,40 @@ class ProfessionalVendorDashboard {
 
   renderDashboard() {
     this.renderHeader();
+    var self = this;
+    Promise.resolve()
+      .then(function () {
+        return self.renderServicePanel();
+      })
+      .catch(function () {});
     this.renderKPIs();
     this.renderVendorAnalytics();
     this.renderOrders();
     this.renderInventory();
+  }
+
+  async renderServicePanel() {
+    var el = document.getElementById('vendor-yasmine-service-panel');
+    if (!el || !this.vendorData) return;
+    var vid = String(this.vendorData.id);
+    var row = null;
+    try {
+      if (typeof SB !== 'undefined' && SB.getVendor) row = await SB.getVendor(vid);
+    } catch (e) {}
+    var on = row && row.service_status === 'active';
+    el.innerHTML =
+      '<div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1rem">' +
+      '<div><p style="font-size:0.72rem;font-weight:700;color:#7b72a8;margin:0 0 0.35rem;font-family:Outfit,sans-serif">Service management</p>' +
+      '<p style="margin:0;font-size:0.9rem;color:#1e0a4e;font-weight:600">In Service / Out of Service</p>' +
+      '<p style="margin:0.35rem 0 0;font-size:0.75rem;color:#7b72a8">In Service: new orders require a 15-minute acceptance (Yasmine SOS).</p></div>' +
+      '<label style="display:flex;align-items:center;gap:0.65rem;cursor:pointer;font-weight:600;color:#1e0a4e">' +
+      '<span style="font-size:0.8rem">' +
+      (on ? 'In Service' : 'Out of Service') +
+      '</span>' +
+      '<input type="checkbox" ' +
+      (on ? 'checked ' : '') +
+      'onchange="toggleEverestVendorService(this.checked)" style="width:2.75rem;height:1.45rem;accent-color:#7c3aed"/></label>' +
+      '</div>';
   }
 
   renderHeader() {
@@ -5871,24 +6077,59 @@ class ProfessionalVendorDashboard {
 
   renderOrders() {
     const ordersList = document.getElementById('orders-list');
-    
+    const self = this;
+
     if (this.orders.length === 0) {
       ordersList.innerHTML = '<p style="text-align: center; color: #666;">No orders yet</p>';
       return;
     }
 
-    ordersList.innerHTML = this.orders.slice(0, 5).map(order => `
-      <div class="order-item">
-        <div class="order-info">
-          <div class="order-id">${order.tracking_number || order.id || 'ORD-' + Math.random().toString(36).substr(2, 9)}</div>
-          <div class="order-customer">${order.notes || order.phone || 'Guest Customer'}</div>
-        </div>
-        <div style="text-align: right;">
-          <div class="order-amount">${order.total || order.amount || 0} TND</div>
-          <span class="order-status status-${order.status || 'pending'}">${order.status || 'pending'}</span>
-        </div>
-      </div>
-    `).join('');
+    ordersList.innerHTML = this.orders.slice(0, 8).map(function (order) {
+      var sos =
+        order.yasmine_routing_status === 'pending_acceptance' &&
+        order.acceptance_deadline_at &&
+        String(order.status || '').toLowerCase() === 'pending';
+      var dl = sos ? new Date(order.acceptance_deadline_at).getTime() : 0;
+      var sosHtml = '';
+      if (sos && dl > Date.now()) {
+        var rem = Math.max(0, Math.floor((dl - Date.now()) / 60000));
+        sosHtml =
+          '<div style="margin-top:0.45rem;padding:0.45rem 0.6rem;border-radius:10px;background:linear-gradient(135deg,#fef2f2,#fff1f2);border:1px solid #fecaca;font-size:0.72rem;font-weight:700;color:#b91c1c">SOS · Accept within ~' +
+          rem +
+          ' min</div>' +
+          '<button type="button" class="btn btn-primary btn-sm" style="margin-top:0.45rem;width:100%" onclick="vendorAcceptYasmineOrder(' +
+          JSON.stringify(order.id) +
+          ')">Accept order</button>';
+      }
+      return (
+        '<div class="order-item">' +
+        '<div class="order-info">' +
+        '<div class="order-id">' +
+        (order.tracking_number || order.id || 'ORD') +
+        '</div>' +
+        '<div class="order-customer">' +
+        (order.notes || order.phone || 'Guest Customer') +
+        '</div>' +
+        sosHtml +
+        '</div>' +
+        '<div style="text-align: right;">' +
+        '<div class="order-amount">' +
+        (order.total || order.amount || 0) +
+        ' TND</div>' +
+        '<span class="order-status status-' +
+        (order.status || 'pending') +
+        '">' +
+        (order.status || 'pending') +
+        '</span></div></div>'
+      );
+    }).join('');
+
+    if (typeof EverestYasmineRouting !== 'undefined') {
+      clearTimeout(self._sosTimer);
+      self._sosTimer = setTimeout(function () {
+        self.renderOrders();
+      }, 30000);
+    }
   }
 
   renderInventory() {
@@ -6358,6 +6599,12 @@ function switchVendorSection(section) {
             <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Old Price</label><input type="number" id="vp-old-price" placeholder="1599" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
             <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Stock *</label><input type="number" id="vp-stock" placeholder="10" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
           </div>
+          <p style="font-size:0.72rem;color:#6b7280;margin:-0.35rem 0 0.75rem;line-height:1.4">SKU DNA (routing): parent SKU + color + size — used to match the same product across vendors.</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Parent SKU *</label><input type="text" id="vp-parent-sku" placeholder="e.g. NIKE-AF1" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box"/></div>
+            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Color ID</label><input type="text" id="vp-color-id" placeholder="e.g. black" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box"/></div>
+            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Size ID</label><input type="text" id="vp-size-id" placeholder="e.g. 42" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box"/></div>
+          </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
             <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Category *</label>
               <select id="vp-cat" onchange="onVendorCategoryChange(this.value)" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;background:white;outline:none;box-sizing:border-box">
@@ -6635,7 +6882,7 @@ function vendorSetUploadMode(product) {
   var editId = document.getElementById('vp-edit-id');
   var hiddenUrl = document.getElementById('vp-image-url');
   var catSelect = document.getElementById('vp-cat');
-  var fields = ['vp-title', 'vp-brand', 'vp-desc', 'vp-price', 'vp-old-price', 'vp-stock', 'vp-badge', 'vp-cat-other'];
+  var fields = ['vp-title', 'vp-brand', 'vp-desc', 'vp-price', 'vp-old-price', 'vp-stock', 'vp-badge', 'vp-cat-other', 'vp-parent-sku', 'vp-color-id', 'vp-size-id'];
   if (!product) {
     State.vendorEditingProductId = null;
     State.vendorUploadImageUrls = [];
@@ -6672,6 +6919,9 @@ function vendorSetUploadMode(product) {
     'vp-old-price': product.oldPrice != null ? product.oldPrice : '',
     'vp-stock': product.stock != null ? product.stock : '',
     'vp-badge': product.badge || '',
+    'vp-parent-sku': product.parent_sku || product.parentSku || '',
+    'vp-color-id': product.color_id || product.colorId || '',
+    'vp-size-id': product.size_id || product.sizeId || '',
   };
   Object.keys(fieldMap).forEach(function (id) {
     var el = document.getElementById(id);
@@ -6747,6 +6997,9 @@ async function deleteVendorProduct(productId) {
 async function uploadProduct() {
   const title = document.getElementById('vp-title')?.value?.trim();
   const brand = document.getElementById('vp-brand')?.value?.trim();
+  const parentSku = document.getElementById('vp-parent-sku')?.value?.trim();
+  const colorId = (document.getElementById('vp-color-id')?.value?.trim() || 'default');
+  const sizeId = (document.getElementById('vp-size-id')?.value?.trim() || 'one');
   const desc = document.getElementById('vp-desc')?.value?.trim();
   const price = parseFloat(document.getElementById('vp-price')?.value);
   const stock = parseInt(document.getElementById('vp-stock')?.value, 10);
@@ -6779,6 +7032,11 @@ async function uploadProduct() {
 
   if (!title || !brand || !desc || !Number.isFinite(price) || !Number.isFinite(stock)) {
     toast('⚠️ Please fill all required fields (name, brand, description, price, stock).', 'error');
+    return;
+  }
+
+  if (!parentSku) {
+    toast('⚠️ Please enter a Parent SKU (e.g. NIKE-AF1) for Yasmine routing and vendor matching.', 'error');
     return;
   }
 
@@ -6885,7 +7143,13 @@ async function uploadProduct() {
     stock,
     desc,
     created_at: new Date().toISOString(),
+    parent_sku: parentSku,
+    color_id: colorId,
+    size_id: sizeId,
   };
+  if (typeof EverestYasmineRouting !== 'undefined') {
+    EverestYasmineRouting.ensureProductSku(newProduct);
+  }
 
   if (categoryRow != null && categoryRow.id != null && categoryRow.id !== undefined) {
     newProduct.category_id = categoryRow.id;
@@ -6940,6 +7204,17 @@ async function uploadProduct() {
           delete tryPayload.region;
           regionRemoved = true;
           recovered = true;
+        } else if (/parent_sku|sku_dna|variant_id|color_id|size_id/i.test(m1) && /Could not find|column|schema|PGRST/i.test(m1)) {
+          delete tryPayload.parent_sku;
+          delete tryPayload.parentSku;
+          delete tryPayload.sku_dna;
+          delete tryPayload.variant_id;
+          delete tryPayload.variantId;
+          delete tryPayload.color_id;
+          delete tryPayload.colorId;
+          delete tryPayload.size_id;
+          delete tryPayload.sizeId;
+          recovered = true;
         }
         if (typeof STNLog !== 'undefined' && recovered) {
           STNLog.warn('vendor.uploadProduct', 'retry after API/schema mismatch', { attempt: attempt + 1, snippet: m1.slice(0, 160) });
@@ -6966,7 +7241,13 @@ async function uploadProduct() {
       image_url: imageUrl,
       product_images: imageList,
       vendorId: effectiveVendorId,
+      parent_sku: parentSku,
+      color_id: colorId,
+      size_id: sizeId,
     });
+    if (typeof EverestYasmineRouting !== 'undefined') {
+      EverestYasmineRouting.ensureProductSku(savedForUi);
+    }
 
     if (editProductId) {
       var idx = State.products.findIndex(function (p) { return String(p.id) === String(editProductId); });

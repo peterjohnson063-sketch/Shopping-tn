@@ -620,6 +620,26 @@ const SB = {
     return Array.isArray(data) && data[0] ? data[0] : null;
   },
 
+  // ── VENDORS (Yasmine service / SKU routing) ──
+  async getVendor(id) {
+    const data = await this.req('GET', 'vendors', null, `?id=eq.${_sbEq(id)}&limit=1`);
+    return data && data[0] ? data[0] : null;
+  },
+  async upsertVendor(row) {
+    if (!row || row.id == null || row.id === '') throw new Error('vendor id required');
+    const existing = await this.getVendor(row.id);
+    if (existing) {
+      const data = await this.req('PATCH', 'vendors', row, `?id=eq.${_sbEq(row.id)}`);
+      return data && data[0] ? data[0] : null;
+    }
+    const data = await this.req('POST', 'vendors', row);
+    return data && data[0] ? data[0] : null;
+  },
+  async createAdminAlert(row) {
+    const data = await this.req('POST', 'admin_alerts', row);
+    return data && data[0] ? data[0] : null;
+  },
+
   // ── ORDERS ──
   async getOrders() {
     return this.req('GET', 'orders', null, '?order=created_at.desc&limit=2000');

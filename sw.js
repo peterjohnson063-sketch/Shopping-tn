@@ -1,5 +1,5 @@
 /* Everest PWA — offline-friendly, but network-first so phones always get updates */
-const CACHE_NAME = 'everest-pwa-v45';
+const CACHE_NAME = 'everest-pwa-v46';
 const PRECACHE_URLS = [
   './',
   './index.html',
@@ -10,6 +10,7 @@ const PRECACHE_URLS = [
   './gemini-key.stub.js',
   './data.js',
   './supabase-fixed.js',
+  './yasmine-routing.js',
   './yasmine.js',
   './manifest.json',
   './assets/everest-logo.svg',
