@@ -582,7 +582,12 @@ function updateNavUser() {
       el.style.color = 'white';
       el.textContent = navLabelForHeader('Admin Dashboard', 'Admin');
       el.onclick = function(){ showPage('admin'); };
-    }     else if (role === 'vendor') {
+    } else if (role === 'hub') {
+      el.style.background = 'linear-gradient(135deg,#0d9488,#0f766e)';
+      el.style.color = 'white';
+      el.textContent = navLabelForHeader('Sahel Hub', 'Hub');
+      el.onclick = function(){ showPage('hub'); };
+    } else if (role === 'vendor') {
       el.style.background = 'linear-gradient(135deg,#059669,#047857)';
       el.style.color = 'white';
       el.textContent = navLabelForHeader('My Dashboard', 'Dashboard');
@@ -687,6 +692,7 @@ function showPage(id) {
     auth: renderAuth,
     account: renderAccount,
     admin: renderAdmin,
+    hub: renderHub,
     vendor: renderVendor,
     'vendor-dashboard': renderVendorDashboard,
     driver: renderDriver,
@@ -760,6 +766,7 @@ function mobileNavAccount() {
   }
   var role = State.currentUser.role;
   if (role === 'admin') showPage('admin');
+  else if (role === 'hub') showPage('hub');
   else if (role === 'vendor') showVendorHubOrOnboarding();
   else if (role === 'driver') showPage('driver');
   else showPage('account');
@@ -770,7 +777,7 @@ function syncBottomNavActive(pageId) {
   if (!nav) return;
   nav.querySelectorAll('.bottom-nav__btn').forEach(function (b) { b.classList.remove('active'); });
   var map = { home: 'bottomnav-home', products: 'bottomnav-products', track: 'bottomnav-track' };
-  var accountPages = { account: 1, auth: 1, vendor: 1, 'vendor-hours': 1, admin: 1, 'vendor-dashboard': 1, driver: 1 };
+  var accountPages = { account: 1, auth: 1, vendor: 1, 'vendor-hours': 1, admin: 1, hub: 1, 'vendor-dashboard': 1, driver: 1 };
   if (accountPages[pageId]) {
     var acc = document.getElementById('bottomnav-account');
     if (acc) acc.classList.add('active');
@@ -3006,6 +3013,7 @@ async function doLogin() {
     updateNavUser();
     toast(`✦ Welcome back, ${State.currentUser.firstName || local.firstName}!`, 'success');
     if (State.currentUser.role === 'admin') showPage('admin');
+    else if (State.currentUser.role === 'hub') showPage('hub');
     else if (State.currentUser.role === 'vendor') showVendorHubOrOnboarding();
     else if (State.currentUser.role === 'driver') showPage('driver');
     else showPage('home');
@@ -3033,6 +3041,7 @@ async function doLogin() {
     updateNavUser();
     toast(`✦ Welcome back, ${user.first_name}!`, 'success');
     if (user.role === 'admin') showPage('admin');
+    else if (user.role === 'hub') showPage('hub');
     else if (user.role === 'vendor') showVendorHubOrOnboarding();
     else if (user.role === 'driver') showPage('driver');
     else showPage('home');
@@ -4624,6 +4633,7 @@ function buildAdminHTML() {
   var tabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'orders', label: 'Orders' },
+    { id: 'hub', label: 'Sahel Hub' },
     { id: 'logistics', label: 'Logistics' },
     { id: 'users', label: 'Customers' },
     { id: 'drivers', label: 'Drivers' },
@@ -4668,6 +4678,12 @@ async function switchAdmin(section) {
 
   const content = document.getElementById('admin-content');
   if (!content) return;
+
+  if (section === 'hub') {
+    content.innerHTML = '<div id="hub-panel-root" style="padding:1.5rem"></div>';
+    renderHubPanelInto('hub-panel-root');
+    return;
+  }
 
   var users = STN.DB.get('users') || [];
   var orders = STN.DB.get('orders') || [];
@@ -5557,8 +5573,27 @@ async function verifyDriverAccount(userId) {
 window.verifyDriverAccount = verifyDriverAccount;
 
 async function verifyVendor(userId) {
+  var u = null;
+  try {
+    if (typeof SB !== 'undefined' && SB.getUserById) u = await SB.getUserById(userId);
+  } catch (e) {}
+  if (!u) {
+    var usersPre = STN.DB.get('users') || [];
+    u = usersPre.find(function (x) {
+      return String(x.id) === String(userId);
+    });
+  }
+  var wilaya = u ? u.wilaya || u.wilaya_name || '' : '';
+  if (typeof EverestYasmineRouting !== 'undefined' && EverestYasmineRouting.isWilayaInSahel && !EverestYasmineRouting.isWilayaInSahel(wilaya)) {
+    toast(
+      'Sahel launch: partner wilaya must be in the Sahel service zone (e.g. Monastir, Sousse, Mahdia, Sfax…). Fix wilaya on the account, then approve.',
+      'error'
+    );
+    return;
+  }
+
   const users = STN.DB.get('users') || [];
-  const idx = users.findIndex(u => String(u.id) === String(userId));
+  const idx = users.findIndex(u2 => String(u2.id) === String(userId));
   if (idx !== -1) {
     users[idx].verified = true;
     STN.DB.set('users', users);
@@ -5570,9 +5605,146 @@ async function verifyVendor(userId) {
   } catch (e) {
     if (typeof STNLog !== 'undefined') STNLog.warn('verifyVendor', e && e.message);
   }
-  toast('Vendor approved!', 'success');
+
+  var promoCount = 0;
+  try {
+    if (typeof SB !== 'undefined' && SB.countPromotionVendors) promoCount = await SB.countPromotionVendors();
+  } catch (e2) {}
+  var slot = null;
+  var commissionRate = 0.05;
+  if (promoCount < 100) {
+    slot = promoCount + 1;
+    commissionRate = 0.01;
+  }
+
+  try {
+    if (typeof SB !== 'undefined' && SB.getVendor && SB.upsertVendor) {
+      var vr = await SB.getVendor(String(userId));
+      var def =
+        typeof EverestYasmineRouting !== 'undefined' && EverestYasmineRouting.defaultWeeklySchedule
+          ? EverestYasmineRouting.defaultWeeklySchedule()
+          : {};
+      await SB.upsertVendor({
+        id: String(userId),
+        service_status: (vr && vr.service_status) || 'away',
+        weekly_schedule: (vr && vr.weekly_schedule && Object.keys(vr.weekly_schedule).length) ? vr.weekly_schedule : def,
+        consecutive_timeout_orders: (vr && vr.consecutive_timeout_orders) || 0,
+        onboarding_status: 'active',
+        sahel_verified: true,
+        sahel_verified_at: new Date().toISOString(),
+        commission_rate: commissionRate,
+        promotion_slot: slot,
+        updated_at: new Date().toISOString(),
+      });
+    }
+  } catch (e3) {
+    if (typeof STNLog !== 'undefined') STNLog.warn('verifyVendor.vendorsRow', e3 && e3.message);
+    toast('User approved — run migration `20260405180000_sahel_phase1_core.sql` to sync vendor commission fields.', 'default');
+  }
+
+  toast(
+    'Partner approved for Sahel routing. Commission: ' +
+      (commissionRate <= 0.011 ? '1% (promo cohort' + (slot != null ? ' #' + slot : '') + ')' : '5% (standard)') +
+      '.',
+    'success'
+  );
   switchAdmin('vendors');
 }
+
+function hubCanAccess() {
+  var u = State.currentUser;
+  return !!(u && (u.role === 'hub' || u.role === 'admin'));
+}
+
+async function renderHubPanelInto(containerId) {
+  var root = document.getElementById(containerId);
+  if (!root) return;
+  root.innerHTML = '<p style="color:#7b72a8;font-size:0.9rem">Loading ready-for-pickup queue…</p>';
+  var list = [];
+  try {
+    if (typeof SB !== 'undefined' && SB.getOrders) list = await SB.getOrders();
+  } catch (e) {
+    list = [];
+  }
+  var ready = (list || []).filter(function (o) {
+    var s = String(o.status || '')
+      .toLowerCase()
+      .replace(/-/g, '_');
+    return s === 'ready' && !o.hub_quality_passed_at;
+  });
+  if (ready.length === 0) {
+    root.innerHTML =
+      '<div style="text-align:center;padding:3rem;color:#64748b"><div style="font-size:2.5rem;margin-bottom:0.75rem">📦</div>' +
+      '<p style="font-size:1rem;font-weight:600;color:#1e0a4e">No packages waiting for QC</p>' +
+      '<p style="font-size:0.85rem;margin-top:0.5rem">Orders in <strong>Ready</strong> without a quality check appear here.</p></div>';
+    return;
+  }
+  root.innerHTML =
+    '<h2 style="font-size:1.25rem;color:#1e0a4e;margin:0 0 1rem">Ready for pickup — quality gate</h2>' +
+    '<p style="font-size:0.82rem;color:#6b7280;margin:0 0 1.25rem;max-width:42rem">Complete <strong>Quality check</strong> after inspection; seal with Everest branding only after QC is recorded.</p>' +
+    '<div style="display:flex;flex-direction:column;gap:1rem">' +
+    ready
+      .map(function (o) {
+        var tr = o.tracking_number || o.id || '—';
+        var tot = o.total != null ? Number(o.total).toLocaleString() : '—';
+        var oid = JSON.stringify(String(o.id));
+        return (
+          '<div style="background:white;border:1px solid #e5e7eb;border-radius:14px;padding:1.25rem;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:1rem">' +
+          '<div><div style="font-size:0.7rem;font-weight:700;color:#7b72a8;text-transform:uppercase">Tracking</div>' +
+          '<div style="font-size:1.1rem;font-weight:700;color:#1e0a4e">' +
+          String(tr) +
+          '</div>' +
+          '<div style="font-size:0.8rem;color:#6b7280;margin-top:0.35rem">' +
+          (o.items ? o.items.length : 0) +
+          ' items · ' +
+          tot +
+          ' TND</div></div>' +
+          '<button type="button" style="background:linear-gradient(135deg,#059669,#047857);border:none;padding:0.65rem 1.25rem;border-radius:10px;font-weight:700;cursor:pointer;color:white;font-family:inherit" onclick="hubPassQualityCheck(' +
+          oid +
+          ')">✓ Quality check</button></div>'
+        );
+      })
+      .join('') +
+    '</div>';
+}
+
+function renderHub() {
+  if (!hubCanAccess()) {
+    toast('Sahel Hub access required', 'error');
+    showPage('auth');
+    return;
+  }
+  var page = document.getElementById('page-hub');
+  if (!page) return;
+  page.innerHTML =
+    '<div class="dash-pro" style="min-height:70vh"><div class="dash-pro-topbar"><div class="dash-pro-brand"><span class="dash-pro-brand-mark">●</span> Sahel Hub — QC</div></div>' +
+    '<div class="dash-pro-body" id="hub-page-body" style="padding:1.5rem"></div></div>';
+  renderHubPanelInto('hub-page-body');
+}
+
+async function hubPassQualityCheck(orderId) {
+  if (!hubCanAccess()) return;
+  if (!orderId || typeof SB === 'undefined' || !SB.updateOrder) {
+    toast('Cannot update order', 'error');
+    return;
+  }
+  var uid = State.currentUser && State.currentUser.id != null ? String(State.currentUser.id) : '';
+  try {
+    await SB.updateOrder(orderId, {
+      hub_quality_passed_at: new Date().toISOString(),
+      hub_quality_passed_by: uid,
+    });
+    toast('QC recorded — package may be sealed with Everest branding.', 'success');
+    var el = document.getElementById('hub-page-body');
+    if (el) await renderHubPanelInto('hub-page-body');
+    var hp = document.getElementById('hub-panel-root');
+    if (hp) await renderHubPanelInto('hub-panel-root');
+  } catch (e) {
+    toast('QC update failed — run migration `20260405180000_sahel_phase1_core.sql` on Supabase.', 'error');
+    if (typeof STNLog !== 'undefined') STNLog.warn('hubPassQualityCheck', e && e.message);
+  }
+}
+window.hubPassQualityCheck = hubPassQualityCheck;
 
 /**
  * Ban a user (admin). Optional `reason` skips the prompt; otherwise admin enters text shown to the user.
@@ -5819,6 +5991,9 @@ async function everestSyncVendorDefaults(vendorId) {
         service_status: 'away',
         weekly_schedule: def,
         consecutive_timeout_orders: 0,
+        onboarding_status: 'inactive',
+        sahel_verified: false,
+        commission_rate: 0.01,
         updated_at: new Date().toISOString(),
       });
       return;
@@ -7087,8 +7262,8 @@ function switchVendorSection(section) {
           <p style="font-size:0.72rem;color:#6b7280;margin:-0.35rem 0 0.75rem;line-height:1.4">SKU DNA (routing): parent SKU + color + size — used to match the same product across vendors.</p>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
             <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Parent SKU *</label><input type="text" id="vp-parent-sku" placeholder="e.g. NIKE-AF1" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box"/></div>
-            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Color ID</label><input type="text" id="vp-color-id" placeholder="e.g. black" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box"/></div>
-            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Size ID</label><input type="text" id="vp-size-id" placeholder="e.g. 42" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box"/></div>
+            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Color ID * <span style="font-weight:500;color:#6b7280">(Universal SKU)</span></label><input type="text" id="vp-color-id" placeholder="e.g. RED, black" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box"/></div>
+            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Size ID * <span style="font-weight:500;color:#6b7280">(Universal SKU)</span></label><input type="text" id="vp-size-id" placeholder="e.g. 42, L" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box"/></div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
             <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Category *</label>
@@ -7525,6 +7700,14 @@ async function uploadProduct() {
     return;
   }
 
+  if (!editProductId && (colorId === 'default' || sizeId === 'one')) {
+    toast(
+      '⚠️ Sahel Phase 1: set Color ID and Size ID to real variant values (not default / one) so Universal SKU matching works across partners.',
+      'error'
+    );
+    return;
+  }
+
   if (stock < 0) {
     toast('⚠️ Stock cannot be negative.', 'error');
     return;
@@ -7611,10 +7794,12 @@ async function uploadProduct() {
   const newProduct = {
     name: title,
     brand: brand,
+    brand_id: 'EVEREST',
     vendorId: effectiveVendorId,
     region: State.currentUser?.wilaya || 'Tunisia',
     cat: catSlug,
     category: catSlug,
+    category_id: catSlug,
     price,
     oldPrice,
     rating: 0,
@@ -7732,6 +7917,21 @@ async function uploadProduct() {
     });
     if (typeof EverestYasmineRouting !== 'undefined') {
       EverestYasmineRouting.ensureProductSku(savedForUi);
+    }
+
+    if (savedProduct && savedProduct.id && typeof EverestYasmineRouting !== 'undefined' && typeof SB !== 'undefined' && SB.updateProduct) {
+      var skuPatch = Object.assign({}, savedForUi, { id: savedProduct.id });
+      EverestYasmineRouting.ensureProductSku(skuPatch);
+      try {
+        await SB.updateProduct(String(savedProduct.id), {
+          universal_sku: skuPatch.universal_sku,
+          category_id: skuPatch.category_id || catSlug,
+          brand_id: skuPatch.brand_id || 'EVEREST',
+          sku_dna: skuPatch.sku_dna,
+        });
+      } catch (skuErr) {
+        if (typeof STNLog !== 'undefined') STNLog.debug('vendor.uploadProduct', 'universal_sku patch optional', { message: skuErr && skuErr.message });
+      }
     }
 
     if (editProductId) {

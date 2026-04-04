@@ -6,6 +6,45 @@ var EverestYasmineRouting = (function () {
   var ACCEPT_MS = 15 * 60 * 1000;
   var PROCESSING_MS = 24 * 60 * 60 * 1000;
 
+  /** Wilayas treated as Sahel for May launch routing (admin still confirms on verify). */
+  var SAHEL_WILAYAS = [
+    'Monastir',
+    'Sousse',
+    'Mahdia',
+    'Nabeul',
+    'Sfax',
+    'Kairouan',
+    'Ben Arous',
+    'Manouba',
+    'Zaghouan',
+    'Ariana',
+  ];
+
+  function normalizeWilaya(w) {
+    return String(w || '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  }
+
+  function isWilayaInSahel(wilaya) {
+    var n = normalizeWilaya(wilaya);
+    if (!n) return false;
+    return SAHEL_WILAYAS.some(function (s) {
+      return normalizeWilaya(s) === n;
+    });
+  }
+
+  /** Partner must be admin-approved for Sahel + active onboarding to participate in live routing. */
+  function vendorRoutingEligible(row) {
+    if (!row) return false;
+    var st = row.onboarding_status;
+    if (st === 'inactive' || st === 'pending_verification') return false;
+    if (row.sahel_verified === false) return false;
+    return true;
+  }
+
   function _slug(s) {
     return String(s || '')
       .trim()
@@ -31,6 +70,27 @@ var EverestYasmineRouting = (function () {
     out.size_id = size;
     out.variant_id = variant;
     out.sku_dna = parent + '|' + color + '|' + size;
+    var catKey = (
+      out.category_id ||
+      out.categoryId ||
+      out.cat ||
+      out.category ||
+      'GEN'
+    )
+      .toString()
+      .trim();
+    var brandKey = (out.brand_id || out.brandId || out.brand || 'EVR').toString().trim() || 'EVR';
+    var seq = String(out.id != null ? out.id : '')
+      .replace(/[^0-9a-zA-Z]/g, '')
+      .slice(-4);
+    if (!seq) seq = '0001';
+    if (out.category_id == null && out.categoryId == null) out.category_id = catKey;
+    if (out.brand_id == null && out.brandId == null) out.brand_id = brandKey;
+    var uCat = _slug(catKey).toUpperCase().slice(0, 12) || 'GEN';
+    var uBrand = _slug(brandKey).toUpperCase().slice(0, 8) || 'EVR';
+    var uCol = _slug(color).toUpperCase().slice(0, 10) || 'DEF';
+    var uSz = _slug(size).toUpperCase().slice(0, 10) || 'ONE';
+    out.universal_sku = 'SAHEL-' + uCat + '-' + uBrand + '-' + seq + '-' + uCol + '-' + uSz;
     return out;
   }
 
@@ -84,6 +144,7 @@ var EverestYasmineRouting = (function () {
   /** In Service + inside weekly hours (15‑min SOS). Away / break / closed day or after hours → pre-order path. */
   function vendorImmediateSosEligible(row) {
     if (!row) return false;
+    if (!vendorRoutingEligible(row)) return false;
     if (row.service_status === 'away' || row.service_status === 'scheduled_break') return false;
     if (row.service_status !== 'active') return false;
     return isVendorWithinWeeklyHours(row.weekly_schedule, new Date());
@@ -167,7 +228,7 @@ var EverestYasmineRouting = (function () {
       year: 'numeric',
     });
     return (
-      'This line is on a short preparation window. Estimated ready by ' +
+      'Pre-order: Processing in 24–48h. Estimated ready around ' +
       ds +
       '. Everest will confirm by email or in Track.'
     );
@@ -190,6 +251,9 @@ var EverestYasmineRouting = (function () {
       service_status: 'away',
       weekly_schedule: defaultWeeklySchedule(),
       consecutive_timeout_orders: 0,
+      onboarding_status: 'inactive',
+      sahel_verified: false,
+      commission_rate: 0.01,
     };
     if (defaults && typeof defaults === 'object') Object.assign(base, defaults);
     try {
@@ -318,7 +382,7 @@ var EverestYasmineRouting = (function () {
     var row = await ensureVendorRow(vendorId);
     var n = (row.consecutive_timeout_orders || 0) + 1;
     var nextStatus = row.service_status;
-    if (n >= 2) nextStatus = 'away';
+    if (n >= 1) nextStatus = 'away';
     try {
       await SB.upsertVendor({
         id: String(vendorId),
@@ -329,11 +393,14 @@ var EverestYasmineRouting = (function () {
         updated_at: new Date().toISOString(),
       });
     } catch (e) {}
-    if (n >= 2 && SB.createAdminAlert) {
+    if (n >= 1 && SB.createAdminAlert) {
       try {
         await SB.createAdminAlert({
           kind: 'vendor_auto_away',
-          message: 'Vendor ' + String(vendorId) + ' was set to Away after 2 consecutive order acceptance timeouts (Yasmine).',
+          message:
+            'Partner ' +
+            String(vendorId) +
+            ' set to Away after no response within the 15-minute acceptance window (Yasmine Sahel).',
           meta: { vendor_id: String(vendorId), consecutive_timeout_orders: n },
         });
       } catch (e2) {}
@@ -506,5 +573,9 @@ var EverestYasmineRouting = (function () {
     productDeliveryHint: productDeliveryHint,
     startVendorStaleChecker: startVendorStaleChecker,
     incrementVendorTimeoutAndMaybeAway: incrementVendorTimeoutAndMaybeAway,
+    SAHEL_WILAYAS: SAHEL_WILAYAS,
+    normalizeWilaya: normalizeWilaya,
+    isWilayaInSahel: isWilayaInSahel,
+    vendorRoutingEligible: vendorRoutingEligible,
   };
 })();

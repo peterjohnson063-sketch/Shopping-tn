@@ -565,6 +565,14 @@ const SB = {
     const data = await this.req('POST', 'vendors', row);
     return data && data[0] ? data[0] : null;
   },
+  async countPromotionVendors() {
+    try {
+      const data = await this.req('GET', 'vendors', null, '?select=id&promotion_slot=not.is.null');
+      return Array.isArray(data) ? data.length : 0;
+    } catch (e) {
+      return 0;
+    }
+  },
   async createAdminAlert(row) {
     const data = await this.req('POST', 'admin_alerts', row);
     return data && data[0] ? data[0] : null;
