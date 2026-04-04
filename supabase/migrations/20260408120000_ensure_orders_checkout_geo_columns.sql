@@ -28,8 +28,26 @@ begin
   end if;
 end $$;
 
-comment on column public.orders.customer_lat is 'Buyer device latitude at checkout (Geolocation API), if shared';
-comment on column public.orders.customer_lng is 'Buyer device longitude at checkout (Geolocation API), if shared';
-comment on column public.orders.checkout_geo_captured_at is 'When checkout GPS was captured';
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'orders' and column_name = 'customer_lat'
+  ) then
+    comment on column public.orders.customer_lat is 'Buyer device latitude at checkout (Geolocation API), if shared';
+  end if;
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'orders' and column_name = 'customer_lng'
+  ) then
+    comment on column public.orders.customer_lng is 'Buyer device longitude at checkout (Geolocation API), if shared';
+  end if;
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'orders' and column_name = 'checkout_geo_captured_at'
+  ) then
+    comment on column public.orders.checkout_geo_captured_at is 'When checkout GPS was captured';
+  end if;
+end $$;
 
 notify pgrst, 'reload schema';
