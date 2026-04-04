@@ -17,9 +17,9 @@
   function statusHint(st) {
     var n = normalizeStatus(st);
     var map = {
-      pending: 'waiting for seller confirmation',
+      pending: 'waiting for Everest confirmation',
       confirmed: 'confirmed — being prepared',
-      processing: 'being prepared at the shop',
+      processing: 'being prepared',
       ready: 'ready for driver pickup',
       out_for_delivery: 'on the way to the customer',
       shipped: 'on the way',
@@ -198,9 +198,9 @@
   function statusHintLocalized(st, lang) {
     var n = normalizeStatus(st);
     var en = {
-      pending: 'waiting for seller confirmation',
+      pending: 'waiting for Everest confirmation',
       confirmed: 'confirmed — being prepared',
-      processing: 'being prepared at the shop',
+      processing: 'being prepared',
       ready: 'ready for driver pickup',
       out_for_delivery: 'on the way to you',
       shipped: 'on the way',
@@ -211,7 +211,7 @@
     var fr = {
       pending: 'en attente de confirmation',
       confirmed: 'confirmée — en préparation',
-      processing: 'en préparation chez le vendeur',
+      processing: 'en préparation',
       ready: 'prête pour le livreur',
       out_for_delivery: 'en cours de livraison',
       shipped: 'en route',
@@ -220,7 +220,7 @@
       canceled: 'annulée',
     };
     var ar = {
-      pending: 'بانتظار تأكيد البائع',
+      pending: 'بانتظار تأكيد إيفرست',
       confirmed: 'مؤكدة — قيد التجهيز',
       processing: 'قيد التجهيز',
       ready: 'جاهزة للسائق',
@@ -337,7 +337,7 @@
       );
     else if (safeLang === 'en')
       lines.push(
-        '\n🚚 Delivery in Tunisia is often **24–48h** once the seller has prepared the package. Use **Track** for step-by-step updates.'
+        '\n🚚 Delivery in Tunisia is often **24–48h** once Everest has prepared your package. Use **Track** for step-by-step updates.'
       );
     else
       lines.push(

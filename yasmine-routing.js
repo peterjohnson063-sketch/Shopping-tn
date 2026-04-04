@@ -42,7 +42,7 @@ var EverestYasmineRouting = (function () {
     return !!(row && row.service_status === 'active');
   }
 
-  /** True when seller is In Service and current local time is inside their weekly open/close window. */
+  /** True when the partner is In Service and current local time is inside their weekly open/close window. */
   function timeToMinutes(t) {
     var s = String(t || '08:00').trim();
     var parts = s.split(':');
@@ -127,7 +127,7 @@ var EverestYasmineRouting = (function () {
     return parts.join(' · ');
   }
 
-  /** Next estimated ready time: next time seller can process + 24h buffer (pre-order). */
+  /** Next estimated ready time: next time the partner can process + 24h buffer (pre-order). */
   function estimatedReadyFromSchedule(weeklySchedule, fromDate) {
     var sched = weeklySchedule && typeof weeklySchedule === 'object' ? weeklySchedule : {};
     var start = fromDate ? new Date(fromDate) : new Date();
@@ -167,9 +167,9 @@ var EverestYasmineRouting = (function () {
       year: 'numeric',
     });
     return (
-      'Pre-order: this seller is closed or out of service right now. Estimated ready by ' +
+      'This line is on a short preparation window. Estimated ready by ' +
       ds +
-      '. Need it faster? Remove their items or shop another seller.'
+      '. Everest will confirm by email or in Track.'
     );
   }
 
@@ -212,7 +212,7 @@ var EverestYasmineRouting = (function () {
     });
   }
 
-  /** Same SKU_DNA (parent_sku + color + size) across catalog = Amazon-style substitute when primary seller is closed. */
+  /** Same SKU_DNA (parent_sku + color + size) across catalog = substitute when primary line is closed. */
   function findAlternateVendorIds(allProducts, skuDnas, excludeId) {
     if (!skuDnas.length || !Array.isArray(allProducts)) return [];
     var ex = excludeId != null ? String(excludeId) : '';
@@ -282,7 +282,7 @@ var EverestYasmineRouting = (function () {
         original_vendor_id: null,
         estimated_ready_at: null,
         yasmine_meta: Object.assign({}, meta, { step: 'direct_match_sos' }),
-        customerNote: 'Your seller has been alerted — please allow up to 15 minutes for acceptance.',
+        customerNote: 'Everest is confirming your order — please allow up to 15 minutes.',
       };
     }
 
@@ -296,7 +296,7 @@ var EverestYasmineRouting = (function () {
         original_vendor_id: String(primaryVid),
         estimated_ready_at: null,
         yasmine_meta: Object.assign({}, meta, { step: 'smart_switch', routed_from: String(primaryVid) }),
-        customerNote: 'Your order was routed to another in-stock partner (same product match).',
+        customerNote: 'Everest assigned fulfillment from another partner with the same item in stock.',
       };
     }
 
@@ -451,15 +451,19 @@ var EverestYasmineRouting = (function () {
 
   function productDeliveryHint(product, vendorRow) {
     ensureProductSku(product);
-    var hoursLine = formatWeeklyScheduleForBuyer(vendorRow && vendorRow.weekly_schedule);
     if (!vendorRow) {
-      return { text: 'Fast Delivery (24h)', tone: 'ok', hoursLine: hoursLine, preorder: false };
+      return {
+        text: 'Standard Everest dispatch — we will confirm timing after checkout.',
+        tone: 'ok',
+        hoursLine: '',
+        preorder: false,
+      };
     }
     if (vendorImmediateSosEligible(vendorRow)) {
       return {
-        text: 'Fast dispatch — seller is in service now (within their hours).',
+        text: 'Quick confirmation window — Everest can usually confirm this line shortly after you order.',
         tone: 'ok',
-        hoursLine: hoursLine,
+        hoursLine: '',
         preorder: false,
       };
     }
@@ -468,12 +472,9 @@ var EverestYasmineRouting = (function () {
     var r = hasSched ? estimatedReadyFromSchedule(sched, new Date()) : new Date(Date.now() + 48 * 3600000 + PROCESSING_MS);
     var ds = r.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
     return {
-      text:
-        'Pre-order — seller is out of service or outside their hours. Typical ready by ' +
-        ds +
-        '.',
+      text: 'Preparation window — estimated ready around ' + ds + '. Final date in checkout & Track.',
       tone: 'warn',
-      hoursLine: hoursLine,
+      hoursLine: '',
       preorder: true,
     };
   }

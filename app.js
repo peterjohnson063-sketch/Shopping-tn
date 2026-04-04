@@ -331,7 +331,7 @@ async function init() {
   startPreorderReadyNotifier();
 }
 
-/** Polls buyer orders; toasts when a pre-order moves to an active/confirmed state (seller back / accepted). */
+/** Polls buyer orders; toasts when a pre-order moves to an active/confirmed state. */
 function startPreorderReadyNotifier() {
   if (window.__everestPreorderPoller) return;
   var baseline = null;
@@ -1785,7 +1785,7 @@ function closeSuccessModal() {
   showPage('track');
 }
 
-/** Split cart lines by product vendor for Yasmine routing (one order per seller). */
+/** Split cart lines by product vendor for Yasmine routing (one order per fulfillment line). */
 function groupCartByVendor(cart) {
   var map = {};
   for (var i = 0; i < (cart || []).length; i++) {
@@ -1833,14 +1833,14 @@ async function hydrateCheckoutYasmineNotice() {
             : '';
         var note = ex.customerNote ? String(ex.customerNote) : '';
         blocks.push(
-          '<div style="padding:0.65rem 0.75rem;border-radius:10px;background:#fffbeb;border:1px solid #fde68a;font-size:0.78rem;color:#92400e;line-height:1.45">📅 <strong>Pre-order</strong> for one seller' +
-            (ds ? ' — estimated ready by <strong>' + escHtml(ds) + '</strong>.' : '.') +
+          '<div style="padding:0.65rem 0.75rem;border-radius:10px;background:#fffbeb;border:1px solid #fde68a;font-size:0.78rem;color:#92400e;line-height:1.45">📅 <strong>Pre-order</strong> (Everest)' +
+            (ds ? ' — estimated ready around <strong>' + escHtml(ds) + '</strong>.' : '.') +
             (note ? '<br/><span style="opacity:0.95">' + escHtml(note) + '</span>' : '') +
             '</div>'
         );
       } else if (ex.yasmine_routing_status === 'pending_acceptance') {
         blocks.push(
-          '<div style="padding:0.55rem 0.75rem;border-radius:10px;background:#f0fdf4;border:1px solid #bbf7d0;font-size:0.76rem;color:#166534;line-height:1.4">⚡ This seller can accept within ~15 minutes (in service).</div>'
+          '<div style="padding:0.55rem 0.75rem;border-radius:10px;background:#f0fdf4;border:1px solid #bbf7d0;font-size:0.76rem;color:#166534;line-height:1.4">⚡ Everest can usually confirm this cart line within ~15 minutes.</div>'
         );
       }
     } catch (e) {}
@@ -2391,12 +2391,12 @@ function _detailEscapeAttr(s) {
   return _detailEscapeHtml(s).replace(/'/g, '&#39;');
 }
 function _everestPartnerIconSmallHtml() {
-  return '<span class="everest-partner-icon" role="img" aria-label="Everest Partner" title="Everest Partner" style="font-size:1.35rem;line-height:1">⛰️</span>';
+  return '<span class="everest-partner-icon" role="img" aria-label="Everest" title="Everest" style="font-size:1.35rem;line-height:1">⛰️</span>';
 }
 function _everestPartnerGalleryMainHtml() {
   return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.75rem;height:100%;min-height:12rem;padding:2rem;background:linear-gradient(135deg,#ede9fe,#ddd6fe);border-radius:12px">
-    <span style="font-size:4rem;line-height:1" role="img" aria-label="Everest Partner">⛰️</span>
-    <span style="font-size:0.85rem;font-weight:600;letter-spacing:0.06em;color:#5b21b6;text-transform:uppercase">Everest Partner</span>
+    <span style="font-size:4rem;line-height:1" role="img" aria-label="Everest">⛰️</span>
+    <span style="font-size:0.85rem;font-weight:600;letter-spacing:0.06em;color:#5b21b6;text-transform:uppercase">Everest</span>
   </div>`;
 }
 function _detailGalleryMainProductHtml(p) {
@@ -2521,9 +2521,9 @@ async function openProductDetail(productId) {
       <div>
         ${p.badge ? `<span class="product-badge" style="position:relative;top:auto;left:auto;display:inline-block;margin-bottom:0.8rem">${p.badge}</span>` : ''}
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem" id="detail-vendor-row">
-          <div id="detail-vendor-logo-wrap" style="width:56px;height:56px;border-radius:14px;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,#ede9fe,#ddd6fe);border:1px solid rgba(124,58,237,0.25);display:flex;align-items:center;justify-content:center" title="Everest Partner">${_everestPartnerIconSmallHtml()}</div>
+          <div id="detail-vendor-logo-wrap" style="width:56px;height:56px;border-radius:14px;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,#ede9fe,#ddd6fe);border:1px solid rgba(124,58,237,0.25);display:flex;align-items:center;justify-content:center" title="Everest">${_everestPartnerIconSmallHtml()}</div>
           <div>
-            <div style="font-size:0.8rem;color:var(--text-muted)"><span style="font-weight:600">Sold by: </span><span id="detail-vendor-name" style="font-weight:600;color:var(--champagne)">${_detailEscapeHtml(fallbackName)}</span></div>
+            <div style="font-size:0.8rem;color:var(--text-muted)"><span id="detail-vendor-name" style="font-weight:700;color:var(--champagne)">${_detailEscapeHtml(fallbackName)}</span> <span style="font-size:0.72rem;font-weight:500">— official Everest store</span></div>
           </div>
         </div>
         <div class="product-brand" style="margin-bottom:0.3rem">Everest · ${_detailEscapeHtml(String(p.region || ''))}</div>
@@ -2531,7 +2531,7 @@ async function openProductDetail(productId) {
         <div class="product-rating" style="margin-bottom:1rem">
           <span class="stars" style="font-size:0.9rem;letter-spacing:2px">${'★'.repeat(Math.floor(p.rating))}${'☆'.repeat(5-Math.floor(p.rating))}</span>
           <span class="rating-num">${p.rating} · ${p.reviews} reviews</span>
-          ${p.verified ? `<span class="verified-buyer">✓ Verified Seller</span>` : ''}
+          ${p.verified ? `<span class="verified-buyer">✓ Verified on Everest</span>` : ''}
         </div>
         <div style="margin-bottom:1.5rem">
           <span style="font-size:2rem;font-family:var(--font-display);color:var(--champagne)">${p.price.toLocaleString()}</span>
@@ -2553,7 +2553,7 @@ async function openProductDetail(productId) {
             <button class="qty-btn" onclick="changeDetailQty(1)">+</button>
           </div>
           <button class="btn btn-gold" style="flex:1;min-width:140px" onclick='addToCart(${JSON.stringify(p.id)});closeModal("product-modal")'>Add to Cart</button>
-          <button type="button" id="detail-preorder-btn" class="btn" style="display:none;flex:1;min-width:140px;background:white;color:#92400e;border:2px solid #fbbf24;font-weight:600" onclick='addToCart(${JSON.stringify(p.id)});closeModal("product-modal");toast("Pre-order — see timing at checkout.", "success")'>Pre-order</button>
+          <button type="button" id="detail-preorder-btn" class="btn" style="display:none;flex:1;min-width:140px;background:white;color:#92400e;border:2px solid #fbbf24;font-weight:600" onclick='addToCart(${JSON.stringify(p.id)});closeModal("product-modal");toast("Pre-order added — timing is shown at checkout.", "success")'>Pre-order</button>
           <button class="wishlist-btn ${State.wishlist.some(function (w) { return String(w) === String(p.id); }) ? 'active' : ''}" data-wish="${_detailEscapeAttr(String(p.id))}" onclick='toggleWishlist(${JSON.stringify(p.id)})'>${State.wishlist.some(function (w) { return String(w) === String(p.id); }) ? '♥' : '♡'}</button>
         </div>
         <div style="font-size:0.75rem;color:var(--text-muted)">📦 In stock: ${p.stock} units · 🚚 Free delivery · 🔄 30-day returns</div>
@@ -2618,13 +2618,8 @@ async function openProductDetail(productId) {
           el.style.color =
             h.tone === 'ok' ? 'var(--success)' : h.tone === 'warn' ? 'var(--warning)' : 'var(--text-muted)';
           if (hoursEl) {
-            if (h.hoursLine) {
-              hoursEl.textContent = 'Shop hours: ' + h.hoursLine;
-              hoursEl.style.display = '';
-            } else {
-              hoursEl.textContent = '';
-              hoursEl.style.display = 'none';
-            }
+            hoursEl.textContent = '';
+            hoursEl.style.display = 'none';
           }
           var preN = document.getElementById('detail-preorder-note');
           var preB = document.getElementById('detail-preorder-btn');
@@ -2632,7 +2627,7 @@ async function openProductDetail(productId) {
             if (preN) {
               preN.style.display = '';
               preN.textContent =
-                'Seller is not taking live orders right now. You can still pre-order — checkout shows the estimated ready date.';
+                'This item may ship on a short preparation window. Checkout and Track show your estimated ready date.';
             }
             if (preB) preB.style.display = '';
           } else {
@@ -2829,7 +2824,7 @@ function renderAuth() {
         <div class="form-group" style="margin-bottom:1.5rem;padding:1rem;background:#f5f2ff;border-radius:12px;border:1px solid rgba(107,63,212,0.2)">
           <label style="display:flex;align-items:center;gap:0.8rem;cursor:pointer">
             <input type="checkbox" id="reg-is-vendor" onchange="var d=document.getElementById('reg-is-driver');var df=document.getElementById('reg-driver-fields');if(this.checked&&d)d.checked=false;if(df)df.style.display='none';document.getElementById('reg-vendor-fields').style.display=this.checked?'block':'none'" style="width:18px;height:18px;accent-color:#7c3aed"/>
-            <span style="font-size:0.85rem;color:#1e0a4e;font-weight:500">🏪 I am an artisan/vendor — I want to sell on Everest</span>
+            <span style="font-size:0.85rem;color:#1e0a4e;font-weight:500">🏪 I partner with Everest as a supplier / fulfillment partner</span>
           </label>
         </div>
         <div class="form-group" style="margin-bottom:1.5rem;padding:1rem;background:#ecfeff;border-radius:12px;border:1px solid rgba(14,165,233,0.25)">
@@ -2839,7 +2834,7 @@ function renderAuth() {
           </label>
         </div>
         <div id="reg-vendor-fields" style="display:none;margin-bottom:1.5rem;padding:1rem;background:#f8f7ff;border-radius:12px;border:1px solid rgba(107,63,212,0.15)">
-          <p style="font-size:0.78rem;color:#5b21b6;line-height:1.5;margin-bottom:1rem">Everest is the storefront and brand. Your artisan profile is private to operations — customers see products under Everest.</p>
+          <p style="font-size:0.78rem;color:#5b21b6;line-height:1.5;margin-bottom:1rem">Everest is the storefront and brand. Your partner profile is for operations only — shoppers see Everest, not separate shop names.</p>
           <div class="form-group">
             <label class="form-label">What do you make?</label>
             <select class="form-select" id="reg-specialty">
@@ -3630,9 +3625,9 @@ async function renderTrackingUI(order) {
   }
   const steps = [
     { key: 'pending', label: '🕐 Order Received', desc: 'Your order has been received' },
-    { key: 'confirmed', label: '✅ Confirmed', desc: 'Artisan is preparing your order' },
-    { key: 'processing', label: '🔨 Crafting', desc: 'Being handcrafted with care' },
-    { key: 'ready', label: '📦 Ready for pickup', desc: 'Driver can pick up your package' },
+    { key: 'confirmed', label: '✅ Confirmed', desc: 'Everest is preparing your order' },
+    { key: 'processing', label: '🔨 In preparation', desc: 'Fulfillment in progress' },
+    { key: 'ready', label: '📦 Ready for pickup', desc: 'Ready for the driver' },
     { key: 'out_for_delivery', label: '🚚 Out for delivery', desc: 'Driver is on the way' },
     { key: 'delivered', label: '🎉 Delivered', desc: 'Enjoy your purchase!' }
   ];
@@ -3768,9 +3763,9 @@ async function testRealtimeTracking() {
     // Simulate status changes every 5 seconds
     const statuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
     const messages = [
-      '🕐 Order received — being prepared by artisan',
-      '✅ Order confirmed — artisan starting work',
-      '🔨 Crafting your item with care',
+      '🕐 Order received — Everest is preparing it',
+      '✅ Order confirmed — preparation started',
+      '🔨 Fulfillment in progress',
       '🚚 On the way to your location',
       '🎉 Delivered successfully!'
     ];
@@ -3869,19 +3864,17 @@ function renderAccount() {
   const progress = nextTier ? ((pts - tier.min) / (nextTier.min - tier.min)) * 100 : 100;
   var shopLine =
     role === 'vendor'
-      ? '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.35rem">Seller · ' +
-        (u.shop_name || u.shopName || 'Shop') +
-        '</div>'
+      ? '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.35rem">Fulfillment partner · Everest</div>'
       : '';
   var navBtns =
     role === 'vendor'
-      ? '<button class="btn btn-ghost btn-sm" onclick="showPage(\'vendor\')">Seller hub</button>'
+      ? '<button class="btn btn-ghost btn-sm" onclick="showPage(\'vendor\')">Fulfillment hub</button>'
       : '<button class="btn btn-ghost btn-sm" onclick="showPage(\'track\')">My Orders</button>\n          <button class="btn btn-ghost btn-sm" onclick="showPage(\'wishlist\')">Wishlist (' +
         State.wishlist.length +
         ')</button>';
   var vendorScheduleBlock =
     role === 'vendor'
-      ? '<div class="glass-lg reveal" style="padding:1.5rem 1.75rem;margin-bottom:2rem;border:1px solid rgba(124,58,237,0.18)"><span class="eyebrow">Seller</span><h2 style="font-size:1.35rem;margin:0.45rem 0 0.5rem;color:var(--champagne)">Hours &amp; In / Out of service</h2><p style="font-size:0.82rem;color:var(--text-muted);margin:0 0 1rem;max-width:36rem">Same settings as <strong>Seller hub → ⏰ Hours &amp; Service</strong>. Customers see your weekly hours on product pages.</p><div id="account-vendor-service-panel"></div></div>'
+      ? '<div class="glass-lg reveal" style="padding:1.5rem 1.75rem;margin-bottom:2rem;border:1px solid rgba(124,58,237,0.18)"><span class="eyebrow">Operations</span><h2 style="font-size:1.35rem;margin:0.45rem 0 0.5rem;color:var(--champagne)">Hours &amp; In / Out of service</h2><p style="font-size:0.82rem;color:var(--text-muted);margin:0 0 1rem;max-width:36rem">Same as <strong>Fulfillment hub → ⏰ Hours &amp; Service</strong>. Shoppers only see Everest timing (ready dates) — not this schedule.</p><div id="account-vendor-service-panel"></div></div>'
       : '';
   const page = document.getElementById('page-account');
   if (!page) return;
@@ -5242,7 +5235,7 @@ async function switchAdmin(section) {
         pane2.innerHTML =
           '<div><div style="margin-bottom:1.5rem"><h1 style="font-size:1.5rem;font-weight:700;color:#111827">Vendors</h1><p style="color:#6b7280;font-size:0.875rem">' +
           vendors.length +
-          ' vendors · Weekly hours and In/Out status come from each seller profile (Yasmine).</p></div><div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f9fafb"><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Vendor</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Email</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Shop</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Wilaya</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Products</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Hours &amp; service</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Status</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Actions</th></tr></thead><tbody>' +
+          ' partners · Weekly hours and In/Out status come from each partner profile (Yasmine).</p></div><div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f9fafb"><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Partner</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Email</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Label</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Wilaya</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Products</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Hours &amp; service</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Status</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Actions</th></tr></thead><tbody>' +
           vendorRows +
           '</tbody></table></div></div></div>';
         var vtbl = pane2.querySelector('table');
@@ -5919,7 +5912,7 @@ async function mountEverestVendorServiceUI(containerId) {
     '<div style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1rem">' +
     '<div><p style="font-size:0.72rem;font-weight:700;color:#7b72a8;margin:0 0 0.35rem;font-family:Outfit,sans-serif">In Service / Out of Service</p>' +
     '<p style="margin:0;font-size:0.88rem;color:#1e0a4e;font-weight:600">When you are In Service, new orders can reach you (15 min to accept).</p>' +
-    '<p style="margin:0.4rem 0 0;font-size:0.74rem;color:#6b7280;max-width:32rem;line-height:1.45">Use the table: choose which days you take orders and set hours (default 08:00–16:00). Customers see this on your product pages.</p></div>' +
+    '<p style="margin:0.4rem 0 0;font-size:0.74rem;color:#6b7280;max-width:32rem;line-height:1.45">Use the table: choose which days you take orders and set hours (default 08:00–16:00). Shoppers do not see this — Everest uses it to route and estimate ready times.</p></div>' +
     '<label style="display:flex;align-items:center;gap:0.65rem;cursor:pointer;font-weight:600;color:#1e0a4e;flex-shrink:0">' +
     '<span style="font-size:0.8rem">' +
     (on ? 'In Service' : 'Out of Service') +
@@ -5985,7 +5978,7 @@ async function saveEverestVendorSchedule(containerId) {
       consecutive_timeout_orders: (row && row.consecutive_timeout_orders) || 0,
       updated_at: new Date().toISOString(),
     });
-    toast('Weekly hours saved. Shoppers will see this on your products.', 'success');
+    toast('Weekly hours saved. Everest uses this for routing and ready times.', 'success');
     if (containerId === 'vendor-onboarding-service-panel') {
       markVendorHoursOnboardingDone();
       showPage('vendor');
@@ -6033,7 +6026,7 @@ function finishVendorHoursOnboardingSkip() {
   showPage('vendor');
 }
 
-/** After login / nav: sync vendor row then Seller hub or first-time hours page. */
+/** After login / nav: sync vendor row then Fulfillment hub or first-time hours page. */
 function showVendorHubOrOnboarding() {
   if (!State.currentUser || State.currentUser.role !== 'vendor') return;
   void everestSyncVendorDefaults(State.currentUser.id);
@@ -6051,13 +6044,13 @@ function renderVendorHoursOnboarding() {
   page.innerHTML =
     '<div style="background:linear-gradient(180deg,#f8f7ff 0%,#fff 42%);min-height:100vh;padding:2rem 1.25rem 3rem">' +
     '<div style="max-width:720px;margin:0 auto">' +
-    '<p style="font-size:0.72rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#7c3aed;margin:0 0 0.75rem">Seller setup</p>' +
+    '<p style="font-size:0.72rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#7c3aed;margin:0 0 0.75rem">Partner setup</p>' +
     '<h1 style="font-family:Cormorant Garamond,Georgia,serif;font-size:2rem;color:#1e0a4e;margin:0 0 0.65rem;font-weight:600">When you are open</h1>' +
-    '<p style="color:#6b7280;font-size:0.9rem;line-height:1.55;margin:0 0 1.5rem;border-bottom:1px solid #f3f4f6;padding-bottom:1.25rem">Set your weekly hours and In/Out service. Shoppers see this on your products; admins see your schedule here. You can edit anytime in Seller hub.</p>' +
+    '<p style="color:#6b7280;font-size:0.9rem;line-height:1.55;margin:0 0 1.5rem;border-bottom:1px solid #f3f4f6;padding-bottom:1.25rem">Set your weekly hours and In/Out service for Everest routing. Shoppers only see Everest-ready messaging — not this grid. You can edit anytime in Fulfillment hub.</p>' +
     '<div id="vendor-onboarding-service-panel"></div>' +
     '<div style="margin-top:1.5rem;display:flex;flex-wrap:wrap;gap:0.65rem;align-items:center">' +
-    '<button type="button" onclick="finishVendorHoursOnboardingSkip()" style="background:white;color:#6b7280;border:1px solid #e5e7eb;padding:0.7rem 1.25rem;border-radius:10px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif">Continue to Seller Hub</button>' +
-    '<span style="font-size:0.72rem;color:#9ca3af">Saving weekly hours also takes you to Seller hub.</span>' +
+    '<button type="button" onclick="finishVendorHoursOnboardingSkip()" style="background:white;color:#6b7280;border:1px solid #e5e7eb;padding:0.7rem 1.25rem;border-radius:10px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif">Continue to Fulfillment hub</button>' +
+    '<span style="font-size:0.72rem;color:#9ca3af">Saving weekly hours also opens Fulfillment hub.</span>' +
     '</div></div></div>';
   void everestSyncVendorDefaults(State.currentUser.id);
   void mountEverestVendorServiceUI('vendor-onboarding-service-panel');
@@ -6134,7 +6127,7 @@ function vendorAcceptYasmineOrder(orderId) {
   if (found) {
     var ov = found.vendor_id != null ? found.vendor_id : found.vendorId;
     if (ov != null && String(ov) !== vid) {
-      toast('This order is not assigned to your shop.', 'error');
+      toast('This order is not assigned to your Everest line.', 'error');
       return;
     }
   }
@@ -6155,9 +6148,9 @@ function buildProfessionalDashboardHTML() {
     <div class="dashboard-container dash-pro-root">
       <div class="dash-pro-hero">
         <div>
-          <p class="dash-pro-eyebrow">Seller workspace</p>
+          <p class="dash-pro-eyebrow">Fulfillment workspace</p>
           <h1 class="dash-pro-hero-title">Performance</h1>
-          <p class="dash-pro-hero-sub">Live GMV, fulfillment, and logistics. Set <strong>Hours &amp; In/Out service</strong> in the card below — same as Seller hub.</p>
+          <p class="dash-pro-hero-sub">Live GMV, fulfillment, and logistics. Set <strong>Hours &amp; In/Out service</strong> in the card below — same as Fulfillment hub.</p>
         </div>
         <div class="dash-pro-hero-meta">
           <div class="dash-pro-shop" id="vendor-name"></div>
@@ -6389,7 +6382,7 @@ class ProfessionalVendorDashboard {
   renderHeader() {
     const vendorNameEl = document.getElementById('vendor-name');
     if (vendorNameEl) {
-      vendorNameEl.textContent = this.vendorData.shop_name || this.vendorData.name || 'Your shop';
+      vendorNameEl.textContent = 'Everest';
     }
     const pill = document.getElementById('vendor-verify-pill');
     if (pill) {
@@ -6653,7 +6646,7 @@ class ProfessionalVendorDashboard {
         .addTo(this.map)
         .bindPopup(`
           <div style="text-align: center;">
-            <strong>🏪 ${this.vendorData.shop_name || this.vendorData.name}</strong><br>
+            <strong>🏔️ Everest fulfillment</strong><br>
             ${this.vendorData.wilaya || 'Sousse'}<br>
             ${this.products.length} Products<br>
             ${this.orders.length} Orders
@@ -6825,7 +6818,7 @@ function exportVendorCsvEscape(val) {
 function exportData() {
   var d = window.dashboard;
   if (!d || !Array.isArray(d.orders) || !Array.isArray(d.products)) {
-    toast('Open your seller dashboard first, then export again.', 'default');
+    toast('Open your fulfillment dashboard first, then export again.', 'default');
     return;
   }
   var lines = [];
@@ -7798,7 +7791,7 @@ function submitCarpenterRequest() {
 
   const ref = 'CARP-' + Date.now().toString().slice(-6);
   document.getElementById('carp-ref').textContent = ref;
-  toast(`✦ Request ${ref} submitted! Artisan will contact you within 24h.`, 'success');
+  toast(`✦ Request ${ref} submitted! The Everest team will follow up within 24h.`, 'success');
 }
 
 // ── LOYALTY ──
