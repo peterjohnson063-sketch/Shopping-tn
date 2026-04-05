@@ -5279,10 +5279,10 @@ async function switchAdmin(section) {
         '</select></div>' +
         '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Delegation *</label><select id="adm-drv-ndelegation" style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #e2e8f0;font-size:0.82rem;background:white"><option value="">Select wilaya first…</option></select></div>' +
         '<div style="grid-column:span 2;min-width:0"><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Password (min 8) *</label><input id="adm-drv-npass" type="password" style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #e2e8f0;font-size:0.82rem" placeholder="Temporary password — share securely"/></div>' +
-        '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">CIN (optional)</label><input id="adm-drv-ncin" type="text" style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #e2e8f0;font-size:0.82rem"/></div>' +
-        '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Plate (optional)</label><input id="adm-drv-nplate" type="text" style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #e2e8f0;font-size:0.82rem"/></div>' +
-        '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Vehicle model</label><input id="adm-drv-nvmodel" type="text" style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #e2e8f0;font-size:0.82rem"/></div>' +
-        '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Vehicle colour</label><input id="adm-drv-nvcolor" type="text" style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #e2e8f0;font-size:0.82rem"/></div>' +
+        '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">CIN number *</label><input id="adm-drv-ncin" type="text" required style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #e2e8f0;font-size:0.82rem" placeholder="National ID number"/></div>' +
+        '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Vehicle plate *</label><input id="adm-drv-nplate" type="text" required style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #e2e8f0;font-size:0.82rem" placeholder="Registration plate"/></div>' +
+        '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Vehicle model *</label><input id="adm-drv-nvmodel" type="text" required style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #e2e8f0;font-size:0.82rem"/></div>' +
+        '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Vehicle colour *</label><input id="adm-drv-nvcolor" type="text" required style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #e2e8f0;font-size:0.82rem"/></div>' +
         '<div style="grid-column:1/-1;margin-top:0.15rem;padding:1.05rem 1.1rem;background:rgba(255,255,255,0.92);border:1px solid #bae6fd;border-radius:14px">' +
         '<p style="margin:0 0 0.5rem;font-size:0.78rem;font-weight:800;color:#0c4a6e">Verification photos — required</p>' +
         '<p style="margin:0 0 0.85rem;font-size:0.7rem;color:#64748b;line-height:1.45">Use the <strong>driver-kyc</strong> bucket in Supabase Storage (public read). Max ~8 MB per image.</p>' +
@@ -5296,6 +5296,9 @@ async function switchAdmin(section) {
         '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Driver face photo *</label>' +
         '<input type="file" id="adm-drv-file-portrait" accept="image/*" onchange="adminDriverKycPreview(this,\'adm-drv-prev-portrait\')" style="margin-top:0.35rem;width:100%;font-size:0.72rem"/>' +
         '<div id="adm-drv-prev-portrait" style="margin-top:0.45rem;min-height:44px"></div></div>' +
+        '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Vehicle photo *</label>' +
+        '<input type="file" id="adm-drv-file-vehicle" accept="image/*" onchange="adminDriverKycPreview(this,\'adm-drv-prev-vehicle\')" style="margin-top:0.35rem;width:100%;font-size:0.72rem"/>' +
+        '<div id="adm-drv-prev-vehicle" style="margin-top:0.45rem;min-height:44px"></div></div>' +
         '</div></div>' +
         '</div>' +
         '<label style="display:flex;align-items:flex-start;gap:0.55rem;margin:1rem 0 0.85rem;font-size:0.8rem;color:#0f172a;cursor:pointer;max-width:40rem;line-height:1.45">' +
@@ -5315,6 +5318,7 @@ async function switchAdmin(section) {
                 var cinU = (d.cin_document_url || '').toString().trim();
                 var licU = (d.license_document_url || '').toString().trim();
                 var photoU = (d.driver_photo_url || '').toString().trim();
+                var vehPhotoU = (d.vehicle_photo_url || '').toString().trim();
                 var plate = d.vehicle_plate_number || d.vehiclePlateNumber || '';
                 var vmodel = d.vehicle_model || d.vehicleModel || '';
                 var vcolor = d.vehicle_color || d.vehicleColor || '';
@@ -5391,6 +5395,8 @@ async function switchAdmin(section) {
                   _admDriverDocPreview(licU, 'licence') +
                   '</div><div><p style="font-size:0.7rem;font-weight:600;color:#0369a1;margin:0 0 0.45rem">Driver face (staff)</p>' +
                   _admDriverDocPreview(photoU, 'portrait') +
+                  '</div><div><p style="font-size:0.7rem;font-weight:600;color:#0369a1;margin:0 0 0.45rem">Vehicle</p>' +
+                  _admDriverDocPreview(vehPhotoU, 'vehicle') +
                   '</div></div>' +
                   '<div style="display:flex;flex-wrap:wrap;gap:0.65rem;align-items:center">' +
                   actions +
@@ -6335,6 +6341,26 @@ async function adminCreateDriverFromDashboard() {
     toast('Password must be at least 8 characters (driver uses it to sign in)', 'error');
     return;
   }
+  if (!opsSec) {
+    toast('Enter the driver operations secret (Supabase stn_driver_invite_settings)', 'error');
+    return;
+  }
+  if (!cin) {
+    toast('CIN number is required', 'error');
+    return;
+  }
+  if (!plate) {
+    toast('Vehicle plate is required', 'error');
+    return;
+  }
+  if (!vmodel) {
+    toast('Vehicle model is required', 'error');
+    return;
+  }
+  if (!vcolor) {
+    toast('Vehicle colour is required', 'error');
+    return;
+  }
 
   var elCinF = document.getElementById('adm-drv-file-cin');
   var elLicF = document.getElementById('adm-drv-file-licence');
@@ -6349,6 +6375,11 @@ async function adminCreateDriverFromDashboard() {
   }
   if (!elFaceF || !elFaceF.files || !elFaceF.files[0]) {
     toast('Upload a clear face photo of the driver', 'error');
+    return;
+  }
+  var elVehF = document.getElementById('adm-drv-file-vehicle');
+  if (!elVehF || !elVehF.files || !elVehF.files[0]) {
+    toast('Upload a photo of the vehicle', 'error');
     return;
   }
 
@@ -6371,10 +6402,12 @@ async function adminCreateDriverFromDashboard() {
   var cinUrl;
   var licUrl;
   var faceUrl;
+  var vehicleUrl;
   try {
     cinUrl = await adminUploadDriverKycImage(elCinF.files[0], 'cin');
     licUrl = await adminUploadDriverKycImage(elLicF.files[0], 'licence');
     faceUrl = await adminUploadDriverKycImage(elFaceF.files[0], 'portrait');
+    vehicleUrl = await adminUploadDriverKycImage(elVehF.files[0], 'vehicle');
   } catch (upE) {
     if (typeof STNLog !== 'undefined') STNLog.error('adminDriverKycUpload', upE);
     toast(
@@ -6409,11 +6442,12 @@ async function adminCreateDriverFromDashboard() {
     cin_document_url: cinUrl,
     license_document_url: licUrl,
     driver_photo_url: faceUrl,
+    vehicle_photo_url: vehicleUrl,
+    id_card_number: cin,
+    vehicle_plate_number: plate,
+    vehicle_model: vmodel,
+    vehicle_color: vcolor,
   };
-  if (cin) userPayload.id_card_number = cin;
-  if (plate) userPayload.vehicle_plate_number = plate;
-  if (vmodel) userPayload.vehicle_model = vmodel;
-  if (vcolor) userPayload.vehicle_color = vcolor;
 
   function _adminMergeDriverIntoLocal(newUser) {
     try {
@@ -6454,13 +6488,14 @@ async function adminCreateDriverFromDashboard() {
           p_phone: phone,
           p_wilaya: wilaya,
           p_delegation: delegation,
-          p_id_card: cin || '',
-          p_plate: plate || '',
-          p_vmodel: vmodel || '',
-          p_vcolor: vcolor || '',
+          p_id_card: cin,
+          p_plate: plate,
+          p_vmodel: vmodel,
+          p_vcolor: vcolor,
           p_cin_doc_url: cinUrl || '',
           p_license_doc_url: licUrl || '',
           p_driver_photo_url: faceUrl || '',
+          p_vehicle_photo_url: vehicleUrl || '',
         };
         var rpcArgsLegacy = {
           p_ops_secret: opsSec,
@@ -6478,17 +6513,24 @@ async function adminCreateDriverFromDashboard() {
           p_vcolor: vcolor || '',
         };
         var rpcRes = null;
+        function _adminRpcShapeMismatch(err) {
+          return /PGRST202|could not find function|does not exist|matching the given|42883/i.test(
+            String((err && err.message) || '')
+          );
+        }
         try {
           rpcRes = await SB.rpc('stn_admin_create_driver', rpcArgsFull);
         } catch (rpcShapeErr) {
-          var shapeMsg = String((rpcShapeErr && rpcShapeErr.message) || '');
-          if (
-            /PGRST202|could not find function|does not exist|matching the given|42883/i.test(shapeMsg)
-          ) {
+          if (!_adminRpcShapeMismatch(rpcShapeErr)) throw rpcShapeErr;
+          try {
+            var rpcArgsMid = Object.assign({}, rpcArgsFull);
+            delete rpcArgsMid.p_vehicle_photo_url;
+            rpcRes = await SB.rpc('stn_admin_create_driver', rpcArgsMid);
+            kycNeedsPatch = true;
+          } catch (rpcMidErr) {
+            if (!_adminRpcShapeMismatch(rpcMidErr)) throw rpcMidErr;
             rpcRes = await SB.rpc('stn_admin_create_driver', rpcArgsLegacy);
             kycNeedsPatch = true;
-          } else {
-            throw rpcShapeErr;
           }
         }
         if (rpcRes && rpcRes.ok === false) {
@@ -6518,6 +6560,7 @@ async function adminCreateDriverFromDashboard() {
               cin_document_url: cinUrl,
               license_document_url: licUrl,
               driver_photo_url: faceUrl,
+              vehicle_photo_url: vehicleUrl,
             });
             newUser = await SB.getUserById(newUser.id);
           } catch (pe) {
@@ -6565,13 +6608,15 @@ async function adminCreateDriverFromDashboard() {
       cinUrl &&
       typeof SB.updateUser === 'function' &&
       (String(newUser.cin_document_url || '').trim() === '' ||
-        String(newUser.driver_photo_url || '').trim() === '')
+        String(newUser.driver_photo_url || '').trim() === '' ||
+        String(newUser.vehicle_photo_url || '').trim() === '')
     ) {
       try {
         await SB.updateUser(newUser.id, {
           cin_document_url: cinUrl,
           license_document_url: licUrl,
           driver_photo_url: faceUrl,
+          vehicle_photo_url: vehicleUrl,
         });
         if (SB.getUserById) newUser = await SB.getUserById(newUser.id);
       } catch (kycFix) {

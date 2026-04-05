@@ -241,6 +241,7 @@ function _sbDriverUserInsertAttempts(body) {
   delete a2.cin_document_url;
   delete a2.license_document_url;
   delete a2.driver_photo_url;
+  delete a2.vehicle_photo_url;
   delete a2.b3_document_url;
   add(a2);
   return list;
