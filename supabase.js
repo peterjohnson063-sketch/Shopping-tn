@@ -550,6 +550,26 @@ const SB = {
     return Array.isArray(data) && data[0] ? data[0] : null;
   },
 
+  // ── VENDORS (Yasmine service / SKU routing) ──
+  async getVendor(id) {
+    const data = await this.req('GET', 'vendors', null, `?id=eq.${_sbEq(id)}&limit=1`);
+    return data && data[0] ? data[0] : null;
+  },
+  async upsertVendor(row) {
+    if (!row || row.id == null || row.id === '') throw new Error('vendor id required');
+    const existing = await this.getVendor(row.id);
+    if (existing) {
+      const data = await this.req('PATCH', 'vendors', row, `?id=eq.${_sbEq(row.id)}`);
+      return data && data[0] ? data[0] : null;
+    }
+    const data = await this.req('POST', 'vendors', row);
+    return data && data[0] ? data[0] : null;
+  },
+  async createAdminAlert(row) {
+    const data = await this.req('POST', 'admin_alerts', row);
+    return data && data[0] ? data[0] : null;
+  },
+
   // ── ORDERS ──
   async getOrders() {
     return this.req('GET', 'orders', null, '?order=created_at.desc&limit=2000');
@@ -559,8 +579,9 @@ const SB = {
     return data[0] || null;
   },
   async findOrder(ref) {
-    const r = String(ref == null ? '' : ref).trim();
-    if (!r) return null;
+    const raw = String(ref == null ? '' : ref).trim();
+    if (!raw) return null;
+    const r = raw.replace(/\s+/g, '').replace(/_/g, '-');
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(r)) {
       const byUuid = await this.getOrder(r);
       if (byUuid) return byUuid;
@@ -569,8 +590,28 @@ const SB = {
       const byId = await this.getOrder(r);
       if (byId) return byId;
     }
-    const data = await this.req('GET', 'orders', null, `?tracking_number=eq.${encodeURIComponent(r)}&limit=1`);
-    return Array.isArray(data) && data[0] ? data[0] : null;
+    const tryTrackingEq = async (q) => {
+      const data = await this.req('GET', 'orders', null, `?tracking_number=eq.${encodeURIComponent(q)}&limit=1`);
+      return Array.isArray(data) && data[0] ? data[0] : null;
+    };
+    const tryTrackingIlike = async (q) => {
+      try {
+        const data = await this.req('GET', 'orders', null, `?tracking_number=ilike.${encodeURIComponent(q)}&limit=1`);
+        return Array.isArray(data) && data[0] ? data[0] : null;
+      } catch (e) {
+        return null;
+      }
+    };
+    let row = await tryTrackingEq(r);
+    if (row) return row;
+    row = await tryTrackingEq(r.toUpperCase());
+    if (row) return row;
+    row = await tryTrackingEq(r.toLowerCase());
+    if (row) return row;
+    row = await tryTrackingIlike(r);
+    if (row) return row;
+    row = await tryTrackingIlike(r.toUpperCase());
+    return row;
   },
   async createOrder(order) {
     const data = await this.req('POST', 'orders', order);

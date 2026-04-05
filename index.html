@@ -6,7 +6,7 @@
 <meta name="google" content="notranslate">
 <meta name="description" content="Everest — Hit Your Dreams. Tunisia's premium digital mall: curated artisans from Monastir, Ksar Hellal, and the Sahel.">
 <meta name="theme-color" content="#6200EE">
-<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Everest">
 <link rel="apple-touch-icon" href="assets/everest-logo.png"/>
@@ -133,7 +133,33 @@ body.cursor-big #cursor-ring { width: 50px; height: 50px; }
 .lang-btn.active, .lang-btn:hover { border-color: rgba(107,63,212,0.35); color: #7c3aed; background: #f5f2ff; }
 
 /* PAGES */
-.page { display: none; min-height: 100vh; position: relative; z-index: 1; padding-top: 112px; width: 100%; max-width: 100%; box-sizing: border-box; overflow-x: clip; }
+.page { display: none; min-height: 100vh; position: relative; z-index: 1; padding-top: var(--stn-main-nav-h, 112px); width: 100%; max-width: 100%; box-sizing: border-box; overflow-x: clip; }
+body.everest-logistics-cutoff-bar-visible .page {
+  padding-top: calc(var(--stn-main-nav-h, 112px) + var(--stn-logistics-bar-h, 3.5rem));
+}
+#everest-logistics-cutoff-bar {
+  display: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 899;
+  top: var(--stn-main-nav-h, 112px);
+  padding: 0.5rem max(14px, env(safe-area-inset-left)) 0.55rem max(14px, env(safe-area-inset-right));
+  box-sizing: border-box;
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-align: center;
+  letter-spacing: 0.01em;
+  color: #92400e;
+  background: linear-gradient(90deg, #fffbeb, #fef3c7);
+  border-bottom: 1px solid #fde68a;
+  box-shadow: 0 2px 8px rgba(146, 64, 14, 0.08);
+  line-height: 1.45;
+  max-width: 100%;
+}
+#everest-logistics-cutoff-bar.everest-logistics-cutoff-bar--visible {
+  display: block;
+}
 .page.active { display: block !important; width: 100% !important; min-height: 100vh; animation: page-in .35s ease; }
 @keyframes page-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -1369,7 +1395,10 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     margin-inline-end: 0.25rem !important;
   }
   .nav-hide-mobile-commerce { display: none !important; }
-  .page { padding-top: calc(6.85rem + env(safe-area-inset-top, 0px)) !important; max-width: 100% !important; overflow-x: hidden !important; }
+  .page { padding-top: calc(var(--stn-main-nav-h, 6.85rem) + env(safe-area-inset-top, 0px)) !important; max-width: 100% !important; overflow-x: hidden !important; }
+  body.everest-logistics-cutoff-bar-visible .page {
+    padding-top: calc(var(--stn-main-nav-h, 6.85rem) + var(--stn-logistics-bar-h, 3.5rem) + env(safe-area-inset-top, 0px)) !important;
+  }
   #page-home .home-search-row { max-width: 100% !important; min-width: 0 !important; }
   #home-featured-grid, #home-bestsellers-grid, #home-new-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
@@ -1456,6 +1485,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     <div id="nav-user-area" class="nav-user-slot"></div>
   </div>
 </nav>
+<div id="everest-logistics-cutoff-bar" class="everest-logistics-cutoff-bar" role="status" aria-live="polite" hidden></div>
 
 <div class="nav-drawer-overlay" id="nav-drawer-overlay" onclick="toggleNavDrawer(false)" aria-hidden="true"></div>
 <aside id="nav-drawer" class="nav-drawer" aria-label="Site menu" aria-hidden="true">
@@ -1739,7 +1769,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
       <div style="width:1px;height:40px;background:#f0eeff"></div>
       <div style="display:flex;align-items:center;gap:0.8rem">
         <span style="font-size:1.8rem">💳</span>
-        <div><div style="font-weight:700;color:#1e0a4e;font-size:0.9rem">Cash on Delivery</div><div style="color:#7b72a8;font-size:0.75rem">Pay when you receive</div></div>
+        <div><div style="font-weight:700;color:#1e0a4e;font-size:0.9rem">Secure online checkout</div><div style="color:#7b72a8;font-size:0.75rem">Card, wallets &amp; local gateways</div></div>
       </div>
     </div>
 
@@ -1914,12 +1944,6 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
                 <span class="checkmark"></span>
                 <span>🚚 Free Shipping</span>
                 <span class="count">89</span>
-              </label>
-              <label class="offer-item">
-                <input type="checkbox" onchange="applyFilters()">
-                <span class="checkmark"></span>
-                <span>💳 Cash on Delivery</span>
-                <span class="count">156</span>
               </label>
               <label class="offer-item">
                 <input type="checkbox" onchange="applyFilters()">
@@ -2283,6 +2307,23 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 </div>
 
 <!-- ════════════════════════════════ -->
+<!-- PAGE: GIFT CHECKOUT              -->
+<!-- ════════════════════════════════ -->
+<div class="page" id="page-gift-checkout">
+  <div class="s" style="padding-top:5rem;padding-bottom:4rem">
+    <div style="max-width:520px;margin:0 auto;padding:0 1.25rem">
+      <button type="button" onclick="showPage('products')" style="background:none;border:none;color:#7c3aed;font-size:0.85rem;cursor:pointer;margin-bottom:1.25rem;font-family:inherit">← Back to shopping</button>
+      <div style="margin-bottom:2rem">
+        <span class="eyebrow reveal">Cadeau · Gift</span>
+        <h1 class="display reveal" style="font-size:clamp(2rem,5vw,3rem);margin-top:0.5rem">Send a <em class="gold-text">gift</em></h1>
+        <p style="color:#7b72a8;font-size:0.9rem;line-height:1.5;margin-top:0.75rem">Tell us who receives the delivery. You will pay on the next step.</p>
+      </div>
+      <div id="gift-checkout-root"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ -->
 <!-- PAGE: WISHLIST                   -->
 <!-- ════════════════════════════════ -->
 <div class="page" id="page-wishlist">
@@ -2312,7 +2353,15 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 <div class="page" id="page-admin"></div>
 
 <!-- ════════════════════════════════ -->
+<!-- PAGE: SAHEL HUB (QC / ready for pickup) -->
+<!-- ════════════════════════════════ -->
+<div class="page" id="page-hub"></div>
+
+<!-- ════════════════════════════════ -->
 <div class="page" id="page-vendor"></div>
+
+<!-- Vendor first-time hours & service onboarding -->
+<div class="page" id="page-vendor-hours"></div>
 
 <!-- ════════════════════════════════ -->
 <!-- PAGE: LOYALTY / REWARDS -->
@@ -2346,6 +2395,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 <!-- PAGE: ABOUT                      -->
 <!-- ════════════════════════════════ -->
 <div class="page" id="page-about">
+  <div id="about-customer-wrap">
   <div style="padding:6rem 5% 4rem">
     <div style="text-align:center;margin-bottom:4rem">
       <p style="font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:#7c3aed;margin-bottom:1rem">قصتنا · Notre Histoire</p>
@@ -2391,7 +2441,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;margin-bottom:5rem;max-width:1100px;margin:0 auto 5rem">
       <div style="background:white;border:1px solid rgba(107,63,212,0.15);border-radius:18px;padding:2rem;text-align:center;box-shadow:0 2px 12px rgba(74,31,168,0.08)">
         <div style="width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,#4a1fa8,#6b3fd4);display:flex;align-items:center;justify-content:center;font-size:1.9rem;margin:0 auto 1rem">👑</div>
-        <div style="font-size:0.95rem;color:#1e0a4e;font-weight:500;margin-bottom:0.2rem">Youssef Ben Salah</div>
+        <div style="font-size:0.95rem;color:#1e0a4e;font-weight:500;margin-bottom:0.2rem">Yassine Ben Salem</div>
         <div style="font-size:0.72rem;color:#7c3aed;margin-bottom:0.5rem">CEO & Founder</div>
         <p style="font-size:0.75rem;color:#7b72a8;line-height:1.6">Born in Monastir. Passionate about connecting Tunisian craftsmanship with the world.</p>
       </div>
@@ -2424,6 +2474,47 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
         <div><div style="font-size:2rem;margin-bottom:0.8rem">✨</div><h4 style="font-size:0.85rem;color:#1e0a4e;margin-bottom:0.5rem;font-weight:600">Uncompromising Quality</h4><p style="font-size:0.77rem;color:#7b72a8;line-height:1.7">Every product is verified and certified before listing. Quality is non-negotiable.</p></div>
       </div>
     </div>
+  </div>
+  </div>
+
+  <div id="about-vendor-wrap" style="display:none" data-no-translate="1">
+  <div style="padding:6rem 5% 4rem;max-width:900px;margin:0 auto">
+    <div style="text-align:center;margin-bottom:3rem">
+      <p style="font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:#7c3aed;margin-bottom:1rem" data-lang="vr-badge">📜 Everest</p>
+      <h1 style="font-family:'Cormorant Garamond',serif;font-size:clamp(2rem,5vw,3.2rem);color:#1e0a4e;font-weight:400;margin-bottom:1rem;line-height:1.2" data-lang="vr-title">Official Rules &amp; Regulations</h1>
+      <div style="width:60px;height:2px;background:linear-gradient(90deg,#7c3aed,#9b72f0);margin:0 auto 1.5rem"></div>
+      <p style="color:#5b5280;font-size:0.9rem;line-height:1.7;max-width:640px;margin:0 auto" data-lang="vr-intro">These rules apply to all vendors and factories selling on Everest. Violations may result in warnings, suspension, or a permanent ban.</p>
+    </div>
+
+    <div class="reveal vendor-rule-section" style="background:white;border:1px solid rgba(107,63,212,0.18);border-radius:18px;padding:1.75rem 1.5rem;margin-bottom:1.5rem;box-shadow:0 2px 14px rgba(74,31,168,0.06)">
+      <h2 style="font-family:'Cormorant Garamond',serif;font-size:1.45rem;color:#1e0a4e;font-weight:500;margin:0 0 1rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap"><span aria-hidden="true">🛡️</span> <span data-lang="vr-s1-h">Section 1: Strict Prohibitions (Zero Tolerance)</span></h2>
+      <ul style="margin:0;padding-left:1.2rem;color:#3d3460;font-size:0.88rem;line-height:1.75;display:flex;flex-direction:column;gap:0.85rem">
+        <li><strong style="color:#1e0a4e" data-lang="vr-s1-1-l">Anti-Zionist Policy:</strong> <span data-lang="vr-s1-1-t">Strictly prohibited to list any products, books, symbols, or materials supporting the Zionist entity. Violation results in an immediate and permanent ban.</span></li>
+        <li><strong style="color:#1e0a4e" data-lang="vr-s1-2-l">Ethical Standards:</strong> <span data-lang="vr-s1-2-t">Prohibited to sell items promoting deviance, immoral behavior, or content that contradicts local cultural and ethical values.</span></li>
+        <li><strong style="color:#1e0a4e" data-lang="vr-s1-3-l">No Medical Products:</strong> <span data-lang="vr-s1-3-t">Selling pharmaceuticals, medicines, hormones, or health supplements is strictly forbidden. Everest is not a pharmacy.</span></li>
+        <li><strong style="color:#1e0a4e" data-lang="vr-s1-4-l">No Used Items (New Only):</strong> <span data-lang="vr-s1-4-t">Everest is a marketplace for Brand New items only. Selling used or refurbished goods is strictly prohibited and will lead to account termination after investigation.</span></li>
+        <li><strong style="color:#1e0a4e" data-lang="vr-s1-5-l">Legal Compliance:</strong> <span data-lang="vr-s1-5-t">Strictly prohibited to sell weapons, dangerous chemicals, illegal substances, or any item restricted by Tunisian Law.</span></li>
+      </ul>
+    </div>
+
+    <div class="reveal vendor-rule-section" style="background:white;border:1px solid rgba(107,63,212,0.18);border-radius:18px;padding:1.75rem 1.5rem;margin-bottom:1.5rem;box-shadow:0 2px 14px rgba(74,31,168,0.06)">
+      <h2 style="font-family:'Cormorant Garamond',serif;font-size:1.45rem;color:#1e0a4e;font-weight:500;margin:0 0 1rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap"><span aria-hidden="true">⚡</span> <span data-lang="vr-s2-h">Section 2: Real-Time Logistics (Everest Speed)</span></h2>
+      <ul style="margin:0;padding-left:1.2rem;color:#3d3460;font-size:0.88rem;line-height:1.75;display:flex;flex-direction:column;gap:0.85rem">
+        <li><strong style="color:#1e0a4e" data-lang="vr-s2-1-l">Instant Dispatch Readiness:</strong> <span data-lang="vr-s2-1-t">Once a vendor receives the &quot;Driver is Approaching&quot; notification, the order must be packed and ready for immediate pickup. Zero waiting time for the driver is expected.</span></li>
+        <li><strong style="color:#1e0a4e" data-lang="vr-s2-2-l">Professional Packaging:</strong> <span data-lang="vr-s2-2-t">Vendors/Factories are responsible for secure packaging. Everest is not liable for damages caused by poor or fragile packaging from the source.</span></li>
+        <li><strong style="color:#1e0a4e" data-lang="vr-s2-3-l">Visual Accuracy (WYSIWYG):</strong> <span data-lang="vr-s2-3-t">The product image must be a 100% match with the actual item. Any discrepancy in color, model, or quality is considered a violation of trust.</span></li>
+      </ul>
+    </div>
+
+    <div class="reveal vendor-rule-section" style="background:white;border:1px solid rgba(107,63,212,0.18);border-radius:18px;padding:1.75rem 1.5rem;margin-bottom:2rem;box-shadow:0 2px 14px rgba(74,31,168,0.06)">
+      <h2 style="font-family:'Cormorant Garamond',serif;font-size:1.45rem;color:#1e0a4e;font-weight:500;margin:0 0 1rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap"><span aria-hidden="true">🔐</span> <span data-lang="vr-s3-h">Section 3: Data Privacy &amp; Security (The &quot;Blind&quot; Flow)</span></h2>
+      <ul style="margin:0;padding-left:1.2rem;color:#3d3460;font-size:0.88rem;line-height:1.75;display:flex;flex-direction:column;gap:0.85rem">
+        <li><strong style="color:#1e0a4e" data-lang="vr-s3-1-l">Customer Privacy (Blind Shipping):</strong> <span data-lang="vr-s3-1-t">Vendors/Factories have ZERO access to customer personal data (No name, No phone, No address). They only receive the &quot;Order ID&quot; and &quot;Product Details&quot; for preparation.</span></li>
+        <li><strong style="color:#1e0a4e" data-lang="vr-s3-2-l">Driver Access Control:</strong> <span data-lang="vr-s3-2-t">Drivers only receive the necessary delivery info (Name, Phone Number, and GPS Location). All other customer data remains encrypted and hidden within the Everest system.</span></li>
+        <li><strong style="color:#1e0a4e" data-lang="vr-s3-3-l">Verified Reviews Only:</strong> <span data-lang="vr-s3-3-t">Rating or reviewing a product is only possible after a successful purchase and delivery. This prevents fraud and fake ratings.</span></li>
+      </ul>
+    </div>
+  </div>
   </div>
 </div>
 
@@ -2639,9 +2730,17 @@ function filterAndGo(cat) {
   },200);
   </script>
 <!-- SCRIPTS -->
+<script src="firebase-config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
 <script src="supabase-fixed.js"></script>
+<script src="yasmine-routing.js"></script>
 <script src="data.js"></script>
 <script src="app.js"></script>
+<script src="yasmine-context.js"></script>
+<script src="everest-env.js?v=44"></script>
+<script src="gemini-key.stub.js"></script>
+<script src="gemini-key.local.js"></script>
 <script src="yasmine.js"></script>
 <script>
 (function() {
@@ -2676,6 +2775,7 @@ function filterAndGo(cat) {
   <!-- Quick actions -->
   <div style="padding:0.7rem 1rem;display:flex;gap:0.5rem;flex-wrap:wrap;border-bottom:1px solid rgba(107,63,212,0.1)">
     <button onclick="AI.quick('Quels sont vos produits vedettes?')" style="background:#f0eeff;border:none;color:#7c3aed;padding:0.3rem 0.7rem;border-radius:20px;font-size:0.7rem;cursor:pointer">🛋️ Produits</button>
+    <button type="button" onclick="AI.quick('Where is my order and when will it arrive?')" style="background:#f0eeff;border:none;color:#7c3aed;padding:0.3rem 0.7rem;border-radius:20px;font-size:0.7rem;cursor:pointer">📦 My order</button>
     <button onclick="AI.quick('Comment fonctionne la livraison?')" style="background:#f0eeff;border:none;color:#7c3aed;padding:0.3rem 0.7rem;border-radius:20px;font-size:0.7rem;cursor:pointer">🚚 Livraison</button>
   </div>
   <!-- Messages -->

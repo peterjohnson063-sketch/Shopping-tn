@@ -1,6 +1,7 @@
 // ── SUPABASE CONFIG ──
 // Public anon key: safe to ship in the browser only if Row Level Security (RLS) policies protect all tables.
 // Never commit a service_role key. Prefer env injection at build time for non-demo apps.
+// SQL migrations must be run on this same project (ref kmwqffaphhcbzboiwosj) or the DB schema and app will disagree.
 const SUPABASE_URL = 'https://kmwqffaphhcbzboiwosj.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imttd3FmZmFwaGhjYnpib2l3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNDEwNDgsImV4cCI6MjA4ODkxNzA0OH0.aaMK_w3SH8vHBOjjbcH5yO04Bxjgfn4azeePUzAUYjM';
 
@@ -620,6 +621,27 @@ const SB = {
     return Array.isArray(data) && data[0] ? data[0] : null;
   },
 
+  // ── VENDORS (Yasmine service / SKU routing) ──
+  async getVendor(id) {
+    const data = await this.req('GET', 'vendors', null, `?id=eq.${_sbEq(id)}&limit=1`);
+    return data && data[0] ? data[0] : null;
+  },
+  async upsertVendor(row) {
+    if (!row || row.id == null || row.id === '') throw new Error('vendor id required');
+    const existing = await this.getVendor(row.id);
+    if (existing) {
+      const data = await this.req('PATCH', 'vendors', row, `?id=eq.${_sbEq(row.id)}`);
+      return data && data[0] ? data[0] : null;
+    }
+    const data = await this.req('POST', 'vendors', row);
+    return data && data[0] ? data[0] : null;
+  },
+  /** Count vendors already assigned a promotion slot (first 100 cohort). */
+  async createAdminAlert(row) {
+    const data = await this.req('POST', 'admin_alerts', row);
+    return data && data[0] ? data[0] : null;
+  },
+
   // ── ORDERS ──
   async getOrders() {
     return this.req('GET', 'orders', null, '?order=created_at.desc&limit=2000');
@@ -630,10 +652,11 @@ const SB = {
     return data[0] || null;
   },
 
-  /** Resolve order by UUID/numeric id or by tracking_number (user-facing ref). */
+  /** Resolve order by UUID/numeric id or by tracking_number (user-facing ref). Case/spacing tolerant. */
   async findOrder(ref) {
-    const r = String(ref == null ? '' : ref).trim();
-    if (!r) return null;
+    const raw = String(ref == null ? '' : ref).trim();
+    if (!raw) return null;
+    const r = raw.replace(/\s+/g, '').replace(/_/g, '-');
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(r)) {
       const byUuid = await this.getOrder(r);
       if (byUuid) return byUuid;
@@ -642,8 +665,28 @@ const SB = {
       const byId = await this.getOrder(r);
       if (byId) return byId;
     }
-    const data = await this.req('GET', 'orders', null, `?tracking_number=eq.${encodeURIComponent(r)}&limit=1`);
-    return Array.isArray(data) && data[0] ? data[0] : null;
+    const tryTrackingEq = async (q) => {
+      const data = await this.req('GET', 'orders', null, `?tracking_number=eq.${encodeURIComponent(q)}&limit=1`);
+      return Array.isArray(data) && data[0] ? data[0] : null;
+    };
+    const tryTrackingIlike = async (q) => {
+      try {
+        const data = await this.req('GET', 'orders', null, `?tracking_number=ilike.${encodeURIComponent(q)}&limit=1`);
+        return Array.isArray(data) && data[0] ? data[0] : null;
+      } catch (e) {
+        return null;
+      }
+    };
+    let row = await tryTrackingEq(r);
+    if (row) return row;
+    row = await tryTrackingEq(r.toUpperCase());
+    if (row) return row;
+    row = await tryTrackingEq(r.toLowerCase());
+    if (row) return row;
+    row = await tryTrackingIlike(r);
+    if (row) return row;
+    row = await tryTrackingIlike(r.toUpperCase());
+    return row;
   },
 
   async createOrder(order) {

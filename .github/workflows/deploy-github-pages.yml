@@ -1,0 +1,70 @@
+# Injects GEMINI_API_KEY at deploy time into everest-env.js (never commit the real key).
+# Repo → Settings → Secrets → Actions → GEMINI_API_KEY
+# Repo → Settings → Pages → Source: GitHub Actions
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require GEMINI_API_KEY secret
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -z "${GEMINI_API_KEY}" ]; then
+            echo "::error::Add repository secret GEMINI_API_KEY (Settings → Secrets → Actions). It cannot be empty for this deploy."
+            exit 1
+          fi
+
+      - name: Build site and inject Gemini key into everest-env.js
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          set -e
+          rm -rf _site && mkdir _site
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='workers' \
+            --exclude='_site' \
+            ./ ./_site/
+          python3 << 'PY'
+          import os
+          from pathlib import Path
+          key = os.environ.get("GEMINI_API_KEY") or ""
+
+          def js_single_quoted(s):
+              return "'" + s.replace("\\", "\\\\").replace("'", "\\'").replace("\r", "").replace("\n", "\\n") + "'"
+
+          Path("_site/everest-env.js").write_text(
+              "window.EVEREST_GEMINI_API_KEY = " + js_single_quoted(key) + ";\n",
+              encoding="utf-8",
+          )
+          PY
+          touch _site/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -30,7 +30,15 @@ const State = {
   vendorUploadImageUrls: [],
   flashInterval: null,
   countdownInterval: null,
+  /** Set on gift page before opening payment modal; cleared after order or when modal closes. */
+  pendingGift: null,
+  /** { lat, lng, capturedAt, accuracy } from Geolocation at checkout, or null */
+  checkoutGeo: null,
 };
+
+try {
+  window.__EVEREST_STATE__ = State;
+} catch (e) {}
 
 const DELIVERY_STATUS_FLOW = [
   'pending',
@@ -322,6 +330,324 @@ async function init() {
   applyReviewAggregatesToProducts();
   renderHome();
   setTimeout(initReveal, 80);
+  startPreorderReadyNotifier();
+  startEverestLogisticsClockTick();
+  startTrackOrderNotifyPoller();
+  parseEverestDeepLinks();
+  initEverestFCM();
+}
+
+function syncMainNavHeight() {
+  var nav = document.getElementById('main-nav');
+  if (!nav) return;
+  document.documentElement.style.setProperty('--stn-main-nav-h', nav.offsetHeight + 'px');
+}
+
+/**
+ * Top bar only when Tunisia time is ≥ 16:00 (Africa/Tunis via EverestYasmineRouting.isPastLogisticsCutoff).
+ * Before 4:00 PM there: no bar — not based on the visitor’s local clock.
+ */
+function syncLogisticsCutoffBanner() {
+  var bar = document.getElementById('everest-logistics-cutoff-bar');
+  syncMainNavHeight();
+  if (!bar) return;
+  var past =
+    typeof EverestYasmineRouting !== 'undefined' &&
+    EverestYasmineRouting.isPastLogisticsCutoff &&
+    EverestYasmineRouting.isPastLogisticsCutoff();
+  if (past) {
+    var text =
+      'Next Day Delivery — same-day handover closed (after 4:00 PM Tunisia time). Your order follows the next logistics run; updates in Track.';
+    if (EverestYasmineRouting.getProductListingDeliveryLine) {
+      var dl = EverestYasmineRouting.getProductListingDeliveryLine();
+      if (dl && dl.text) text = dl.text;
+    }
+    bar.textContent = text;
+    bar.classList.add('everest-logistics-cutoff-bar--visible');
+    bar.removeAttribute('hidden');
+    document.body.classList.add('everest-logistics-cutoff-bar-visible');
+    requestAnimationFrame(function () {
+      var h = bar.offsetHeight;
+      if (h > 0) document.documentElement.style.setProperty('--stn-logistics-bar-h', h + 'px');
+    });
+  } else {
+    bar.textContent = '';
+    bar.classList.remove('everest-logistics-cutoff-bar--visible');
+    bar.setAttribute('hidden', '');
+    document.body.classList.remove('everest-logistics-cutoff-bar-visible');
+    document.documentElement.style.removeProperty('--stn-logistics-bar-h');
+  }
+}
+
+/** Re-render shop grids when Tunis 4:00 PM cutoff crosses (same-day → next-day messaging). */
+function startEverestLogisticsClockTick() {
+  if (window.__everestLogisticsTick) return;
+  var lastCut =
+    typeof EverestYasmineRouting !== 'undefined' && EverestYasmineRouting.isPastLogisticsCutoff
+      ? EverestYasmineRouting.isPastLogisticsCutoff()
+      : null;
+  function tick() {
+    if (typeof EverestYasmineRouting === 'undefined' || !EverestYasmineRouting.isPastLogisticsCutoff) return;
+    var nowCut = EverestYasmineRouting.isPastLogisticsCutoff();
+    syncLogisticsCutoffBanner();
+    if (lastCut === null) {
+      lastCut = nowCut;
+      return;
+    }
+    if (lastCut !== nowCut) {
+      lastCut = nowCut;
+      try {
+        if (State.currentPage === 'home') renderHome();
+        else if (State.currentPage === 'products') filterAndRenderProducts();
+        else if (State.currentPage === 'wishlist') renderWishlist();
+      } catch (e) {}
+    }
+  }
+  tick();
+  /** Re-check often so the bar appears soon after 16:00 Tunis without relying on device local time. */
+  window.__everestLogisticsTick = setInterval(tick, 15000);
+}
+
+/** Public URL that opens Track with the order code (for notifications & FCM data payload). */
+function everestTrackOrderUrl(tracking) {
+  var t = String(tracking || '').trim();
+  var base = window.location.origin + (window.location.pathname || '/');
+  var sep = base.indexOf('?') >= 0 ? '&' : '?';
+  return base + sep + 'openTrack=' + encodeURIComponent(t);
+}
+
+function parseEverestDeepLinks() {
+  try {
+    var u = new URL(window.location.href);
+    var ot = u.searchParams.get('openTrack');
+    if (!ot || typeof showPage !== 'function') return;
+    showPage('track');
+    setTimeout(function () {
+      var inp = document.getElementById('track-num');
+      if (inp) {
+        inp.value = ot;
+        if (typeof trackOrder === 'function') void trackOrder();
+      }
+    }, 450);
+  } catch (e) {}
+}
+
+/** Browser Notification + optional FCM foreground; server should send FCM at 11:00 for closed-tab users. */
+function triggerTrackReminderNotification(trackingCode) {
+  var tr = String(trackingCode || '').trim();
+  var mapUrl = everestTrackOrderUrl(tr);
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try {
+      new Notification('Everest — Track your order', {
+        body: tr + ' — Tap to open live map & tracking',
+        icon: '/assets/everest-logo.png',
+        tag: 'everest-track-' + tr,
+        data: { url: mapUrl, tracking: tr },
+      });
+    } catch (e) {}
+  }
+}
+
+function everestFCMSaveToken(token) {
+  if (!token || !State.currentUser || !State.currentUser.id || typeof SB === 'undefined' || !SB.updateUser) return;
+  return SB.updateUser(State.currentUser.id, {
+    fcm_token: token,
+    fcm_token_updated_at: new Date().toISOString(),
+  });
+}
+
+/** Re-fetch FCM token after login so `users.fcm_token` matches the signed-in account. */
+function everestFCMRefreshUserToken() {
+  if (typeof firebase === 'undefined') return;
+  var cfg = window.STN_FIREBASE_CONFIG;
+  if (!cfg || !cfg.apiKey || !cfg.messagingSenderId) return;
+  try {
+    if (!firebase.apps || firebase.apps.length === 0) {
+      firebase.initializeApp(cfg);
+    }
+    var messaging = firebase.messaging();
+    var vapid = window.STN_FCM_VAPID_KEY || '';
+    if (!vapid || !State.currentUser || !State.currentUser.id) return;
+    return navigator.serviceWorker
+      .getRegistration()
+      .then(function (reg) {
+        if (!reg) return null;
+        return messaging.getToken({ vapidKey: vapid, serviceWorkerRegistration: reg });
+      })
+      .then(function (token) {
+        return everestFCMSaveToken(token);
+      })
+      .catch(function () {});
+  } catch (e) {}
+}
+
+/**
+ * Firebase Cloud Messaging (web): register SW, request permission, save token on user row.
+ * Configure firebase-config.js. For 11:00 push when the tab is closed, send via FCM HTTP v1 (server) using this token.
+ */
+function initEverestFCM() {
+  if (typeof firebase === 'undefined') return;
+  var cfg = window.STN_FIREBASE_CONFIG;
+  if (!cfg || !cfg.apiKey || !cfg.messagingSenderId) return;
+  try {
+    if (!firebase.apps || firebase.apps.length === 0) {
+      firebase.initializeApp(cfg);
+    }
+    var messaging = firebase.messaging();
+    if (!window.__everestFcmForeground) {
+      messaging.onMessage(function (payload) {
+        var n = payload.notification || {};
+        var t = n.title || 'Everest';
+        var b = n.body || '';
+        if (b) toast(t + ' — ' + b, 'default');
+      });
+      window.__everestFcmForeground = true;
+    }
+    if (window.__everestFcmCoreReady) {
+      everestFCMRefreshUserToken();
+      return;
+    }
+    if (!('serviceWorker' in navigator)) return;
+    window.__everestFcmCoreReady = true;
+    var vapid = window.STN_FCM_VAPID_KEY || '';
+    navigator.serviceWorker
+      .register('firebase-messaging-sw.js', { scope: './' })
+      .then(function (reg) {
+        return Notification.requestPermission().then(function (perm) {
+          if (perm !== 'granted' || !vapid) return null;
+          return messaging.getToken({ vapidKey: vapid, serviceWorkerRegistration: reg });
+        });
+      })
+      .then(function (token) {
+        return everestFCMSaveToken(token);
+      })
+      .catch(function () {});
+  } catch (e) {
+    if (typeof STNLog !== 'undefined') STNLog.warn('initEverestFCM', e && e.message);
+  }
+}
+
+function requestCheckoutGeolocation() {
+  State.checkoutGeo = null;
+  var el = document.getElementById('co-geo-status');
+  if (!el) return;
+  if (!navigator.geolocation) {
+    el.innerHTML =
+      '<p style="margin:0;font-size:0.72rem;color:#94a3b8">Location services are not available in this browser.</p>';
+    return;
+  }
+  el.innerHTML =
+    '<p style="margin:0;font-size:0.72rem;color:#7b72a8">Requesting your location for delivery routing…</p>';
+  navigator.geolocation.getCurrentPosition(
+    function (pos) {
+      State.checkoutGeo = {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        capturedAt: new Date().toISOString(),
+        accuracy: pos.coords.accuracy,
+      };
+      if (el) {
+        el.innerHTML =
+          '<p style="margin:0;font-size:0.72rem;color:#059669">✓ Location saved with your order (±' +
+          Math.round(pos.coords.accuracy) +
+          ' m).</p>';
+      }
+    },
+    function () {
+      if (el) {
+        el.innerHTML =
+          '<p style="margin:0;font-size:0.72rem;color:#94a3b8">Location not shared — you can still complete checkout.</p>';
+      }
+    },
+    { enableHighAccuracy: true, timeout: 18000, maximumAge: 0 }
+  );
+}
+
+/** After hub departure scan, DB schedules track_notify_scheduled_at (next day 11:00 Tunis); poll and toast. */
+function startTrackOrderNotifyPoller() {
+  if (window.__everestTrackNotifyPoller) return;
+  function sessionKey(oid) {
+    return 'stn_track_notify_done_' + oid;
+  }
+  async function tick() {
+    if (!State.currentUser || !State.currentUser.id || typeof SB === 'undefined' || !SB.getUserOrders) return;
+    try {
+      var list = await SB.getUserOrders(State.currentUser.id);
+      if (!Array.isArray(list)) return;
+      var now = Date.now();
+      for (var i = 0; i < list.length; i++) {
+        var o = list[i];
+        var oid = String(o.id != null ? o.id : '');
+        if (!oid) continue;
+        if (!o.track_notify_scheduled_at) continue;
+        if (o.track_notify_sent_at) continue;
+        if (new Date(o.track_notify_scheduled_at).getTime() > now) continue;
+        if (sessionStorage.getItem(sessionKey(oid))) continue;
+        sessionStorage.setItem(sessionKey(oid), '1');
+        var tr = o.tracking_number || oid;
+        toast(
+          '📦 Next-day track reminder — ' + tr + ' — open Track for live map & updates.',
+          'success'
+        );
+        triggerTrackReminderNotification(tr);
+        try {
+          await SB.updateOrder(oid, { track_notify_sent_at: new Date().toISOString() });
+        } catch (e) {}
+      }
+    } catch (e) {}
+  }
+  tick();
+  window.__everestTrackNotifyPoller = setInterval(tick, 60000);
+}
+
+/** Polls buyer orders; toasts when a pre-order moves to an active/confirmed state. */
+function startPreorderReadyNotifier() {
+  if (window.__everestPreorderPoller) return;
+  var baseline = null;
+  function sessionKey(oid) {
+    return 'stn_preorder_toast_' + oid;
+  }
+  async function tick() {
+    if (!State.currentUser || !State.currentUser.id) return;
+    try {
+      var list = [];
+      if (typeof SB !== 'undefined' && SB.getUserOrders) {
+        list = await SB.getUserOrders(State.currentUser.id);
+      }
+      if (!Array.isArray(list)) return;
+      var snap = {};
+      for (var i = 0; i < list.length; i++) {
+        var o = list[i];
+        var oid = String(o.id != null ? o.id : '');
+        if (!oid) continue;
+        snap[oid] = {
+          y: String(o.yasmine_routing_status || ''),
+          s: String(o.status || ''),
+        };
+      }
+      if (baseline) {
+        Object.keys(snap).forEach(function (oid) {
+          var prev = baseline[oid];
+          var cur = snap[oid];
+          if (!prev || !cur || prev.y !== 'preorder') return;
+          if (sessionStorage.getItem(sessionKey(oid))) return;
+          var upgraded =
+            (cur.y && cur.y !== 'preorder') ||
+            cur.s === 'confirmed' ||
+            cur.s === 'processing' ||
+            cur.s === 'ready' ||
+            cur.s === 'shipped';
+          if (upgraded) {
+            sessionStorage.setItem(sessionKey(oid), '1');
+            toast('Your Everest order is updated — open Track to follow your package.', 'success');
+          }
+        });
+      }
+      baseline = snap;
+    } catch (e) {}
+  }
+  tick();
+  window.__everestPreorderPoller = setInterval(tick, 120000);
 }
 
 /** Re-render product-driven UI after catalog updates (home grids, shop grid). */
@@ -422,6 +748,12 @@ async function initializeProducts() {
     State.products = Array.isArray(cached) ? cached : [];
   }
   applyReviewAggregatesToProducts();
+  if (typeof EverestYasmineRouting !== 'undefined' && EverestYasmineRouting.ensureProductSku) {
+    State.products = State.products.map(function (p) {
+      return EverestYasmineRouting.ensureProductSku(p);
+    });
+    STN.DB.set('products', State.products);
+  }
   refreshProductViewsAfterCatalogLoad();
 }
 
@@ -457,6 +789,11 @@ function initNav() {
   });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && document.body.classList.contains('nav-drawer-open')) toggleNavDrawer(false);
+  });
+  syncMainNavHeight();
+  window.addEventListener('resize', function () {
+    syncMainNavHeight();
+    syncLogisticsCutoffBanner();
   });
 }
 
@@ -519,11 +856,16 @@ function updateNavUser() {
       el.style.color = 'white';
       el.textContent = navLabelForHeader('Admin Dashboard', 'Admin');
       el.onclick = function(){ showPage('admin'); };
+    } else if (role === 'hub') {
+      el.style.background = 'linear-gradient(135deg,#0d9488,#0f766e)';
+      el.style.color = 'white';
+      el.textContent = navLabelForHeader('Sahel Hub', 'Hub');
+      el.onclick = function(){ showPage('hub'); };
     } else if (role === 'vendor') {
       el.style.background = 'linear-gradient(135deg,#059669,#047857)';
       el.style.color = 'white';
       el.textContent = navLabelForHeader('My Dashboard', 'Dashboard');
-      el.onclick = function(){ showPage('vendor'); };
+      el.onclick = function(){ showVendorHubOrOnboarding(); };
     } else if (role === 'driver') {
       el.style.background = 'linear-gradient(135deg,#0ea5e9,#0369a1)';
       el.style.color = 'white';
@@ -560,7 +902,29 @@ function updateNavUser() {
   }
   var dli = document.getElementById('nav-drawer-driver-item');
   if (dli) dli.style.display = State.currentUser && State.currentUser.role === 'driver' ? 'block' : 'none';
+  syncAboutNavLink();
   syncBottomNavActive(State.currentPage || 'home');
+  syncMainNavHeight();
+  syncLogisticsCutoffBanner();
+}
+
+/** About nav = customer story; vendors see Rules for Vendors (same route, different label + body). */
+function syncAboutNavLink() {
+  var isVendor = State.currentUser && State.currentUser.role === 'vendor';
+  var key = isVendor ? 'nav-about-vendor' : 'nav-about';
+  var navBtn = document.getElementById('navbtn-about');
+  if (navBtn) navBtn.setAttribute('data-lang', key);
+  document.querySelectorAll('.nav-drawer-link[data-lang]').forEach(function (el) {
+    var prev = el.getAttribute('data-lang');
+    if (prev === 'nav-about' || prev === 'nav-about-vendor') el.setAttribute('data-lang', key);
+  });
+  if (typeof window.STNI18N !== 'undefined' && window.STNI18N.t) {
+    var label = window.STNI18N.t(key);
+    if (navBtn) navBtn.textContent = label;
+    document.querySelectorAll('.nav-drawer-link').forEach(function (el) {
+      if (el.getAttribute('data-lang') === key) el.textContent = label;
+    });
+  }
 }
 
 // ── PAGE NAVIGATION ──
@@ -604,11 +968,14 @@ function showPage(id) {
     auth: renderAuth,
     account: renderAccount,
     admin: renderAdmin,
+    hub: renderHub,
     vendor: renderVendor,
     'vendor-dashboard': renderVendorDashboard,
     driver: renderDriver,
     loyalty: renderLoyalty,
     about: renderAbout,
+    'gift-checkout': renderGiftCheckout,
+    'vendor-hours': renderVendorHoursOnboarding,
   };
   
   console.log('🔄 Available renderers:', Object.keys(renderers));
@@ -629,6 +996,7 @@ function showPage(id) {
     setTimeout(() => { if(typeof setLang === 'function') setLang(lang, { silent: true, internal: true }); }, 100);
   }
   syncBottomNavActive(id);
+  syncLogisticsCutoffBanner();
   return false;
 }
 
@@ -675,7 +1043,8 @@ function mobileNavAccount() {
   }
   var role = State.currentUser.role;
   if (role === 'admin') showPage('admin');
-  else if (role === 'vendor') showPage('vendor');
+  else if (role === 'hub') showPage('hub');
+  else if (role === 'vendor') showVendorHubOrOnboarding();
   else if (role === 'driver') showPage('driver');
   else showPage('account');
 }
@@ -685,7 +1054,7 @@ function syncBottomNavActive(pageId) {
   if (!nav) return;
   nav.querySelectorAll('.bottom-nav__btn').forEach(function (b) { b.classList.remove('active'); });
   var map = { home: 'bottomnav-home', products: 'bottomnav-products', track: 'bottomnav-track' };
-  var accountPages = { account: 1, auth: 1, vendor: 1, admin: 1, 'vendor-dashboard': 1, driver: 1 };
+  var accountPages = { account: 1, auth: 1, vendor: 1, 'vendor-hours': 1, admin: 1, hub: 1, 'vendor-dashboard': 1, driver: 1 };
   if (accountPages[pageId]) {
     var acc = document.getElementById('bottomnav-account');
     if (acc) acc.classList.add('active');
@@ -774,6 +1143,21 @@ function orderCustomerFullName(order) {
   var last = String(order.customer_last_name || order.last_name || '').trim();
   var full = (first + ' ' + last).trim();
   return full || String(order.userName || 'Customer');
+}
+
+function orderIsGiftOrder(order) {
+  if (!order) return false;
+  if (order.is_gift === true || order.is_gift === 'true' || order.is_gift === 1) return true;
+  var n = String(order.notes || '');
+  return n.indexOf('🎁 Gift order —') === 0;
+}
+
+function giftTrackingAllowedForViewer(order) {
+  if (!orderIsGiftOrder(order)) return true;
+  var uid = order.user_id != null && order.user_id !== '' ? String(order.user_id) : '';
+  if (!uid) return true;
+  if (!State.currentUser || State.currentUser.id == null) return false;
+  return String(State.currentUser.id) === uid;
 }
 
 function driverOpenMapsByKey(key) {
@@ -865,6 +1249,26 @@ async function loadDriverOrdersList() {
     return String(o.driver_id) === String(uid) || String(o.driverId) === String(uid);
   });
 }
+
+async function driverHubDepartureScan(orderKey) {
+  if (!isDriverVerified(State.currentUser)) {
+    toast('Your driver account is not verified yet', 'error');
+    return;
+  }
+  var at = new Date().toISOString();
+  try {
+    if (typeof SB !== 'undefined' && SB.updateOrder) {
+      await SB.updateOrder(orderKey, { hub_departure_scanned_at: at });
+    }
+  } catch (e) {
+    if (typeof STNLog !== 'undefined') STNLog.warn('driverHubDepartureScan', e && e.message);
+    toast('Could not record hub scan — run SQL migration `20260406120000_hub_departure_track_notify.sql`.', 'error');
+    return;
+  }
+  toast('Hub departure recorded — customer Track reminder is scheduled for 11:00 AM next day (Tunis time).', 'success');
+  renderDriver();
+}
+window.driverHubDepartureScan = driverHubDepartureScan;
 
 async function driverMarkOutForDelivery(orderKey) {
   if (!isDriverVerified(State.currentUser)) {
@@ -1118,6 +1522,11 @@ function renderDriver() {
             (accepted && canDeliver
               ? '<button type="button" class="btn btn-ghost btn-sm" onclick="startDriverGpsForOrder(\'' + safeKey + '\')">Share GPS</button>'
               : '') +
+            (accepted && canDeliver && !o.hub_departure_scanned_at
+              ? '<button type="button" class="btn btn-sm" style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;font-weight:700" onclick="driverHubDepartureScan(\'' +
+                safeKey +
+                '\')">Scan hub departure</button>'
+              : '') +
             (accepted && showOut
               ? '<button type="button" class="btn btn-ghost btn-sm" onclick="driverMarkOutForDelivery(\'' + safeKey + '\')">Out for delivery</button>'
               : '') +
@@ -1248,12 +1657,19 @@ function addToCart(productId) {
   if (existing) {
     existing.qty++;
   } else {
+    var skuP = product;
+    if (typeof EverestYasmineRouting !== 'undefined' && EverestYasmineRouting.ensureProductSku) {
+      skuP = EverestYasmineRouting.ensureProductSku(product);
+    }
     State.cart.push({
       id: canonicalId,
       name: product.name,
       price: product.price,
       emoji: product.emoji,
       qty: 1,
+      sku_dna: skuP.sku_dna,
+      vendor_id: skuP.vendor_id != null ? skuP.vendor_id : skuP.vendorId,
+      parent_sku: skuP.parent_sku,
     });
   }
   STN.DB.set('cart', State.cart);
@@ -1296,6 +1712,161 @@ function openCart() {
 function closeCart() {
   document.getElementById('cart-drawer').classList.remove('open');
   document.getElementById('cart-overlay').classList.remove('open');
+}
+
+function escHtml(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/** Public tracking ref — always set client-side so Track and Supabase stay in sync. */
+function generateEverestTrackingNumber() {
+  var t = Date.now().toString(36).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  var r = Math.random().toString(36).substring(2, 8).toUpperCase();
+  return 'EVR-' + t.slice(-8) + '-' + r;
+}
+
+function normalizeTrackingInput(val) {
+  return String(val == null ? '' : val)
+    .trim()
+    .replace(/\s+/g, '')
+    .replace(/_/g, '-');
+}
+
+/** Fallback when API/RLS cannot resolve (order exists in this browser session). */
+function findOrderInLocalStorage(ref) {
+  var r = normalizeTrackingInput(ref);
+  if (!r) return null;
+  var ru = r.toUpperCase();
+  var orders = STN.DB.get('orders') || [];
+  for (var i = 0; i < orders.length; i++) {
+    var o = orders[i];
+    var t = normalizeTrackingInput(o.tracking_number || '');
+    var id = String(o.id != null ? o.id : '');
+    if (t && t.toUpperCase() === ru) return o;
+    if (id && (id === r || id.toUpperCase() === ru)) return o;
+  }
+  return null;
+}
+
+function closeCheckoutModal() {
+  State.pendingGift = null;
+  var m = document.getElementById('checkout-modal');
+  if (m) m.remove();
+}
+
+function openCheckoutFromCart() {
+  if (!State.currentUser || State.currentUser.id == null || State.currentUser.id === '') {
+    closeCart();
+    toast('Please create an account or sign in to checkout.', 'error');
+    showPage('auth');
+    return;
+  }
+  if (!State.cart.length) {
+    toast('Your cart is empty.', 'error');
+    return;
+  }
+  State.pendingGift = null;
+  checkout();
+}
+
+function openGiftCheckoutPage() {
+  if (!State.currentUser || State.currentUser.id == null || State.currentUser.id === '') {
+    closeCart();
+    toast('Please sign in to send a gift.', 'error');
+    showPage('auth');
+    return;
+  }
+  if (!State.cart.length) {
+    toast('Your cart is empty.', 'error');
+    return;
+  }
+  closeCart();
+  State.pendingGift = null;
+  showPage('gift-checkout');
+}
+
+function continueGiftCheckoutToPayment() {
+  if (!State.currentUser) {
+    showPage('auth');
+    return;
+  }
+  var gFull = document.getElementById('gift-rcp-fullname');
+  var gPhone = document.getElementById('gift-rcp-phone');
+  var gWilaya = document.getElementById('gift-rcp-wilaya');
+  var gAddr = document.getElementById('gift-rcp-address');
+  var full = gFull ? gFull.value.trim() : '';
+  var ph = gPhone ? gPhone.value.trim() : '';
+  var wy = gWilaya ? gWilaya.value.trim() : '';
+  var ad = gAddr ? gAddr.value.trim() : '';
+  if (!full || !ph || !wy || !ad) {
+    toast('⚠️ Please fill all recipient fields.', 'error');
+    return;
+  }
+  var revealEl = document.querySelector('input[name="gift-reveal-sender"]:checked');
+  if (!revealEl) {
+    toast('⚠️ Please choose whether the recipient should know who sent the gift.', 'error');
+    return;
+  }
+  State.pendingGift = {
+    fullName: full,
+    phone: ph,
+    wilaya: wy,
+    address: ad,
+    revealSender: revealEl.value === 'yes'
+  };
+  checkout();
+}
+
+function renderGiftCheckout() {
+  var root = document.getElementById('gift-checkout-root');
+  if (!root) return;
+  if (!State.currentUser || State.currentUser.id == null || State.currentUser.id === '') {
+    showPage('auth');
+    return;
+  }
+  if (!State.cart.length) {
+    root.innerHTML =
+      '<div style="text-align:center;padding:2rem 0"><p style="color:#7b72a8;margin-bottom:1.25rem">Your cart is empty.</p><button type="button" class="btn btn-gold" onclick="showPage(\'products\')">Browse products</button></div>';
+    return;
+  }
+  var total = getCartTotal();
+  root.innerHTML =
+    '<div style="margin-bottom:1.5rem;padding:1rem 1.15rem;border-radius:14px;background:#f8f7ff;border:1px solid rgba(107,63,212,0.15)">' +
+    '<p style="font-size:0.72rem;color:#7b72a8;margin:0 0 0.35rem">Cart total</p>' +
+    '<p style="font-size:1.35rem;font-family:Cormorant Garamond,serif;color:#7c3aed;font-weight:600;margin:0">' +
+    total.toLocaleString() +
+    ' TND</p></div>' +
+    '<div style="margin-bottom:1rem">' +
+    '<label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Recipient full name *</label>' +
+    '<input id="gift-rcp-fullname" type="text" placeholder="Who receives the package" style="width:100%;padding:0.75rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.88rem;outline:none;box-sizing:border-box;font-family:inherit"/>' +
+    '</div>' +
+    '<div style="margin-bottom:1rem">' +
+    '<label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Recipient phone *</label>' +
+    '<input id="gift-rcp-phone" type="tel" placeholder="+216 XX XXX XXX" style="width:100%;padding:0.75rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.88rem;outline:none;box-sizing:border-box;font-family:inherit"/>' +
+    '</div>' +
+    '<div style="margin-bottom:1rem">' +
+    '<label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Recipient wilaya *</label>' +
+    '<input id="gift-rcp-wilaya" type="text" placeholder="Monastir" style="width:100%;padding:0.75rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.88rem;outline:none;box-sizing:border-box;font-family:inherit"/>' +
+    '</div>' +
+    '<div style="margin-bottom:1.25rem">' +
+    '<label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Recipient full address *</label>' +
+    '<input id="gift-rcp-address" type="text" placeholder="Street, city, landmarks…" style="width:100%;padding:0.75rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.88rem;outline:none;box-sizing:border-box;font-family:inherit"/>' +
+    '</div>' +
+    '<div style="margin-bottom:1.35rem;padding:1rem 1.1rem;border:1px solid rgba(107,63,212,0.18);border-radius:14px;background:white">' +
+    '<p style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#7c3aed;margin:0 0 0.75rem">Should they know it is from you?</p>' +
+    '<label style="display:flex;align-items:flex-start;gap:0.55rem;cursor:pointer;font-size:0.84rem;color:#3d3460;line-height:1.4;margin-bottom:0.65rem">' +
+    '<input type="radio" name="gift-reveal-sender" value="yes" style="accent-color:#7c3aed;margin-top:0.2rem;flex-shrink:0"/>' +
+    '<span><strong>Yes</strong> — they may see your name on the package or a note (we follow your choice when packing).</span></label>' +
+    '<label style="display:flex;align-items:flex-start;gap:0.55rem;cursor:pointer;font-size:0.84rem;color:#3d3460;line-height:1.4">' +
+    '<input type="radio" name="gift-reveal-sender" value="no" style="accent-color:#7c3aed;margin-top:0.2rem;flex-shrink:0"/>' +
+    '<span><strong>No</strong> — surprise: do not show my name to the recipient; only the shop / delivery uses my details internally.</span></label>' +
+    '</div>' +
+    '<button type="button" class="btn btn-gold btn-full" onclick="continueGiftCheckoutToPayment()" style="margin-bottom:0.75rem">Continue to payment →</button>' +
+    '<button type="button" class="btn btn-ghost btn-sm btn-full" onclick="showPage(\'products\')">Keep shopping</button>';
 }
 
 function renderCartDrawer() {
@@ -1341,7 +1912,8 @@ function renderCartDrawer() {
       <div style="display:flex;justify-content:space-between;font-size:0.82rem;color:var(--text-muted);margin-bottom:0.4rem"><span>Subtotal</span><span>${subtotal.toLocaleString()} TND</span></div>
       <div style="display:flex;justify-content:space-between;font-size:0.82rem;color:var(--text-muted);margin-bottom:0.8rem"><span>Shipping</span><span style="color:var(--success)">Free</span></div>
       <div style="display:flex;justify-content:space-between;font-size:1rem;color:var(--champagne);font-weight:600;margin-bottom:1.2rem"><span>Total</span><span>${total.toLocaleString()} TND</span></div>
-      <button class="btn btn-gold btn-full" onclick="checkout()">Checkout →</button>
+      <button type="button" id="cart-checkout-btn" class="btn btn-gold btn-full" onclick="openCheckoutFromCart()" style="margin-bottom:0.55rem">Checkout →</button>
+      <button type="button" id="cart-gift-btn" class="btn btn-ghost btn-full" onclick="openGiftCheckoutPage()" style="border:1px solid rgba(219,39,119,0.35);color:#9d174d;font-weight:600">🎁 Send as a gift</button>
     </div>`;
 }
 
@@ -1358,63 +1930,124 @@ function applyPromo() {
 }
 
 async function checkout() {
-  // Show checkout form — works for guests AND logged in users
+  if (!State.currentUser || State.currentUser.id == null || State.currentUser.id === '') {
+    closeCart();
+    toast('Please create an account or sign in to checkout.', 'error');
+    showPage('auth');
+    return;
+  }
+
   closeCart();
-  
-  // Build checkout modal
-  const existing = document.getElementById('checkout-modal');
+
+  var pg = State.pendingGift;
+  var giftStep = !!pg;
+
+  var existing = document.getElementById('checkout-modal');
   if (existing) existing.remove();
-  
-  const modal = document.createElement('div');
+
+  var u = State.currentUser || {};
+  var uf = escHtml(u.firstName || u.first_name || '');
+  var ul = escHtml(u.lastName || u.last_name || '');
+  var up = escHtml(u.phone || '');
+  var uw = escHtml(u.wilaya || '');
+
+  var giftSummaryHtml = '';
+  if (giftStep) {
+    giftSummaryHtml =
+      '<div style="margin-bottom:1.25rem;padding:1rem 1.1rem;border:1px solid rgba(219,39,119,0.25);border-radius:14px;background:linear-gradient(135deg,#fdf2f8,#faf5ff)">' +
+      '<p style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#db2777;margin:0 0 0.65rem">Gift · Delivery to</p>' +
+      '<p style="margin:0 0 0.35rem;font-size:0.9rem;color:#1e0a4e"><strong>' +
+      escHtml(pg.fullName) +
+      '</strong></p>' +
+      '<p style="margin:0;font-size:0.8rem;color:#7b72a8">' +
+      escHtml(pg.phone) +
+      ' · ' +
+      escHtml(pg.wilaya) +
+      '</p>' +
+      '<p style="margin:0.5rem 0 0;font-size:0.8rem;color:#3d3460;line-height:1.4">' +
+      escHtml(pg.address) +
+      '</p>' +
+      '<p style="margin:0.75rem 0 0;font-size:0.75rem;color:#7b72a8;line-height:1.4">' +
+      (pg.revealSender
+        ? '✓ Recipient <strong>may</strong> know it is from you (your name can appear on the package or a note).'
+        : '✓ <strong>Surprise:</strong> do not show your name to the recipient on the package — only our team uses your details internally.') +
+      '</p></div>';
+  }
+
+  var buyerBlock = giftStep
+    ? '<div style="margin-bottom:1rem">' +
+      '<p style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#7c3aed;margin:0 0 0.65rem">Your contact (buyer)</p>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin-bottom:0.8rem">' +
+      '<div><label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">First name *</label>' +
+      '<input id="co-fname" type="text" value="' +
+      uf +
+      '" placeholder="Mohamed" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/></div>' +
+      '<div><label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Last name *</label>' +
+      '<input id="co-lname" type="text" value="' +
+      ul +
+      '" placeholder="Trabelsi" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/></div></div>' +
+      '<div style="margin-bottom:0.8rem"><label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Your phone *</label>' +
+      '<input id="co-phone" type="tel" value="' +
+      up +
+      '" placeholder="+216 XX XXX XXX" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/></div>' +
+      '<input type="hidden" id="co-wilaya" value=""/>' +
+      '<input type="hidden" id="co-address" value=""/>' +
+      '</div>'
+    : '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin-bottom:0.8rem">' +
+      '<div><label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">First Name *</label>' +
+      '<input id="co-fname" type="text" value="' +
+      uf +
+      '" placeholder="Mohamed" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/></div>' +
+      '<div><label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Last Name *</label>' +
+      '<input id="co-lname" type="text" value="' +
+      ul +
+      '" placeholder="Trabelsi" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/></div></div>' +
+      '<div style="margin-bottom:0.8rem"><label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Phone *</label>' +
+      '<input id="co-phone" type="tel" value="' +
+      up +
+      '" placeholder="+216 XX XXX XXX" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/></div>' +
+      '<div style="margin-bottom:0.8rem"><label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Wilaya *</label>' +
+      '<input id="co-wilaya" type="text" value="' +
+      uw +
+      '" placeholder="Monastir" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/></div>' +
+      '<div style="margin-bottom:1.5rem"><label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Full Address *</label>' +
+      '<input id="co-address" type="text" placeholder="12 Rue Habib Bourguiba, Monastir" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/></div>';
+
+  var modal = document.createElement('div');
   modal.id = 'checkout-modal';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(30,10,78,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
-  modal.innerHTML = `
-    <div style="background:white;border-radius:24px;padding:2.5rem;max-width:480px;width:100%;max-height:90vh;overflow-y:auto;position:relative">
-      <button onclick="document.getElementById('checkout-modal').remove()" style="position:absolute;top:1rem;right:1rem;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#7b72a8">✕</button>
-      <h3 style="font-family:'Cormorant Garamond',serif;font-size:1.8rem;color:#1e0a4e;margin-bottom:0.3rem">Complete Order</h3>
-      <p style="color:#7b72a8;font-size:0.8rem;margin-bottom:1.5rem">Total: <strong style="color:#7c3aed">${getCartTotal().toLocaleString()} TND</strong></p>
-      
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin-bottom:0.8rem">
-        <div>
-          <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">First Name *</label>
-          <input id="co-fname" type="text" value="${State.currentUser?.firstName || ''}" placeholder="Mohamed" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
-        </div>
-        <div>
-          <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Last Name *</label>
-          <input id="co-lname" type="text" value="${State.currentUser?.lastName || ''}" placeholder="Trabelsi" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
-        </div>
-      </div>
-      <div style="margin-bottom:0.8rem">
-        <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Phone *</label>
-        <input id="co-phone" type="tel" value="${State.currentUser?.phone || ''}" placeholder="+216 XX XXX XXX" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
-      </div>
-      <div style="margin-bottom:0.8rem">
-        <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Wilaya *</label>
-        <input id="co-wilaya" type="text" value="${State.currentUser?.wilaya || ''}" placeholder="Monastir" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
-      </div>
-      <div style="margin-bottom:1.5rem">
-        <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.4rem">Full Address *</label>
-        <input id="co-address" type="text" placeholder="12 Rue Habib Bourguiba, Monastir" style="width:100%;padding:0.7rem;border:1px solid rgba(107,63,212,0.2);border-radius:10px;font-size:0.85rem;outline:none;box-sizing:border-box"/>
-      </div>
-      <div style="margin-bottom:1.2rem;padding:0.9rem;border:1px solid rgba(107,63,212,0.14);border-radius:12px;background:#fcfbff">
-        <label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.65rem">Payment Method *</label>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.45rem">
-          ${checkoutPaymentMethodTile('cash', '💵 Cash on Delivery')}
-          ${checkoutPaymentMethodTile('visa', '💳 Visa')}
-          ${checkoutPaymentMethodTile('mastercard', '💳 MasterCard')}
-          ${checkoutPaymentMethodTile('credit_card', '🏦 Credit Card')}
-          ${checkoutPaymentMethodTile('paypal', '🅿️ PayPal')}
-          ${checkoutPaymentMethodTile('e_dinar', '🇹🇳 e-Dinar')}
-          ${checkoutPaymentMethodTile('flouci', '📱 Flouci')}
-          ${checkoutPaymentMethodTile('konnect', '🔗 Konnect')}
-        </div>
-      </div>
-      <div id="co-payment-extra" style="margin-bottom:1.2rem"></div>
-      ${!State.currentUser ? `<p style="font-size:0.75rem;color:#7b72a8;margin-bottom:1rem;text-align:center">💡 <a onclick="document.getElementById('checkout-modal').remove();showPage('auth')" style="color:#7c3aed;cursor:pointer">Sign in</a> to track your order easily</p>` : ''}
-      <button id="co-submit-btn" onclick="submitOrder()" style="width:100%;padding:1rem;background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:12px;font-size:0.9rem;font-weight:600;cursor:pointer;letter-spacing:0.05em">Pay & Place Order ✦</button>
-    </div>`;
+  modal.style.cssText =
+    'position:fixed;inset:0;background:rgba(30,10,78,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  modal.innerHTML =
+    '<div style="background:white;border-radius:24px;padding:2.5rem;max-width:480px;width:100%;max-height:90vh;overflow-y:auto;position:relative">' +
+    '<button type="button" onclick="closeCheckoutModal()" style="position:absolute;top:1rem;right:1rem;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#7b72a8">✕</button>' +
+    '<h3 style="font-family:Cormorant Garamond,serif;font-size:1.8rem;color:#1e0a4e;margin-bottom:0.3rem">' +
+    (giftStep ? 'Pay for your gift' : 'Complete order') +
+    '</h3>' +
+    '<p style="color:#7b72a8;font-size:0.8rem;margin-bottom:1.5rem">Total: <strong style="color:#7c3aed">' +
+    getCartTotal().toLocaleString() +
+    ' TND</strong></p>' +
+    giftSummaryHtml +
+    buyerBlock +
+    '<div id="co-yasmine-notice" style="margin-bottom:1rem"></div>' +
+    '<div id="co-geo-status" style="margin-bottom:0.85rem"></div>' +
+    '<div style="margin-bottom:1.2rem;padding:0.9rem;border:1px solid rgba(107,63,212,0.14);border-radius:12px;background:#fcfbff">' +
+    '<label style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7b72a8;display:block;margin-bottom:0.65rem">Payment method *</label>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.45rem">' +
+    checkoutPaymentMethodTile('visa', '💳 Visa') +
+    checkoutPaymentMethodTile('mastercard', '💳 MasterCard') +
+    checkoutPaymentMethodTile('credit_card', '🏦 Credit Card') +
+    checkoutPaymentMethodTile('paypal', '🅿️ PayPal') +
+    checkoutPaymentMethodTile('e_dinar', '🇹🇳 e-Dinar') +
+    checkoutPaymentMethodTile('flouci', '📱 Flouci') +
+    checkoutPaymentMethodTile('konnect', '🔗 Konnect') +
+    '</div></div>' +
+    '<div id="co-payment-extra" style="margin-bottom:1.2rem"></div>' +
+    '<button type="button" id="co-submit-btn" onclick="submitOrder()" style="width:100%;padding:1rem;background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:12px;font-size:0.9rem;font-weight:600;cursor:pointer;letter-spacing:0.05em">Pay & Place Order ✦</button>' +
+    '</div>';
   document.body.appendChild(modal);
   installCheckoutPaymentUi();
+  void hydrateCheckoutYasmineNotice();
+  requestCheckoutGeolocation();
 }
 
 function showForgotPassword() {
@@ -1455,6 +2088,7 @@ function submitForgotPassword() {
 }
 
 function closeSuccessModal() {
+  State.pendingGift = null;
   const m = document.getElementById('success-modal');
   if (m) m.remove();
   const c = document.getElementById('checkout-modal');
@@ -1462,14 +2096,157 @@ function closeSuccessModal() {
   showPage('track');
 }
 
+/** Split cart lines by product vendor for Yasmine routing (one order per fulfillment line). */
+function groupCartByVendor(cart) {
+  var map = {};
+  for (var i = 0; i < (cart || []).length; i++) {
+    var c = cart[i];
+    var p = State.products.find(function (pr) {
+      return String(pr.id) === String(c.id);
+    });
+    var vid = p ? (p.vendor_id != null ? p.vendor_id : p.vendorId) : c.vendor_id;
+    var key = vid != null && String(vid).trim() !== '' ? String(vid) : '_unknown';
+    if (!map[key]) map[key] = { vendorKey: key, items: [] };
+    map[key].items.push(c);
+  }
+  return Object.keys(map).map(function (k) {
+    return map[k];
+  });
+}
+
+function stripYasmineOrderFields(o) {
+  var x = Object.assign({}, o);
+  delete x.yasmine_routing_status;
+  delete x.acceptance_deadline_at;
+  delete x.original_vendor_id;
+  delete x.estimated_ready_at;
+  delete x.yasmine_meta;
+  delete x.customer_lat;
+  delete x.customer_lng;
+  delete x.checkout_geo_captured_at;
+  return x;
+}
+
+async function hydrateCheckoutYasmineNotice() {
+  var el = document.getElementById('co-yasmine-notice');
+  var btn = document.getElementById('co-submit-btn');
+  if (!el || typeof EverestYasmineRouting === 'undefined') return;
+  var groups = groupCartByVendor(State.cart);
+  var blocks = [];
+  var anyPreorder = false;
+  if (EverestYasmineRouting.isPastLogisticsCutoff && EverestYasmineRouting.isPastLogisticsCutoff()) {
+    blocks.push(
+      '<div style="padding:0.55rem 0.75rem;border-radius:10px;background:#fffbeb;border:1px solid #fde68a;font-size:0.78rem;color:#92400e;line-height:1.45"><strong>Logistics cutoff (Tunisia)</strong> — Same-day handover to our network has closed for today (after <strong>4:00 PM</strong> local time, Africa/Tunis). Your order is placed on the <strong>next logistics day</strong>. Checkout and payment proceed as usual; detailed timing and milestones appear in <strong>Track</strong> after you place the order.</div>'
+    );
+  }
+  for (var i = 0; i < groups.length; i++) {
+    var g = groups[i];
+    try {
+      var ex = await EverestYasmineRouting.buildOrderExtraForGroup(g.items, State.products || [], State.products || []);
+      if (ex.yasmine_routing_status === 'preorder') {
+        if (ex.yasmine_meta && ex.yasmine_meta.logistics_cutoff_16h) {
+          continue;
+        }
+        anyPreorder = true;
+        var rd = ex.estimated_ready_at ? new Date(ex.estimated_ready_at) : null;
+        var ds =
+          rd && !isNaN(rd.getTime())
+            ? rd.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })
+            : '';
+        var note = ex.customerNote ? String(ex.customerNote) : '';
+        blocks.push(
+          '<div style="padding:0.65rem 0.75rem;border-radius:10px;background:#fffbeb;border:1px solid #fde68a;font-size:0.78rem;color:#92400e;line-height:1.45">📅 <strong>Pre-order</strong> (Everest)' +
+            (ds ? ' — estimated ready around <strong>' + escHtml(ds) + '</strong>.' : '.') +
+            (note ? '<br/><span style="opacity:0.95">' + escHtml(note) + '</span>' : '') +
+            '</div>'
+        );
+      } else if (ex.yasmine_routing_status === 'pending_acceptance') {
+        blocks.push(
+          '<div style="padding:0.55rem 0.75rem;border-radius:10px;background:#f0fdf4;border:1px solid #bbf7d0;font-size:0.76rem;color:#166534;line-height:1.4">⚡ Everest can usually confirm this cart line within ~15 minutes.</div>'
+        );
+      }
+    } catch (e) {}
+  }
+  el.innerHTML =
+    blocks.length > 0
+      ? '<p style="font-size:0.7rem;font-weight:700;color:#7b72a8;margin:0 0 0.5rem;letter-spacing:0.06em;text-transform:uppercase">Delivery timing</p>' +
+        blocks.join('')
+      : '';
+  if (btn) {
+    btn.textContent = anyPreorder ? 'Pay & place pre-order ✦' : 'Pay & Place Order ✦';
+  }
+}
+
 async function submitOrder() {
-  const fname = document.getElementById('co-fname')?.value?.trim();
-  const lname = document.getElementById('co-lname')?.value?.trim();
-  const phone = document.getElementById('co-phone')?.value?.trim();
-  const wilaya = document.getElementById('co-wilaya')?.value?.trim();
-  const address = document.getElementById('co-address')?.value?.trim();
-  
-  if (!fname || !lname || !phone || !wilaya || !address) { toast('⚠️ Please fill all fields', 'error'); return; }
+  const pg = State.pendingGift;
+  const isGift = !!pg;
+
+  let fname;
+  let lname;
+  let phone;
+  let wilaya;
+  let address;
+  let shipFname;
+  let shipLname;
+  let shipPhone;
+  let shipWilaya;
+  let shipAddress;
+  let notesExtra = '';
+
+  if (isGift) {
+    fname = document.getElementById('co-fname')?.value?.trim();
+    lname = document.getElementById('co-lname')?.value?.trim();
+    phone = document.getElementById('co-phone')?.value?.trim();
+    wilaya = '';
+    address = '';
+    if (!fname || !lname || !phone) {
+      toast('⚠️ Please fill your name and phone (buyer contact).', 'error');
+      return;
+    }
+    const gFull = String(pg.fullName || '').trim();
+    const gPhone = String(pg.phone || '').trim();
+    const gWilaya = String(pg.wilaya || '').trim();
+    const gAddr = String(pg.address || '').trim();
+    if (!gFull || !gPhone || !gWilaya || !gAddr) {
+      toast('⚠️ Gift details are incomplete. Go back to the gift page.', 'error');
+      return;
+    }
+    const parts = gFull.split(/\s+/).filter(Boolean);
+    shipFname = parts[0] || gFull;
+    shipLname = parts.length > 1 ? parts.slice(1).join(' ') : shipFname;
+    shipPhone = gPhone;
+    shipWilaya = gWilaya;
+    shipAddress = gAddr;
+    const revealTxt = pg.revealSender
+      ? 'Recipient may know the sender — OK to include buyer name on packing slip or note.'
+      : 'Anonymous to recipient — do NOT put buyer name on package or note; purchaser (internal only): ' +
+        fname +
+        ' ' +
+        lname +
+        ' (' +
+        phone +
+        ').';
+    notesExtra = '🎁 Gift order — ' + revealTxt + ' | Delivers to: ' + gFull;
+  } else {
+    fname = document.getElementById('co-fname')?.value?.trim();
+    lname = document.getElementById('co-lname')?.value?.trim();
+    phone = document.getElementById('co-phone')?.value?.trim();
+    wilaya = document.getElementById('co-wilaya')?.value?.trim();
+    address = document.getElementById('co-address')?.value?.trim();
+    shipFname = fname;
+    shipLname = lname;
+    shipPhone = phone;
+    shipWilaya = wilaya;
+    shipAddress = address;
+    notesExtra = '';
+  }
+
+  if (!isGift) {
+    if (!fname || !lname || !phone || !wilaya || !address) {
+      toast('⚠️ Please fill all fields', 'error');
+      return;
+    }
+  }
   
   const btn = document.getElementById('co-submit-btn');
   const paymentMethod = getSelectedCheckoutPaymentMethod();
@@ -1491,43 +2268,138 @@ async function submitOrder() {
       return;
     }
 
-    // Get shop names from cart items
-    const shopNames = [...new Set(State.cart.map(i => i.brand || i.shopName || 'Everest').filter(Boolean))].join(', ');
-    
+    if (typeof EverestYasmineRouting !== 'undefined') EverestYasmineRouting.startVendorStaleChecker();
+
     const nowIso = new Date().toISOString();
     const deadlineIso = new Date(Date.now() + (90 * 60 * 1000)).toISOString();
-    const baseOrderPayload = {
-      user_id: State.currentUser?.id || null,
-      items: State.cart,
-      total: getCartTotal(),
-      status: 'pending',
-      wilaya,
-      address,
-      phone,
-      notes: fname + ' ' + lname,
-      client_name: (fname + ' ' + lname).trim(),
-      customer_first_name: fname,
-      customer_last_name: lname,
-      created_at: nowIso,
-      delivery_deadline_at: deadlineIso
-    };
-    const extendedOrderPayload = {
-      ...baseOrderPayload,
-      payment_method: paymentMethod,
-      payment_provider: paymentProviderForMethod(paymentMethod),
-      payment_status: chargeResult.status || 'pending',
-      payment_transaction_ref: chargeResult.reference || null,
-      payment_meta: paymentMeta
-    };
-    let order;
-    try {
-      order = await SB.createOrder(extendedOrderPayload);
-    } catch (paymentFieldErr) {
-      // Backward-compat: orders table might not include payment_* columns yet.
-      order = await SB.createOrder(baseOrderPayload);
+    var groups = groupCartByVendor(State.cart);
+    var cartSubtotal = State.cart.reduce(function (s, i) {
+      return s + i.price * i.qty;
+    }, 0);
+    var totalVal = getCartTotal();
+    var customerNotes = [];
+    var createdOrders = [];
+    var lastCreateErr = null;
+    var checkoutGeoPatch = null;
+    if (State.checkoutGeo && State.checkoutGeo.lat != null && State.checkoutGeo.lng != null) {
+      checkoutGeoPatch = {
+        customer_lat: State.checkoutGeo.lat,
+        customer_lng: State.checkoutGeo.lng,
+        checkout_geo_captured_at: State.checkoutGeo.capturedAt || new Date().toISOString(),
+      };
     }
 
+    for (var gi = 0; gi < groups.length; gi++) {
+      var g = groups[gi];
+      var gSub = g.items.reduce(function (s, i) {
+        return s + i.price * i.qty;
+      }, 0);
+      var share = cartSubtotal > 0 ? (totalVal * gSub) / cartSubtotal : totalVal / Math.max(1, groups.length);
+      var trackingRef = generateEverestTrackingNumber();
+
+      var yasmineExtra = {};
+      if (typeof EverestYasmineRouting !== 'undefined') {
+        try {
+          yasmineExtra = await EverestYasmineRouting.buildOrderExtraForGroup(g.items, State.products, State.products);
+        } catch (ye) {
+          if (typeof STNLog !== 'undefined') STNLog.warn('yasmine.buildOrderExtra', ye && ye.message);
+        }
+      }
+      if (yasmineExtra.customerNote) customerNotes.push(yasmineExtra.customerNote);
+      var yx = Object.assign({}, yasmineExtra);
+      delete yx.customerNote;
+
+      var baseOrderPayload = {
+        user_id: State.currentUser?.id || null,
+        items: g.items,
+        total: share,
+        status: 'pending',
+        wilaya: shipWilaya,
+        address: shipAddress,
+        phone: shipPhone,
+        notes: isGift ? notesExtra : fname + ' ' + lname + (wilaya ? ' · ' + wilaya : ''),
+        client_name: (shipFname + ' ' + shipLname).trim(),
+        customer_first_name: shipFname,
+        customer_last_name: shipLname,
+        created_at: nowIso,
+        delivery_deadline_at: deadlineIso,
+        tracking_number: trackingRef,
+      };
+      Object.assign(baseOrderPayload, yx);
+      // Checkout GPS is PATCHed after insert so missing DB columns cannot block order creation.
+
+      var extendedOrderPayload = Object.assign({}, baseOrderPayload, {
+        payment_method: paymentMethod,
+        payment_provider: paymentProviderForMethod(paymentMethod),
+        payment_status: chargeResult.status || 'pending',
+        payment_transaction_ref: chargeResult.reference || null,
+        payment_meta: paymentMeta,
+      });
+
+      var payloadsToTry = [];
+      if (isGift) payloadsToTry.push(Object.assign({}, extendedOrderPayload, { is_gift: true }));
+      payloadsToTry.push(extendedOrderPayload);
+      if (isGift) payloadsToTry.push(Object.assign({}, baseOrderPayload, { is_gift: true }));
+      payloadsToTry.push(baseOrderPayload);
+
+      var order = null;
+      for (var pi = 0; pi < payloadsToTry.length; pi++) {
+        try {
+          order = await SB.createOrder(payloadsToTry[pi]);
+          lastCreateErr = null;
+          break;
+        } catch (createErr) {
+          lastCreateErr = createErr;
+          var msg = String(createErr && createErr.message ? createErr.message : '');
+          if (/column|schema|could not find|42703|PGRST/i.test(msg)) {
+            try {
+              order = await SB.createOrder(stripYasmineOrderFields(payloadsToTry[pi]));
+              lastCreateErr = null;
+              break;
+            } catch (eStrip) {
+              lastCreateErr = eStrip;
+            }
+          }
+        }
+      }
+      if (order) {
+        if (!order.tracking_number && trackingRef) order.tracking_number = trackingRef;
+        if (checkoutGeoPatch && order.id != null) {
+          try {
+            var geoUpdated = await SB.updateOrder(order.id, checkoutGeoPatch);
+            if (geoUpdated && typeof geoUpdated === 'object') Object.assign(order, geoUpdated);
+            else Object.assign(order, checkoutGeoPatch);
+          } catch (geoErr) {
+            var geoMsg = String(geoErr && geoErr.message ? geoErr.message : '');
+            if (typeof STNLog !== 'undefined') STNLog.warn('checkout.geoPatch', geoMsg.slice(0, 220));
+          }
+        }
+        createdOrders.push(order);
+      }
+    }
+
+    if (!createdOrders.length && lastCreateErr) throw lastCreateErr;
+
+    if (customerNotes.length) {
+      customerNotes.forEach(function (n) {
+        if (n) toast(n, 'default');
+      });
+    }
+
+    var order = createdOrders[0];
+
+    try {
+      var olist = STN.DB.get('orders') || [];
+      for (var oi = 0; oi < createdOrders.length; oi++) {
+        olist.push(createdOrders[oi]);
+      }
+      STN.DB.set('orders', olist);
+      State.orders = olist;
+    } catch (ePersist) {}
+
     document.getElementById('checkout-modal').remove();
+    State.pendingGift = null;
+    State.checkoutGeo = null;
     State.cart = [];
     State.promoApplied = null;
     STN.DB.set('cart', []);
@@ -1537,18 +2409,29 @@ async function submitOrder() {
     const successModal = document.createElement('div');
     successModal.id = 'success-modal';
     successModal.style.cssText = 'position:fixed;inset:0;background:rgba(30,10,78,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
-    const trackNum = order.tracking_number;
+    const trackNum = createdOrders
+      .map(function (o) {
+        return o.tracking_number || o.id;
+      })
+      .filter(Boolean)
+      .join(' · ') || (order && (order.tracking_number || order.id));
+    const giftSuccess = isGift || orderIsGiftOrder(order);
+    const giftHintText =
+      '<p style="font-size:0.78rem;color:#9d174d;margin-bottom:1.5rem;line-height:1.45">Gift: the recipient is not notified by the app. Only your account can track this order — keep the code private if you want a surprise.</p>';
+    const trackHint = giftSuccess
+      ? giftHintText
+      : '<p style="font-size:0.78rem;color:#7b72a8;margin-bottom:1.5rem">Save this number to track your order!</p>';
     successModal.innerHTML = `
       <div style="background:white;border-radius:24px;padding:2.5rem;max-width:420px;width:100%;text-align:center">
-        <div style="font-size:3rem;margin-bottom:1rem">🎉</div>
-        <h3 style="font-family:'Cormorant Garamond',serif;font-size:1.8rem;color:#1e0a4e;margin-bottom:0.5rem">Order Confirmed!</h3>
+        <div style="font-size:3rem;margin-bottom:1rem">${giftSuccess ? '🎁' : '🎉'}</div>
+        <h3 style="font-family:'Cormorant Garamond',serif;font-size:1.8rem;color:#1e0a4e;margin-bottom:0.5rem">${giftSuccess ? 'Gift order confirmed!' : 'Order Confirmed!'}</h3>
         <p style="color:#7b72a8;font-size:0.85rem;margin-bottom:1.5rem">Your tracking number:</p>
         <div style="background:#f8f7ff;border:1px solid rgba(124,58,237,0.2);border-radius:12px;padding:1rem;margin-bottom:1.5rem">
           <p style="font-family:'Cormorant Garamond',serif;font-size:1.5rem;color:#7c3aed;font-weight:600;letter-spacing:0.1em">${trackNum}</p>
           <button onclick="navigator.clipboard?.writeText('${trackNum}');toast('✦ Copied!','success')" style="background:none;border:none;color:#7b72a8;font-size:0.72rem;cursor:pointer;margin-top:0.3rem">📋 Copy</button>
         </div>
-        <p style="font-size:0.78rem;color:#7b72a8;margin-bottom:1.5rem">Save this number to track your order!</p>
-        <button onclick="closeSuccessModal()" style="width:100%;padding:0.9rem;background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:12px;font-size:0.9rem;cursor:pointer">Track My Order →</button>
+        ${trackHint}
+        <button onclick="closeSuccessModal()" style="width:100%;padding:0.9rem;background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:12px;font-size:0.9rem;font-weight:600;cursor:pointer">Track My Order →</button>
       </div>`;
     document.body.appendChild(successModal);
     showCelebrationOverlay();
@@ -1564,7 +2447,7 @@ async function submitOrder() {
 function checkoutPaymentMethodTile(value, label) {
   return `
     <label style="display:flex;align-items:center;gap:0.45rem;padding:0.55rem 0.6rem;border:1px solid rgba(107,63,212,0.18);border-radius:10px;background:white;cursor:pointer;font-size:0.76rem;color:#3d3460">
-      <input type="radio" name="co-payment-method" value="${value}" ${value === 'cash' ? 'checked' : ''} style="accent-color:#7c3aed"/>
+      <input type="radio" name="co-payment-method" value="${value}" ${value === 'visa' ? 'checked' : ''} style="accent-color:#7c3aed"/>
       <span>${label}</span>
     </label>
   `;
@@ -1577,7 +2460,7 @@ function installCheckoutPaymentUi() {
 }
 
 function getSelectedCheckoutPaymentMethod() {
-  return document.querySelector('input[name="co-payment-method"]:checked')?.value || 'cash';
+  return document.querySelector('input[name="co-payment-method"]:checked')?.value || 'visa';
 }
 
 function onCheckoutPaymentMethodChange() {
@@ -1585,12 +2468,7 @@ function onCheckoutPaymentMethodChange() {
   const extra = document.getElementById('co-payment-extra');
   const btn = document.getElementById('co-submit-btn');
   if (!extra) return;
-  if (btn) btn.textContent = method === 'cash' ? 'Place Order ✦' : 'Pay & Place Order ✦';
-
-  if (method === 'cash') {
-    extra.innerHTML = `<p style="font-size:0.78rem;color:#7b72a8;background:#f8f7ff;border:1px solid rgba(107,63,212,0.12);padding:0.7rem;border-radius:10px">You will pay in cash when your order arrives.</p>`;
-    return;
-  }
+  if (btn) btn.textContent = 'Pay & Place Order ✦';
 
   if (method === 'paypal') {
     extra.innerHTML = `
@@ -1657,12 +2535,10 @@ function paymentProviderForMethod(method) {
   if (method === 'e_dinar') return 'e_dinar';
   if (method === 'flouci') return 'flouci';
   if (method === 'konnect') return 'konnect';
-  return 'cash_on_delivery';
+  return 'everest_online';
 }
 
 function validateCheckoutPaymentDetails(method) {
-  if (method === 'cash') return { ok: true, meta: {} };
-
   if (method === 'paypal') {
     const email = String(document.getElementById('co-paypal-email')?.value || '').trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -1704,12 +2580,8 @@ function simulateCheckoutPayment(method) {
     // Front-end simulation placeholder until backend gateway webhooks are wired.
     setTimeout(function () {
       const ref = 'PAY-' + Date.now().toString(36).toUpperCase();
-      if (method === 'cash') {
-        resolve({ ok: true, status: 'pending', reference: ref });
-        return;
-      }
       resolve({ ok: true, status: 'paid', reference: ref });
-    }, method === 'cash' ? 200 : 900);
+    }, 900);
   });
 }
 
@@ -1832,7 +2704,7 @@ function productCardHTML(p) {
       </div>
     </div>
     <div class="product-body">
-      <div class="product-brand">${p.brand} · ${p.region}</div>
+      <div class="product-brand">Everest · ${p.region || ''}</div>
       <div class="product-name">${p.name}</div>
       <div class="product-rating">
         <span class="stars" style="letter-spacing:2px">${'★'.repeat(Math.floor(p.rating))}${'☆'.repeat(5-Math.floor(p.rating))}</span>
@@ -1861,12 +2733,12 @@ function _detailEscapeAttr(s) {
   return _detailEscapeHtml(s).replace(/'/g, '&#39;');
 }
 function _everestPartnerIconSmallHtml() {
-  return '<span class="everest-partner-icon" role="img" aria-label="Everest Partner" title="Everest Partner" style="font-size:1.35rem;line-height:1">⛰️</span>';
+  return '<span class="everest-partner-icon" role="img" aria-label="Everest" title="Everest" style="font-size:1.35rem;line-height:1">⛰️</span>';
 }
 function _everestPartnerGalleryMainHtml() {
   return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.75rem;height:100%;min-height:12rem;padding:2rem;background:linear-gradient(135deg,#ede9fe,#ddd6fe);border-radius:12px">
-    <span style="font-size:4rem;line-height:1" role="img" aria-label="Everest Partner">⛰️</span>
-    <span style="font-size:0.85rem;font-weight:600;letter-spacing:0.06em;color:#5b21b6;text-transform:uppercase">Everest Partner</span>
+    <span style="font-size:4rem;line-height:1" role="img" aria-label="Everest">⛰️</span>
+    <span style="font-size:0.85rem;font-weight:600;letter-spacing:0.06em;color:#5b21b6;text-transform:uppercase">Everest</span>
   </div>`;
 }
 function _detailGalleryMainProductHtml(p) {
@@ -1906,22 +2778,13 @@ async function hydrateProductDetailVendor(p) {
   const nameEl = document.getElementById('detail-vendor-name');
   const wrap = document.getElementById('detail-vendor-logo-wrap');
   const thumbInner = document.getElementById('detail-vendor-thumb-inner');
-  const fallbackName = p.brand || 'Everest Partner';
+  const fallbackName = 'Everest';
 
   const setEverest = () => {
     window.__detailVendorMainHtml = _everestPartnerGalleryMainHtml();
     const inner = _everestPartnerIconSmallHtml();
     if (wrap) wrap.innerHTML = inner;
     if (thumbInner) thumbInner.innerHTML = inner;
-  };
-
-  const setFromUrl = (url) => {
-    const safe = _detailEscapeAttr(String(url));
-    const thumbImg = `<img src="${safe}" alt="" style="width:100%;height:100%;object-fit:cover"/>`;
-    const mainImg = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:1rem"><img src="${safe}" alt="" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:12px"/></div>`;
-    window.__detailVendorMainHtml = mainImg;
-    if (wrap) wrap.innerHTML = thumbImg;
-    if (thumbInner) thumbInner.innerHTML = thumbImg;
   };
 
   const refreshMainIfVendorThumbActive = () => {
@@ -1947,23 +2810,8 @@ async function hydrateProductDetailVendor(p) {
       refreshMainIfVendorThumbActive();
       return;
     }
-    const displayName =
-      u.shop_name ||
-      u.shopName ||
-      u.name ||
-      [u.first_name, u.last_name].filter(Boolean).join(' ') ||
-      [u.firstName, u.lastName].filter(Boolean).join(' ') ||
-      fallbackName;
-    if (nameEl) nameEl.textContent = displayName;
-
-    const rawLogo =
-      u.vendor_logo_url ||
-      u.logo_url ||
-      u.vendor_logo ||
-      u.avatar_url ||
-      (typeof u.avatar === 'string' && /^https?:\/\//i.test(u.avatar) ? u.avatar : null);
-    if (rawLogo) setFromUrl(rawLogo);
-    else setEverest();
+    if (nameEl) nameEl.textContent = 'Everest';
+    setEverest();
   } catch (e) {
     if (typeof STNLog !== 'undefined') STNLog.warn('product.detail.vendor', 'fetch failed', { message: e && e.message });
     setEverest();
@@ -1989,7 +2837,7 @@ async function openProductDetail(productId) {
     toast('Product details panel is missing. Reload the page.', 'error');
     return;
   }
-  const fallbackName = p.brand || 'Everest Partner';
+  const fallbackName = 'Everest';
 
   const productImages = _productImageList(p);
   const productSrc = productImages[0] || '';
@@ -2015,17 +2863,17 @@ async function openProductDetail(productId) {
       <div>
         ${p.badge ? `<span class="product-badge" style="position:relative;top:auto;left:auto;display:inline-block;margin-bottom:0.8rem">${p.badge}</span>` : ''}
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem" id="detail-vendor-row">
-          <div id="detail-vendor-logo-wrap" style="width:56px;height:56px;border-radius:14px;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,#ede9fe,#ddd6fe);border:1px solid rgba(124,58,237,0.25);display:flex;align-items:center;justify-content:center" title="Everest Partner">${_everestPartnerIconSmallHtml()}</div>
+          <div id="detail-vendor-logo-wrap" style="width:56px;height:56px;border-radius:14px;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,#ede9fe,#ddd6fe);border:1px solid rgba(124,58,237,0.25);display:flex;align-items:center;justify-content:center" title="Everest">${_everestPartnerIconSmallHtml()}</div>
           <div>
-            <div style="font-size:0.8rem;color:var(--text-muted)"><span style="font-weight:600">Sold by: </span><span id="detail-vendor-name" style="font-weight:600;color:var(--champagne)">${_detailEscapeHtml(fallbackName)}</span></div>
+            <div style="font-size:0.8rem;color:var(--text-muted)"><span id="detail-vendor-name" style="font-weight:700;color:var(--champagne)">${_detailEscapeHtml(fallbackName)}</span> <span style="font-size:0.72rem;font-weight:500">— official Everest store</span></div>
           </div>
         </div>
-        <div class="product-brand" style="margin-bottom:0.3rem">${p.brand} · ${p.region}</div>
+        <div class="product-brand" style="margin-bottom:0.3rem">Everest · ${_detailEscapeHtml(String(p.region || ''))}</div>
         <h2 style="font-family:var(--font-display);font-size:1.8rem;font-weight:300;color:var(--champagne);margin-bottom:0.8rem">${p.name}</h2>
         <div class="product-rating" style="margin-bottom:1rem">
           <span class="stars" style="font-size:0.9rem;letter-spacing:2px">${'★'.repeat(Math.floor(p.rating))}${'☆'.repeat(5-Math.floor(p.rating))}</span>
           <span class="rating-num">${p.rating} · ${p.reviews} reviews</span>
-          ${p.verified ? `<span class="verified-buyer">✓ Verified Seller</span>` : ''}
+          ${p.verified ? `<span class="verified-buyer">✓ Verified on Everest</span>` : ''}
         </div>
         <div style="margin-bottom:1.5rem">
           <span style="font-size:2rem;font-family:var(--font-display);color:var(--champagne)">${p.price.toLocaleString()}</span>
@@ -2033,17 +2881,21 @@ async function openProductDetail(productId) {
           ${p.oldPrice ? `<span class="price-old" style="margin-left:0.8rem">${p.oldPrice.toLocaleString()} TND</span>` : ''}
         </div>
         <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.8;margin-bottom:1.5rem">${p.desc}</p>
+        <div id="detail-delivery-hint" style="font-size:0.78rem;font-weight:600;margin-bottom:0.45rem;color:var(--success)">Loading delivery estimate…</div>
+        <div id="detail-shop-hours" style="font-size:0.72rem;color:var(--text-muted);margin-bottom:0.5rem;line-height:1.45"></div>
+        <div id="detail-preorder-note" style="display:none;font-size:0.75rem;color:#92400e;margin-bottom:1rem;padding:0.55rem 0.65rem;background:#fffbeb;border-radius:8px;border:1px solid #fde68a;line-height:1.45"></div>
         ${p.specs ? `
         <div style="margin-bottom:1.5rem">
           ${Object.entries(p.specs).map(([k,v]) => `<div class="spec-row"><span class="spec-key">${k.charAt(0).toUpperCase()+k.slice(1)}</span><span class="spec-val">${v}</span></div>`).join('')}
         </div>` : ''}
-        <div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:1.2rem">
+        <div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:1.2rem;flex-wrap:wrap">
           <div class="qty-selector">
             <button class="qty-btn" onclick="changeDetailQty(-1)">−</button>
             <div class="qty-display" id="detail-qty">1</div>
             <button class="qty-btn" onclick="changeDetailQty(1)">+</button>
           </div>
-          <button class="btn btn-gold" style="flex:1" onclick='addToCart(${JSON.stringify(p.id)});closeModal("product-modal")'>Add to Cart</button>
+          <button class="btn btn-gold" style="flex:1;min-width:140px" onclick='addToCart(${JSON.stringify(p.id)});closeModal("product-modal")'>Add to Cart</button>
+          <button type="button" id="detail-preorder-btn" class="btn" style="display:none;flex:1;min-width:140px;background:white;color:#92400e;border:2px solid #fbbf24;font-weight:600" onclick='addToCart(${JSON.stringify(p.id)});closeModal("product-modal");toast("Pre-order added — timing is shown at checkout.", "success")'>Pre-order</button>
           <button class="wishlist-btn ${State.wishlist.some(function (w) { return String(w) === String(p.id); }) ? 'active' : ''}" data-wish="${_detailEscapeAttr(String(p.id))}" onclick='toggleWishlist(${JSON.stringify(p.id)})'>${State.wishlist.some(function (w) { return String(w) === String(p.id); }) ? '♥' : '♡'}</button>
         </div>
         <div style="font-size:0.75rem;color:var(--text-muted)">📦 In stock: ${p.stock} units · 🚚 Free delivery · 🔄 30-day returns</div>
@@ -2085,6 +2937,76 @@ async function openProductDetail(productId) {
   openModal('product-modal');
   bindProductDetailThumbs(p);
   hydrateProductDetailVendor(p);
+  (function hydrateDetailDelivery() {
+    var el = document.getElementById('detail-delivery-hint');
+    var hoursEl = document.getElementById('detail-shop-hours');
+    if (!el) return;
+    var vid = p.vendorId != null ? p.vendorId : p.vendor_id;
+    if (!vid || typeof SB === 'undefined' || !SB.getVendor) {
+      if (typeof EverestYasmineRouting !== 'undefined' && EverestYasmineRouting.isPastLogisticsCutoff && EverestYasmineRouting.isPastLogisticsCutoff()) {
+        el.textContent =
+          'Next logistics day — Everest’s same-day handover window (Tunisia, 4:00 PM) has closed; your order lines up with tomorrow’s logistics run, not seller delay.';
+        el.style.color = 'var(--warning)';
+        var pre0a = document.getElementById('detail-preorder-note');
+        var pre0ab = document.getElementById('detail-preorder-btn');
+        if (pre0a) pre0a.style.display = 'none';
+        if (pre0ab) pre0ab.style.display = 'none';
+      } else {
+        el.textContent = 'Fast Delivery (24h)';
+        el.style.color = 'var(--success)';
+        var pre0 = document.getElementById('detail-preorder-note');
+        var pre0b = document.getElementById('detail-preorder-btn');
+        if (pre0) pre0.style.display = 'none';
+        if (pre0b) pre0b.style.display = 'none';
+      }
+      if (hoursEl) hoursEl.textContent = '';
+      return;
+    }
+    SB.getVendor(String(vid))
+      .then(function (vr) {
+        if (typeof EverestYasmineRouting !== 'undefined' && EverestYasmineRouting.productDeliveryHint) {
+          var h = EverestYasmineRouting.productDeliveryHint(p, vr);
+          el.textContent = h.text;
+          el.style.color =
+            h.tone === 'ok' ? 'var(--success)' : h.tone === 'warn' ? 'var(--warning)' : 'var(--text-muted)';
+          if (hoursEl) {
+            hoursEl.textContent = '';
+            hoursEl.style.display = 'none';
+          }
+          var preN = document.getElementById('detail-preorder-note');
+          var preB = document.getElementById('detail-preorder-btn');
+          if (h.preorder) {
+            if (preN) {
+              preN.style.display = '';
+              preN.textContent = h.logisticsCutoff
+                ? 'Same-day logistics handover has closed for today (4:00 PM Tunisia time). Your order is scheduled for the next logistics day; partner preparation and dispatch follow our standard operating window. Track shows the latest status.'
+                : 'This item may ship on a short preparation window. Checkout and Track show your estimated ready date.';
+            }
+            if (preB) preB.style.display = '';
+          } else {
+            if (preN) preN.style.display = 'none';
+            if (preB) preB.style.display = 'none';
+          }
+        } else {
+          el.textContent = 'Fast Delivery (24h)';
+          el.style.color = 'var(--success)';
+          if (hoursEl) hoursEl.textContent = '';
+          var preN2 = document.getElementById('detail-preorder-note');
+          var preB2 = document.getElementById('detail-preorder-btn');
+          if (preN2) preN2.style.display = 'none';
+          if (preB2) preB2.style.display = 'none';
+        }
+      })
+      .catch(function () {
+        el.textContent = 'Fast Delivery (24h)';
+        el.style.color = 'var(--success)';
+        if (hoursEl) hoursEl.textContent = '';
+        var preN3 = document.getElementById('detail-preorder-note');
+        var preB3 = document.getElementById('detail-preorder-btn');
+        if (preN3) preN3.style.display = 'none';
+        if (preB3) preB3.style.display = 'none';
+      });
+  })();
 }
 
 let detailQty = 1;
@@ -2255,7 +3177,7 @@ function renderAuth() {
         <div class="form-group" style="margin-bottom:1.5rem;padding:1rem;background:#f5f2ff;border-radius:12px;border:1px solid rgba(107,63,212,0.2)">
           <label style="display:flex;align-items:center;gap:0.8rem;cursor:pointer">
             <input type="checkbox" id="reg-is-vendor" onchange="var d=document.getElementById('reg-is-driver');var df=document.getElementById('reg-driver-fields');if(this.checked&&d)d.checked=false;if(df)df.style.display='none';document.getElementById('reg-vendor-fields').style.display=this.checked?'block':'none'" style="width:18px;height:18px;accent-color:#7c3aed"/>
-            <span style="font-size:0.85rem;color:#1e0a4e;font-weight:500">🏪 I am an artisan/vendor — I want to sell on Everest</span>
+            <span style="font-size:0.85rem;color:#1e0a4e;font-weight:500">🏪 I partner with Everest as a supplier / fulfillment partner</span>
           </label>
         </div>
         <div class="form-group" style="margin-bottom:1.5rem;padding:1rem;background:#ecfeff;border-radius:12px;border:1px solid rgba(14,165,233,0.25)">
@@ -2265,10 +3187,7 @@ function renderAuth() {
           </label>
         </div>
         <div id="reg-vendor-fields" style="display:none;margin-bottom:1.5rem;padding:1rem;background:#f8f7ff;border-radius:12px;border:1px solid rgba(107,63,212,0.15)">
-          <div class="form-group" style="margin-bottom:1rem">
-            <label class="form-label">Shop/Brand Name *</label>
-            <input type="text" class="form-input" id="reg-shop" placeholder="ex: Ateliers Maalej"/>
-          </div>
+          <p style="font-size:0.78rem;color:#5b21b6;line-height:1.5;margin-bottom:1rem">Everest is the storefront and brand. Your partner profile is for operations only — shoppers see Everest, not separate shop names.</p>
           <div class="form-group">
             <label class="form-label">What do you make?</label>
             <select class="form-select" id="reg-specialty">
@@ -2438,9 +3357,11 @@ async function doLogin() {
     await healCurrentUserFromSupabase();
     STN.DB.set('currentUser', State.currentUser);
     updateNavUser();
+    everestFCMRefreshUserToken();
     toast(`✦ Welcome back, ${State.currentUser.firstName || local.firstName}!`, 'success');
     if (State.currentUser.role === 'admin') showPage('admin');
-    else if (State.currentUser.role === 'vendor') showPage('vendor');
+    else if (State.currentUser.role === 'hub') showPage('hub');
+    else if (State.currentUser.role === 'vendor') showVendorHubOrOnboarding();
     else if (State.currentUser.role === 'driver') showPage('driver');
     else showPage('home');
     return;
@@ -2465,9 +3386,11 @@ async function doLogin() {
     await healCurrentUserFromSupabase();
     STN.DB.set('currentUser', State.currentUser);
     updateNavUser();
+    everestFCMRefreshUserToken();
     toast(`✦ Welcome back, ${user.first_name}!`, 'success');
     if (user.role === 'admin') showPage('admin');
-    else if (user.role === 'vendor') showPage('vendor');
+    else if (user.role === 'hub') showPage('hub');
+    else if (user.role === 'vendor') showVendorHubOrOnboarding();
     else if (user.role === 'driver') showPage('driver');
     else showPage('home');
   } catch(e) {
@@ -2527,10 +3450,8 @@ async function doRegister() {
 
   const isVendor = document.getElementById('reg-is-vendor')?.checked;
   const isDriver = document.getElementById('reg-is-driver')?.checked;
-  const shopName = document.getElementById('reg-shop')?.value?.trim();
   const specialty = document.getElementById('reg-specialty')?.value;
   if (isVendor && isDriver) { toast('⚠️ Choose either vendor or delivery partner, not both', 'error'); return; }
-  if (isVendor && !shopName) { toast('⚠️ Please enter your shop name', 'error'); return; }
 
   var cin = '';
   var plate = '';
@@ -2623,7 +3544,7 @@ async function doRegister() {
       points: 100,
       verified: isVendor || isDriver ? false : true,
       avatar: isVendor ? '🏪' : isDriver ? '🚚' : '👤',
-      shop_name: shopName || null,
+      shop_name: isVendor ? 'Everest' : null,
       specialty: specialty || null
     };
     if (isDriver) {
@@ -2681,8 +3602,10 @@ async function doRegister() {
     STN.DB.set('currentUser', State.currentUser);
     updateNavUser();
     if (isVendor) {
-      toast(`✦ Welcome ${shopName}! Your vendor account is pending verification.`, 'success');
-      showPage('vendor');
+      void everestSyncVendorDefaults(State.currentUser.id);
+      toast(`✦ Welcome to Everest selling! Your vendor account is pending verification.`, 'success');
+      if (needsVendorHoursOnboarding()) showPage('vendor-hours');
+      else showPage('vendor');
     } else if (isDriver) {
       toast(`✦ Welcome, ${fname}! Your documents are under review — you can accept deliveries after an admin verifies you.`, 'success');
       if (insertFallback > 0) {
@@ -2911,7 +3834,7 @@ async function renderTrack() {
             return `<div style="background:white;border:1px solid rgba(107,63,212,0.15);border-radius:16px;padding:1.5rem;margin-bottom:1rem;cursor:pointer;transition:all 0.2s" onclick="document.getElementById('track-num').value='${order.tracking_number}';trackOrder()" onmouseover="this.style.borderColor='#7c3aed'" onmouseout="this.style.borderColor='rgba(107,63,212,0.15)'">
               <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
                 <div>
-                  <p style="font-size:0.7rem;color:#7b72a8;margin-bottom:0.2rem">Tracking Number</p>
+                  <p style="font-size:0.7rem;color:#7b72a8;margin-bottom:0.2rem">Tracking Number ${orderIsGiftOrder(order) ? '<span style="margin-left:0.35rem;color:#db2777;font-weight:700">🎁 Gift</span>' : ''}</p>
                   <p style="font-family:'Cormorant Garamond',serif;font-size:1.1rem;color:#1e0a4e;font-weight:600">${order.tracking_number}</p>
                 </div>
                 <span style="background:${color}20;color:${color};padding:0.3rem 0.8rem;border-radius:20px;font-size:0.72rem;font-weight:600;text-transform:uppercase">● ${order.status}</span>
@@ -2941,7 +3864,8 @@ let trackingSubTokens = [];
 let trackingUpdateInterval = null;
 
 async function trackOrder() {
-  const num = document.getElementById('track-num')?.value?.trim().toUpperCase();
+  const raw = document.getElementById('track-num')?.value?.trim();
+  const num = normalizeTrackingInput(raw);
   if (!num) { toast('⚠️ Please enter a tracking number', 'error'); return; }
 
   const resultDiv = document.getElementById('track-result');
@@ -2954,11 +3878,24 @@ async function trackOrder() {
   resultDiv.innerHTML = '<div style="text-align:center;padding:3rem"><div style="font-size:2rem;animation:spin 1s linear infinite;display:inline-block">⏳</div><p style="color:#7b72a8;margin-top:1rem">Looking up your order...</p></div>';
 
   try {
-    const order = await SB.findOrder(num);
+    var order = null;
+    try {
+      if (typeof SB !== 'undefined' && SB.findOrder) order = await SB.findOrder(num);
+    } catch (e1) {
+      if (typeof STNLog !== 'undefined') STNLog.warn('track.findOrder.remote', e1 && e1.message);
+    }
+    if (!order) order = findOrderInLocalStorage(num);
     if (!order) {
       resultDiv.style.display = 'none';
       emptyDiv.style.display = 'block';
       toast('⚠️ Order not found. Check your tracking number!', 'error');
+      return;
+    }
+
+    if (!giftTrackingAllowedForViewer(order)) {
+      resultDiv.style.display = 'none';
+      emptyDiv.style.display = 'block';
+      toast('This gift order can only be tracked by the buyer. Sign in with the account that placed the order.', 'error');
       return;
     }
 
@@ -3045,9 +3982,9 @@ async function renderTrackingUI(order) {
   }
   const steps = [
     { key: 'pending', label: '🕐 Order Received', desc: 'Your order has been received' },
-    { key: 'confirmed', label: '✅ Confirmed', desc: 'Artisan is preparing your order' },
-    { key: 'processing', label: '🔨 Crafting', desc: 'Being handcrafted with care' },
-    { key: 'ready', label: '📦 Ready for pickup', desc: 'Driver can pick up your package' },
+    { key: 'confirmed', label: '✅ Confirmed', desc: 'Everest is preparing your order' },
+    { key: 'processing', label: '🔨 In preparation', desc: 'Fulfillment in progress' },
+    { key: 'ready', label: '📦 Ready for pickup', desc: 'Ready for the driver' },
     { key: 'out_for_delivery', label: '🚚 Out for delivery', desc: 'Driver is on the way' },
     { key: 'delivered', label: '🎉 Delivered', desc: 'Enjoy your purchase!' }
   ];
@@ -3183,9 +4120,9 @@ async function testRealtimeTracking() {
     // Simulate status changes every 5 seconds
     const statuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
     const messages = [
-      '🕐 Order received — being prepared by artisan',
-      '✅ Order confirmed — artisan starting work',
-      '🔨 Crafting your item with care',
+      '🕐 Order received — Everest is preparing it',
+      '✅ Order confirmed — preparation started',
+      '🔨 Fulfillment in progress',
       '🚚 On the way to your location',
       '🎉 Delivered successfully!'
     ];
@@ -3284,16 +4221,18 @@ function renderAccount() {
   const progress = nextTier ? ((pts - tier.min) / (nextTier.min - tier.min)) * 100 : 100;
   var shopLine =
     role === 'vendor'
-      ? '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.35rem">Seller · ' +
-        (u.shop_name || u.shopName || 'Shop') +
-        '</div>'
+      ? '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.35rem">Fulfillment partner · Everest</div>'
       : '';
   var navBtns =
     role === 'vendor'
-      ? '<button class="btn btn-ghost btn-sm" onclick="showPage(\'vendor\')">Seller hub</button>'
+      ? '<button class="btn btn-ghost btn-sm" onclick="showPage(\'vendor\')">Fulfillment hub</button>'
       : '<button class="btn btn-ghost btn-sm" onclick="showPage(\'track\')">My Orders</button>\n          <button class="btn btn-ghost btn-sm" onclick="showPage(\'wishlist\')">Wishlist (' +
         State.wishlist.length +
         ')</button>';
+  var vendorScheduleBlock =
+    role === 'vendor'
+      ? '<div class="glass-lg reveal" style="padding:1.5rem 1.75rem;margin-bottom:2rem;border:1px solid rgba(124,58,237,0.18)"><span class="eyebrow">Operations</span><h2 style="font-size:1.35rem;margin:0.45rem 0 0.5rem;color:var(--champagne)">Hours &amp; In / Out of service</h2><p style="font-size:0.82rem;color:var(--text-muted);margin:0 0 1rem;max-width:36rem">Same as <strong>Fulfillment hub → ⏰ Hours &amp; Service</strong>. Shoppers only see Everest timing (ready dates) — not this schedule.</p><div id="account-vendor-service-panel"></div></div>'
+      : '';
   const page = document.getElementById('page-account');
   if (!page) return;
   page.innerHTML = `
@@ -3303,6 +4242,7 @@ function renderAccount() {
       <h1 class="display" style="font-size:3rem">Hello, <em class="gold-text">${fn || 'there'}!</em></h1>
       <div class="divider center"></div>
     </div>
+    ${vendorScheduleBlock}
     <div class="grid-2" style="gap:2rem;margin-bottom:3rem">
       <div class="glass-lg reveal" style="padding:2rem">
         <div style="display:flex;align-items:center;gap:1.2rem;margin-bottom:1.5rem">
@@ -3340,6 +4280,12 @@ function renderAccount() {
       </div>
     </div>
   </div>`;
+  if (role === 'vendor') {
+    setTimeout(function () {
+      void everestSyncVendorDefaults(State.currentUser.id);
+      void mountEverestVendorServiceUI('account-vendor-service-panel');
+    }, 0);
+  }
 }
 
 // ── ADMIN ──
@@ -3697,6 +4643,29 @@ function dashTopWilayas(orders, limit) {
     .slice(0, limit || 6);
 }
 
+function _dashTunisiaDateKey(d) {
+  if (!d || isNaN(d.getTime())) return '';
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Africa/Tunis',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(d);
+  } catch (e) {
+    return d.getFullYear() + '-' + (d.getMonth() + 1 < 10 ? '0' : '') + (d.getMonth() + 1) + '-' + (d.getDate() < 10 ? '0' : '') + d.getDate();
+  }
+}
+
+/** Orders whose created_at falls on a given calendar day in Tunisia (Africa/Tunis). */
+function dashOrdersForTunisiaDay(orders, dayKey) {
+  if (!dayKey) dayKey = _dashTunisiaDateKey(new Date());
+  return (orders || []).filter(function (o) {
+    if (!o.created_at) return false;
+    return _dashTunisiaDateKey(new Date(o.created_at)) === dayKey;
+  });
+}
+
 function dashTopVendors(orders, users, limit) {
   var map = {};
   orders.forEach(function (o) {
@@ -3787,6 +4756,11 @@ function buildAdminOverviewHTML(orders, users, products) {
     return (p.stock || 0) < 5;
   }).length;
 
+  var tunisiaToday = _dashTunisiaDateKey(new Date());
+  var todayOrders = dashOrdersForTunisiaDay(orders, tunisiaToday);
+  var todayRev = dashSumRevenue(todayOrders);
+  var todayAov = todayOrders.length ? Math.round(todayRev / Math.max(todayOrders.length, 1)) : 0;
+
   var kpi = [
     {
       label: 'Gross sales (all time)',
@@ -3867,7 +4841,7 @@ function buildAdminOverviewHTML(orders, users, products) {
 
   var topVHtml =
     topV.length === 0
-      ? '<p style="padding:0.5rem 0;color:#7b72a8;font-size:0.8rem">No vendor-attributed orders in the loaded data yet.</p>'
+      ? '<p style="padding:0.5rem 0;color:#7b72a8;font-size:0.8rem">No partner-attributed GMV in this dataset yet — orders need <code>vendor_id</code> / shop linkage.</p>'
       : topV
           .map(function (v) {
             return (
@@ -3906,6 +4880,49 @@ function buildAdminOverviewHTML(orders, users, products) {
       );
     })
     .join('');
+
+  var todayRowsHtml =
+    todayOrders.length === 0
+      ? '<tr><td colspan="5" style="text-align:center;padding:1.5rem;color:#7b72a8">No orders yet today (Tunisia)</td></tr>'
+      : todayOrders
+          .slice()
+          .sort(function (a, b) {
+            return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+          })
+          .slice(0, 24)
+          .map(function (o) {
+            var sb = orderStatusBadge(o.status || 'pending');
+            var partnerLabel = (o.shop_names && String(o.shop_names).trim())
+              ? String(o.shop_names).trim()
+              : (function () {
+                  var vid = o.vendor_id != null ? o.vendor_id : o.vendorId;
+                  if (!vid) return 'Everest';
+                  var u = users.find(function (x) {
+                    return String(x.id) === String(vid);
+                  });
+                  return u
+                    ? String(u.shop_name || u.shopName || u.first_name || 'Partner').substring(0, 36)
+                    : 'Partner #' + vid;
+                })();
+            return (
+              '<tr><td class="dash-pro-mono" style="color:#7c3aed;font-weight:700">' +
+              _dashEscapeHtml(String(o.tracking_number || o.id || '—')) +
+              '</td><td>' +
+              _dashEscapeHtml(String(o.client_name || o.phone || 'Guest')) +
+              '</td><td style="font-size:0.72rem">' +
+              _dashEscapeHtml(partnerLabel) +
+              '</td><td class="dash-pro-mono">' +
+              dashOrderTotal(o).toLocaleString() +
+              ' TND</td><td><span class="dash-pro-pill" style="background:' +
+              sb.bg +
+              ';color:' +
+              sb.fg +
+              '">' +
+              _dashEscapeHtml(sb.label) +
+              '</span></td></tr>'
+            );
+          })
+          .join('');
 
   var recentRows =
     orders.length === 0
@@ -3954,9 +4971,36 @@ function buildAdminOverviewHTML(orders, users, products) {
   return (
     '<div>' +
     '<div style="margin-bottom:1.5rem">' +
-    '<h1 class="dash-pro-hero-title">Marketplace overview</h1>' +
-    '<p class="dash-pro-hero-sub">Figures load from Supabase (orders, users) and your live product catalog. Week-over-week % appears only when the prior week had dated orders — nothing is invented.</p>' +
+    '<h1 class="dash-pro-hero-title">Command center</h1>' +
+    '<p class="dash-pro-hero-sub">Staff-only operations view. <strong>Partner / seller names</strong> appear here for routing — customers only see Everest storefront. Figures load from Supabase; <strong>today</strong> uses Tunisia civil time (Africa/Tunis).</p>' +
     '</div>' +
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.35rem">' +
+    '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);color:#f8fafc;border-radius:14px;padding:1.1rem 1.25rem;border:1px solid rgba(148,163,184,0.25)">' +
+    '<div style="font-size:0.62rem;margin:0 0 0.4rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#94a3b8">Today · Tunisia</div>' +
+    '<div style="font-size:1.65rem;font-weight:800;letter-spacing:-0.02em">' +
+    todayOrders.length +
+    '</div>' +
+    '<div style="font-size:0.72rem;color:#94a3b8;margin-top:0.2rem">orders placed</div></div>' +
+    '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);color:#f8fafc;border-radius:14px;padding:1.1rem 1.25rem;border:1px solid rgba(148,163,184,0.25)">' +
+    '<div style="font-size:0.62rem;margin:0 0 0.4rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#94a3b8">Revenue today</div>' +
+    '<div style="font-size:1.65rem;font-weight:800;letter-spacing:-0.02em">' +
+    todayRev.toLocaleString() +
+    ' TND</div>' +
+    '<div style="font-size:0.72rem;color:#94a3b8;margin-top:0.2rem">AOV ~' +
+    todayAov.toLocaleString() +
+    ' TND</div></div>' +
+    '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);color:#f8fafc;border-radius:14px;padding:1.1rem 1.25rem;border:1px solid rgba(148,163,184,0.25)">' +
+    '<div style="font-size:0.62rem;margin:0 0 0.4rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#94a3b8">Calendar date</div>' +
+    '<div style="font-size:1.05rem;font-weight:800">' +
+    tunisiaToday +
+    '</div>' +
+    '<div style="font-size:0.72rem;color:#94a3b8;margin-top:0.2rem">Africa/Tunis</div></div>' +
+    '</div>' +
+    '<div class="dash-pro-card" style="margin-bottom:1.25rem">' +
+    '<div class="dash-pro-card-h"><span>Today’s orders (Tunisia)</span><button type="button" onclick="window.__admOrdersFilter=\'today\';switchAdmin(\'orders\')">Pipeline · today</button></div>' +
+    '<div class="dash-pro-table-wrap"><table class="dash-pro-table"><thead><tr><th>Tracking</th><th>Customer</th><th>Partner</th><th>Total</th><th>Status</th></tr></thead><tbody>' +
+    todayRowsHtml +
+    '</tbody></table></div></div>' +
     '<div class="dash-pro-kpi-grid">' +
     kpiHtml +
     '</div>' +
@@ -3998,7 +5042,7 @@ function buildAdminOverviewHTML(orders, users, products) {
     ' total</span></div><div style="padding:0 1.2rem 1rem">' +
     funnelRows +
     '</div></div>' +
-    '<div class="dash-pro-card"><div class="dash-pro-card-h"><span>Top vendors by GMV</span><button type="button" onclick="switchAdmin(\'vendors\')">Manage</button></div><div style="padding:0 1.2rem 1rem">' +
+    '<div class="dash-pro-card"><div class="dash-pro-card-h"><span>Top partners by GMV (staff)</span><button type="button" onclick="switchAdmin(\'vendors\')">Manage</button></div><div style="padding:0 1.2rem 1rem">' +
     topVHtml +
     '</div></div>' +
     '<div class="dash-pro-callout">' +
@@ -4011,7 +5055,7 @@ function buildAdminOverviewHTML(orders, users, products) {
     '</div>' +
     '</div></div>' +
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem;margin-top:1.25rem">' +
-    '<div class="dash-pro-card"><div class="dash-pro-card-h"><span>Top SKUs (units)</span></div><div style="padding:0 1.2rem 1rem">' +
+    '<div class="dash-pro-card"><div class="dash-pro-card-h"><span>Top products (units sold)</span></div><div style="padding:0 1.2rem 1rem">' +
     topPHtml +
     '</div></div>' +
     '<div class="dash-pro-card"><div class="dash-pro-card-h"><span>Demand by wilaya</span></div><div style="padding:0 1.2rem 1rem">' +
@@ -4035,6 +5079,7 @@ function buildAdminHTML() {
   var tabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'orders', label: 'Orders' },
+    { id: 'hub', label: 'Sahel Hub' },
     { id: 'logistics', label: 'Logistics' },
     { id: 'users', label: 'Customers' },
     { id: 'drivers', label: 'Drivers' },
@@ -4057,7 +5102,7 @@ function buildAdminHTML() {
   return (
     '<div class="dash-pro">' +
     '<div class="dash-pro-topbar">' +
-    '<div class="dash-pro-brand"><span class="dash-pro-brand-mark">●</span> Everest admin</div>' +
+    '<div class="dash-pro-brand"><span class="dash-pro-brand-mark">●</span> Everest command center</div>' +
     '<div class="dash-pro-tabs">' +
     tabsHTML +
     '</div></div>' +
@@ -4080,6 +5125,12 @@ async function switchAdmin(section) {
   const content = document.getElementById('admin-content');
   if (!content) return;
 
+  if (section === 'hub') {
+    content.innerHTML = '<div id="hub-panel-root" style="padding:1.5rem"></div>';
+    renderHubPanelInto('hub-panel-root');
+    return;
+  }
+
   var users = STN.DB.get('users') || [];
   var orders = STN.DB.get('orders') || [];
 
@@ -4094,6 +5145,10 @@ async function switchAdmin(section) {
     } catch (e) {
       if (typeof STNLog !== 'undefined') STNLog.warn('admin.overview.getOrders', e && e.message);
     }
+    try {
+      STN.DB.set('orders', orders);
+      State.orders = orders;
+    } catch (ePersist) {}
     try {
       users = await mergeLocalAndRemoteUsersForAdmin();
     } catch (e2) {
@@ -4113,9 +5168,10 @@ async function switchAdmin(section) {
   } catch (e) {
     if (typeof STNLog !== 'undefined') STNLog.warn('admin.tab.getOrders', e && e.message);
   }
-
-  const vendors = users.filter(u => u.role === 'vendor');
-  const revenue = dashSumRevenue(orders);
+  try {
+    STN.DB.set('orders', orders);
+    State.orders = orders;
+  } catch (ePersist2) {}
 
   if (section === 'orders') {
     try {
@@ -4123,22 +5179,40 @@ async function switchAdmin(section) {
     } catch (mu) {
       if (typeof STNLog !== 'undefined') STNLog.warn('admin.orders.mergeUsers', mu && mu.message);
     }
+    if (typeof window.__admOrdersFilter === 'undefined') window.__admOrdersFilter = 'today';
+    var admOrdScope = window.__admOrdersFilter === 'all' ? 'all' : 'today';
+    var ordersDisplay =
+      admOrdScope === 'today' ? dashOrdersForTunisiaDay(orders, _dashTunisiaDateKey(new Date())) : orders;
+    var revenueDisp = dashSumRevenue(ordersDisplay);
     var driverUsers = users.filter(function (u) {
       return u.role === 'driver' && isDriverVerified(u);
     });
+    var btnTodayStyle =
+      admOrdScope === 'today'
+        ? 'background:#0f172a;color:#fff;border:1px solid #0f172a;'
+        : 'background:#fff;color:#374151;border:1px solid #e5e7eb;';
+    var btnAllStyle =
+      admOrdScope === 'all'
+        ? 'background:#0f172a;color:#fff;border:1px solid #0f172a;'
+        : 'background:#fff;color:#374151;border:1px solid #e5e7eb;';
     content.innerHTML = `
       <div>
-        <div style="margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between">
+        <div style="margin-bottom:1.25rem;display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:1rem">
           <div>
-            <h1 style="font-size:1.5rem;font-weight:700;color:#111827">Orders</h1>
-            <p style="color:#6b7280;font-size:0.875rem">${orders.length} total orders · ${revenue.toLocaleString()} TND total revenue</p>
+            <h1 style="font-size:1.5rem;font-weight:800;color:#0f172a;margin:0;letter-spacing:-0.02em">Orders pipeline</h1>
+            <p style="color:#64748b;font-size:0.875rem;margin:0.35rem 0 0">${ordersDisplay.length} orders · ${revenueDisp.toLocaleString()} TND · <strong>${admOrdScope === 'today' ? 'Today (Tunisia)' : 'All time'}</strong></p>
+            <p style="font-size:0.72rem;color:#94a3b8;margin:0.4rem 0 0;max-width:40rem">Staff see partner shop names for routing. Customers only see Everest — never individual seller identities on the storefront.</p>
+          </div>
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+            <button type="button" onclick="window.__admOrdersFilter='today';switchAdmin('orders')" style="${btnTodayStyle}padding:0.5rem 1rem;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer">Today · TN</button>
+            <button type="button" onclick="window.__admOrdersFilter='all';switchAdmin('orders')" style="${btnAllStyle}padding:0.5rem 1rem;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer">All time</button>
           </div>
         </div>
         <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
           <div style="overflow-x:auto">
             <table style="width:100%;border-collapse:collapse">
               <thead><tr style="background:#f9fafb">${['Tracking #','Client','Shop','Wilaya / Address','Items','Total','Status','Driver','Date','Action'].map(h=>`<th style="text-align:left;padding:0.75rem 0.875rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap">${h}</th>`).join('')}</tr></thead>
-              <tbody>${orders.length===0?'<tr><td colspan="10" style="text-align:center;padding:3rem;color:#9ca3af">No orders yet</td></tr>':[...orders].reverse().map(o=>{
+              <tbody>${ordersDisplay.length===0?'<tr><td colspan="10" style="text-align:center;padding:3rem;color:#9ca3af">No orders in this view</td></tr>':[...ordersDisplay].reverse().map(o=>{
                 var oid = o.id != null ? o.id : o.tracking_number;
                 var assignedDrv = o.driver_id || o.driverId;
                 var drvOpts = '<option value="">—</option>';
@@ -4456,61 +5530,55 @@ async function switchAdmin(section) {
       };
     });
   } else if (section === 'logistics') {
+    try {
+      var mergedFleet = await mergeLocalAndRemoteUsersForAdmin();
+      window.__adminFleetUsers = mergedFleet;
+    } catch (eFu) {
+      window.__adminFleetUsers = [];
+      if (typeof STNLog !== 'undefined') STNLog.warn('admin.logistics.mergeUsers', eFu && eFu.message);
+    }
     content.innerHTML = `
       <div>
-        <div style="margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between">
+        <div style="margin-bottom:1.25rem;display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:1rem">
           <div>
-            <h1 style="font-size:1.5rem;font-weight:700;color:#111827">🗺️ Live Logistics Map</h1>
-            <p style="color:#6b7280;font-size:0.875rem">Real-time order tracking and delivery management</p>
+            <h1 style="font-size:1.55rem;font-weight:800;color:#0f172a;margin:0;letter-spacing:-0.03em">Live fleet & logistics</h1>
+            <p style="color:#64748b;font-size:0.88rem;margin:0.4rem 0 0;max-width:46rem">Each <strong>vehicle</strong> groups active deliveries by <code>driver_id</code>. Click a truck for driver details, stops, totals, and <strong>hub departure</strong> time. Unassigned active orders show as packages. Staff-only view.</p>
           </div>
-          <div style="display:flex;gap:0.5rem">
-            <button onclick="refreshLogisticsMap()" style="background:#7c3aed;color:white;border:none;padding:0.6rem 1rem;border-radius:8px;font-size:0.8rem;cursor:pointer;font-weight:600">🔄 Refresh</button>
-            <button onclick="centerOnDriver()" style="background:#059669;color:white;border:none;padding:0.6rem 1rem;border-radius:8px;font-size:0.8rem;cursor:pointer;font-weight:600">📍 Center on Driver</button>
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+            <button onclick="refreshLogisticsMap()" style="background:#0f172a;color:white;border:none;padding:0.55rem 1rem;border-radius:10px;font-size:0.8rem;cursor:pointer;font-weight:700">Refresh data</button>
+            <button onclick="centerOnFleet()" style="background:#059669;color:white;border:none;padding:0.55rem 1rem;border-radius:10px;font-size:0.8rem;cursor:pointer;font-weight:700">Fit map</button>
           </div>
         </div>
         <div id="logistics-kpi-row"></div>
-        
-        <!-- Map Container -->
-        <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.08)">
-          <!-- Map Controls -->
-          <div style="background:#f8f9fa;border-bottom:1px solid #e5e7eb;padding:1rem;display:flex;align-items:center;justify-content:space-between">
-            <div style="display:flex;gap:1rem;align-items:center">
-              <span style="font-size:0.85rem;font-weight:600;color:#374151">Orders:</span>
-              <span id="logistics-order-count" style="background:#7c3aed;color:white;padding:0.3rem 0.8rem;border-radius:20px;font-size:0.75rem;font-weight:600">0</span>
+        <div style="background:white;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(15,23,42,0.08)">
+          <div style="background:linear-gradient(90deg,#f8fafc,#eef2ff);border-bottom:1px solid #e5e7eb;padding:0.85rem 1.1rem;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0.75rem">
+            <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
+              <span style="font-size:0.78rem;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.06em">Active legs</span>
+              <span id="logistics-order-count" style="background:#7c3aed;color:white;padding:0.25rem 0.75rem;border-radius:999px;font-size:0.75rem;font-weight:700">0</span>
             </div>
-            <div style="display:flex;gap:1rem;align-items:center">
-              <span style="font-size:0.85rem;font-weight:600;color:#374151">Active:</span>
-              <span id="logistics-active-count" style="background:#059669;color:white;padding:0.3rem 0.8rem;border-radius:20px;font-size:0.75rem;font-weight:600">0</span>
+            <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
+              <span style="font-size:0.78rem;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.06em">Vehicles on map</span>
+              <span id="logistics-active-count" style="background:#059669;color:white;padding:0.25rem 0.75rem;border-radius:999px;font-size:0.75rem;font-weight:700">0</span>
             </div>
           </div>
-          
-          <!-- Map -->
-          <div id="logistics-map" style="height:500px;position:relative;background:#f0f4f8">
-            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:#9ca3af">
+          <div id="logistics-map" style="height:min(520px,70vh);min-height:360px;position:relative;background:#0f172a">
+            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:#94a3b8">
               <div style="font-size:2rem;margin-bottom:0.5rem">🗺️</div>
-              <p style="font-size:0.9rem;">Loading interactive map...</p>
-              <p style="font-size:0.75rem;color:#6b7280;margin-top:0.5rem">Orders with coordinates will appear here</p>
+              <p style="font-size:0.9rem;">Loading map…</p>
             </div>
           </div>
-          
-          <!-- Order List -->
-          <div style="background:#f8f9fa;border-top:1px solid #e5e7eb;padding:1rem;max-height:300px;overflow-y:auto">
-            <h3 style="font-size:0.95rem;font-weight:600;color:#111827;margin-bottom:1rem">Active Deliveries</h3>
-            <div id="logistics-order-list" style="display:flex;flex-direction:column;gap:0.75rem">
-              <div style="text-align:center;padding:2rem;color:#9ca3af">
-                <div style="font-size:2rem;margin-bottom:0.5rem">📦</div>
-                <p style="font-weight:500;margin-bottom:0.5rem">No active deliveries</p>
-                <p style="font-size:0.875rem;">Orders with delivery coordinates will appear here</p>
-              </div>
-            </div>
+          <div style="background:#f8fafc;border-top:1px solid #e5e7eb;padding:1rem;max-height:320px;overflow-y:auto">
+            <h3 style="font-size:0.85rem;font-weight:800;color:#0f172a;margin:0 0 0.75rem;text-transform:uppercase;letter-spacing:0.06em">Same list — scroll for details</h3>
+            <div id="logistics-order-list" style="display:flex;flex-direction:column;gap:0.75rem"></div>
           </div>
         </div>
       </div>
     `;
-    
+
     renderAdminLogisticsKpis();
-    // Initialize map after DOM is ready
-    setTimeout(() => initializeLogisticsMap(), 100);
+    setTimeout(function () {
+      initializeLogisticsMap();
+    }, 80);
     
   } else if (section === 'vendor-dashboard') {
     // Check if user is a vendor
@@ -4542,55 +5610,127 @@ async function switchAdmin(section) {
       var vendors = merged.filter(function (u) {
         return u.role === 'vendor';
       });
-      var vendorRows = vendors.length === 0
-      ? '<tr><td colspan="7" style="text-align:center;padding:3rem;color:#9ca3af">No vendors yet</td></tr>'
-      : vendors.map(function(v) {
-          var isBanned = v.banned;
-          var isTimedOut = v.timeout_until && new Date(v.timeout_until) > new Date();
-          var timeoutLeft = isTimedOut ? Math.ceil((new Date(v.timeout_until)-new Date())/3600000)+'h left' : '';
-          var vProds = State.products.filter(function(p){ return p.vendorId===v.id || p.brand===(v.shop_name||v.shopName); }).length;
-          var sb = isBanned ? '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#fee2e2;color:#dc2626">Banned</span>'
-            : isTimedOut ? '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#fef3c7;color:#d97706">Timeout '+timeoutLeft+'</span>'
-            : v.verified ? '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#dcfce7;color:#166534">Approved</span>'
-            : '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#fef9c3;color:#92400e">Pending</span>';
-          var act = '';
-          if (!v.verified && !isBanned) act += '<button data-action="approve" data-id="'+v.id+'" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;margin-right:0.3rem">Approve</button>';
-          act += isBanned
-            ? '<button data-action="unban" data-id="'+v.id+'" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer">Unban</button>'
-            : '<button data-action="timeout" data-id="'+v.id+'" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;margin-right:0.3rem">Timeout</button><button data-action="ban" data-id="'+v.id+'" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;margin-right:0.3rem">Ban</button>';
-          act +=
-            '<button data-action="delete-account" data-id="' +
-            v.id +
-            '" style="background:#0f172a;color:#fff;border:none;padding:0.25rem 0.55rem;border-radius:6px;font-size:0.68rem;cursor:pointer;font-weight:700">Delete</button>';
-          return '<tr style="border-top:1px solid #f3f4f6'+(isBanned?';background:#fff5f5':'')+'">'
-            +'<td style="padding:0.75rem 1rem;font-size:0.82rem;font-weight:600;color:'+(isBanned?'#ef4444':'#111827')+'">'+(v.first_name||v.firstName||'')+' '+(v.last_name||v.lastName||'')+(isTimedOut?' <small style="color:#f59e0b">'+timeoutLeft+'</small>':'')+'</td>'
-            +'<td style="padding:0.75rem 1rem;font-size:0.78rem;color:#6b7280">'+v.email+'</td>'
-            +'<td style="padding:0.75rem 1rem;font-size:0.78rem;font-weight:600;color:#374151">'+(v.shop_name||v.shopName||'-')+'</td>'
-            +'<td style="padding:0.75rem 1rem;font-size:0.78rem;color:#374151">'+(v.wilaya||'-')+'</td>'
-            +'<td style="padding:0.75rem 1rem;font-size:0.78rem;font-weight:600;color:#7c3aed">'+vProds+'</td>'
-            +'<td style="padding:0.75rem 1rem">'+sb+'</td>'
-            +'<td style="padding:0.75rem 1rem">'+act+'</td>'
-            +'</tr>';
-        }).join('');
-      pane.innerHTML =
-        '<div><div style="margin-bottom:1.5rem"><h1 style="font-size:1.5rem;font-weight:700;color:#111827">Vendors</h1><p style="color:#6b7280;font-size:0.875rem">' +
-        vendors.length +
-        ' vendors · <strong>Approve</strong> pending shops, or <strong>Ban</strong> to reject.</p></div><div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f9fafb"><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Vendor</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Email</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Shop</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Wilaya</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Products</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Status</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Actions</th></tr></thead><tbody>' +
-        vendorRows +
-        '</tbody></table></div></div></div>';
-      var vtbl = pane.querySelector('table');
-      if (vtbl)
-        vtbl.addEventListener('click', function (e) {
-          var b = e.target.closest('[data-action]');
-          if (!b) return;
-          var id = b.dataset.id,
-            action = b.dataset.action;
-          if (action === 'approve') verifyVendor(id);
-          else if (action === 'ban') banUser(id);
-          else if (action === 'timeout') timeoutUser(id);
-          else if (action === 'unban') unbanUser(id);
-          else if (action === 'delete-account') adminDeleteUserAccount(id);
-        });
+      if (vendors.length === 0) {
+        pane.innerHTML =
+          '<div><div style="margin-bottom:1.5rem"><h1 style="font-size:1.5rem;font-weight:700;color:#111827">Vendors</h1><p style="color:#6b7280;font-size:0.875rem">0 vendors · <strong>Approve</strong> pending shops, or <strong>Ban</strong> to reject.</p></div><div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f9fafb"><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Vendor</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Email</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Shop</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Wilaya</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Products</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Hours &amp; service</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Status</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Actions</th></tr></thead><tbody><tr><td colspan="8" style="text-align:center;padding:3rem;color:#9ca3af">No vendors yet</td></tr></tbody></table></div></div></div>';
+        return;
+      }
+      Promise.all(
+        vendors.map(function (v) {
+          return (async function () {
+            var isBanned = v.banned;
+            var isTimedOut = v.timeout_until && new Date(v.timeout_until) > new Date();
+            var timeoutLeft = isTimedOut ? Math.ceil((new Date(v.timeout_until) - new Date()) / 3600000) + 'h left' : '';
+            var vProds = State.products.filter(function (p) {
+              return p.vendorId === v.id || p.brand === (v.shop_name || v.shopName);
+            }).length;
+            var sb = isBanned
+              ? '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#fee2e2;color:#dc2626">Banned</span>'
+              : isTimedOut
+              ? '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#fef3c7;color:#d97706">Timeout ' + timeoutLeft + '</span>'
+              : v.verified
+              ? '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#dcfce7;color:#166534">Approved</span>'
+              : '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#fef9c3;color:#92400e">Pending</span>';
+            var act = '';
+            if (!v.verified && !isBanned)
+              act +=
+                '<button data-action="approve" data-id="' +
+                v.id +
+                '" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;margin-right:0.3rem">Approve</button>';
+            act += isBanned
+              ? '<button data-action="unban" data-id="' +
+                v.id +
+                '" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer">Unban</button>'
+              : '<button data-action="timeout" data-id="' +
+                v.id +
+                '" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;margin-right:0.3rem">Timeout</button><button data-action="ban" data-id="' +
+                v.id +
+                '" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;margin-right:0.3rem">Ban</button>';
+            act +=
+              '<button data-action="delete-account" data-id="' +
+              v.id +
+              '" style="background:#0f172a;color:#fff;border:none;padding:0.25rem 0.55rem;border-radius:6px;font-size:0.68rem;cursor:pointer;font-weight:700">Delete</button>';
+            var hoursCell = '—';
+            try {
+              if (typeof SB !== 'undefined' && SB.getVendor) {
+                var vr = await SB.getVendor(String(v.id));
+                if (vr) {
+                  var fmt =
+                    typeof EverestYasmineRouting !== 'undefined' && EverestYasmineRouting.formatWeeklyScheduleForBuyer
+                      ? EverestYasmineRouting.formatWeeklyScheduleForBuyer(vr.weekly_schedule || {})
+                      : '';
+                  var st = (vr.service_status || '—').toString();
+                  hoursCell =
+                    '<div style="font-size:0.65rem;color:#374151;line-height:1.35;max-width:260px">' +
+                    (fmt ? escHtml(fmt) : '<span style="color:#9ca3af">No schedule</span>') +
+                    '</div><div style="font-size:0.6rem;color:#6b7280;margin-top:0.25rem">In/Out: <strong>' +
+                    escHtml(st) +
+                    '</strong></div>';
+                }
+              }
+            } catch (eh) {}
+            return (
+              '<tr style="border-top:1px solid #f3f4f6' +
+              (isBanned ? ';background:#fff5f5' : '') +
+              '">' +
+              '<td style="padding:0.75rem 1rem;font-size:0.82rem;font-weight:600;color:' +
+              (isBanned ? '#ef4444' : '#111827') +
+              '">' +
+              (v.first_name || v.firstName || '') +
+              ' ' +
+              (v.last_name || v.lastName || '') +
+              (isTimedOut ? ' <small style="color:#f59e0b">' + timeoutLeft + '</small>' : '') +
+              '</td>' +
+              '<td style="padding:0.75rem 1rem;font-size:0.78rem;color:#6b7280">' +
+              escHtml(v.email || '') +
+              '</td>' +
+              '<td style="padding:0.75rem 1rem;font-size:0.78rem;font-weight:600;color:#374151">' +
+              escHtml(v.shop_name || v.shopName || '-') +
+              '</td>' +
+              '<td style="padding:0.75rem 1rem;font-size:0.78rem;color:#374151">' +
+              escHtml(v.wilaya || '-') +
+              '</td>' +
+              '<td style="padding:0.75rem 1rem;font-size:0.78rem;font-weight:600;color:#7c3aed">' +
+              vProds +
+              '</td>' +
+              '<td style="padding:0.75rem 1rem;vertical-align:top">' +
+              hoursCell +
+              '</td>' +
+              '<td style="padding:0.75rem 1rem">' +
+              sb +
+              '</td>' +
+              '<td style="padding:0.75rem 1rem">' +
+              act +
+              '</td>' +
+              '</tr>'
+            );
+          })();
+        })
+      ).then(function (rows) {
+        var pane2 = document.getElementById('admin-content');
+        var navV2 = document.getElementById('adm-nav-vendors');
+        if (!pane2 || !navV2 || !navV2.classList.contains('adm-active')) return;
+        var vendorRows = rows.join('');
+        pane2.innerHTML =
+          '<div><div style="margin-bottom:1.5rem"><h1 style="font-size:1.5rem;font-weight:700;color:#111827">Vendors</h1><p style="color:#6b7280;font-size:0.875rem">' +
+          vendors.length +
+          ' partners · Weekly hours and In/Out status come from each partner profile (Yasmine).</p></div><div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f9fafb"><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Partner</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Email</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Label</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Wilaya</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Products</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Hours &amp; service</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Status</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Actions</th></tr></thead><tbody>' +
+          vendorRows +
+          '</tbody></table></div></div></div>';
+        var vtbl = pane2.querySelector('table');
+        if (vtbl)
+          vtbl.addEventListener('click', function (e) {
+            var b = e.target.closest('[data-action]');
+            if (!b) return;
+            var id = b.dataset.id,
+              action = b.dataset.action;
+            if (action === 'approve') verifyVendor(id);
+            else if (action === 'ban') banUser(id);
+            else if (action === 'timeout') timeoutUser(id);
+            else if (action === 'unban') unbanUser(id);
+            else if (action === 'delete-account') adminDeleteUserAccount(id);
+          });
+      });
     });
   }
 }
@@ -4896,8 +6036,27 @@ async function verifyDriverAccount(userId) {
 window.verifyDriverAccount = verifyDriverAccount;
 
 async function verifyVendor(userId) {
+  var u = null;
+  try {
+    if (typeof SB !== 'undefined' && SB.getUserById) u = await SB.getUserById(userId);
+  } catch (e) {}
+  if (!u) {
+    var usersPre = STN.DB.get('users') || [];
+    u = usersPre.find(function (x) {
+      return String(x.id) === String(userId);
+    });
+  }
+  var wilaya = u ? u.wilaya || u.wilaya_name || '' : '';
+  if (typeof EverestYasmineRouting !== 'undefined' && EverestYasmineRouting.isWilayaInSahel && !EverestYasmineRouting.isWilayaInSahel(wilaya)) {
+    toast(
+      'Sahel launch: partner wilaya must be in the Sahel service zone (e.g. Monastir, Sousse, Mahdia, Sfax…). Fix wilaya on the account, then approve.',
+      'error'
+    );
+    return;
+  }
+
   const users = STN.DB.get('users') || [];
-  const idx = users.findIndex(u => String(u.id) === String(userId));
+  const idx = users.findIndex(u2 => String(u2.id) === String(userId));
   if (idx !== -1) {
     users[idx].verified = true;
     STN.DB.set('users', users);
@@ -4909,9 +6068,128 @@ async function verifyVendor(userId) {
   } catch (e) {
     if (typeof STNLog !== 'undefined') STNLog.warn('verifyVendor', e && e.message);
   }
-  toast('Vendor approved!', 'success');
+
+  try {
+    if (typeof SB !== 'undefined' && SB.getVendor && SB.upsertVendor) {
+      var vr = await SB.getVendor(String(userId));
+      var def =
+        typeof EverestYasmineRouting !== 'undefined' && EverestYasmineRouting.defaultWeeklySchedule
+          ? EverestYasmineRouting.defaultWeeklySchedule()
+          : {};
+      await SB.upsertVendor({
+        id: String(userId),
+        service_status: (vr && vr.service_status) || 'away',
+        weekly_schedule: (vr && vr.weekly_schedule && Object.keys(vr.weekly_schedule).length) ? vr.weekly_schedule : def,
+        consecutive_timeout_orders: (vr && vr.consecutive_timeout_orders) || 0,
+        onboarding_status: 'active',
+        sahel_verified: true,
+        sahel_verified_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+    }
+  } catch (e3) {
+    if (typeof STNLog !== 'undefined') STNLog.warn('verifyVendor.vendorsRow', e3 && e3.message);
+    toast('User approved — run migration `20260405180000_sahel_phase1_core.sql` if vendor fields fail to save.', 'default');
+  }
+
+  toast('Partner approved for Sahel routing.', 'success');
   switchAdmin('vendors');
 }
+
+function hubCanAccess() {
+  var u = State.currentUser;
+  return !!(u && (u.role === 'hub' || u.role === 'admin'));
+}
+
+async function renderHubPanelInto(containerId) {
+  var root = document.getElementById(containerId);
+  if (!root) return;
+  root.innerHTML = '<p style="color:#7b72a8;font-size:0.9rem">Loading ready-for-pickup queue…</p>';
+  var list = [];
+  try {
+    if (typeof SB !== 'undefined' && SB.getOrders) list = await SB.getOrders();
+  } catch (e) {
+    list = [];
+  }
+  var ready = (list || []).filter(function (o) {
+    var s = String(o.status || '')
+      .toLowerCase()
+      .replace(/-/g, '_');
+    return s === 'ready' && !o.hub_quality_passed_at;
+  });
+  if (ready.length === 0) {
+    root.innerHTML =
+      '<div style="text-align:center;padding:3rem;color:#64748b"><div style="font-size:2.5rem;margin-bottom:0.75rem">📦</div>' +
+      '<p style="font-size:1rem;font-weight:600;color:#1e0a4e">No packages waiting for QC</p>' +
+      '<p style="font-size:0.85rem;margin-top:0.5rem">Orders in <strong>Ready</strong> without a quality check appear here.</p></div>';
+    return;
+  }
+  root.innerHTML =
+    '<h2 style="font-size:1.25rem;color:#1e0a4e;margin:0 0 1rem">Ready for pickup — quality gate</h2>' +
+    '<p style="font-size:0.82rem;color:#6b7280;margin:0 0 1.25rem;max-width:42rem">Complete <strong>Quality check</strong> after inspection; seal with Everest branding only after QC is recorded.</p>' +
+    '<div style="display:flex;flex-direction:column;gap:1rem">' +
+    ready
+      .map(function (o) {
+        var tr = o.tracking_number || o.id || '—';
+        var tot = o.total != null ? Number(o.total).toLocaleString() : '—';
+        var oid = JSON.stringify(String(o.id));
+        return (
+          '<div style="background:white;border:1px solid #e5e7eb;border-radius:14px;padding:1.25rem;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:1rem">' +
+          '<div><div style="font-size:0.7rem;font-weight:700;color:#7b72a8;text-transform:uppercase">Tracking</div>' +
+          '<div style="font-size:1.1rem;font-weight:700;color:#1e0a4e">' +
+          String(tr) +
+          '</div>' +
+          '<div style="font-size:0.8rem;color:#6b7280;margin-top:0.35rem">' +
+          (o.items ? o.items.length : 0) +
+          ' items · ' +
+          tot +
+          ' TND</div></div>' +
+          '<button type="button" style="background:linear-gradient(135deg,#059669,#047857);border:none;padding:0.65rem 1.25rem;border-radius:10px;font-weight:700;cursor:pointer;color:white;font-family:inherit" onclick="hubPassQualityCheck(' +
+          oid +
+          ')">✓ Quality check</button></div>'
+        );
+      })
+      .join('') +
+    '</div>';
+}
+
+function renderHub() {
+  if (!hubCanAccess()) {
+    toast('Sahel Hub access required', 'error');
+    showPage('auth');
+    return;
+  }
+  var page = document.getElementById('page-hub');
+  if (!page) return;
+  page.innerHTML =
+    '<div class="dash-pro" style="min-height:70vh"><div class="dash-pro-topbar"><div class="dash-pro-brand"><span class="dash-pro-brand-mark">●</span> Sahel Hub — QC</div></div>' +
+    '<div class="dash-pro-body" id="hub-page-body" style="padding:1.5rem"></div></div>';
+  renderHubPanelInto('hub-page-body');
+}
+
+async function hubPassQualityCheck(orderId) {
+  if (!hubCanAccess()) return;
+  if (!orderId || typeof SB === 'undefined' || !SB.updateOrder) {
+    toast('Cannot update order', 'error');
+    return;
+  }
+  var uid = State.currentUser && State.currentUser.id != null ? String(State.currentUser.id) : '';
+  try {
+    await SB.updateOrder(orderId, {
+      hub_quality_passed_at: new Date().toISOString(),
+      hub_quality_passed_by: uid,
+    });
+    toast('QC recorded — package may be sealed with Everest branding.', 'success');
+    var el = document.getElementById('hub-page-body');
+    if (el) await renderHubPanelInto('hub-page-body');
+    var hp = document.getElementById('hub-panel-root');
+    if (hp) await renderHubPanelInto('hub-panel-root');
+  } catch (e) {
+    toast('QC update failed — run migration `20260405180000_sahel_phase1_core.sql` on Supabase.', 'error');
+    if (typeof STNLog !== 'undefined') STNLog.warn('hubPassQualityCheck', e && e.message);
+  }
+}
+window.hubPassQualityCheck = hubPassQualityCheck;
 
 /**
  * Ban a user (admin). Optional `reason` skips the prompt; otherwise admin enters text shown to the user.
@@ -5127,6 +6405,276 @@ async function adminDeleteUserAccount(userId) {
   switchAdmin(activeSection);
 }
 
+// ── VENDOR SERVICE: weekly hours (Mon–Sun, default Mon–Fri 08:00–16:00) + In/Out of service ──
+var EVS_DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+var EVS_DAY_LABELS = {
+  mon: 'Monday',
+  tue: 'Tuesday',
+  wed: 'Wednesday',
+  thu: 'Thursday',
+  fri: 'Friday',
+  sat: 'Saturday',
+  sun: 'Sunday',
+};
+
+function evsSuffix(containerId) {
+  return String(containerId || 'x').replace(/[^a-zA-Z0-9]/g, '_');
+}
+
+async function everestSyncVendorDefaults(vendorId) {
+  if (!vendorId || typeof SB === 'undefined' || !SB.getVendor || !SB.upsertVendor) return;
+  var id = String(vendorId);
+  try {
+    var row = await SB.getVendor(id);
+    var def =
+      typeof EverestYasmineRouting !== 'undefined' && EverestYasmineRouting.defaultWeeklySchedule
+        ? EverestYasmineRouting.defaultWeeklySchedule()
+        : {};
+    if (!row) {
+      await SB.upsertVendor({
+        id: id,
+        service_status: 'away',
+        weekly_schedule: def,
+        consecutive_timeout_orders: 0,
+        onboarding_status: 'inactive',
+        sahel_verified: false,
+        updated_at: new Date().toISOString(),
+      });
+      return;
+    }
+    var ws = row.weekly_schedule;
+    if (!ws || typeof ws !== 'object' || Object.keys(ws).length === 0) {
+      await SB.upsertVendor({
+        id: id,
+        service_status: row.service_status || 'away',
+        weekly_schedule: def,
+        consecutive_timeout_orders: row.consecutive_timeout_orders || 0,
+        updated_at: new Date().toISOString(),
+      });
+    }
+  } catch (e) {
+    if (typeof STNLog !== 'undefined') STNLog.warn('everestSyncVendorDefaults', e && e.message);
+  }
+}
+
+async function mountEverestVendorServiceUI(containerId) {
+  var el = document.getElementById(containerId);
+  if (!el || !State.currentUser || State.currentUser.role !== 'vendor') {
+    if (el) el.innerHTML = '';
+    return;
+  }
+  await everestSyncVendorDefaults(State.currentUser.id);
+  var id = String(State.currentUser.id);
+  var row = null;
+  try {
+    row = await SB.getVendor(id);
+  } catch (e) {}
+  var suf = evsSuffix(containerId);
+  var def =
+    typeof EverestYasmineRouting !== 'undefined' && EverestYasmineRouting.defaultWeeklySchedule
+      ? EverestYasmineRouting.defaultWeeklySchedule()
+      : {};
+  var sched = (row && row.weekly_schedule) || def;
+  var merged = Object.assign({}, def, sched);
+  var on = row && row.service_status === 'active';
+
+  var rows = EVS_DAY_KEYS.map(function (d) {
+    var day = merged[d] || {};
+    var closed = !!day.closed;
+    var start = (day.open || day.start || '08:00').toString().slice(0, 5);
+    var end = (day.close || day.end || '16:00').toString().slice(0, 5);
+    return (
+      '<tr style="border-bottom:1px solid #f3f4f6">' +
+      '<td style="padding:0.55rem 0.35rem;font-size:0.82rem;font-weight:600;color:#374151">' +
+      EVS_DAY_LABELS[d] +
+      '</td>' +
+      '<td style="padding:0.55rem 0.35rem;text-align:center"><input type="checkbox" class="evs-day-open" data-suf="' +
+      suf +
+      '" data-day="' +
+      d +
+      '" id="evs-open-' +
+      d +
+      '-' +
+      suf +
+      '" ' +
+      (!closed ? 'checked' : '') +
+      ' style="width:1.1rem;height:1.1rem;accent-color:#7c3aed"/></td>' +
+      '<td style="padding:0.55rem 0.35rem"><input type="time" class="evs-day-start" data-suf="' +
+      suf +
+      '" data-day="' +
+      d +
+      '" id="evs-start-' +
+      d +
+      '-' +
+      suf +
+      '" value="' +
+      start +
+      '" style="width:100%;padding:0.35rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.8rem"/></td>' +
+      '<td style="padding:0.55rem 0.35rem"><input type="time" class="evs-day-end" data-suf="' +
+      suf +
+      '" data-day="' +
+      d +
+      '" id="evs-end-' +
+      d +
+      '-' +
+      suf +
+      '" value="' +
+      end +
+      '" style="width:100%;padding:0.35rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.8rem"/></td>' +
+      '</tr>'
+    );
+  }).join('');
+
+  var safeJson = JSON.stringify(containerId);
+  el.innerHTML =
+    '<div style="background:white;border:1px solid #e5e7eb;border-radius:14px;padding:1.25rem 1.35rem;box-shadow:0 1px 3px rgba(0,0,0,0.06)">' +
+    '<div style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1rem">' +
+    '<div><p style="font-size:0.72rem;font-weight:700;color:#7b72a8;margin:0 0 0.35rem;font-family:Outfit,sans-serif">In Service / Out of Service</p>' +
+    '<p style="margin:0;font-size:0.88rem;color:#1e0a4e;font-weight:600">When you are In Service, new orders can reach you (15 min to accept).</p>' +
+    '<p style="margin:0.4rem 0 0;font-size:0.74rem;color:#6b7280;max-width:32rem;line-height:1.45">Use the table: choose which days you take orders and set hours (default 08:00–16:00). Same-day handover to the cave ends at <strong>4:00 PM Tunis time</strong> (Africa/Tunis). Shoppers do not see this grid — Everest uses it to route and estimate ready times.</p></div>' +
+    '<label style="display:flex;align-items:center;gap:0.65rem;cursor:pointer;font-weight:600;color:#1e0a4e;flex-shrink:0">' +
+    '<span style="font-size:0.8rem">' +
+    (on ? 'In Service' : 'Out of Service') +
+    '</span>' +
+    '<input type="checkbox" ' +
+    (on ? 'checked ' : '') +
+    'onchange="toggleEverestVendorService(this.checked)" style="width:2.75rem;height:1.45rem;accent-color:#7c3aed"/></label>' +
+    '</div>' +
+    '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.8rem">' +
+    '<thead><tr style="background:#f9fafb;color:#6b7280;text-align:left">' +
+    '<th style="padding:0.55rem 0.35rem">Day</th>' +
+    '<th style="padding:0.55rem 0.35rem;text-align:center">Taking orders</th>' +
+    '<th style="padding:0.55rem 0.35rem">From</th>' +
+    '<th style="padding:0.55rem 0.35rem">To</th>' +
+    '</tr></thead><tbody>' +
+    rows +
+    '</tbody></table></div>' +
+    '<div style="margin-top:1rem;display:flex;flex-wrap:wrap;gap:0.65rem;align-items:center">' +
+    '<button type="button" onclick="saveEverestVendorSchedule(' +
+    safeJson +
+    ')" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.7rem 1.35rem;border-radius:10px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif">Save weekly hours</button>' +
+    '<span style="font-size:0.72rem;color:#9ca3af">Tip: Mon–Fri 08:00–16:00, weekend off — adjust anytime.</span>' +
+    '</div></div>';
+
+  el.querySelectorAll('.evs-day-open').forEach(function (cb) {
+    function sync() {
+      var tr = cb.closest('tr');
+      if (!tr) return;
+      var times = tr.querySelectorAll('input[type="time"]');
+      var ok = cb.checked;
+      times.forEach(function (t) {
+        t.disabled = !ok;
+        t.style.opacity = ok ? '1' : '0.45';
+      });
+    }
+    cb.addEventListener('change', sync);
+    sync();
+  });
+}
+
+async function saveEverestVendorSchedule(containerId) {
+  if (!State.currentUser || State.currentUser.role !== 'vendor') return;
+  var id = String(State.currentUser.id);
+  var suf = evsSuffix(containerId);
+  var sched = {};
+  EVS_DAY_KEYS.forEach(function (d) {
+    var cb = document.getElementById('evs-open-' + d + '-' + suf);
+    var st = document.getElementById('evs-start-' + d + '-' + suf);
+    var en = document.getElementById('evs-end-' + d + '-' + suf);
+    if (!cb) return;
+    if (!cb.checked) sched[d] = { closed: true };
+    else sched[d] = { open: (st && st.value) || '08:00', close: (en && en.value) || '16:00' };
+  });
+  var row = null;
+  try {
+    row = await SB.getVendor(id);
+  } catch (e) {}
+  try {
+    await SB.upsertVendor({
+      id: id,
+      service_status: (row && row.service_status) || 'away',
+      weekly_schedule: sched,
+      consecutive_timeout_orders: (row && row.consecutive_timeout_orders) || 0,
+      updated_at: new Date().toISOString(),
+    });
+    toast('Weekly hours saved. Everest uses this for routing and ready times.', 'success');
+    if (containerId === 'vendor-onboarding-service-panel') {
+      markVendorHoursOnboardingDone();
+      showPage('vendor');
+    }
+  } catch (e2) {
+    toast('Could not save hours. Run the Yasmine SQL migration in Supabase.', 'error');
+  }
+  refreshEverestVendorServiceMounts();
+}
+
+function refreshEverestVendorServiceMounts() {
+  [
+    'vendor-yasmine-service-panel',
+    'vendor-overview-service-panel',
+    'vendor-hours-service-panel',
+    'account-vendor-service-panel',
+    'vendor-onboarding-service-panel',
+  ].forEach(function (tid) {
+    if (document.getElementById(tid)) void mountEverestVendorServiceUI(tid);
+  });
+}
+
+function vendorHoursOnboardingStorageKey(uid) {
+  return 'stn_vendor_hours_done_' + String(uid);
+}
+
+function needsVendorHoursOnboarding() {
+  if (!State.currentUser || State.currentUser.role !== 'vendor') return false;
+  try {
+    return !localStorage.getItem(vendorHoursOnboardingStorageKey(State.currentUser.id));
+  } catch (e) {
+    return false;
+  }
+}
+
+function markVendorHoursOnboardingDone() {
+  if (!State.currentUser || State.currentUser.id == null) return;
+  try {
+    localStorage.setItem(vendorHoursOnboardingStorageKey(State.currentUser.id), '1');
+  } catch (e) {}
+}
+
+function finishVendorHoursOnboardingSkip() {
+  markVendorHoursOnboardingDone();
+  showPage('vendor');
+}
+
+/** After login / nav: sync vendor row then Fulfillment hub or first-time hours page. */
+function showVendorHubOrOnboarding() {
+  if (!State.currentUser || State.currentUser.role !== 'vendor') return;
+  void everestSyncVendorDefaults(State.currentUser.id);
+  if (needsVendorHoursOnboarding()) showPage('vendor-hours');
+  else showPage('vendor');
+}
+
+function renderVendorHoursOnboarding() {
+  if (!State.currentUser || State.currentUser.role !== 'vendor') {
+    showPage('auth');
+    return;
+  }
+  var page = document.getElementById('page-vendor-hours');
+  if (!page) return;
+  page.innerHTML =
+    '<div style="background:linear-gradient(180deg,#f8f7ff 0%,#fff 42%);min-height:100vh;padding:2rem 1.25rem 3rem">' +
+    '<div style="max-width:720px;margin:0 auto">' +
+    '<p style="font-size:0.72rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#7c3aed;margin:0 0 0.75rem">Partner setup</p>' +
+    '<h1 style="font-family:Cormorant Garamond,Georgia,serif;font-size:2rem;color:#1e0a4e;margin:0 0 0.65rem;font-weight:600">When you are open</h1>' +
+    '<p style="color:#6b7280;font-size:0.9rem;line-height:1.55;margin:0 0 1.5rem;border-bottom:1px solid #f3f4f6;padding-bottom:1.25rem">Set your weekly hours and In/Out service for Everest routing. Shoppers only see Everest-ready messaging — not this grid. You can edit anytime in Fulfillment hub.</p>' +
+    '<div id="vendor-onboarding-service-panel"></div>' +
+    '<div style="margin-top:1.5rem;display:flex;flex-wrap:wrap;gap:0.65rem;align-items:center">' +
+    '<button type="button" onclick="finishVendorHoursOnboardingSkip()" style="background:white;color:#6b7280;border:1px solid #e5e7eb;padding:0.7rem 1.25rem;border-radius:10px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif">Continue to Fulfillment hub</button>' +
+    '<span style="font-size:0.72rem;color:#9ca3af">Saving weekly hours also opens Fulfillment hub.</span>' +
+    '</div></div></div>';
+  void everestSyncVendorDefaults(State.currentUser.id);
+  void mountEverestVendorServiceUI('vendor-onboarding-service-panel');
+}
+
 // ── VENDOR DASHBOARD (PROFESSIONAL) ──
 function renderVendorDashboard() {
   if (typeof STNLog !== 'undefined') STNLog.debug('vendor.dashboard', 'renderVendorDashboard', STNLog.sanitize(State.currentUser));
@@ -5160,14 +6708,68 @@ function renderVendorDashboard() {
   initializeProfessionalDashboard();
 }
 
+function toggleEverestVendorService(inService) {
+  if (!State.currentUser || State.currentUser.role !== 'vendor') return;
+  var id = String(State.currentUser.id);
+  (async function () {
+    var existing = null;
+    try {
+      if (typeof SB !== 'undefined' && SB.getVendor) existing = await SB.getVendor(id);
+    } catch (e) {}
+    try {
+      await SB.upsertVendor({
+        id: id,
+        service_status: inService ? 'active' : 'away',
+        last_active_at: new Date().toISOString(),
+        weekly_schedule: (existing && existing.weekly_schedule) || {},
+        consecutive_timeout_orders: (existing && existing.consecutive_timeout_orders) || 0,
+        updated_at: new Date().toISOString(),
+      });
+      toast(inService ? 'You are In Service — fast dispatch' : 'You are now Out of Service', 'success');
+    } catch (e2) {
+      toast('Could not update service status. Run supabase/migrations/20260404120000_yasmine_service_routing.sql in Supabase.', 'error');
+    }
+    if (window.dashboard && typeof window.dashboard.renderServicePanel === 'function') {
+      window.dashboard.renderServicePanel();
+    }
+    refreshEverestVendorServiceMounts();
+  })();
+}
+
+function vendorAcceptYasmineOrder(orderId) {
+  if (!orderId || typeof EverestYasmineRouting === 'undefined') return;
+  var vid = State.currentUser && State.currentUser.id != null ? String(State.currentUser.id) : '';
+  var list = (window.dashboard && window.dashboard.orders) || [];
+  var found = list.find(function (x) {
+    return String(x.id) === String(orderId);
+  });
+  if (found) {
+    var ov = found.vendor_id != null ? found.vendor_id : found.vendorId;
+    if (ov != null && String(ov) !== vid) {
+      toast('This order is not assigned to your Everest line.', 'error');
+      return;
+    }
+  }
+  EverestYasmineRouting.vendorAcceptOrder(orderId).then(function (r) {
+    if (r.ok) toast('Order accepted', 'success');
+    else toast('Could not accept order', 'error');
+    var d = window.dashboard;
+    if (d && typeof d.loadData === 'function') {
+      d.loadData().then(function () {
+        d.renderDashboard();
+      });
+    }
+  });
+}
+
 function buildProfessionalDashboardHTML() {
   return `
     <div class="dashboard-container dash-pro-root">
       <div class="dash-pro-hero">
         <div>
-          <p class="dash-pro-eyebrow">Seller workspace</p>
+          <p class="dash-pro-eyebrow">Fulfillment workspace</p>
           <h1 class="dash-pro-hero-title">Performance</h1>
-          <p class="dash-pro-hero-sub">Live GMV, fulfillment, catalog exposure, and logistics — tuned for daily operations on Everest.</p>
+          <p class="dash-pro-hero-sub">Live GMV, fulfillment, and logistics. Set <strong>Hours &amp; In/Out service</strong> in the card below — same as Fulfillment hub.</p>
         </div>
         <div class="dash-pro-hero-meta">
           <div class="dash-pro-shop" id="vendor-name"></div>
@@ -5179,6 +6781,8 @@ function buildProfessionalDashboardHTML() {
           <button type="button" class="btn btn-sm" style="background:#fff;color:#b91c1c;border:1px solid rgba(220,38,38,0.35)" onclick="deleteMyAccount()">Delete account</button>
         </div>
       </div>
+
+      <div class="panel" id="vendor-yasmine-service-panel" style="margin:0 0 1.25rem 0;border-radius:16px;border:1px solid var(--dp-border, rgba(107,63,212,0.15));padding:1rem 1.25rem;background:#fff"></div>
 
       <div class="kpi-grid" id="kpi-grid">
         <div class="loading">
@@ -5265,6 +6869,7 @@ async function initializeProfessionalDashboard() {
   try {
     window.dashboard = new ProfessionalVendorDashboard();
     await window.dashboard.init();
+    if (typeof EverestYasmineRouting !== 'undefined') EverestYasmineRouting.startVendorStaleChecker();
     if (typeof STNLog !== 'undefined') STNLog.info('vendor.proDashboard', 'ready', {});
   } catch (error) {
     if (typeof STNLog !== 'undefined') STNLog.error('vendor.proDashboard.init', error, {});
@@ -5296,6 +6901,8 @@ class ProfessionalVendorDashboard {
       if (!this.vendorData || this.vendorData.role !== 'vendor') {
         throw new Error('Vendor authentication required');
       }
+
+      await everestSyncVendorDefaults(this.vendorData.id);
 
       // Load data from Supabase
       await this.loadData();
@@ -5375,16 +6982,26 @@ class ProfessionalVendorDashboard {
 
   renderDashboard() {
     this.renderHeader();
+    var self = this;
+    Promise.resolve()
+      .then(function () {
+        return self.renderServicePanel();
+      })
+      .catch(function () {});
     this.renderKPIs();
     this.renderVendorAnalytics();
     this.renderOrders();
     this.renderInventory();
   }
 
+  async renderServicePanel() {
+    await mountEverestVendorServiceUI('vendor-yasmine-service-panel');
+  }
+
   renderHeader() {
     const vendorNameEl = document.getElementById('vendor-name');
     if (vendorNameEl) {
-      vendorNameEl.textContent = this.vendorData.shop_name || this.vendorData.name || 'Your shop';
+      vendorNameEl.textContent = 'Everest';
     }
     const pill = document.getElementById('vendor-verify-pill');
     if (pill) {
@@ -5546,24 +7163,59 @@ class ProfessionalVendorDashboard {
 
   renderOrders() {
     const ordersList = document.getElementById('orders-list');
-    
+    const self = this;
+
     if (this.orders.length === 0) {
       ordersList.innerHTML = '<p style="text-align: center; color: #666;">No orders yet</p>';
       return;
     }
 
-    ordersList.innerHTML = this.orders.slice(0, 5).map(order => `
-      <div class="order-item">
-        <div class="order-info">
-          <div class="order-id">${order.tracking_number || order.id || 'ORD-' + Math.random().toString(36).substr(2, 9)}</div>
-          <div class="order-customer">${order.notes || order.phone || 'Guest Customer'}</div>
-        </div>
-        <div style="text-align: right;">
-          <div class="order-amount">${order.total || order.amount || 0} TND</div>
-          <span class="order-status status-${order.status || 'pending'}">${order.status || 'pending'}</span>
-        </div>
-      </div>
-    `).join('');
+    ordersList.innerHTML = this.orders.slice(0, 8).map(function (order) {
+      var sos =
+        order.yasmine_routing_status === 'pending_acceptance' &&
+        order.acceptance_deadline_at &&
+        String(order.status || '').toLowerCase() === 'pending';
+      var dl = sos ? new Date(order.acceptance_deadline_at).getTime() : 0;
+      var sosHtml = '';
+      if (sos && dl > Date.now()) {
+        var rem = Math.max(0, Math.floor((dl - Date.now()) / 60000));
+        sosHtml =
+          '<div style="margin-top:0.45rem;padding:0.45rem 0.6rem;border-radius:10px;background:linear-gradient(135deg,#fef2f2,#fff1f2);border:1px solid #fecaca;font-size:0.72rem;font-weight:700;color:#b91c1c">SOS · Accept within ~' +
+          rem +
+          ' min</div>' +
+          '<button type="button" class="btn btn-primary btn-sm" style="margin-top:0.45rem;width:100%" onclick="vendorAcceptYasmineOrder(' +
+          JSON.stringify(order.id) +
+          ')">Accept order</button>';
+      }
+      return (
+        '<div class="order-item">' +
+        '<div class="order-info">' +
+        '<div class="order-id">' +
+        (order.tracking_number || order.id || 'ORD') +
+        '</div>' +
+        '<div class="order-customer">' +
+        (order.notes || order.phone || 'Guest Customer') +
+        '</div>' +
+        sosHtml +
+        '</div>' +
+        '<div style="text-align: right;">' +
+        '<div class="order-amount">' +
+        (order.total || order.amount || 0) +
+        ' TND</div>' +
+        '<span class="order-status status-' +
+        (order.status || 'pending') +
+        '">' +
+        (order.status || 'pending') +
+        '</span></div></div>'
+      );
+    }).join('');
+
+    if (typeof EverestYasmineRouting !== 'undefined') {
+      clearTimeout(self._sosTimer);
+      self._sosTimer = setTimeout(function () {
+        self.renderOrders();
+      }, 30000);
+    }
   }
 
   renderInventory() {
@@ -5613,7 +7265,7 @@ class ProfessionalVendorDashboard {
         .addTo(this.map)
         .bindPopup(`
           <div style="text-align: center;">
-            <strong>🏪 ${this.vendorData.shop_name || this.vendorData.name}</strong><br>
+            <strong>🏔️ Everest fulfillment</strong><br>
             ${this.vendorData.wilaya || 'Sousse'}<br>
             ${this.products.length} Products<br>
             ${this.orders.length} Orders
@@ -5751,17 +7403,17 @@ function scrollToVendorAnalyticsAnchor() {
 }
 
 function viewAllOrders() {
-  showPage('vendor');
+  showVendorHubOrOnboarding();
   setTimeout(function () {
-    switchVendorSection('orders');
-  }, 80);
+    if (State.currentPage === 'vendor') switchVendorSection('orders');
+  }, 120);
 }
 
 function addProduct() {
-  showPage('vendor');
+  showVendorHubOrOnboarding();
   setTimeout(function () {
-    switchVendorSection('upload');
-  }, 80);
+    if (State.currentPage === 'vendor') switchVendorSection('upload');
+  }, 120);
 }
 
 function viewAnalytics() {
@@ -5785,7 +7437,7 @@ function exportVendorCsvEscape(val) {
 function exportData() {
   var d = window.dashboard;
   if (!d || !Array.isArray(d.orders) || !Array.isArray(d.products)) {
-    toast('Open your seller dashboard first, then export again.', 'default');
+    toast('Open your fulfillment dashboard first, then export again.', 'default');
     return;
   }
   var lines = [];
@@ -5860,6 +7512,7 @@ function buildVendorHTML() {
   var isVerified = u.verified;
   var tabs = [
     {id:'overview', label:'Overview'},
+    {id:'hours', label:'⏰ Hours & Service'},
     {id:'dashboard', label:'📊 Dashboard'},
     {id:'upload', label:'Upload Product'},
     {id:'inventory', label:'My Products'},
@@ -5976,6 +7629,7 @@ function switchVendorSection(section) {
         }).join('');
 
     content.innerHTML = '<div>'
+      +'<div id="vendor-overview-service-panel" style="margin-bottom:1.5rem"></div>'
       +'<div style="margin-bottom:1.5rem"><h1 style="font-size:1.5rem;font-weight:700;color:#111827">Welcome back, '+(u.first_name||u.firstName||u.name||'Vendor')+'! 👋</h1>'
       +'<p style="color:#6b7280;font-size:0.875rem">'+today+'</p></div>'
       +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem">'
@@ -5993,6 +7647,7 @@ function switchVendorSection(section) {
       +'<div style="display:flex;flex-direction:column;gap:1rem">'
       +'<div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.25rem">'
       +'<h3 style="font-size:0.9rem;font-weight:600;color:#111827;margin-bottom:0.875rem">Quick Actions</h3>'
+      +'<button onclick="switchVendorSection(\'hours\')" style="width:100%;background:#fffbeb;color:#92400e;border:1px solid #fde68a;padding:0.65rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif;margin-bottom:0.5rem;display:block">⏰ Hours &amp; In/Out service</button>'
       +'<button onclick="switchVendorSection(\'upload\')" style="width:100%;background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.65rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif;margin-bottom:0.5rem;display:block">+ Upload Product</button>'
       +'<button onclick="switchVendorSection(\'orders\')" style="width:100%;background:#f5f3ff;color:#7c3aed;border:1px solid #e9d5ff;padding:0.65rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif;margin-bottom:0.5rem;display:block">View Orders</button>'
       +'<button onclick="showPage(\'products\')" style="width:100%;background:#f9fafb;color:#374151;border:1px solid #e5e7eb;padding:0.65rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif;display:block">View Store</button>'
@@ -6003,6 +7658,21 @@ function switchVendorSection(section) {
       +'<div style="font-size:0.75rem;opacity:0.8">'+statusDesc+'</div>'
       +'</div>'
       +'</div></div></div>';
+    setTimeout(function () {
+      void everestSyncVendorDefaults(u.id);
+      void mountEverestVendorServiceUI('vendor-overview-service-panel');
+    }, 0);
+
+  } else if (section === 'hours') {
+    content.innerHTML =
+      '<div style="max-width:920px;margin:0 auto">' +
+      '<p style="font-size:1.15rem;font-weight:700;color:#111827;margin-bottom:0.35rem">Hours &amp; service</p>' +
+      '<p style="color:#6b7280;font-size:0.875rem;margin-bottom:1rem">Set when you take orders and prepare shipments. Customers see this on your product pages.</p>' +
+      '<div id="vendor-hours-service-panel"></div></div>';
+    setTimeout(function () {
+      void everestSyncVendorDefaults(u.id);
+      void mountEverestVendorServiceUI('vendor-hours-service-panel');
+    }, 0);
 
   } else if (section === 'upload') {
     content.innerHTML = `
@@ -6025,13 +7695,19 @@ function switchVendorSection(section) {
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
             <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Product Name *</label><input type="text" id="vp-title" placeholder="e.g. Velvet Sultan Sofa" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
-            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Brand Name *</label><input type="text" id="vp-brand" placeholder="Your brand" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
+            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Brand</label><input type="text" id="vp-brand" value="Everest" readonly tabindex="-1" title="Listings use the Everest brand" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box;background:#f9fafb;color:#4b5563"/></div>
           </div>
           <div style="margin-bottom:1rem"><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Description *</label><textarea id="vp-desc" placeholder="Describe your product..." style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;min-height:100px;resize:vertical;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"></textarea></div>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
             <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Price (TND) *</label><input type="number" id="vp-price" placeholder="1299" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
             <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Old Price</label><input type="number" id="vp-old-price" placeholder="1599" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
             <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Stock *</label><input type="number" id="vp-stock" placeholder="10" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
+          </div>
+          <p style="font-size:0.72rem;color:#6b7280;margin:-0.35rem 0 0.75rem;line-height:1.4">SKU DNA (routing): parent SKU + color + size — used to match the same product across vendors.</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Parent SKU *</label><input type="text" id="vp-parent-sku" placeholder="e.g. NIKE-AF1" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box"/></div>
+            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Color ID * <span style="font-weight:500;color:#6b7280">(Universal SKU)</span></label><input type="text" id="vp-color-id" placeholder="e.g. RED, black" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box"/></div>
+            <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Size ID * <span style="font-weight:500;color:#6b7280">(Universal SKU)</span></label><input type="text" id="vp-size-id" placeholder="e.g. 42, L" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box"/></div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
             <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Category *</label>
@@ -6310,7 +7986,7 @@ function vendorSetUploadMode(product) {
   var editId = document.getElementById('vp-edit-id');
   var hiddenUrl = document.getElementById('vp-image-url');
   var catSelect = document.getElementById('vp-cat');
-  var fields = ['vp-title', 'vp-brand', 'vp-desc', 'vp-price', 'vp-old-price', 'vp-stock', 'vp-badge', 'vp-cat-other'];
+  var fields = ['vp-title', 'vp-brand', 'vp-desc', 'vp-price', 'vp-old-price', 'vp-stock', 'vp-badge', 'vp-cat-other', 'vp-parent-sku', 'vp-color-id', 'vp-size-id'];
   if (!product) {
     State.vendorEditingProductId = null;
     State.vendorUploadImageUrls = [];
@@ -6347,6 +8023,9 @@ function vendorSetUploadMode(product) {
     'vp-old-price': product.oldPrice != null ? product.oldPrice : '',
     'vp-stock': product.stock != null ? product.stock : '',
     'vp-badge': product.badge || '',
+    'vp-parent-sku': product.parent_sku || product.parentSku || '',
+    'vp-color-id': product.color_id || product.colorId || '',
+    'vp-size-id': product.size_id || product.sizeId || '',
   };
   Object.keys(fieldMap).forEach(function (id) {
     var el = document.getElementById(id);
@@ -6421,7 +8100,10 @@ async function deleteVendorProduct(productId) {
 
 async function uploadProduct() {
   const title = document.getElementById('vp-title')?.value?.trim();
-  const brand = document.getElementById('vp-brand')?.value?.trim();
+  const brand = 'Everest';
+  const parentSku = document.getElementById('vp-parent-sku')?.value?.trim();
+  const colorId = (document.getElementById('vp-color-id')?.value?.trim() || 'default');
+  const sizeId = (document.getElementById('vp-size-id')?.value?.trim() || 'one');
   const desc = document.getElementById('vp-desc')?.value?.trim();
   const price = parseFloat(document.getElementById('vp-price')?.value);
   const stock = parseInt(document.getElementById('vp-stock')?.value, 10);
@@ -6452,8 +8134,21 @@ async function uploadProduct() {
     return;
   }
 
-  if (!title || !brand || !desc || !Number.isFinite(price) || !Number.isFinite(stock)) {
-    toast('⚠️ Please fill all required fields (name, brand, description, price, stock).', 'error');
+  if (!title || !desc || !Number.isFinite(price) || !Number.isFinite(stock)) {
+    toast('⚠️ Please fill all required fields (name, description, price, stock).', 'error');
+    return;
+  }
+
+  if (!parentSku) {
+    toast('⚠️ Please enter a Parent SKU (e.g. NIKE-AF1) for Yasmine routing and vendor matching.', 'error');
+    return;
+  }
+
+  if (!editProductId && (colorId === 'default' || sizeId === 'one')) {
+    toast(
+      '⚠️ Sahel Phase 1: set Color ID and Size ID to real variant values (not default / one) so Universal SKU matching works across partners.',
+      'error'
+    );
     return;
   }
 
@@ -6465,6 +8160,22 @@ async function uploadProduct() {
   if (!State.currentUser || State.currentUser.role !== 'vendor') {
     toast('⚠️ You must be signed in as a vendor to upload.', 'error');
     return;
+  }
+
+  if (typeof EverestListingPolicy !== 'undefined' && typeof EverestListingPolicy.check === 'function') {
+    var _pol = EverestListingPolicy.check(title, desc);
+    if (_pol && _pol.blocked) {
+      var _why = (_pol.reasons || [])
+        .filter(function (r) {
+          return r && r.severity === 'block';
+        })
+        .map(function (r) {
+          return r.message;
+        })
+        .join(' ');
+      toast('⚠️ Listing blocked (Everest vendor rules): ' + (_why || 'Please revise title and description.'), 'error');
+      return;
+    }
   }
 
   var vendorIdRes = await resolveVendorIdForProductUpload();
@@ -6527,10 +8238,12 @@ async function uploadProduct() {
   const newProduct = {
     name: title,
     brand: brand,
+    brand_id: 'EVEREST',
     vendorId: effectiveVendorId,
     region: State.currentUser?.wilaya || 'Tunisia',
     cat: catSlug,
     category: catSlug,
+    category_id: catSlug,
     price,
     oldPrice,
     rating: 0,
@@ -6544,7 +8257,13 @@ async function uploadProduct() {
     stock,
     desc,
     created_at: new Date().toISOString(),
+    parent_sku: parentSku,
+    color_id: colorId,
+    size_id: sizeId,
   };
+  if (typeof EverestYasmineRouting !== 'undefined') {
+    EverestYasmineRouting.ensureProductSku(newProduct);
+  }
 
   if (categoryRow != null && categoryRow.id != null && categoryRow.id !== undefined) {
     newProduct.category_id = categoryRow.id;
@@ -6599,6 +8318,17 @@ async function uploadProduct() {
           delete tryPayload.region;
           regionRemoved = true;
           recovered = true;
+        } else if (/parent_sku|sku_dna|variant_id|color_id|size_id/i.test(m1) && /Could not find|column|schema|PGRST/i.test(m1)) {
+          delete tryPayload.parent_sku;
+          delete tryPayload.parentSku;
+          delete tryPayload.sku_dna;
+          delete tryPayload.variant_id;
+          delete tryPayload.variantId;
+          delete tryPayload.color_id;
+          delete tryPayload.colorId;
+          delete tryPayload.size_id;
+          delete tryPayload.sizeId;
+          recovered = true;
         }
         if (typeof STNLog !== 'undefined' && recovered) {
           STNLog.warn('vendor.uploadProduct', 'retry after API/schema mismatch', { attempt: attempt + 1, snippet: m1.slice(0, 160) });
@@ -6625,7 +8355,28 @@ async function uploadProduct() {
       image_url: imageUrl,
       product_images: imageList,
       vendorId: effectiveVendorId,
+      parent_sku: parentSku,
+      color_id: colorId,
+      size_id: sizeId,
     });
+    if (typeof EverestYasmineRouting !== 'undefined') {
+      EverestYasmineRouting.ensureProductSku(savedForUi);
+    }
+
+    if (savedProduct && savedProduct.id && typeof EverestYasmineRouting !== 'undefined' && typeof SB !== 'undefined' && SB.updateProduct) {
+      var skuPatch = Object.assign({}, savedForUi, { id: savedProduct.id });
+      EverestYasmineRouting.ensureProductSku(skuPatch);
+      try {
+        await SB.updateProduct(String(savedProduct.id), {
+          universal_sku: skuPatch.universal_sku,
+          category_id: skuPatch.category_id || catSlug,
+          brand_id: skuPatch.brand_id || 'EVEREST',
+          sku_dna: skuPatch.sku_dna,
+        });
+      } catch (skuErr) {
+        if (typeof STNLog !== 'undefined') STNLog.debug('vendor.uploadProduct', 'universal_sku patch optional', { message: skuErr && skuErr.message });
+      }
+    }
 
     if (editProductId) {
       var idx = State.products.findIndex(function (p) { return String(p.id) === String(editProductId); });
@@ -6684,7 +8435,7 @@ function submitCarpenterRequest() {
 
   const ref = 'CARP-' + Date.now().toString().slice(-6);
   document.getElementById('carp-ref').textContent = ref;
-  toast(`✦ Request ${ref} submitted! Artisan will contact you within 24h.`, 'success');
+  toast(`✦ Request ${ref} submitted! The Everest team will follow up within 24h.`, 'success');
 }
 
 // ── LOYALTY ──
@@ -6716,9 +8467,14 @@ function renderLoyalty() {
   setTimeout(function() { document.querySelectorAll('#page-loyalty .reveal').forEach(function(el){el.classList.add('visible');}); }, 100);
 }
 
-// ── ABOUT ──
+// ── ABOUT (customers) / RULES FOR VENDORS ──
 function renderAbout() {
-  // Make all reveal elements visible immediately
+  var isVendor = State.currentUser && State.currentUser.role === 'vendor';
+  var cust = document.getElementById('about-customer-wrap');
+  var vend = document.getElementById('about-vendor-wrap');
+  if (cust) cust.style.display = isVendor ? 'none' : '';
+  if (vend) vend.style.display = isVendor ? 'block' : 'none';
+  syncAboutNavLink();
   setTimeout(function() {
     document.querySelectorAll('#page-about .reveal').forEach(function(el) {
       el.classList.add('visible');
@@ -6791,7 +8547,6 @@ const FilterState = {
   inStock: true,
   outOfStock: false,
   freeShipping: false,
-  cashOnDelivery: false,
   onSale: false,
   sortBy: 'featured'
 };
@@ -6894,8 +8649,7 @@ function applyFilters() {
   // Update special offer filters
   const offerCheckboxes = document.querySelectorAll('.offer-item input[type="checkbox"]');
   FilterState.freeShipping = offerCheckboxes[0]?.checked || false;
-  FilterState.cashOnDelivery = offerCheckboxes[1]?.checked || false;
-  FilterState.onSale = offerCheckboxes[2]?.checked || false;
+  FilterState.onSale = offerCheckboxes[1]?.checked || false;
   
   // Update active filters display
   updateActiveFiltersBar();
@@ -6947,9 +8701,6 @@ function updateActiveFiltersBar() {
   // Add special offer filters
   if (FilterState.freeShipping) {
     activeFilters.push({ type: 'offer', value: 'free-shipping', label: 'Free Shipping' });
-  }
-  if (FilterState.cashOnDelivery) {
-    activeFilters.push({ type: 'offer', value: 'cod', label: 'Cash on Delivery' });
   }
   if (FilterState.onSale) {
     activeFilters.push({ type: 'offer', value: 'sale', label: 'On Sale' });
@@ -7003,7 +8754,7 @@ function removeFilter(type, value) {
       }
       break;
     case 'offer':
-      const offerIndex = ['free-shipping', 'cod', 'sale'].indexOf(value);
+      const offerIndex = ['free-shipping', 'sale'].indexOf(value);
       const offerCheckbox = document.querySelectorAll('.offer-item input[type="checkbox"]')[offerIndex];
       if (offerCheckbox) offerCheckbox.checked = false;
       break;
@@ -7045,7 +8796,6 @@ function clearAllFilters() {
   FilterState.inStock = true;
   FilterState.outOfStock = false;
   FilterState.freeShipping = false;
-  FilterState.cashOnDelivery = false;
   FilterState.onSale = false;
   
   updatePriceSlider();
@@ -8662,7 +10412,129 @@ async function refreshVendorData() {
 }
 let logisticsMap = null;
 let orderMarkers = [];
+let fleetMarkers = [];
 let driverMarker = null;
+
+function adminFleetGroupedOrders(orders) {
+  var byDriver = {};
+  var orphans = [];
+  (orders || []).forEach(function (o) {
+    var st = normalizeOrderStatus(o.status);
+    if (st === 'delivered' || st === 'canceled' || st === 'cancelled') return;
+    var did = o.driver_id != null ? o.driver_id : o.driverId;
+    var hasDriver = did != null && String(did).trim() !== '';
+    if (hasDriver) {
+      var k = String(did);
+      if (!byDriver[k]) byDriver[k] = [];
+      byDriver[k].push(o);
+    } else if (DELIVERY_ACTIVE_STATUSES.has(st)) {
+      orphans.push(o);
+    }
+  });
+  return { byDriver: byDriver, orphans: orphans };
+}
+
+function adminFleetMarkerLatLng(ordersList) {
+  if (!ordersList || !ordersList.length) return null;
+  for (var i = 0; i < ordersList.length; i++) {
+    var o = ordersList[i];
+    if (o.driver_lat != null && o.driver_lng != null && !Number.isNaN(+o.driver_lat) && !Number.isNaN(+o.driver_lng)) {
+      return [+o.driver_lat, +o.driver_lng];
+    }
+  }
+  return resolveOrderDestinationLatLng(ordersList[0]);
+}
+
+function adminFleetDriverBlockHtml(driverId) {
+  var users = window.__adminFleetUsers || [];
+  var d = users.find(function (u) {
+    return u.role === 'driver' && String(u.id) === String(driverId);
+  });
+  if (!d) {
+    return (
+      '<p style="margin:0 0 8px;font-size:12px;color:#64748b">Driver #' +
+      _detailEscapeHtml(String(driverId)) +
+      ' — profile not in synced staff list. Open <strong>Drivers</strong> tab.</p>'
+    );
+  }
+  var fn = (d.first_name || d.firstName || '').trim();
+  var ln = (d.last_name || d.lastName || '').trim();
+  var plate = (d.vehicle_plate_number || d.vehiclePlateNumber || '—').toString();
+  var vm = (d.vehicle_model || d.vehicleModel || '').toString();
+  var vc = (d.vehicle_color || d.vehicleColor || '').toString();
+  return (
+    '<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #e2e8f0">' +
+    '<div style="font-size:14px;font-weight:800;color:#0f172a">' +
+    _detailEscapeHtml((fn + ' ' + ln).trim() || 'Driver') +
+    '</div>' +
+    '<div style="font-size:11px;color:#475569;margin-top:4px;line-height:1.45">' +
+    _detailEscapeHtml(d.phone || '') +
+    ' · ' +
+    _detailEscapeHtml(d.email || '') +
+    '</div>' +
+    '<div style="font-size:11px;color:#64748b;margin-top:4px">Vehicle: ' +
+    _detailEscapeHtml(plate) +
+    ' · ' +
+    _detailEscapeHtml((vm + ' ' + vc).trim() || '—') +
+    '</div>' +
+    '<div style="font-size:10px;color:#94a3b8;margin-top:4px">ID ' +
+    _detailEscapeHtml(String(d.id)) +
+    ' · Wilaya ' +
+    _detailEscapeHtml(d.wilaya || '—') +
+    '</div></div>'
+  );
+}
+
+function adminFleetOrdersPopupHtml(driverId, list) {
+  var head = adminFleetDriverBlockHtml(driverId);
+  var rows = (list || []).map(function (o) {
+    var hub = o.hub_departure_scanned_at
+      ? new Date(o.hub_departure_scanned_at).toLocaleString('fr-TN', { timeZone: 'Africa/Tunis' })
+      : '—';
+    var sb = orderStatusBadge(o.status);
+    return (
+      '<tr><td style="padding:5px 4px;font-size:11px;vertical-align:top">' +
+      _detailEscapeHtml(String(o.tracking_number || o.id)) +
+      '</td><td style="padding:5px 4px;font-size:11px;vertical-align:top">' +
+      _detailEscapeHtml(String(o.client_name || o.phone || 'Guest')) +
+      '</td><td style="padding:5px 4px;font-size:11px;vertical-align:top">' +
+      _detailEscapeHtml(String(o.wilaya || '')) +
+      '</td><td style="padding:5px 4px;font-size:10px;vertical-align:top;max-width:120px">' +
+      _detailEscapeHtml(String(o.address || '').substring(0, 80)) +
+      '</td><td style="padding:5px 4px;font-size:11px;white-space:nowrap">' +
+      dashOrderTotal(o).toLocaleString() +
+      '</td><td style="padding:5px 4px;font-size:10px">' +
+      _detailEscapeHtml(sb.label) +
+      '</td><td style="padding:5px 4px;font-size:10px;color:#64748b;white-space:nowrap">' +
+      _detailEscapeHtml(hub) +
+      '</td></tr>'
+    );
+  }).join('');
+  return (
+    '<div style="min-width:300px;max-width:440px;font-family:Outfit,sans-serif">' +
+    head +
+    '<div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin:0 0 6px">Orders on this run</div>' +
+    '<table style="width:100%;border-collapse:collapse"><thead><tr style="font-size:9px;color:#94a3b8;text-transform:uppercase">' +
+    '<th align="left">Track</th><th align="left">Customer</th><th align="left">Wilaya</th><th align="left">Ship to</th><th align="left">Total</th><th align="left">Status</th><th align="left">Hub departure</th>' +
+    '</tr></thead><tbody>' +
+    rows +
+    '</tbody></table></div>'
+  );
+}
+
+function logisticsAdminFleetIcon(count) {
+  return L.divIcon({
+    html:
+      '<div style="position:relative">' +
+      '<div style="background:linear-gradient(135deg,#0f172a,#334155);color:#fff;width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:19px;border:3px solid #fff;box-shadow:0 4px 16px rgba(15,23,42,0.5)">🚚</div>' +
+      '<div style="position:absolute;top:-5px;right:-5px;background:#7c3aed;color:#fff;font-size:10px;font-weight:800;border-radius:999px;padding:2px 7px;border:2px solid #fff">' +
+      count +
+      '</div></div>',
+    className: 'admin-fleet-vehicle-marker',
+    iconSize: [46, 46],
+    iconAnchor: [23, 46],
+  });
+}
 
 function computeLogisticsKpis(orders) {
   var list = Array.isArray(orders) ? orders : [];
@@ -8739,12 +10611,6 @@ function initializeLogisticsMap() {
       maxZoom: 18,
     }).addTo(logisticsMap);
     
-    // Add custom styling for better Tunisia visibility
-    L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors, Tiles style by Humanitarian OpenStreetMap Team',
-      maxZoom: 18,
-    }).addTo(logisticsMap);
-    
     // Load order markers
     loadOrderMarkers();
     
@@ -8764,65 +10630,68 @@ function initializeLogisticsMap() {
   }
 }
 
-// Load order markers on map
+// Load fleet + package markers (admin logistics)
 function loadOrderMarkers() {
   if (!logisticsMap) return;
-  
-  // Clear existing markers
-  orderMarkers.forEach(marker => logisticsMap.removeLayer(marker));
+
+  orderMarkers.forEach(function (marker) {
+    logisticsMap.removeLayer(marker);
+  });
   orderMarkers = [];
-  
+  fleetMarkers.forEach(function (marker) {
+    logisticsMap.removeLayer(marker);
+  });
+  fleetMarkers = [];
+
   const orders = STN.DB.get('orders') || [];
-  const ordersWithCoords = orders.filter(function (order) {
-    const st = String(order.status || '').toLowerCase();
-    return (
-      st === 'shipped' ||
-      st === 'processing' ||
-      st === 'transit' ||
-      st === 'out_for_delivery' ||
-      st === 'out-for-delivery'
-    );
+  var grouped = adminFleetGroupedOrders(orders);
+  var driverKeys = Object.keys(grouped.byDriver);
+  var fleetCount = 0;
+  var packageOnly = [];
+
+  driverKeys.forEach(function (did) {
+    var list = grouped.byDriver[did];
+    if (!list || !list.length) return;
+    var pt = adminFleetMarkerLatLng(list);
+    if (!pt || pt.length < 2) return;
+    fleetCount++;
+    var m = L.marker([pt[0], pt[1]], { icon: logisticsAdminFleetIcon(list.length) }).addTo(logisticsMap);
+    m.bindPopup(adminFleetOrdersPopupHtml(did, list), { maxWidth: 480 });
+    fleetMarkers.push(m);
   });
 
-  document.getElementById('logistics-order-count').textContent = ordersWithCoords.length;
-  document.getElementById('logistics-active-count').textContent = ordersWithCoords.filter(function (o) {
-    return String(o.status || '').toLowerCase() === 'shipped';
-  }).length;
-
-  ordersWithCoords.forEach(function (order) {
-    const pt = resolveOrderDestinationLatLng(order);
+  grouped.orphans.forEach(function (order) {
+    var pt = resolveOrderDestinationLatLng(order);
     if (!pt || pt.length < 2) return;
-    const marker = L.marker([pt[0], pt[1]], {
-      icon: logisticsEverestPackageIcon(),
-    }).addTo(logisticsMap);
-      
-      // Add popup with order details
-      const popupContent = `
-        <div style="min-width: 200px; font-family: Outfit, sans-serif;">
-          <h4 style="margin: 0 0 8px 0; color: #1e0a4e; font-size: 14px;">
-            Order #${order.tracking_number || order.id}
-          </h4>
-          <div style="font-size: 12px; color: #374151; line-height: 1.4;">
-            <div><strong>Customer:</strong> ${order.phone || 'Guest'}</div>
-            <div><strong>Location:</strong> ${order.wilaya || 'Tunisia'}</div>
-            <div><strong>Status:</strong> <span style="
-              background: ${order.status === 'delivered' ? '#dcfce7' : order.status === 'shipped' ? '#dbeafe' : '#fef9c3'};
-              color: ${order.status === 'delivered' ? '#166534' : order.status === 'shipped' ? '#1d4ed8' : '#92400e'};
-              padding: 2px 6px;
-              border-radius: 12px;
-              font-size: 11px;
-              font-weight: 600;
-            ">${order.status || 'pending'}</span></div>
-            <div><strong>Total:</strong> ${(order.total || 0).toLocaleString()} TND</div>
-          </div>
-        </div>
-      `;
-      
+    packageOnly.push(order);
+    var marker = L.marker([pt[0], pt[1]], { icon: logisticsEverestPackageIcon() }).addTo(logisticsMap);
+    var popupContent =
+      '<div style="min-width:200px;font-family:Outfit,sans-serif;font-size:12px;color:#334155">' +
+      '<strong style="color:#1e0a4e">#' +
+      _detailEscapeHtml(String(order.tracking_number || order.id)) +
+      '</strong><br/>' +
+      _detailEscapeHtml(String(order.client_name || order.phone || 'Guest')) +
+      ' · ' +
+      _detailEscapeHtml(String(order.wilaya || '')) +
+      '<br/><strong>' +
+      (order.total != null ? Number(order.total).toLocaleString() : '0') +
+      ' TND</strong> · ' +
+      _detailEscapeHtml(orderStatusBadge(order.status).label) +
+      '</div>';
     marker.bindPopup(popupContent);
     orderMarkers.push(marker);
   });
 
-  updateOrderList(ordersWithCoords);
+  var activeList = driverKeys.reduce(function (acc, k) {
+    return acc.concat(grouped.byDriver[k] || []);
+  }, []).concat(grouped.orphans);
+
+  var oc = document.getElementById('logistics-order-count');
+  if (oc) oc.textContent = String(activeList.length);
+  var ac = document.getElementById('logistics-active-count');
+  if (ac) ac.textContent = String(fleetCount);
+
+  updateOrderList(activeList);
 }
 
 // Show order popup
@@ -8930,60 +10799,43 @@ function updateOrderList(orders) {
 }
 
 // Refresh logistics map
-function refreshLogisticsMap() {
-  if (logisticsMap) {
-    loadOrderMarkers();
-    renderAdminLogisticsKpis();
-    toast('🔄 Map refreshed with latest order data', 'success');
-  } else {
-    toast('⚠️ Map not loaded yet', 'error');
-  }
-}
-
-// Center on driver (mock implementation)
-function centerOnDriver() {
+async function refreshLogisticsMap() {
   if (!logisticsMap) {
-    toast('⚠️ Map not loaded yet', 'error');
+    toast('Map not loaded yet', 'error');
     return;
   }
-  
-  // Mock driver location - in real app, this would come from GPS tracking
-  const driverLocation = [36.8065, 10.1815]; // Tunis coordinates
-  
-  // Add/update driver marker
-  if (driverMarker) {
-    logisticsMap.removeLayer(driverMarker);
+  try {
+    if (typeof SB !== 'undefined' && SB.getOrders) {
+      var rx = await SB.getOrders();
+      if (Array.isArray(rx)) {
+        STN.DB.set('orders', rx);
+        State.orders = rx;
+      }
+    }
+  } catch (e) {
+    if (typeof STNLog !== 'undefined') STNLog.warn('refreshLogisticsMap', e && e.message);
   }
-  
-  const driverIcon = L.divIcon({
-    html: `
-      <div style="
-        background: linear-gradient(135deg, #059669, #047857);
-        color: white;
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 18px;
-        box-shadow: 0 3px 10px rgba(5, 150, 105, 0.4);
-        border: 3px solid white;
-        animation: pulse 2s infinite;
-      ">
-        🚚
-      </div>
-    `,
-    className: 'driver-marker',
-    iconSize: [40, 40],
-    iconAnchor: [20, 40]
-  });
-  
-  driverMarker = L.marker(driverLocation, { icon: driverIcon }).addTo(logisticsMap);
-  
-  // Center map on driver
-  logisticsMap.setView(driverLocation, 10);
-  
-  toast('📍 Centered on driver location', 'success');
+  try {
+    var merged = await mergeLocalAndRemoteUsersForAdmin();
+    window.__adminFleetUsers = merged;
+  } catch (e2) {}
+  loadOrderMarkers();
+  renderAdminLogisticsKpis();
+  toast('Fleet data refreshed', 'success');
 }
 
+function centerOnFleet() {
+  if (!logisticsMap) {
+    toast('Map not ready', 'error');
+    return;
+  }
+  var layers = fleetMarkers.concat(orderMarkers);
+  if (layers.length === 0) {
+    logisticsMap.setView([33.8869, 9.5375], 7);
+    toast('No active markers', 'default');
+    return;
+  }
+  var fg = L.featureGroup(layers);
+  logisticsMap.fitBounds(fg.getBounds().pad(0.12));
+  toast('Map fitted to vehicles & stops', 'success');
+}
