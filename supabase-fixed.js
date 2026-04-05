@@ -366,6 +366,62 @@ const SB = {
     }
   },
 
+  /**
+   * PostgREST RPC: POST /rest/v1/rpc/{fn}
+   * Args keys must match SQL parameter names (e.g. p_ops_secret).
+   */
+  async rpc(fnName, args) {
+    if (!fnName || typeof fnName !== 'string' || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(fnName)) {
+      throw new Error('Invalid RPC function name');
+    }
+    const url = `${SUPABASE_URL}/rest/v1/rpc/${encodeURIComponent(fnName)}`;
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(args && typeof args === 'object' ? args : {}),
+      });
+      const text = await res.text();
+      if (!res.ok) {
+        let msg = 'Supabase RPC error';
+        let detail = '';
+        try {
+          const errBody = text ? JSON.parse(text) : null;
+          if (Array.isArray(errBody) && errBody[0]) {
+            msg = errBody[0].message || errBody[0].error || msg;
+            detail = errBody[0].details || errBody[0].hint || '';
+          } else if (errBody && typeof errBody === 'object') {
+            msg = errBody.message || errBody.error_description || errBody.error || msg;
+            detail = errBody.details || errBody.hint || '';
+            if (detail && String(msg).indexOf(String(detail).slice(0, 24)) < 0) {
+              msg = msg + ' — ' + detail;
+            }
+          }
+        } catch (e) {}
+        const err = new Error(msg);
+        err.status = res.status;
+        err._stnLogged = true;
+        if (typeof window !== 'undefined' && window.STNLog) {
+          window.STNLog.error('SB.rpc.http', err, { fnName, status: res.status });
+        }
+        throw err;
+      }
+      if (!text) return null;
+      const data = JSON.parse(text);
+      if (Array.isArray(data) && data.length === 1) return data[0];
+      return data;
+    } catch (e) {
+      if (typeof window !== 'undefined' && window.STNLog && !e._stnLogged) {
+        window.STNLog.error('SB.rpc', e, { fnName });
+      }
+      throw e;
+    }
+  },
+
   // ── USERS ──
   async getUser(email) {
     const data = await this.req('GET', 'users', null, `?email=eq.${encodeURIComponent(email)}&limit=1`);

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Driver invite — Everest</title>
+<link rel="icon" type="image/png" href="assets/everest-logo.png"/>
+<style>
+  body { font-family: system-ui, sans-serif; background: #f8fafc; color: #0f172a; margin: 0; min-height: 100vh; padding: 1.5rem; }
+  .card { max-width: 28rem; margin: 2rem auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1.5rem; box-shadow: 0 8px 30px rgba(15,23,42,0.06); }
+  h1 { font-size: 1.25rem; margin: 0 0 0.5rem; }
+  p.note { font-size: 0.85rem; color: #64748b; line-height: 1.5; margin: 0 0 1rem; }
+  label { display: block; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-top: 0.75rem; }
+  input, select { width: 100%; margin-top: 0.35rem; padding: 0.55rem 0.65rem; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.9rem; box-sizing: border-box; }
+  button { margin-top: 1.25rem; width: 100%; padding: 0.75rem; border: none; border-radius: 10px; background: linear-gradient(135deg,#0369a1,#0ea5e9); color: #fff; font-weight: 700; font-size: 0.9rem; cursor: pointer; }
+  button:disabled { opacity: 0.6; cursor: not-allowed; }
+  .err { background: #fef2f2; color: #991b1b; padding: 0.65rem 0.75rem; border-radius: 8px; font-size: 0.85rem; margin-top: 0.75rem; display: none; }
+  .ok { background: #ecfdf5; color: #065f46; padding: 0.65rem 0.75rem; border-radius: 8px; font-size: 0.85rem; margin-top: 0.75rem; display: none; }
+  a { color: #0369a1; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Driver onboarding</h1>
+  <p class="note">This page works only with a valid <strong>one-time</strong> invite link from Everest staff. After you register, an admin still approves your account before you can take deliveries.</p>
+  <div id="msg-err" class="err"></div>
+  <div id="msg-ok" class="ok"></div>
+  <form id="drv-inv-form">
+    <label>First name</label>
+    <input id="drv-fname" required autocomplete="given-name" />
+    <label>Last name</label>
+    <input id="drv-lname" required autocomplete="family-name" />
+    <label>Email (sign-in)</label>
+    <input id="drv-email" type="email" required autocomplete="email" />
+    <label>Phone</label>
+    <input id="drv-phone" type="tel" required autocomplete="tel" />
+    <label>Wilaya</label>
+    <select id="drv-wilaya" required><option value="">Select…</option></select>
+    <label>Delegation</label>
+    <select id="drv-delegation" required><option value="">Select wilaya first…</option></select>
+    <label>Password (min 8)</label>
+    <input id="drv-pass" type="password" minlength="8" required autocomplete="new-password" />
+    <label>CIN (optional)</label>
+    <input id="drv-cin" />
+    <label>Vehicle plate (optional)</label>
+    <input id="drv-plate" />
+    <label>Vehicle model (optional)</label>
+    <input id="drv-vmodel" />
+    <label>Vehicle colour (optional)</label>
+    <input id="drv-vcolor" />
+    <button type="submit" id="drv-submit">Create my driver account</button>
+  </form>
+  <p class="note" style="margin-top:1.25rem;margin-bottom:0">Already registered? <a href="index.html">Open Everest</a> and sign in.</p>
+</div>
+<script src="data.js"></script>
+<script src="supabase-fixed.js"></script>
+<script>
+(function () {
+  var params = new URLSearchParams(window.location.search);
+  var token = (params.get('t') || params.get('token') || '').trim();
+  var form = document.getElementById('drv-inv-form');
+  var errEl = document.getElementById('msg-err');
+  var okEl = document.getElementById('msg-ok');
+  var wSel = document.getElementById('drv-wilaya');
+  var dSel = document.getElementById('drv-delegation');
+
+  function showErr(t) {
+    errEl.style.display = 'block';
+    errEl.textContent = t;
+    okEl.style.display = 'none';
+  }
+  function showOk(t) {
+    okEl.style.display = 'block';
+    okEl.textContent = t;
+    errEl.style.display = 'none';
+  }
+
+  if (!token || token.length < 16) {
+    showErr('Missing or invalid invite. Ask Everest for a fresh one-time link.');
+    if (form) form.style.display = 'none';
+    return;
+  }
+
+  var W = (window.STN && STN.WILAYAS) || {};
+  Object.keys(W).sort().forEach(function (w) {
+    var o = document.createElement('option');
+    o.value = w;
+    o.textContent = w;
+    wSel.appendChild(o);
+  });
+
+  function populateDelegations() {
+    var w = wSel.value;
+    var list = W[w] || [];
+    dSel.innerHTML = '<option value="">Select…</option>';
+    list.forEach(function (d) {
+      var o = document.createElement('option');
+      o.value = d;
+      o.textContent = d;
+      dSel.appendChild(o);
+    });
+  }
+  wSel.addEventListener('change', populateDelegations);
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    errEl.style.display = 'none';
+    if (typeof SB === 'undefined' || typeof SB.rpc !== 'function') {
+      showErr('App configuration error: SB.rpc missing.');
+      return;
+    }
+    var fname = document.getElementById('drv-fname').value.trim();
+    var lname = document.getElementById('drv-lname').value.trim();
+    var email = document.getElementById('drv-email').value.trim();
+    var phone = document.getElementById('drv-phone').value.trim();
+    var wilaya = wSel.value;
+    var del = dSel.value;
+    var pass = document.getElementById('drv-pass').value;
+    if (pass.length < 8) {
+      showErr('Password must be at least 8 characters.');
+      return;
+    }
+    var btn = document.getElementById('drv-submit');
+    btn.disabled = true;
+    btn.textContent = 'Creating account…';
+    try {
+      var r = await SB.rpc('stn_redeem_driver_invite', {
+        p_token: token,
+        p_email: email,
+        p_password: pass,
+        p_first_name: fname,
+        p_last_name: lname,
+        p_phone: phone,
+        p_wilaya: wilaya,
+        p_delegation: del,
+        p_id_card: (document.getElementById('drv-cin').value || '').trim(),
+        p_plate: (document.getElementById('drv-plate').value || '').trim(),
+        p_vmodel: (document.getElementById('drv-vmodel').value || '').trim(),
+        p_vcolor: (document.getElementById('drv-vcolor').value || '').trim(),
+      });
+      if (!r || r.ok !== true) {
+        var rs = (r && r.reason) || 'failed';
+        if (rs === 'invalid_used_or_expired') {
+          showErr('This invite was already used or expired. Ask for a new link.');
+        } else if (rs === 'email_exists') {
+          showErr('That email is already registered. Sign in on Everest or use another email.');
+        } else if (rs === 'bad_token') {
+          showErr('Invalid invite token.');
+        } else {
+          showErr((r && r.detail) ? String(r.detail) : 'Could not complete registration.');
+        }
+        btn.disabled = false;
+        btn.textContent = 'Create my driver account';
+        return;
+      }
+      form.style.display = 'none';
+      showOk('Account created. Wait for admin approval, then sign in on Everest with your email and password.');
+    } catch (ex) {
+      showErr(String((ex && ex.message) || ex || 'Network error').slice(0, 200));
+      btn.disabled = false;
+      btn.textContent = 'Create my driver account';
+    }
+  });
+})();
+</script>
+</body>
+</html>
