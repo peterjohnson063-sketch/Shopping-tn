@@ -10,29 +10,34 @@ ALTER TABLE public.users
 COMMENT ON COLUMN public.users.driver_photo_url IS 'Staff-uploaded face photo (public Storage URL)';
 COMMENT ON COLUMN public.users.vehicle_photo_url IS 'Staff-uploaded vehicle image (public Storage URL)';
 
+-- Drop every overload (regprocedure text can be ambiguous in some clients; use arg types).
 DO $dropall$
 DECLARE
   r RECORD;
 BEGIN
   FOR r IN
-    SELECT p.oid::regprocedure AS sig
-    FROM pg_proc p
-    JOIN pg_namespace n ON n.oid = p.pronamespace
+    SELECT
+      quote_ident(n.nspname) || '.' || quote_ident(p.proname) || '('
+        || pg_catalog.oidvectortypes(p.proargtypes) || ')' AS drop_cmd
+    FROM pg_catalog.pg_proc p
+    JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
     WHERE n.nspname = 'public'
       AND p.proname = 'stn_admin_create_driver'
       AND p.prokind = 'f'
   LOOP
-    EXECUTE 'DROP FUNCTION IF EXISTS ' || r.sig::text || ' CASCADE';
+    EXECUTE 'DROP FUNCTION IF EXISTS ' || r.drop_cmd || ' CASCADE';
   END LOOP;
   FOR r IN
-    SELECT p.oid::regprocedure AS sig
-    FROM pg_proc p
-    JOIN pg_namespace n ON n.oid = p.pronamespace
+    SELECT
+      quote_ident(n.nspname) || '.' || quote_ident(p.proname) || '('
+        || pg_catalog.oidvectortypes(p.proargtypes) || ')' AS drop_cmd
+    FROM pg_catalog.pg_proc p
+    JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
     WHERE n.nspname = 'public'
       AND p.proname = 'stn_redeem_driver_invite'
       AND p.prokind = 'f'
   LOOP
-    EXECUTE 'DROP FUNCTION IF EXISTS ' || r.sig::text || ' CASCADE';
+    EXECUTE 'DROP FUNCTION IF EXISTS ' || r.drop_cmd || ' CASCADE';
   END LOOP;
 END
 $dropall$;
@@ -242,12 +247,43 @@ EXCEPTION
 END;
 $f$;
 
-GRANT EXECUTE ON FUNCTION public.stn_admin_create_driver(
-  text, boolean, text, text, text, text, text, text, text, text, text, text, text, text, text, text, text
-) TO anon, authenticated;
+-- Grant on the exact signature (avoids 42725 when multiple overloads existed before this run).
+DO $grants$
+DECLARE
+  admin_args text;
+  redeem_args text;
+BEGIN
+  SELECT pg_catalog.oidvectortypes(p.proargtypes)
+  INTO admin_args
+  FROM pg_catalog.pg_proc p
+  JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname = 'public'
+    AND p.proname = 'stn_admin_create_driver'
+  ORDER BY p.oid DESC
+  LIMIT 1;
 
-GRANT EXECUTE ON FUNCTION public.stn_redeem_driver_invite(
-  text, text, text, text, text, text, text, text, text, text, text, text, text, text, text, text
-) TO anon, authenticated;
+  SELECT pg_catalog.oidvectortypes(p.proargtypes)
+  INTO redeem_args
+  FROM pg_catalog.pg_proc p
+  JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname = 'public'
+    AND p.proname = 'stn_redeem_driver_invite'
+  ORDER BY p.oid DESC
+  LIMIT 1;
+
+  IF admin_args IS NOT NULL THEN
+    EXECUTE format(
+      'GRANT EXECUTE ON FUNCTION public.stn_admin_create_driver(%s) TO anon, authenticated',
+      admin_args
+    );
+  END IF;
+  IF redeem_args IS NOT NULL THEN
+    EXECUTE format(
+      'GRANT EXECUTE ON FUNCTION public.stn_redeem_driver_invite(%s) TO anon, authenticated',
+      redeem_args
+    );
+  END IF;
+END
+$grants$;
 
 NOTIFY pgrst, 'reload schema';
