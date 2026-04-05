@@ -5264,23 +5264,11 @@ async function switchAdmin(section) {
         '<div style="background:linear-gradient(135deg,#f0f9ff,#ecfeff);border:1px solid #bae6fd;border-radius:16px;padding:1.35rem 1.5rem;margin-bottom:1.5rem;box-shadow:0 4px 18px rgba(14,165,233,0.08)">' +
         '<h2 style="margin:0 0 0.35rem;font-size:1.08rem;font-weight:800;color:#0c4a6e;letter-spacing:-0.02em">Add delivery driver</h2>' +
         '<p style="margin:0 0 0.75rem;font-size:0.8rem;color:#0369a1;line-height:1.5;max-width:52rem">Register a driver so they appear in assignment. They <strong>sign in</strong> with the email and password you set. Public signup does not create driver accounts.</p>' +
-        '<p style="margin:0 0 0.65rem;font-size:0.72rem;color:#0c4a6e;line-height:1.45;max-width:52rem;border-left:3px solid #38bdf8;padding-left:0.65rem;background:rgba(255,255,255,0.55);border-radius:0 8px 8px 0;padding-top:0.45rem;padding-bottom:0.45rem"><strong>Security:</strong> After the database migration runs, each <strong>one-time invite link</strong> uses a new random token (share with only one person). <strong>Approve / Reject / Ban</strong> on driver cards below are unchanged — keep using them to review accounts.</p>' +
+        '<p style="margin:0 0 0.65rem;font-size:0.72rem;color:#0c4a6e;line-height:1.45;max-width:52rem;border-left:3px solid #38bdf8;padding-left:0.65rem;background:rgba(255,255,255,0.55);border-radius:0 8px 8px 0;padding-top:0.45rem;padding-bottom:0.45rem">Drivers are added <strong>only by staff</strong> here — not from public signup. Upload ID photos, then use <strong>Approve</strong> or <strong>Reject (ban)</strong> on each card.</p>' +
         '<div style="margin:0 0 1rem;max-width:36rem">' +
         '<label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Driver operations secret</label>' +
-        '<input id="adm-drv-ops-secret" type="password" autocomplete="off" style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #7dd3fc;font-size:0.82rem;background:white" placeholder="Same value as public.stn_driver_invite_settings.invite_ops_secret in Supabase"/>' +
-        '<p style="margin:0.35rem 0 0;font-size:0.68rem;color:#64748b;line-height:1.4">Stored only in this browser (session) after you leave the field. Never share it in chat or email.</p></div>' +
-        '<div style="display:flex;flex-wrap:wrap;gap:0.65rem;align-items:flex-end;margin-bottom:1rem">' +
-        '<div style="min-width:140px">' +
-        '<label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Invite valid (hours)</label>' +
-        '<input id="adm-drv-invite-ttl" type="number" min="1" max="2160" value="168" style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.5rem 0.6rem;border-radius:8px;border:1px solid #e2e8f0;font-size:0.82rem"/>' +
-        '</div>' +
-        '<button type="button" id="adm-drv-invite-mint" onclick="adminMintDriverInviteLink()" style="background:#0f172a;color:#fff;border:none;padding:0.65rem 1.1rem;border-radius:10px;font-size:0.8rem;font-weight:700;cursor:pointer">Generate new one-time invite link</button>' +
-        '</div>' +
-        '<div id="adm-drv-invite-out" style="display:none;margin:0 0 1rem;padding:0.85rem 1rem;background:white;border:1px solid #bae6fd;border-radius:10px;max-width:52rem">' +
-        '<p style="margin:0 0 0.45rem;font-size:0.72rem;font-weight:700;color:#0c4a6e;text-transform:uppercase;letter-spacing:0.06em">Single-use link (do not post publicly)</p>' +
-        '<input id="adm-drv-invite-url" readonly type="text" style="width:100%;box-sizing:border-box;padding:0.5rem 0.55rem;border-radius:6px;border:1px solid #e2e8f0;font-size:0.72rem;font-family:ui-monospace,monospace"/>' +
-        '<p id="adm-drv-invite-exp" style="margin:0.45rem 0 0;font-size:0.68rem;color:#64748b"></p>' +
-        '<button type="button" onclick="adminCopyDriverInviteUrl()" style="margin-top:0.55rem;background:#0369a1;color:#fff;border:none;padding:0.45rem 0.9rem;border-radius:8px;font-size:0.75rem;font-weight:600;cursor:pointer">Copy link</button></div>' +
+        '<input id="adm-drv-ops-secret" type="password" autocomplete="off" style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #7dd3fc;font-size:0.82rem;background:white" placeholder="Supabase: stn_driver_invite_settings.invite_ops_secret"/>' +
+        '<p style="margin:0.35rem 0 0;font-size:0.68rem;color:#64748b;line-height:1.4">Saved in this browser session when you leave the field.</p></div>' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.85rem">' +
         '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">First name *</label><input id="adm-drv-nfname" type="text" class="form-input" style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #e2e8f0;font-size:0.82rem" placeholder="Mohamed"/></div>' +
         '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Last name *</label><input id="adm-drv-nlname" type="text" class="form-input" style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #e2e8f0;font-size:0.82rem" placeholder="Trabelsi"/></div>' +
@@ -5295,6 +5283,20 @@ async function switchAdmin(section) {
         '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Plate (optional)</label><input id="adm-drv-nplate" type="text" style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #e2e8f0;font-size:0.82rem"/></div>' +
         '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Vehicle model</label><input id="adm-drv-nvmodel" type="text" style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #e2e8f0;font-size:0.82rem"/></div>' +
         '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Vehicle colour</label><input id="adm-drv-nvcolor" type="text" style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #e2e8f0;font-size:0.82rem"/></div>' +
+        '<div style="grid-column:1/-1;margin-top:0.15rem;padding:1.05rem 1.1rem;background:rgba(255,255,255,0.92);border:1px solid #bae6fd;border-radius:14px">' +
+        '<p style="margin:0 0 0.5rem;font-size:0.78rem;font-weight:800;color:#0c4a6e">Verification photos — required</p>' +
+        '<p style="margin:0 0 0.85rem;font-size:0.7rem;color:#64748b;line-height:1.45">Use the <strong>driver-kyc</strong> bucket in Supabase Storage (public read). Max ~8 MB per image.</p>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem">' +
+        '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">CIN card photo *</label>' +
+        '<input type="file" id="adm-drv-file-cin" accept="image/*" onchange="adminDriverKycPreview(this,\'adm-drv-prev-cin\')" style="margin-top:0.35rem;width:100%;font-size:0.72rem"/>' +
+        '<div id="adm-drv-prev-cin" style="margin-top:0.45rem;min-height:44px"></div></div>' +
+        '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Driving licence photo *</label>' +
+        '<input type="file" id="adm-drv-file-licence" accept="image/*" onchange="adminDriverKycPreview(this,\'adm-drv-prev-licence\')" style="margin-top:0.35rem;width:100%;font-size:0.72rem"/>' +
+        '<div id="adm-drv-prev-licence" style="margin-top:0.45rem;min-height:44px"></div></div>' +
+        '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Driver face photo *</label>' +
+        '<input type="file" id="adm-drv-file-portrait" accept="image/*" onchange="adminDriverKycPreview(this,\'adm-drv-prev-portrait\')" style="margin-top:0.35rem;width:100%;font-size:0.72rem"/>' +
+        '<div id="adm-drv-prev-portrait" style="margin-top:0.45rem;min-height:44px"></div></div>' +
+        '</div></div>' +
         '</div>' +
         '<label style="display:flex;align-items:flex-start;gap:0.55rem;margin:1rem 0 0.85rem;font-size:0.8rem;color:#0f172a;cursor:pointer;max-width:40rem;line-height:1.45">' +
         '<input type="checkbox" id="adm-drv-nverify" style="accent-color:#059669;width:18px;height:18px;margin-top:0.15rem;flex-shrink:0"/>' +
@@ -5312,6 +5314,7 @@ async function switchAdmin(section) {
                 var isBanned = !!d.banned;
                 var cinU = (d.cin_document_url || '').toString().trim();
                 var licU = (d.license_document_url || '').toString().trim();
+                var photoU = (d.driver_photo_url || '').toString().trim();
                 var plate = d.vehicle_plate_number || d.vehiclePlateNumber || '';
                 var vmodel = d.vehicle_model || d.vehicleModel || '';
                 var vcolor = d.vehicle_color || d.vehicleColor || '';
@@ -5386,6 +5389,8 @@ async function switchAdmin(section) {
                   _admDriverDocPreview(cinU, 'CIN') +
                   '</div><div><p style="font-size:0.7rem;font-weight:600;color:#0369a1;margin:0 0 0.45rem">Driving licence</p>' +
                   _admDriverDocPreview(licU, 'licence') +
+                  '</div><div><p style="font-size:0.7rem;font-weight:600;color:#0369a1;margin:0 0 0.45rem">Driver face (staff)</p>' +
+                  _admDriverDocPreview(photoU, 'portrait') +
                   '</div></div>' +
                   '<div style="display:flex;flex-wrap:wrap;gap:0.65rem;align-items:center">' +
                   actions +
@@ -6219,6 +6224,51 @@ async function unbanUser(userId) {
   switchAdmin(activeSection);
 }
 
+/** Local preview for admin driver KYC file inputs (Drivers tab). */
+function adminDriverKycPreview(input, previewId) {
+  var prev = document.getElementById(previewId);
+  if (!prev) return;
+  if (!input || !input.files || !input.files[0]) {
+    prev.innerHTML = '';
+    return;
+  }
+  var file = input.files[0];
+  if (file.size > 8 * 1024 * 1024) {
+    toast('Image too large (max 8 MB)', 'error');
+    input.value = '';
+    prev.innerHTML = '';
+    return;
+  }
+  var fr = new FileReader();
+  fr.onload = function () {
+    prev.innerHTML =
+      '<img src="' +
+      fr.result +
+      '" alt="" style="max-width:100%;max-height:130px;border-radius:8px;object-fit:contain;border:1px solid #e2e8f0;background:#f8fafc"/>';
+  };
+  fr.readAsDataURL(file);
+}
+
+/** Upload one KYC image to Supabase Storage bucket `driver-kyc`. */
+async function adminUploadDriverKycImage(file, labelSlug) {
+  if (!file) throw new Error('Missing file');
+  if (typeof SB === 'undefined' || typeof SB.uploadStorageObject !== 'function') {
+    throw new Error('Storage upload not available');
+  }
+  var ext = '.jpg';
+  var mt = (file.type || '').toLowerCase();
+  if (mt.indexOf('png') >= 0) ext = '.png';
+  else if (mt.indexOf('webp') >= 0) ext = '.webp';
+  var stamp = Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+  var safe = String(labelSlug || 'doc')
+    .replace(/[^a-z0-9_-]/gi, '')
+    .slice(0, 32);
+  var path = 'staff/' + stamp + '_' + safe + ext;
+  var ct = file.type && file.type.indexOf('image/') === 0 ? file.type : 'image/jpeg';
+  var r = await SB.uploadStorageObject('driver-kyc', path, file, ct);
+  return r.publicUrl;
+}
+
 /** Fill delegation dropdown when admin adds a driver (Drivers tab). */
 function adminDriverPopulateDelegations() {
   var wilaya = document.getElementById('adm-drv-nwilaya') && document.getElementById('adm-drv-nwilaya').value;
@@ -6286,6 +6336,22 @@ async function adminCreateDriverFromDashboard() {
     return;
   }
 
+  var elCinF = document.getElementById('adm-drv-file-cin');
+  var elLicF = document.getElementById('adm-drv-file-licence');
+  var elFaceF = document.getElementById('adm-drv-file-portrait');
+  if (!elCinF || !elCinF.files || !elCinF.files[0]) {
+    toast('Upload a photo of the CIN card', 'error');
+    return;
+  }
+  if (!elLicF || !elLicF.files || !elLicF.files[0]) {
+    toast('Upload a photo of the driving licence', 'error');
+    return;
+  }
+  if (!elFaceF || !elFaceF.files || !elFaceF.files[0]) {
+    toast('Upload a clear face photo of the driver', 'error');
+    return;
+  }
+
   try {
     if (SB.getUser) {
       var ex = await SB.getUser(email);
@@ -6299,8 +6365,31 @@ async function adminCreateDriverFromDashboard() {
   var btn = document.getElementById('adm-drv-submit');
   if (btn) {
     btn.disabled = true;
-    btn.textContent = 'Saving…';
+    btn.textContent = 'Uploading photos…';
   }
+
+  var cinUrl;
+  var licUrl;
+  var faceUrl;
+  try {
+    cinUrl = await adminUploadDriverKycImage(elCinF.files[0], 'cin');
+    licUrl = await adminUploadDriverKycImage(elLicF.files[0], 'licence');
+    faceUrl = await adminUploadDriverKycImage(elFaceF.files[0], 'portrait');
+  } catch (upE) {
+    if (typeof STNLog !== 'undefined') STNLog.error('adminDriverKycUpload', upE);
+    toast(
+      'Photo upload failed — in Supabase create a public bucket driver-kyc and allow INSERT for anon. ' +
+        String((upE && upE.message) || upE).slice(0, 100),
+      'error'
+    );
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Save driver';
+    }
+    return;
+  }
+
+  if (btn) btn.textContent = 'Saving…';
 
   var userPayload = {
     email: email,
@@ -6317,6 +6406,9 @@ async function adminCreateDriverFromDashboard() {
     avatar: '🚚',
     shop_name: null,
     specialty: null,
+    cin_document_url: cinUrl,
+    license_document_url: licUrl,
+    driver_photo_url: faceUrl,
   };
   if (cin) userPayload.id_card_number = cin;
   if (plate) userPayload.vehicle_plate_number = plate;
@@ -6349,9 +6441,10 @@ async function adminCreateDriverFromDashboard() {
 
   try {
     var newUser = null;
+    var kycNeedsPatch = false;
     if (typeof SB.rpc === 'function' && opsSec) {
       try {
-        var rpcRes = await SB.rpc('stn_admin_create_driver', {
+        var rpcArgsFull = {
           p_ops_secret: opsSec,
           p_approve_immediate: approveNow,
           p_email: email,
@@ -6365,7 +6458,39 @@ async function adminCreateDriverFromDashboard() {
           p_plate: plate || '',
           p_vmodel: vmodel || '',
           p_vcolor: vcolor || '',
-        });
+          p_cin_doc_url: cinUrl || '',
+          p_license_doc_url: licUrl || '',
+          p_driver_photo_url: faceUrl || '',
+        };
+        var rpcArgsLegacy = {
+          p_ops_secret: opsSec,
+          p_approve_immediate: approveNow,
+          p_email: email,
+          p_password: pass,
+          p_first_name: fname,
+          p_last_name: lname,
+          p_phone: phone,
+          p_wilaya: wilaya,
+          p_delegation: delegation,
+          p_id_card: cin || '',
+          p_plate: plate || '',
+          p_vmodel: vmodel || '',
+          p_vcolor: vcolor || '',
+        };
+        var rpcRes = null;
+        try {
+          rpcRes = await SB.rpc('stn_admin_create_driver', rpcArgsFull);
+        } catch (rpcShapeErr) {
+          var shapeMsg = String((rpcShapeErr && rpcShapeErr.message) || '');
+          if (
+            /PGRST202|could not find function|does not exist|matching the given|42883/i.test(shapeMsg)
+          ) {
+            rpcRes = await SB.rpc('stn_admin_create_driver', rpcArgsLegacy);
+            kycNeedsPatch = true;
+          } else {
+            throw rpcShapeErr;
+          }
+        }
         if (rpcRes && rpcRes.ok === false) {
           var rs = rpcRes.reason || 'failed';
           if (rs === 'bad_secret') {
@@ -6386,6 +6511,18 @@ async function adminCreateDriverFromDashboard() {
         }
         if (rpcRes && rpcRes.ok === true && rpcRes.id && SB.getUserById) {
           newUser = await SB.getUserById(rpcRes.id);
+        }
+        if (newUser && kycNeedsPatch && typeof SB.updateUser === 'function') {
+          try {
+            await SB.updateUser(newUser.id, {
+              cin_document_url: cinUrl,
+              license_document_url: licUrl,
+              driver_photo_url: faceUrl,
+            });
+            newUser = await SB.getUserById(newUser.id);
+          } catch (pe) {
+            if (typeof STNLog !== 'undefined') STNLog.warn('adminCreateDriver.kycPatch', pe);
+          }
         }
       } catch (rpcErr) {
         if (!_rpcMissing(rpcErr)) {
@@ -6423,6 +6560,24 @@ async function adminCreateDriverFromDashboard() {
     }
 
     if (newUser && newUser._stnInsertFallbackLevel != null) delete newUser._stnInsertFallbackLevel;
+    if (
+      newUser &&
+      cinUrl &&
+      typeof SB.updateUser === 'function' &&
+      (String(newUser.cin_document_url || '').trim() === '' ||
+        String(newUser.driver_photo_url || '').trim() === '')
+    ) {
+      try {
+        await SB.updateUser(newUser.id, {
+          cin_document_url: cinUrl,
+          license_document_url: licUrl,
+          driver_photo_url: faceUrl,
+        });
+        if (SB.getUserById) newUser = await SB.getUserById(newUser.id);
+      } catch (kycFix) {
+        if (typeof STNLog !== 'undefined') STNLog.warn('adminCreateDriver.kycFix', kycFix);
+      }
+    }
     _adminMergeDriverIntoLocal(newUser);
 
     toast(
@@ -6443,88 +6598,9 @@ async function adminCreateDriverFromDashboard() {
   }
 }
 
-/** Admin: mint a fresh single-use driver onboarding URL (requires ops secret + DB migration). */
-async function adminMintDriverInviteLink() {
-  if (!State.currentUser || State.currentUser.role !== 'admin') {
-    toast('Admin access required', 'error');
-    return;
-  }
-  if (typeof SB === 'undefined' || typeof SB.rpc !== 'function') {
-    toast('Invite links need SB.rpc — deploy latest supabase-fixed.js and run the driver-invite migration', 'error');
-    return;
-  }
-  var secEl = document.getElementById('adm-drv-ops-secret');
-  var opsSec = (secEl && secEl.value) || '';
-  opsSec = String(opsSec).trim();
-  if (!opsSec) {
-    toast('Enter the driver operations secret first (same as Supabase stn_driver_invite_settings)', 'error');
-    return;
-  }
-  var ttlEl = document.getElementById('adm-drv-invite-ttl');
-  var ttl = ttlEl ? parseInt(String(ttlEl.value || '168'), 10) : 168;
-  if (!Number.isFinite(ttl) || ttl < 1) ttl = 168;
-  var mintBtn = document.getElementById('adm-drv-invite-mint');
-  if (mintBtn) {
-    mintBtn.disabled = true;
-    mintBtn.textContent = 'Generating…';
-  }
-  try {
-    var r = await SB.rpc('stn_mint_driver_invite', { p_ops_secret: opsSec, p_ttl_hours: ttl });
-    if (!r || r.ok !== true || !r.token) {
-      if (r && r.reason === 'bad_secret') toast('Wrong operations secret', 'error');
-      else toast('Could not create invite (run SQL migration / check secret)', 'error');
-      return;
-    }
-    var invitePage = new URL('driver-invite.html', window.location.href);
-    invitePage.searchParams.set('t', r.token);
-    var href = invitePage.href;
-    var wrap = document.getElementById('adm-drv-invite-out');
-    var urlInp = document.getElementById('adm-drv-invite-url');
-    var expEl = document.getElementById('adm-drv-invite-exp');
-    if (urlInp) urlInp.value = href;
-    if (expEl) {
-      expEl.textContent = r.expires_at
-        ? 'Expires: ' + new Date(r.expires_at).toLocaleString()
-        : 'One registration only — then the link stops working.';
-    }
-    if (wrap) wrap.style.display = 'block';
-    toast('New one-time link — send to one driver only', 'success');
-  } catch (e) {
-    if (typeof STNLog !== 'undefined') STNLog.error('adminMintInvite', e);
-    toast(String((e && e.message) || e || 'Invite RPC failed').slice(0, 180), 'error');
-  } finally {
-    if (mintBtn) {
-      mintBtn.disabled = false;
-      mintBtn.textContent = 'Generate new one-time invite link';
-    }
-  }
-}
-
-function adminCopyDriverInviteUrl() {
-  var urlInp = document.getElementById('adm-drv-invite-url');
-  if (!urlInp || !urlInp.value) {
-    toast('Generate a link first', 'error');
-    return;
-  }
-  urlInp.select();
-  urlInp.setSelectionRange(0, 99999);
-  try {
-    navigator.clipboard.writeText(urlInp.value);
-    toast('Copied invite link', 'success');
-  } catch (c) {
-    try {
-      document.execCommand('copy');
-      toast('Copied invite link', 'success');
-    } catch (d) {
-      toast('Select the link and copy manually', 'error');
-    }
-  }
-}
-
 window.adminDriverPopulateDelegations = adminDriverPopulateDelegations;
 window.adminCreateDriverFromDashboard = adminCreateDriverFromDashboard;
-window.adminMintDriverInviteLink = adminMintDriverInviteLink;
-window.adminCopyDriverInviteUrl = adminCopyDriverInviteUrl;
+window.adminDriverKycPreview = adminDriverKycPreview;
 
 /** Permanently remove a user from Supabase + local demo list (admin only). */
 async function adminDeleteUserAccount(userId) {
