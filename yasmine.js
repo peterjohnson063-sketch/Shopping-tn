@@ -373,6 +373,7 @@ var AI = (function(){
   var history = [];
   var currentLang = 'fr';
   var isOpen = false;
+  var isSending = false;
 
   /**
    * Google AI Studio keys use the Generative Language API (free tier / rate limits per AI Studio).
@@ -620,6 +621,8 @@ var AI = (function(){
     var fb = getOfflineReply(userMsg);
     history.push({ role: 'assistant', content: fb });
     appendMsg('bot', fb);
+    isSending = false;
+    syncComposerUi();
   }
 
   /** User-facing hint — avoids echoing raw Google strings like "API key expired" in the chat bubble. */
@@ -704,7 +707,9 @@ Rules you must follow:
 Everest facts: artisans from Monastir, Ksar Hellal, Sfax, Nabeul, Kairouan and the Sahel; mission connects Sahel craftsmanship with customers in 50+ countries (as on About). Delivery often 24–48h in Tunisia. Free shipping over 500 TND. Promo codes: EVEREST10 (10% off), SAHEL20 (20% off), WELCOME50 (50 TND off). Sample product lines: furniture, ceramics, lighting, rugs, bedroom sets, custom furniture. Values: artisan-first, sustainable craft, quality.`;
 
   function sendMessage(userMsg){
-    if(!userMsg || !userMsg.trim()) return;
+    if(!userMsg || !userMsg.trim() || isSending) return;
+    isSending = true;
+    syncComposerUi();
     _yasmineLastAiError = '';
     history.push({role:'user', content: userMsg});
     appendMsg('user', userMsg);
@@ -732,6 +737,8 @@ Everest facts: artisans from Monastir, Ksar Hellal, Sfax, Nabeul, Kairouan and t
       removeTyping();
       history.push({ role: 'assistant', content: directText });
       appendMsg('bot', directText);
+      isSending = false;
+      syncComposerUi();
     }
 
     var modelsList = buildGeminiModelList();
@@ -837,10 +844,50 @@ Everest facts: artisans from Monastir, Ksar Hellal, Sfax, Nabeul, Kairouan and t
     if(t) t.remove();
   }
 
+  function composerLabels() {
+    if (currentLang === 'ar') {
+      return {
+        placeholder: 'اسأل عن الطلبات، المنتجات، أو إرسال هدية...',
+        sendTitle: 'إرسال',
+      };
+    }
+    if (currentLang === 'en') {
+      return {
+        placeholder: 'Ask about products, orders, or gift checkout...',
+        sendTitle: 'Send',
+      };
+    }
+    return {
+      placeholder: 'Posez une question sur produits, commandes, ou cadeau...',
+      sendTitle: 'Envoyer',
+    };
+  }
+
+  function syncComposerUi() {
+    var inp = document.getElementById('yasmine-input');
+    var sendBtn = null;
+    if (inp && inp.parentElement) {
+      sendBtn = inp.parentElement.querySelector('button');
+    }
+    var lb = composerLabels();
+    if (inp) {
+      inp.placeholder = lb.placeholder;
+      inp.disabled = !!isSending;
+      inp.style.opacity = isSending ? '0.75' : '1';
+    }
+    if (sendBtn) {
+      sendBtn.disabled = !!isSending;
+      sendBtn.title = lb.sendTitle;
+      sendBtn.style.opacity = isSending ? '0.7' : '1';
+      sendBtn.style.cursor = isSending ? 'not-allowed' : 'pointer';
+    }
+  }
+
   function toggle(){
     isOpen = !isOpen;
     var panel = document.getElementById('yasmine-panel');
     if(panel) panel.style.display = isOpen ? 'flex' : 'none';
+    if (isOpen) syncComposerUi();
     if(isOpen && !document.querySelector('.ym-msg')) {
       appendMsg('bot', currentLang==='ar' ? 'مرحبا! \u0623\u0646\u0627 \u064a\u0627\u0633\u0645\u064a\u0646\u060c \u0643\u064a\u0641 \u064a\u0645\u0643\u0646\u0646\u064a \u0645\u0633\u0627\u0639\u062f\u062a\u0643?' : currentLang==='en' ? 'Hi! I\'m Yasmine. How can I help you today?' : 'Bonjour! Je suis Yasmine. Comment puis-je vous aider?');
     }
@@ -873,7 +920,7 @@ Everest facts: artisans from Monastir, Ksar Hellal, Sfax, Nabeul, Kairouan and t
     send: function(){ var inp=document.getElementById('yasmine-input'); if(inp && inp.value.trim()){sendMessage(inp.value.trim());inp.value='';} },
     key: handleKey,
     quick: quickBtn,
-    setLang: function(l){ currentLang=l; }
+    setLang: function(l){ currentLang=l; syncComposerUi(); }
   };
 })();
 
