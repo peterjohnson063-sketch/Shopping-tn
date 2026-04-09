@@ -3175,25 +3175,8 @@ function renderAuth() {
           <input type="password" class="form-input" id="reg-pass2" placeholder="Repeat password"/>
         </div>
         <div class="form-group" style="margin-bottom:1.5rem;padding:1rem;background:#f5f2ff;border-radius:12px;border:1px solid rgba(107,63,212,0.2)">
-          <label style="display:flex;align-items:center;gap:0.8rem;cursor:pointer">
-            <input type="checkbox" id="reg-is-vendor" onchange="document.getElementById('reg-vendor-fields').style.display=this.checked?'block':'none'" style="width:18px;height:18px;accent-color:#7c3aed"/>
-            <span style="font-size:0.85rem;color:#1e0a4e;font-weight:500">🏪 I partner with Everest as a supplier / fulfillment partner</span>
-          </label>
-          <p style="font-size:0.7rem;color:var(--text-muted);margin:0.65rem 0 0 1.95rem;line-height:1.45">Delivery drivers are invited by Everest — they cannot sign up here. You will be assigned a driver for your orders.</p>
-        </div>
-        <div id="reg-vendor-fields" style="display:none;margin-bottom:1.5rem;padding:1rem;background:#f8f7ff;border-radius:12px;border:1px solid rgba(107,63,212,0.15)">
-          <p style="font-size:0.78rem;color:#5b21b6;line-height:1.5;margin-bottom:1rem">Everest is the storefront and brand. Your partner profile is for operations only — shoppers see Everest, not separate shop names.</p>
-          <div class="form-group">
-            <label class="form-label">What do you make?</label>
-            <select class="form-select" id="reg-specialty">
-              <option value="furniture">🪑 Furniture & Wood</option>
-              <option value="lighting">💡 Lighting & Lamps</option>
-              <option value="ceramics">🏺 Ceramics & Pottery</option>
-              <option value="textiles">🧵 Textiles & Rugs</option>
-              <option value="decor">🎭 Home Decor</option>
-              <option value="outdoor">🌿 Outdoor & Garden</option>
-            </select>
-          </div>
+          <p style="font-size:0.82rem;color:#1e0a4e;font-weight:600;margin:0">Seller and driver accounts are created by Everest Admin only.</p>
+          <p style="font-size:0.72rem;color:var(--text-muted);margin:0.55rem 0 0;line-height:1.45">Public signup creates a customer account only. If you are a Najjar partner, contact Everest support for onboarding and verification.</p>
         </div>
         <button class="btn btn-gold btn-full btn-lg" onclick="doRegister()">Create Account →</button>
       </div>
@@ -3206,16 +3189,6 @@ function switchAuthTab(tab) {
   document.getElementById('auth-register').style.display = tab === 'register' ? 'block' : 'none';
   document.getElementById('tab-login').classList.toggle('active', tab === 'login');
   document.getElementById('tab-register').classList.toggle('active', tab === 'register');
-  // Add vendor toggle listener
-  setTimeout(() => {
-    const cb = document.getElementById('reg-is-vendor');
-    const fields = document.getElementById('reg-vendor-fields');
-    if (cb && fields) {
-      cb.onchange = () => {
-        fields.style.display = cb.checked ? 'block' : 'none';
-      };
-    }
-  }, 100);
 }
 
 function populateDelegations() {
@@ -3395,11 +3368,8 @@ async function doRegister() {
   const users = STN.DB.get('users') || [];
   if (users.find(u => u.email === email)) { toast('⚠️ Email already registered', 'error'); return; }
 
-  const isVendor = document.getElementById('reg-is-vendor')?.checked;
-  const specialty = document.getElementById('reg-specialty')?.value;
-
   try {
-    var regRole = isVendor ? 'vendor' : 'customer';
+    var regRole = 'customer';
 
     var userPayload = {
       email, password: pass,
@@ -3407,10 +3377,10 @@ async function doRegister() {
       phone, wilaya, delegation,
       role: regRole,
       points: 100,
-      verified: isVendor ? false : true,
-      avatar: isVendor ? '🏪' : '👤',
-      shop_name: isVendor ? 'Everest' : null,
-      specialty: specialty || null
+      verified: true,
+      avatar: '👤',
+      shop_name: null,
+      specialty: null
     };
 
     var remoteExisting = null;
@@ -3454,15 +3424,8 @@ async function doRegister() {
     await healCurrentUserFromSupabase();
     STN.DB.set('currentUser', State.currentUser);
     updateNavUser();
-    if (isVendor) {
-      void everestSyncVendorDefaults(State.currentUser.id);
-      toast(`✦ Welcome to Everest selling! Your vendor account is pending verification.`, 'success');
-      if (needsVendorHoursOnboarding()) showPage('vendor-hours');
-      else showPage('vendor');
-    } else {
-      toast(`✦ Welcome to Everest, ${fname}! You earned 100 bonus points!`, 'success');
-      showPage('home');
-    }
+    toast(`✦ Welcome to Everest, ${fname}! You earned 100 bonus points!`, 'success');
+    showPage('home');
   } catch(e) {
     if (typeof STNLog !== 'undefined') STNLog.error('auth.register', e, { email });
     var em = String(e && e.message ? e.message : 'Registration failed');
