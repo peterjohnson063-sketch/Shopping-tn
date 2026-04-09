@@ -3177,16 +3177,24 @@ function renderAuth() {
         <div class="form-group" style="margin-bottom:1.5rem;padding:1rem;background:#f5f2ff;border-radius:12px;border:1px solid rgba(107,63,212,0.2)">
           <label style="display:flex;align-items:center;gap:0.8rem;cursor:pointer">
             <input type="checkbox" id="reg-is-vendor" onchange="document.getElementById('reg-vendor-fields').style.display=this.checked?'block':'none'" style="width:18px;height:18px;accent-color:#7c3aed"/>
-            <span style="font-size:0.85rem;color:#1e0a4e;font-weight:500">🎨 I am an invited Everest artist / seller</span>
+            <span style="font-size:0.85rem;color:#1e0a4e;font-weight:500">🏪 I want to open a seller shop on Everest</span>
           </label>
-          <p style="font-size:0.72rem;color:var(--text-muted);margin:0.55rem 0 0 1.95rem;line-height:1.45">Only artists you personally invite can activate seller mode using an invite code. Others become customers.</p>
+          <p style="font-size:0.72rem;color:var(--text-muted);margin:0.55rem 0 0 1.95rem;line-height:1.45">Sellers can self-register with full details. Artist accounts are managed by Everest staff and issued directly.</p>
         </div>
         <div id="reg-vendor-fields" style="display:none;margin-bottom:1.5rem;padding:1rem;background:#f8f7ff;border-radius:12px;border:1px solid rgba(107,63,212,0.15)">
-          <div class="form-group">
-            <label class="form-label">Artist Invite Code *</label>
-            <input type="password" class="form-input" id="reg-vendor-code" placeholder="Code shared by Everest staff"/>
+          <div class="form-group" style="margin-bottom:0.7rem">
+            <label class="form-label">Shop name *</label>
+            <input type="text" class="form-input" id="reg-shop-name" placeholder="Your shop / atelier name"/>
           </div>
-          <p style="font-size:0.72rem;color:#6b21a8;line-height:1.4;margin-top:0.55rem">If code is correct, account is created as artist vendor and can upload products immediately.</p>
+          <div class="form-group" style="margin-bottom:0.7rem">
+            <label class="form-label">CIN number *</label>
+            <input type="text" class="form-input" id="reg-vendor-cin" placeholder="National ID number"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">CIN photo *</label>
+            <input type="file" class="form-input" id="reg-vendor-cin-photo" accept="image/*"/>
+          </div>
+          <p style="font-size:0.72rem;color:#6b21a8;line-height:1.4;margin-top:0.55rem">Your seller profile is created immediately after details are submitted.</p>
         </div>
         <button class="btn btn-gold btn-full btn-lg" onclick="doRegister()">Create Account →</button>
       </div>
@@ -3389,22 +3397,32 @@ async function doRegister() {
   if (users.find(u => u.email === email)) { toast('⚠️ Email already registered', 'error'); return; }
 
   const isVendor = !!(document.getElementById('reg-is-vendor') && document.getElementById('reg-is-vendor').checked);
-  const vendorCodeInput = ((document.getElementById('reg-vendor-code') && document.getElementById('reg-vendor-code').value) || '').trim();
-  // Set this globally in everest-env.js (window.STN_VENDOR_INVITE_CODE = 'your-secret-code')
-  const vendorInviteCode = (typeof window !== 'undefined' && window.STN_VENDOR_INVITE_CODE ? String(window.STN_VENDOR_INVITE_CODE).trim() : '');
+  const vendorShopName = ((document.getElementById('reg-shop-name') && document.getElementById('reg-shop-name').value) || '').trim();
+  const vendorCin = ((document.getElementById('reg-vendor-cin') && document.getElementById('reg-vendor-cin').value) || '').trim();
+  const vendorCinFileEl = document.getElementById('reg-vendor-cin-photo');
+  const vendorCinFile = vendorCinFileEl && vendorCinFileEl.files ? vendorCinFileEl.files[0] : null;
   if (isVendor) {
-    if (!vendorInviteCode) {
-      toast('Artist signup is currently closed. Ask admin to set invite code.', 'error');
+    if (!vendorShopName || !vendorCin) {
+      toast('Seller signup requires shop name and CIN number', 'error');
       return;
     }
-    if (!vendorCodeInput || vendorCodeInput !== vendorInviteCode) {
-      toast('Invalid artist invite code', 'error');
+    if (!vendorCinFile) {
+      toast('Please upload CIN photo to complete seller signup', 'error');
       return;
     }
   }
 
   try {
     var regRole = isVendor ? 'vendor' : 'customer';
+    var vendorCinPhotoUrl = null;
+    if (isVendor && vendorCinFile) {
+      try {
+        vendorCinPhotoUrl = await adminUploadDriverKycImage(vendorCinFile, 'vendor-cin');
+      } catch (upErr) {
+        toast('Could not upload CIN photo. Please try again.', 'error');
+        return;
+      }
+    }
 
     var userPayload = {
       email, password: pass,
@@ -3414,8 +3432,10 @@ async function doRegister() {
       points: 100,
       verified: true,
       avatar: isVendor ? '🏪' : '👤',
-      shop_name: isVendor ? (fname + ' ' + lname) : null,
-      specialty: isVendor ? 'furniture' : null
+      shop_name: isVendor ? vendorShopName : null,
+      specialty: isVendor ? 'furniture' : null,
+      id_card_number: isVendor ? vendorCin : null,
+      cin_document_url: isVendor ? vendorCinPhotoUrl : null
     };
 
     var remoteExisting = null;
