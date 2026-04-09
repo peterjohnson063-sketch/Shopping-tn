@@ -3183,10 +3183,6 @@ function renderAuth() {
         </div>
         <div id="reg-vendor-fields" style="display:none;margin-bottom:1.5rem;padding:1rem;background:#f8f7ff;border-radius:12px;border:1px solid rgba(107,63,212,0.15)">
           <div class="form-group" style="margin-bottom:0.7rem">
-            <label class="form-label">Shop name *</label>
-            <input type="text" class="form-input" id="reg-shop-name" placeholder="Your shop / atelier name"/>
-          </div>
-          <div class="form-group" style="margin-bottom:0.7rem">
             <label class="form-label">CIN number *</label>
             <input type="text" class="form-input" id="reg-vendor-cin" placeholder="National ID number"/>
           </div>
@@ -3397,13 +3393,12 @@ async function doRegister() {
   if (users.find(u => u.email === email)) { toast('⚠️ Email already registered', 'error'); return; }
 
   const isVendor = !!(document.getElementById('reg-is-vendor') && document.getElementById('reg-is-vendor').checked);
-  const vendorShopName = ((document.getElementById('reg-shop-name') && document.getElementById('reg-shop-name').value) || '').trim();
   const vendorCin = ((document.getElementById('reg-vendor-cin') && document.getElementById('reg-vendor-cin').value) || '').trim();
   const vendorCinFileEl = document.getElementById('reg-vendor-cin-photo');
   const vendorCinFile = vendorCinFileEl && vendorCinFileEl.files ? vendorCinFileEl.files[0] : null;
   if (isVendor) {
-    if (!vendorShopName || !vendorCin) {
-      toast('Seller signup requires shop name and CIN number', 'error');
+    if (!vendorCin) {
+      toast('Seller signup requires CIN number', 'error');
       return;
     }
     if (!vendorCinFile) {
@@ -3432,7 +3427,7 @@ async function doRegister() {
       points: 100,
       verified: true,
       avatar: isVendor ? '🏪' : '👤',
-      shop_name: isVendor ? vendorShopName : null,
+      shop_name: isVendor ? 'Everest' : null,
       specialty: isVendor ? 'furniture' : null,
       id_card_number: isVendor ? vendorCin : null,
       cin_document_url: isVendor ? vendorCinPhotoUrl : null
@@ -6054,13 +6049,13 @@ function mountAdminVendorCreateForm() {
   box.style.marginBottom = '1rem';
   box.innerHTML =
     '<div style="background:linear-gradient(135deg,#faf5ff,#f5f3ff);border:1px solid #ddd6fe;border-radius:14px;padding:1rem 1rem 0.95rem">' +
-    '<p style="margin:0 0 0.55rem;font-size:0.78rem;color:#5b21b6;line-height:1.45"><strong>Add artist/seller account (staff only)</strong> — same model as driver creation. Public signup stays customer-only.</p>' +
+    '<p style="margin:0 0 0.4rem;font-size:0.8rem;color:#4c1d95;line-height:1.45"><strong>CREATE ARTIST ACCOUNT (STAFF ONLY)</strong></p>' +
+    '<p style="margin:0 0 0.7rem;font-size:0.76rem;color:#5b21b6;line-height:1.45">Use this box in Admin -> Vendors to create artist logins manually, then send them their email/password.</p>' +
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0.55rem;align-items:end">' +
     '<input id="adm-vnd-fname" type="text" placeholder="First name" style="padding:0.55rem 0.65rem;border:1px solid #ddd6fe;border-radius:8px"/>' +
     '<input id="adm-vnd-lname" type="text" placeholder="Last name" style="padding:0.55rem 0.65rem;border:1px solid #ddd6fe;border-radius:8px"/>' +
     '<input id="adm-vnd-email" type="email" placeholder="Email (login)" style="padding:0.55rem 0.65rem;border:1px solid #ddd6fe;border-radius:8px"/>' +
     '<input id="adm-vnd-phone" type="tel" placeholder="Phone" style="padding:0.55rem 0.65rem;border:1px solid #ddd6fe;border-radius:8px"/>' +
-    '<input id="adm-vnd-shop" type="text" placeholder="Artist / shop label" style="padding:0.55rem 0.65rem;border:1px solid #ddd6fe;border-radius:8px"/>' +
     '<input id="adm-vnd-pass" type="password" placeholder="Temporary password (min 8)" style="padding:0.55rem 0.65rem;border:1px solid #ddd6fe;border-radius:8px"/>' +
     '</div>' +
     '<div style="display:flex;gap:0.75rem;align-items:center;justify-content:space-between;margin-top:0.7rem;flex-wrap:wrap">' +
@@ -6089,12 +6084,10 @@ async function adminCreateVendorFromDashboard() {
   email = String(email).trim();
   var phone = (document.getElementById('adm-vnd-phone') && document.getElementById('adm-vnd-phone').value) || '';
   phone = String(phone).trim();
-  var shop = (document.getElementById('adm-vnd-shop') && document.getElementById('adm-vnd-shop').value) || '';
-  shop = String(shop).trim();
   var pass = (document.getElementById('adm-vnd-pass') && document.getElementById('adm-vnd-pass').value) || '';
   var approveNow = !!(document.getElementById('adm-vnd-verify') && document.getElementById('adm-vnd-verify').checked);
 
-  if (!fname || !lname || !email || !phone || !shop || !pass) {
+  if (!fname || !lname || !email || !phone || !pass) {
     toast('Fill all artist account fields', 'error');
     return;
   }
@@ -6134,8 +6127,8 @@ async function adminCreateVendorFromDashboard() {
       points: 100,
       verified: approveNow,
       avatar: '🏪',
-      shop_name: shop,
-      specialty: 'furniture',
+      shop_name: 'Everest',
+      specialty: 'artist',
     });
     if (newUser && newUser._stnInsertFallbackLevel != null) delete newUser._stnInsertFallbackLevel;
     try {
