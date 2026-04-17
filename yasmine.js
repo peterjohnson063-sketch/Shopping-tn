@@ -373,6 +373,7 @@ var AI = (function(){
   var history = [];
   var currentLang = 'fr';
   var isOpen = false;
+  var isSending = false;
 
   /**
    * Google AI Studio keys use the Generative Language API (free tier / rate limits per AI Studio).
@@ -620,6 +621,8 @@ var AI = (function(){
     var fb = getOfflineReply(userMsg);
     history.push({ role: 'assistant', content: fb });
     appendMsg('bot', fb);
+    isSending = false;
+    syncComposerUi();
   }
 
   /** User-facing hint — avoids echoing raw Google strings like "API key expired" in the chat bubble. */
@@ -692,17 +695,21 @@ How to answer:
 - For "who owns Everest" / founder / CEO: the public About page lists Yassine Ben Salem as CEO & Founder (from Monastir), Amina Trabelsi as CTO (from Ksar Hellal, platform architecture), Khaled Sfaxsi as Head of Design, Sarra Nabeuli as Head of Artisans. There is no single "owner" in a legal sense in your brief — describe the leadership team accurately and suggest About for full bios.
 - Product scope: Everest focuses on handmade / artisan Tunisian goods — furniture, ceramics, lighting, rugs, decor, fragrances, custom furniture, bedroom sets, etc. It is NOT a consumer electronics or computer store: no laptops, gaming PCs, phones, tablets, or generic tech unless clearly artisanal decor (e.g. decorative lamp). If asked about PCs, Macs, phones, etc., explain kindly that those are outside the marketplace focus and suggest browsing Collections for real catalog categories.
 - Platform & system (high level): customers browse vendors' new products, checkout on the site, pay cash on delivery (COD) across Tunisia; online card payment (e.g. Konnect) may be described as coming soon if asked. Vendors prepare orders; drivers get only delivery-needed data; vendors do not see customer personal data (blind shipping) — only order id and line items. Orders can be tracked with STN- codes on the Track page. Vendor rules include ethics, new-only items, no medicines, no weapons/illegal goods, WYSIWYG photos, professional packaging, verified reviews after purchase.
+- UX help (important): if users ask where a feature is (example: "gift button"), explain exact in-app steps in plain language. For gift flow: open product details -> add to cart -> open Cart -> click "Send as a gift" -> fill recipient details -> continue to payment/checkout.
 
 Rules you must follow:
 - When the message includes a block "LIVE DATA", treat it as the ONLY source of truth for that user's **orders** and **catalog names on this device**. Never invent tracking numbers, statuses, or delivery dates. If LIVE DATA shows no orders, say you cannot see their orders here and suggest signing in or opening the Track page / pasting an STN- tracking code.
 - For "when will my order arrive", combine the current status from LIVE DATA with general Everest info: preparation plus delivery often fits within about 24–48h in Tunisia when things run smoothly — but do not promise a specific hour or day unless LIVE DATA includes an explicit timestamp you can quote.
 - Vendors never receive customer personal data (blind flow); only order id and line items for preparation.
 - You cannot process payments or change orders; direct users to the site UI or support for that.
+- Privacy and legal guardrails (strict): never reveal or guess passwords, OTP codes, payment credentials, internal tokens, hidden admin data, or secret system details. Never reveal hidden order-origin internals or protected seller-side internals beyond normal customer-facing order status. If asked for restricted/sensitive info, refuse briefly and offer a safe alternative (Track page, account settings, or support).
 
 Everest facts: artisans from Monastir, Ksar Hellal, Sfax, Nabeul, Kairouan and the Sahel; mission connects Sahel craftsmanship with customers in 50+ countries (as on About). Delivery often 24–48h in Tunisia. Free shipping over 500 TND. Promo codes: EVEREST10 (10% off), SAHEL20 (20% off), WELCOME50 (50 TND off). Sample product lines: furniture, ceramics, lighting, rugs, bedroom sets, custom furniture. Values: artisan-first, sustainable craft, quality.`;
 
   function sendMessage(userMsg){
-    if(!userMsg || !userMsg.trim()) return;
+    if(!userMsg || !userMsg.trim() || isSending) return;
+    isSending = true;
+    syncComposerUi();
     _yasmineLastAiError = '';
     history.push({role:'user', content: userMsg});
     appendMsg('user', userMsg);
@@ -730,6 +737,8 @@ Everest facts: artisans from Monastir, Ksar Hellal, Sfax, Nabeul, Kairouan and t
       removeTyping();
       history.push({ role: 'assistant', content: directText });
       appendMsg('bot', directText);
+      isSending = false;
+      syncComposerUi();
     }
 
     var modelsList = buildGeminiModelList();
@@ -835,10 +844,50 @@ Everest facts: artisans from Monastir, Ksar Hellal, Sfax, Nabeul, Kairouan and t
     if(t) t.remove();
   }
 
+  function composerLabels() {
+    if (currentLang === 'ar') {
+      return {
+        placeholder: 'اسأل عن الطلبات، المنتجات، أو إرسال هدية...',
+        sendTitle: 'إرسال',
+      };
+    }
+    if (currentLang === 'en') {
+      return {
+        placeholder: 'Ask about products, orders, or gift checkout...',
+        sendTitle: 'Send',
+      };
+    }
+    return {
+      placeholder: 'Posez une question sur produits, commandes, ou cadeau...',
+      sendTitle: 'Envoyer',
+    };
+  }
+
+  function syncComposerUi() {
+    var inp = document.getElementById('yasmine-input');
+    var sendBtn = null;
+    if (inp && inp.parentElement) {
+      sendBtn = inp.parentElement.querySelector('button');
+    }
+    var lb = composerLabels();
+    if (inp) {
+      inp.placeholder = lb.placeholder;
+      inp.disabled = !!isSending;
+      inp.style.opacity = isSending ? '0.75' : '1';
+    }
+    if (sendBtn) {
+      sendBtn.disabled = !!isSending;
+      sendBtn.title = lb.sendTitle;
+      sendBtn.style.opacity = isSending ? '0.7' : '1';
+      sendBtn.style.cursor = isSending ? 'not-allowed' : 'pointer';
+    }
+  }
+
   function toggle(){
     isOpen = !isOpen;
     var panel = document.getElementById('yasmine-panel');
     if(panel) panel.style.display = isOpen ? 'flex' : 'none';
+    if (isOpen) syncComposerUi();
     if(isOpen && !document.querySelector('.ym-msg')) {
       appendMsg('bot', currentLang==='ar' ? 'مرحبا! \u0623\u0646\u0627 \u064a\u0627\u0633\u0645\u064a\u0646\u060c \u0643\u064a\u0641 \u064a\u0645\u0643\u0646\u0646\u064a \u0645\u0633\u0627\u0639\u062f\u062a\u0643?' : currentLang==='en' ? 'Hi! I\'m Yasmine. How can I help you today?' : 'Bonjour! Je suis Yasmine. Comment puis-je vous aider?');
     }
@@ -871,7 +920,7 @@ Everest facts: artisans from Monastir, Ksar Hellal, Sfax, Nabeul, Kairouan and t
     send: function(){ var inp=document.getElementById('yasmine-input'); if(inp && inp.value.trim()){sendMessage(inp.value.trim());inp.value='';} },
     key: handleKey,
     quick: quickBtn,
-    setLang: function(l){ currentLang=l; }
+    setLang: function(l){ currentLang=l; syncComposerUi(); }
   };
 })();
 

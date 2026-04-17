@@ -3177,23 +3177,20 @@ function renderAuth() {
         <div class="form-group" style="margin-bottom:1.5rem;padding:1rem;background:#f5f2ff;border-radius:12px;border:1px solid rgba(107,63,212,0.2)">
           <label style="display:flex;align-items:center;gap:0.8rem;cursor:pointer">
             <input type="checkbox" id="reg-is-vendor" onchange="document.getElementById('reg-vendor-fields').style.display=this.checked?'block':'none'" style="width:18px;height:18px;accent-color:#7c3aed"/>
-            <span style="font-size:0.85rem;color:#1e0a4e;font-weight:500">🏪 I partner with Everest as a supplier / fulfillment partner</span>
+            <span style="font-size:0.85rem;color:#1e0a4e;font-weight:500">🏪 I want to open a seller shop on Everest</span>
           </label>
-          <p style="font-size:0.7rem;color:var(--text-muted);margin:0.65rem 0 0 1.95rem;line-height:1.45">Delivery drivers are invited by Everest — they cannot sign up here. You will be assigned a driver for your orders.</p>
+          <p style="font-size:0.72rem;color:var(--text-muted);margin:0.55rem 0 0 1.95rem;line-height:1.45">Sellers can self-register with full details. Artist accounts are managed by Everest staff and issued directly.</p>
         </div>
         <div id="reg-vendor-fields" style="display:none;margin-bottom:1.5rem;padding:1rem;background:#f8f7ff;border-radius:12px;border:1px solid rgba(107,63,212,0.15)">
-          <p style="font-size:0.78rem;color:#5b21b6;line-height:1.5;margin-bottom:1rem">Everest is the storefront and brand. Your partner profile is for operations only — shoppers see Everest, not separate shop names.</p>
-          <div class="form-group">
-            <label class="form-label">What do you make?</label>
-            <select class="form-select" id="reg-specialty">
-              <option value="furniture">🪑 Furniture & Wood</option>
-              <option value="lighting">💡 Lighting & Lamps</option>
-              <option value="ceramics">🏺 Ceramics & Pottery</option>
-              <option value="textiles">🧵 Textiles & Rugs</option>
-              <option value="decor">🎭 Home Decor</option>
-              <option value="outdoor">🌿 Outdoor & Garden</option>
-            </select>
+          <div class="form-group" style="margin-bottom:0.7rem">
+            <label class="form-label">CIN number *</label>
+            <input type="text" class="form-input" id="reg-vendor-cin" placeholder="National ID number"/>
           </div>
+          <div class="form-group">
+            <label class="form-label">CIN photo *</label>
+            <input type="file" class="form-input" id="reg-vendor-cin-photo" accept="image/*"/>
+          </div>
+          <p style="font-size:0.72rem;color:#6b21a8;line-height:1.4;margin-top:0.55rem">Your seller profile is created immediately after details are submitted.</p>
         </div>
         <button class="btn btn-gold btn-full btn-lg" onclick="doRegister()">Create Account →</button>
       </div>
@@ -3206,16 +3203,16 @@ function switchAuthTab(tab) {
   document.getElementById('auth-register').style.display = tab === 'register' ? 'block' : 'none';
   document.getElementById('tab-login').classList.toggle('active', tab === 'login');
   document.getElementById('tab-register').classList.toggle('active', tab === 'register');
-  // Add vendor toggle listener
-  setTimeout(() => {
-    const cb = document.getElementById('reg-is-vendor');
-    const fields = document.getElementById('reg-vendor-fields');
+  setTimeout(function () {
+    var cb = document.getElementById('reg-is-vendor');
+    var fields = document.getElementById('reg-vendor-fields');
     if (cb && fields) {
-      cb.onchange = () => {
+      fields.style.display = cb.checked ? 'block' : 'none';
+      cb.onchange = function () {
         fields.style.display = cb.checked ? 'block' : 'none';
       };
     }
-  }, 100);
+  }, 80);
 }
 
 function populateDelegations() {
@@ -3395,11 +3392,32 @@ async function doRegister() {
   const users = STN.DB.get('users') || [];
   if (users.find(u => u.email === email)) { toast('⚠️ Email already registered', 'error'); return; }
 
-  const isVendor = document.getElementById('reg-is-vendor')?.checked;
-  const specialty = document.getElementById('reg-specialty')?.value;
+  const isVendor = !!(document.getElementById('reg-is-vendor') && document.getElementById('reg-is-vendor').checked);
+  const vendorCin = ((document.getElementById('reg-vendor-cin') && document.getElementById('reg-vendor-cin').value) || '').trim();
+  const vendorCinFileEl = document.getElementById('reg-vendor-cin-photo');
+  const vendorCinFile = vendorCinFileEl && vendorCinFileEl.files ? vendorCinFileEl.files[0] : null;
+  if (isVendor) {
+    if (!vendorCin) {
+      toast('Seller signup requires CIN number', 'error');
+      return;
+    }
+    if (!vendorCinFile) {
+      toast('Please upload CIN photo to complete seller signup', 'error');
+      return;
+    }
+  }
 
   try {
     var regRole = isVendor ? 'vendor' : 'customer';
+    var vendorCinPhotoUrl = null;
+    if (isVendor && vendorCinFile) {
+      try {
+        vendorCinPhotoUrl = await adminUploadDriverKycImage(vendorCinFile, 'vendor-cin');
+      } catch (upErr) {
+        toast('Could not upload CIN photo. Please try again.', 'error');
+        return;
+      }
+    }
 
     var userPayload = {
       email, password: pass,
@@ -3407,10 +3425,12 @@ async function doRegister() {
       phone, wilaya, delegation,
       role: regRole,
       points: 100,
-      verified: isVendor ? false : true,
+      verified: true,
       avatar: isVendor ? '🏪' : '👤',
       shop_name: isVendor ? 'Everest' : null,
-      specialty: specialty || null
+      specialty: isVendor ? 'furniture' : null,
+      id_card_number: isVendor ? vendorCin : null,
+      cin_document_url: isVendor ? vendorCinPhotoUrl : null
     };
 
     var remoteExisting = null;
@@ -3456,7 +3476,7 @@ async function doRegister() {
     updateNavUser();
     if (isVendor) {
       void everestSyncVendorDefaults(State.currentUser.id);
-      toast(`✦ Welcome to Everest selling! Your vendor account is pending verification.`, 'success');
+      toast('✦ Artist account activated. You can now upload products.', 'success');
       if (needsVendorHoursOnboarding()) showPage('vendor-hours');
       else showPage('vendor');
     } else {
@@ -5535,6 +5555,7 @@ async function switchAdmin(section) {
       if (vendors.length === 0) {
         pane.innerHTML =
           '<div><div style="margin-bottom:1.5rem"><h1 style="font-size:1.5rem;font-weight:700;color:#111827">Vendors</h1><p style="color:#6b7280;font-size:0.875rem">0 vendors · <strong>Approve</strong> pending shops, or <strong>Ban</strong> to reject.</p></div><div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f9fafb"><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Vendor</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Email</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Shop</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Wilaya</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Products</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Hours &amp; service</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Status</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Actions</th></tr></thead><tbody><tr><td colspan="8" style="text-align:center;padding:3rem;color:#9ca3af">No vendors yet</td></tr></tbody></table></div></div></div>';
+        mountAdminVendorCreateForm();
         return;
       }
       Promise.all(
@@ -5639,6 +5660,7 @@ async function switchAdmin(section) {
           ' partners · Weekly hours and In/Out status come from each partner profile (Yasmine).</p></div><div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f9fafb"><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Partner</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Email</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Label</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Wilaya</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Products</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Hours &amp; service</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Status</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Actions</th></tr></thead><tbody>' +
           vendorRows +
           '</tbody></table></div></div></div>';
+        mountAdminVendorCreateForm();
         var vtbl = pane2.querySelector('table');
         if (vtbl)
           vtbl.addEventListener('click', function (e) {
@@ -6016,6 +6038,127 @@ async function verifyVendor(userId) {
 
   toast('Partner approved for Sahel routing.', 'success');
   switchAdmin('vendors');
+}
+
+function mountAdminVendorCreateForm() {
+  var pane = document.getElementById('admin-content');
+  if (!pane) return;
+  if (document.getElementById('adm-vendor-create-wrap')) return;
+  var box = document.createElement('div');
+  box.id = 'adm-vendor-create-wrap';
+  box.style.marginBottom = '1rem';
+  box.innerHTML =
+    '<div style="background:linear-gradient(135deg,#faf5ff,#f5f3ff);border:1px solid #ddd6fe;border-radius:14px;padding:1rem 1rem 0.95rem">' +
+    '<p style="margin:0 0 0.4rem;font-size:0.8rem;color:#4c1d95;line-height:1.45"><strong>CREATE ARTIST ACCOUNT (STAFF ONLY)</strong></p>' +
+    '<p style="margin:0 0 0.7rem;font-size:0.76rem;color:#5b21b6;line-height:1.45">Use this box in Admin -> Vendors to create artist logins manually, then send them their email/password.</p>' +
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0.55rem;align-items:end">' +
+    '<input id="adm-vnd-fname" type="text" placeholder="First name" style="padding:0.55rem 0.65rem;border:1px solid #ddd6fe;border-radius:8px"/>' +
+    '<input id="adm-vnd-lname" type="text" placeholder="Last name" style="padding:0.55rem 0.65rem;border:1px solid #ddd6fe;border-radius:8px"/>' +
+    '<input id="adm-vnd-email" type="email" placeholder="Email (login)" style="padding:0.55rem 0.65rem;border:1px solid #ddd6fe;border-radius:8px"/>' +
+    '<input id="adm-vnd-phone" type="tel" placeholder="Phone" style="padding:0.55rem 0.65rem;border:1px solid #ddd6fe;border-radius:8px"/>' +
+    '<input id="adm-vnd-pass" type="password" placeholder="Temporary password (min 8)" style="padding:0.55rem 0.65rem;border:1px solid #ddd6fe;border-radius:8px"/>' +
+    '</div>' +
+    '<div style="display:flex;gap:0.75rem;align-items:center;justify-content:space-between;margin-top:0.7rem;flex-wrap:wrap">' +
+    '<label style="display:flex;align-items:center;gap:0.45rem;font-size:0.75rem;color:#6d28d9"><input id="adm-vnd-verify" type="checkbox" checked/> Approve immediately</label>' +
+    '<button id="adm-vnd-submit" type="button" onclick="adminCreateVendorFromDashboard()" style="background:#7c3aed;color:white;border:none;padding:0.55rem 0.95rem;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer">Add artist</button>' +
+    '</div>' +
+    '</div>';
+  pane.insertBefore(box, pane.firstChild);
+}
+
+async function adminCreateVendorFromDashboard() {
+  if (!State.currentUser || State.currentUser.role !== 'admin') {
+    toast('Admin access required', 'error');
+    return;
+  }
+  if (typeof SB === 'undefined' || typeof SB.createUser !== 'function') {
+    toast('Cannot save artist: database client not available', 'error');
+    return;
+  }
+
+  var fname = (document.getElementById('adm-vnd-fname') && document.getElementById('adm-vnd-fname').value) || '';
+  fname = String(fname).trim();
+  var lname = (document.getElementById('adm-vnd-lname') && document.getElementById('adm-vnd-lname').value) || '';
+  lname = String(lname).trim();
+  var email = (document.getElementById('adm-vnd-email') && document.getElementById('adm-vnd-email').value) || '';
+  email = String(email).trim();
+  var phone = (document.getElementById('adm-vnd-phone') && document.getElementById('adm-vnd-phone').value) || '';
+  phone = String(phone).trim();
+  var pass = (document.getElementById('adm-vnd-pass') && document.getElementById('adm-vnd-pass').value) || '';
+  var approveNow = !!(document.getElementById('adm-vnd-verify') && document.getElementById('adm-vnd-verify').checked);
+
+  if (!fname || !lname || !email || !phone || !pass) {
+    toast('Fill all artist account fields', 'error');
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    toast('Enter a valid email', 'error');
+    return;
+  }
+  if (pass.length < 8) {
+    toast('Password must be at least 8 characters', 'error');
+    return;
+  }
+
+  try {
+    if (SB.getUser) {
+      var ex = await SB.getUser(email);
+      if (ex) {
+        toast('That email is already registered', 'error');
+        return;
+      }
+    }
+  } catch (probeErr) {}
+
+  var btn = document.getElementById('adm-vnd-submit');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+  }
+
+  try {
+    var newUser = await SB.createUser({
+      email: email,
+      password: pass,
+      first_name: fname,
+      last_name: lname,
+      phone: phone,
+      role: 'vendor',
+      points: 100,
+      verified: approveNow,
+      avatar: '🏪',
+      shop_name: 'Everest',
+      specialty: 'artist',
+    });
+    if (newUser && newUser._stnInsertFallbackLevel != null) delete newUser._stnInsertFallbackLevel;
+    try {
+      var users = STN.DB.get('users') || [];
+      var merged = STN.userForSession({
+        ...newUser,
+        firstName: newUser.first_name,
+        lastName: newUser.last_name,
+      });
+      var existsAt = users.findIndex(function (u) {
+        return String(u.id) === String(newUser.id);
+      });
+      if (existsAt >= 0) users[existsAt] = merged;
+      else users.push(merged);
+      STN.DB.set('users', users);
+    } catch (mergeErr) {}
+
+    toast(approveNow ? 'Artist account created and approved.' : 'Artist account created (pending approval).', 'success');
+    switchAdmin('vendors');
+  } catch (e) {
+    if (typeof STNLog !== 'undefined') STNLog.error('adminCreateVendorFromDashboard', e, { email: email });
+    var em = String((e && e.message) || e || 'Could not save artist');
+    if (/duplicate|unique/i.test(em)) toast('That email is already registered', 'error');
+    else toast(em.length > 200 ? em.slice(0, 197) + '…' : em, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Add artist';
+    }
+  }
 }
 
 function hubCanAccess() {
@@ -6646,6 +6789,7 @@ async function adminCreateDriverFromDashboard() {
 window.adminDriverPopulateDelegations = adminDriverPopulateDelegations;
 window.adminCreateDriverFromDashboard = adminCreateDriverFromDashboard;
 window.adminDriverKycPreview = adminDriverKycPreview;
+window.adminCreateVendorFromDashboard = adminCreateVendorFromDashboard;
 
 /** Permanently remove a user from Supabase + local demo list (admin only). */
 async function adminDeleteUserAccount(userId) {

@@ -242,6 +242,32 @@
     var msg = String(userMsg || '');
     var lower = msg.toLowerCase();
 
+    // Gift button / gift checkout guidance (fast deterministic answer).
+    if (
+      /\bgift\b|cadeau|هدية|send as a gift|gift button|bouton cadeau|زر الهدية|gift checkout|recipient/i.test(
+        lower
+      )
+    ) {
+      if (safeLang === 'ar')
+        return '🎁 لإرسال الطلب كهدية: افتح صفحة المنتج، أضِفه للسلة، ثم افتح **السلة** واضغط **Send as a gift**. بعدها املأ اسم المستلم والهاتف والولاية والعنوان، واختر إظهار اسم المُرسل أو مفاجأة، ثم تابع للدفع.';
+      if (safeLang === 'en')
+        return '🎁 To send a gift: open the product, add it to cart, then open **Cart** and click **Send as a gift**. Fill recipient name, phone, wilaya, and address, choose whether to reveal sender name, then continue to checkout/payment.';
+      return '🎁 Pour envoyer un cadeau : ouvrez le produit, ajoutez-le au panier, puis dans le **Panier** cliquez **Send as a gift**. Renseignez nom, téléphone, gouvernorat et adresse du destinataire, choisissez afficher ou non le nom de l’expéditeur, puis continuez vers le paiement.';
+    }
+
+    // Strict privacy/legal guardrail for sensitive asks.
+    if (
+      /\bpassword|mot\s*de\s*passe|otp|code\s*secret|secret|token|api\s*key|key\b|seller\s*internal|vendor\s*internal|internal\s*order|where\s+is\s+the\s+order\s+from|who\s+is\s+the\s+seller|from\s+seller|كلمة\s*السر|رمز\s*سري|باسورد|البائع|مصدر\s*الطلب|معلومات\s*داخلية/i.test(
+        lower
+      )
+    ) {
+      if (safeLang === 'ar')
+        return '🔒 لا أستطيع مشاركة كلمات المرور أو الرموز السرية أو أي بيانات داخلية/حساسة عن الطلبات والبائعين. يمكنني مساعدتك بالمعلومات المسموح بها فقط مثل حالة الطلب عبر **Track** أو خطوات الحساب الآمنة.';
+      if (safeLang === 'en')
+        return '🔒 I cannot share passwords, secret codes, or internal/protected order-seller details. I can help with safe customer-facing info only (for example order status in **Track** and secure account steps).';
+      return '🔒 Je ne peux pas partager des mots de passe, codes secrets ni des détails internes/protégés sur les commandes ou vendeurs. Je peux aider avec les informations autorisées côté client (ex: statut via **Suivi** et étapes de compte sécurisées).';
+    }
+
     // Contact / phone number (not "do you sell phones")
     if (
       /numéro|numero|phone\s*number|whatsapp|واتساب|اتصل|call\s*us|how\s+can\s+i\s+call|your\s+phone|téléphone|telephone|tel\s*:|reach\s*you|contact\s*(us|you)|مساعدة\s*تواصل|رقم\s*الهاتف|كيف\s*اتصل/i.test(
@@ -414,9 +440,7 @@
           ', user_id=' +
           (u.id != null ? u.id : '?') +
           ', display_name=' +
-          (u.first_name || u.firstName || u.shop_name || u.shopName || '') +
-          ', email=' +
-          (u.email || 'n/a')
+          (u.first_name || u.firstName || u.shop_name || u.shopName || '')
       );
     } else {
       lines.push('Not signed in. For personal order status, ask the user to sign in or paste their tracking number (STN-…).');
