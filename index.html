@@ -2064,8 +2064,8 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
       <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem" id="sm-collection-grid"></div>
     </div>
 
-    <!-- CONFIGURATOR (shown only after product view) -->
-    <div id="sm-configurator-wrap" style="display:none">
+    <!-- CONFIGURATOR -->
+    <div id="sm-configurator-wrap">
     <div class="s-header" style="margin:0 auto 1.35rem">
       <span class="eyebrow">Customize</span>
       <h2 class="display" style="font-size:clamp(1.6rem,3.7vw,2.6rem)">Change dimensions, colors and details</h2>
@@ -2195,6 +2195,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
         <!-- CTA -->
         <div style="display:flex;gap:.8rem;animation:fadeSlideUp .5s .3s ease both">
           <button class="btn btn-gold btn-lg" style="flex:1" onclick="addSMToCart()">🛒 Ajouter au Panier</button>
+          <button class="btn" onclick="openCustomProjectForm()" style="padding:.95rem 1.1rem;background:#1e0a4e;color:white;border:none;border-radius:12px;font-size:.82rem;font-weight:700;cursor:pointer">✨ Customize (Blender)</button>
           <button class="btn btn-ghost" onclick="saveSMConfig()" style="padding:.95rem 1.2rem">💾 Sauvegarder</button>
         </div>
 
@@ -2791,8 +2792,6 @@ function filterAndGo(cat) {
     if(tabs[idx]) selectSMProduct(idx, tabs[idx]);
     document.querySelectorAll('.sm-ikea-card').forEach(function(el){ el.classList.remove('active'); });
     if(btn) btn.classList.add('active');
-    var wrap = document.getElementById('sm-configurator-wrap');
-    if(wrap) wrap.style.display = 'block';
     var conf = document.getElementById('sm-photo');
     if(conf) conf.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
@@ -2835,7 +2834,11 @@ function filterAndGo(cat) {
   function renderSMCollectionGrid(){
     var grid=document.getElementById('sm-collection-grid');
     if(!grid || !Array.isArray(SM_PRODUCTS)) return;
-    grid.innerHTML = SM_PRODUCTS.map(function(p, idx){
+    var list = SM_PRODUCTS.concat(SM_PRODUCTS.map(function(x){
+      return Object.assign({}, x, { title: x.title + ' · Edition' });
+    }));
+    grid.innerHTML = list.map(function(p, rawIdx){
+      var idx = rawIdx % SM_PRODUCTS.length;
       var pics = Array.isArray(p.objectImages) && p.objectImages.length ? p.objectImages : (Array.isArray(p.images) ? p.images : []);
       var cover = pics[0] || '';
       return (
