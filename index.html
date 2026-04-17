@@ -2345,6 +2345,9 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   .sm-ikea-body{padding:.9rem}
   .sm-ikea-title{font-size:.9rem;color:var(--text-dark);font-weight:700;line-height:1.3;margin-bottom:.2rem}
   .sm-ikea-desc{font-size:.74rem;color:var(--text-muted);line-height:1.45;margin-bottom:.65rem;min-height:2.15rem}
+  .sm-ikea-thumbs{display:flex;gap:.35rem;margin-bottom:.65rem}
+  .sm-ikea-thumb{width:30px;height:30px;border-radius:8px;border:1px solid rgba(107,63,212,.2);background-size:cover;background-position:center;cursor:pointer;transition:transform .15s,border-color .15s}
+  .sm-ikea-thumb:hover,.sm-ikea-thumb.active{transform:translateY(-1px);border-color:#7c3aed}
   .sm-ikea-row{display:flex;align-items:center;justify-content:space-between;gap:.6rem}
   .sm-ikea-price{font-size:.82rem;font-weight:700;color:#1e0a4e}
   .sm-ikea-btn{background:#f5f2ff;color:#6b3fd4;border:1px solid rgba(107,63,212,.2);border-radius:10px;padding:.4rem .65rem;font-size:.7rem;font-weight:700;cursor:pointer}
@@ -2740,6 +2743,16 @@ function filterAndGo(cat) {
     document.getElementById('sm-d-max').textContent=p.d.max+'cm max';
     document.getElementById('sm-h-min').textContent=p.h.min+'cm min';
     document.getElementById('sm-h-max').textContent=p.h.max+'cm max';
+
+    var img=document.getElementById('sm-img');
+    var tint=document.getElementById('sm-object-tint');
+    var sx=Math.max(0.88,Math.min(1.16,1+(w-p.w.val)/Math.max(80,(p.w.max-p.w.min)*3)));
+    var sy=Math.max(0.9,Math.min(1.2,1+(h-p.h.val)/Math.max(120,(p.h.max-p.h.min)*3)));
+    var ty=Math.max(-14,Math.min(16,Math.round((p.h.val-h)*0.4+(d-p.d.val)*0.15)));
+    var tx=Math.max(-12,Math.min(12,Math.round((w-p.w.val)*0.2)));
+    var tr='translate('+tx+'px,'+ty+'px) scale('+sx.toFixed(3)+','+sy.toFixed(3)+')';
+    if(img) img.style.transform=tr;
+    if(tint) tint.style.transform=tr;
   }
 
   function selectColor(btn,color,name){
@@ -2788,6 +2801,14 @@ function filterAndGo(cat) {
     if(conf) conf.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
+  function smPickFromCatalogImage(idx, imgIdx, btn){
+    smPickFromCatalog(idx, btn || document.querySelector('[data-sm-card="'+idx+'"]'));
+    setTimeout(function(){
+      var gItems=document.querySelectorAll('#sm-gallery .sm-gal-item');
+      if(gItems && gItems[imgIdx]) smSelectGal(gItems[imgIdx], imgIdx);
+    },70);
+  }
+
   function renderSMIkeaGrid(){
     var grid = document.getElementById('sm-ikea-grid');
     if(!grid || !Array.isArray(SM_PRODUCTS)) return;
@@ -2795,12 +2816,17 @@ function filterAndGo(cat) {
       var img = (Array.isArray(p.images) && p.images[0]) || (Array.isArray(p.objectImages) && p.objectImages[0]) || '';
       var desc = String(p.desc || '').slice(0, 96);
       var safeDesc = desc.length < String(p.desc || '').length ? desc + '...' : desc;
+      var picSet = Array.isArray(p.objectImages) && p.objectImages.length ? p.objectImages : (Array.isArray(p.images) ? p.images : []);
+      var thumbs = picSet.slice(0,4).map(function(u,j){
+        return '<button type="button" class="sm-ikea-thumb'+(j===0?' active':'')+'" onclick="smPickFromCatalogImage('+idx+','+j+',document.querySelector(\'[data-sm-card=&quot;'+idx+'&quot;]\'))" style="background-image:url(\''+u+'\')" title="Image '+(j+1)+'"></button>';
+      }).join('');
       return (
         '<article class="sm-ikea-card'+(idx===0?' active':'')+'" data-sm-card="'+idx+'">' +
           '<div class="sm-ikea-img" style="background-image:url(\''+img+'\')"><span class="sm-ikea-tag">Everest</span></div>' +
           '<div class="sm-ikea-body">' +
             '<div class="sm-ikea-title">'+p.title+'</div>' +
             '<div class="sm-ikea-desc">'+safeDesc+'</div>' +
+            '<div class="sm-ikea-thumbs">'+thumbs+'</div>' +
             '<div class="sm-ikea-row"><span class="sm-ikea-price">From '+p.base+' TND</span>' +
               '<button type="button" class="sm-ikea-btn" onclick="smPickFromCatalog('+idx+',document.querySelector(\'[data-sm-card=&quot;'+idx+'&quot;]\'))">Customize</button>' +
             '</div>' +
