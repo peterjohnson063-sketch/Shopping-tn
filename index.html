@@ -2064,48 +2064,55 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     <div style="max-width:1200px;margin:0 auto 2.8rem">
       <div class="s-header" style="margin-bottom:1.2rem">
         <span class="eyebrow">Collection Everest</span>
-        <h2 class="display" style="font-size:clamp(1.8rem,4vw,3rem)">Explore products first, then customize</h2>
+        <h2 class="display" style="font-size:clamp(1.8rem,4vw,3rem)">Click a product to open the configurator</h2>
         <div class="divider center"></div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem" id="sm-collection-grid">
-        <article class="sm-ikea-card" style="overflow:hidden">
+        <article class="sm-ikea-card" style="overflow:hidden;cursor:pointer" onclick="smGoToConfigurator(0)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();smGoToConfigurator(0);}">
           <div class="sm-ikea-img" style="height:220px;background-image:url('https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1400&q=80')"></div>
-          <div class="sm-ikea-body"><div class="sm-ikea-title">Chaise en Chêne</div><div class="sm-ikea-desc">Chaise premium en chêne massif, finition soignée.</div><div class="sm-ikea-row"><span class="sm-ikea-price">From 850 TND</span><button type="button" class="sm-ikea-btn" onclick="smOpenProductView(0)">View</button></div></div>
+          <div class="sm-ikea-body"><div class="sm-ikea-title">Chaise en Chêne</div><div class="sm-ikea-desc">Chaise premium en chêne massif, finition soignée.</div><div class="sm-ikea-row"><span class="sm-ikea-price">From 850 TND</span><span class="sm-ikea-btn" style="pointer-events:none">View</span></div></div>
         </article>
-        <article class="sm-ikea-card" style="overflow:hidden">
+        <article class="sm-ikea-card" style="overflow:hidden;cursor:pointer" onclick="smGoToConfigurator(1)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();smGoToConfigurator(1);}">
           <div class="sm-ikea-img" style="height:220px;background-image:url('https://source.unsplash.com/1200x900/?oak,dining,table&sig=11')"></div>
-          <div class="sm-ikea-body"><div class="sm-ikea-title">Table à Manger</div><div class="sm-ikea-desc">Table robuste, style clean, grande capacité.</div><div class="sm-ikea-row"><span class="sm-ikea-price">From 2800 TND</span><button type="button" class="sm-ikea-btn" onclick="smOpenProductView(1)">View</button></div></div>
+          <div class="sm-ikea-body"><div class="sm-ikea-title">Table à Manger</div><div class="sm-ikea-desc">Table robuste, style clean, grande capacité.</div><div class="sm-ikea-row"><span class="sm-ikea-price">From 2800 TND</span><span class="sm-ikea-btn" style="pointer-events:none">View</span></div></div>
         </article>
-        <article class="sm-ikea-card" style="overflow:hidden">
+        <article class="sm-ikea-card" style="overflow:hidden;cursor:pointer" onclick="smGoToConfigurator(2)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();smGoToConfigurator(2);}">
           <div class="sm-ikea-img" style="height:220px;background-image:url('https://source.unsplash.com/1200x900/?wooden,sofa,living-room&sig=21')"></div>
-          <div class="sm-ikea-body"><div class="sm-ikea-title">Canapé Cadre Chêne</div><div class="sm-ikea-desc">Cadre premium avec look moderne.</div><div class="sm-ikea-row"><span class="sm-ikea-price">From 3200 TND</span><button type="button" class="sm-ikea-btn" onclick="smOpenProductView(2)">View</button></div></div>
+          <div class="sm-ikea-body"><div class="sm-ikea-title">Canapé Cadre Chêne</div><div class="sm-ikea-desc">Cadre premium avec look moderne.</div><div class="sm-ikea-row"><span class="sm-ikea-price">From 3200 TND</span><span class="sm-ikea-btn" style="pointer-events:none">View</span></div></div>
         </article>
-        <article class="sm-ikea-card" style="overflow:hidden">
+        <article class="sm-ikea-card" style="overflow:hidden;cursor:pointer" onclick="smGoToConfigurator(3)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();smGoToConfigurator(3);}">
           <div class="sm-ikea-img" style="height:220px;background-image:url('https://source.unsplash.com/1200x900/?oak,wardrobe,bedroom&sig=31')"></div>
-          <div class="sm-ikea-body"><div class="sm-ikea-title">Armoire en Chêne</div><div class="sm-ikea-desc">Rangement propre et élégant.</div><div class="sm-ikea-row"><span class="sm-ikea-price">From 4500 TND</span><button type="button" class="sm-ikea-btn" onclick="smOpenProductView(3)">View</button></div></div>
+          <div class="sm-ikea-body"><div class="sm-ikea-title">Armoire en Chêne</div><div class="sm-ikea-desc">Rangement propre et élégant.</div><div class="sm-ikea-row"><span class="sm-ikea-price">From 4500 TND</span><span class="sm-ikea-btn" style="pointer-events:none">View</span></div></div>
         </article>
-        <article class="sm-ikea-card" style="overflow:hidden">
+        <article class="sm-ikea-card" style="overflow:hidden;cursor:pointer" onclick="smGoToConfigurator(4)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();smGoToConfigurator(4);}">
           <div class="sm-ikea-img" style="height:220px;background-image:url('https://source.unsplash.com/1200x900/?coffee,table,wood,living-room&sig=41')"></div>
-          <div class="sm-ikea-body"><div class="sm-ikea-title">Table Basse</div><div class="sm-ikea-desc">Table basse minimaliste, usage quotidien.</div><div class="sm-ikea-row"><span class="sm-ikea-price">From 1200 TND</span><button type="button" class="sm-ikea-btn" onclick="smOpenProductView(4)">View</button></div></div>
+          <div class="sm-ikea-body"><div class="sm-ikea-title">Table Basse</div><div class="sm-ikea-desc">Table basse minimaliste, usage quotidien.</div><div class="sm-ikea-row"><span class="sm-ikea-price">From 1200 TND</span><span class="sm-ikea-btn" style="pointer-events:none">View</span></div></div>
         </article>
-        <article class="sm-ikea-card" style="overflow:hidden">
+        <article class="sm-ikea-card" style="overflow:hidden;cursor:pointer" onclick="smGoToConfigurator(5)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();smGoToConfigurator(5);}">
           <div class="sm-ikea-img" style="height:220px;background-image:url('https://source.unsplash.com/1200x900/?vanity,table,wood,mirror&sig=51')"></div>
-          <div class="sm-ikea-body"><div class="sm-ikea-title">Coiffeuse avec Miroir</div><div class="sm-ikea-desc">Coiffeuse moderne avec miroir intégré.</div><div class="sm-ikea-row"><span class="sm-ikea-price">From 1800 TND</span><button type="button" class="sm-ikea-btn" onclick="smOpenProductView(5)">View</button></div></div>
+          <div class="sm-ikea-body"><div class="sm-ikea-title">Coiffeuse avec Miroir</div><div class="sm-ikea-desc">Coiffeuse moderne avec miroir intégré.</div><div class="sm-ikea-row"><span class="sm-ikea-price">From 1800 TND</span><span class="sm-ikea-btn" style="pointer-events:none">View</span></div></div>
         </article>
       </div>
     </div>
 
-    <!-- CONFIGURATOR -->
+    <!-- CONFIGURATOR — full-screen sheet (IKEA-style: opens when you pick a product) -->
+    <div id="sm-configurator-modal" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(15,23,42,.58);backdrop-filter:blur(4px);overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(var(--stn-main-nav-h,112px) + 8px) 0.75rem 2rem;box-sizing:border-box" aria-hidden="true" role="dialog" aria-labelledby="sm-configurator-title">
+      <div style="max-width:1220px;margin:0 auto;background:var(--bg-1);border-radius:20px;border:1px solid rgba(107,63,212,.15);box-shadow:0 24px 80px rgba(15,23,42,.28);overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:0.85rem 1.1rem;border-bottom:1px solid rgba(107,63,212,.12);background:white;position:sticky;top:0;z-index:3">
+          <button type="button" onclick="closeSMConfiguratorSheet()" style="display:inline-flex;align-items:center;gap:.4rem;background:#f5f2ff;color:#5b21b6;border:1px solid rgba(107,63,212,.25);border-radius:10px;padding:.55rem 1rem;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">← Catalogue</button>
+          <p id="sm-configurator-title" style="margin:0;font-size:.75rem;color:var(--text-muted);flex:1;text-align:right">Personnaliser · Everest Sur Mesure</p>
+        </div>
+        <div style="padding:1.25rem 1.25rem 2rem" id="sm-configurator-panel-inner">
     <div id="sm-configurator-wrap">
     <div class="s-header" style="margin:0 auto 1.35rem">
       <span class="eyebrow">Customize</span>
       <h2 class="display" style="font-size:clamp(1.6rem,3.7vw,2.6rem)">Change dimensions, colors and details</h2>
       <div class="divider center"></div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:start;max-width:1200px;margin:0 auto">
+    <div class="sm-conf-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:start;max-width:1200px;margin:0 auto">
 
       <!-- LEFT: VISUAL -->
-      <div style="position:sticky;top:84px">
+      <div class="sm-conf-visual" style="position:sticky;top:1rem;align-self:start">
 
         <!-- PHOTO -->
         <div id="sm-photo" style="aspect-ratio:4/3;border-radius:24px;border:2px solid rgba(107,63,212,0.15);position:relative;overflow:hidden;box-shadow:0 16px 50px rgba(74,31,168,0.14);transition:all .4s cubic-bezier(.4,0,.2,1);margin-bottom:1rem;background:#f5f2ff">
@@ -2237,20 +2244,6 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
       </div>
     </div>
     </div>
-
-    <div id="sm-view-modal" style="display:none;position:fixed;inset:0;z-index:1300;background:rgba(15,23,42,.6);backdrop-filter:blur(3px);padding:1rem;overflow:auto">
-      <div style="max-width:840px;margin:2rem auto;background:white;border-radius:18px;border:1px solid rgba(107,63,212,.2);box-shadow:0 22px 64px rgba(15,23,42,.3);overflow:hidden">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.9rem 1rem;background:linear-gradient(135deg,#1e0a4e,#4a1fa8);color:white">
-          <h3 id="sm-view-title" style="margin:0;font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:500">Product view</h3>
-          <button type="button" onclick="smCloseProductView()" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:white;border-radius:10px;padding:.4rem .7rem;cursor:pointer">Close ✕</button>
-        </div>
-        <div style="padding:1rem">
-          <div id="sm-view-main" style="height:360px;border-radius:14px;background:#f5f2ff;background-size:cover;background-position:center;margin-bottom:.8rem"></div>
-          <div id="sm-view-thumbs" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.45rem;margin-bottom:1rem"></div>
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
-            <p id="sm-view-desc" style="margin:0;color:var(--text-muted);font-size:.84rem;line-height:1.6;max-width:560px"></p>
-            <button type="button" id="sm-view-customize-btn" class="sm-ikea-btn" style="padding:.6rem .9rem">Customize this product</button>
-          </div>
         </div>
       </div>
     </div>
@@ -2292,7 +2285,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   </div>
 
   <!-- BESPOKE CUSTOM REQUEST -->
-  <div id="sm-custom-modal" style="display:none;position:fixed;inset:0;z-index:1300;background:rgba(15,23,42,.58);backdrop-filter:blur(3px);padding:1.2rem;overflow:auto">
+  <div id="sm-custom-modal" style="display:none;position:fixed;inset:0;z-index:2200;background:rgba(15,23,42,.58);backdrop-filter:blur(3px);padding:1.2rem;overflow:auto">
     <div style="max-width:760px;margin:2rem auto;background:white;border-radius:20px;border:1px solid rgba(107,63,212,.2);box-shadow:0 20px 65px rgba(15,23,42,.28);overflow:hidden">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.1rem 1.2rem;background:linear-gradient(135deg,#1e0a4e,#4a1fa8);color:white">
         <div>
@@ -2384,6 +2377,10 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   @media (max-width:640px){.sm-ikea-grid{grid-template-columns:1fr}}
   @media (max-width:980px){#sm-collection-grid{grid-template-columns:repeat(2,minmax(0,1fr)) !important}}
   @media (max-width:640px){#sm-collection-grid{grid-template-columns:1fr !important}}
+  @media (max-width:900px){
+    #sm-configurator-modal .sm-conf-grid{grid-template-columns:1fr !important;gap:1.5rem !important;}
+    #sm-configurator-modal .sm-conf-visual{position:relative !important;top:auto !important;}
+  }
   </style>
 
   <!-- SM script moved to bottom -->
@@ -2661,10 +2658,32 @@ function filterAndGo(cat) {
   ];
   let smCurrent=0,smColor='#D4A853';
 
-  function selectSMProduct(idx,btn){
+  function openSMConfiguratorSheet(){
+    var m = document.getElementById('sm-configurator-modal');
+    if(!m) return;
+    m.style.display = 'block';
+    m.setAttribute('aria-hidden','false');
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    m.scrollTop = 0;
+    var titleBar = document.getElementById('sm-configurator-title');
+    var p = SM_PRODUCTS[smCurrent];
+    if(titleBar && p) titleBar.textContent = (p.title || 'Sur mesure') + ' · Personnaliser';
+  }
+
+  function closeSMConfiguratorSheet(){
+    var m = document.getElementById('sm-configurator-modal');
+    if(!m) return;
+    m.style.display = 'none';
+    m.setAttribute('aria-hidden','true');
+    document.documentElement.style.overflow = '';
+    document.body.style.overflow = '';
+  }
+
+  function selectSMProduct(idx,btn,openSheet){
     smCurrent=idx;
     document.querySelectorAll('.sm-tab').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
+    if(btn) btn.classList.add('active');
     const p=SM_PRODUCTS[idx];
     document.getElementById('sm-title').textContent=p.title;
     document.getElementById('sm-desc').textContent=p.desc;
@@ -2704,14 +2723,17 @@ function filterAndGo(cat) {
     ['width','depth','height'].forEach(dim=>{
       const el=document.getElementById('sm-'+dim);
       const pd=dim==='width'?p.w:dim==='depth'?p.d:p.h;
-      el.min=pd.min;el.max=pd.max;el.value=pd.val;
+      if(el && pd){ el.min=pd.min;el.max=pd.max;el.value=pd.val; }
     });
     const lt=document.getElementById('sm-locked-tags');
     if(lt) lt.innerHTML=p.locked.map(l=>'<span style="background:rgba(107,63,212,0.06);border:1px solid rgba(107,63,212,0.12);color:var(--text-dim);font-size:.7rem;padding:.25rem .75rem;border-radius:20px">🔒 '+l+'</span>').join('');
     const photo=document.getElementById('sm-photo');
-    photo.style.transform='scale(0.95)';photo.style.opacity='.7';
-    setTimeout(()=>{photo.style.transition='all .4s cubic-bezier(.34,1.56,.64,1)';photo.style.transform='';photo.style.opacity='1';},200);
+    if(photo){
+      photo.style.transform='scale(0.95)';photo.style.opacity='.7';
+      setTimeout(()=>{photo.style.transition='all .4s cubic-bezier(.34,1.56,.64,1)';photo.style.transform='';photo.style.opacity='1';},200);
+    }
     updateSM();
+    if (openSheet !== false) openSMConfiguratorSheet();
   }
 
   function smSelectGal(el,idx){
@@ -2819,13 +2841,16 @@ function filterAndGo(cat) {
     if(typeof toast==='function') toast('💾 Configuration sauvegardée!','default');
   }
 
+  function smGoToConfigurator(idx){
+    var tabs = document.querySelectorAll('.sm-tab');
+    if(tabs[idx]) selectSMProduct(idx, tabs[idx], true);
+  }
+
   function smPickFromCatalog(idx, btn){
-    const tabs = document.querySelectorAll('.sm-tab');
-    if(tabs[idx]) selectSMProduct(idx, tabs[idx]);
+    smGoToConfigurator(idx);
     document.querySelectorAll('.sm-ikea-card').forEach(function(el){ el.classList.remove('active'); });
-    if(btn) btn.classList.add('active');
-    var conf = document.getElementById('sm-photo');
-    if(conf) conf.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    var card = btn || document.querySelector('[data-sm-card="'+idx+'"]');
+    if(card) card.classList.add('active');
   }
 
   function smPickFromCatalogImage(idx, imgIdx, btn){
@@ -2845,17 +2870,17 @@ function filterAndGo(cat) {
       var safeDesc = desc.length < String(p.desc || '').length ? desc + '...' : desc;
       var picSet = Array.isArray(p.objectImages) && p.objectImages.length ? p.objectImages : (Array.isArray(p.images) ? p.images : []);
       var thumbs = picSet.slice(0,4).map(function(u,j){
-        return '<button type="button" class="sm-ikea-thumb'+(j===0?' active':'')+'" onclick="smPickFromCatalogImage('+idx+','+j+',document.querySelector(\'[data-sm-card=&quot;'+idx+'&quot;]\'))" style="background-image:url(\''+u+'\')" title="Image '+(j+1)+'"></button>';
+        return '<button type="button" class="sm-ikea-thumb'+(j===0?' active':'')+'" onclick="event.stopPropagation();smPickFromCatalogImage('+idx+','+j+',document.querySelector(\'[data-sm-card=&quot;'+idx+'&quot;]\'))" style="background-image:url(\''+u+'\')" title="Image '+(j+1)+'"></button>';
       }).join('');
       return (
-        '<article class="sm-ikea-card'+(idx===0?' active':'')+'" data-sm-card="'+idx+'">' +
+        '<article class="sm-ikea-card'+(idx===0?' active':'')+'" data-sm-card="'+idx+'" onclick="smPickFromCatalog('+idx+',this)" style="cursor:pointer" role="button" tabindex="0" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();smPickFromCatalog('+idx+',this);}">' +
           '<div class="sm-ikea-img" style="background-image:url(\''+img+'\')"><span class="sm-ikea-tag">Everest</span></div>' +
           '<div class="sm-ikea-body">' +
             '<div class="sm-ikea-title">'+p.title+'</div>' +
             '<div class="sm-ikea-desc">'+safeDesc+'</div>' +
             '<div class="sm-ikea-thumbs">'+thumbs+'</div>' +
             '<div class="sm-ikea-row"><span class="sm-ikea-price">From '+p.base+' TND</span>' +
-              '<button type="button" class="sm-ikea-btn" onclick="smPickFromCatalog('+idx+',document.querySelector(\'[data-sm-card=&quot;'+idx+'&quot;]\'))">Customize</button>' +
+              '<button type="button" class="sm-ikea-btn" onclick="event.stopPropagation();smPickFromCatalog('+idx+',document.querySelector(\'[data-sm-card=&quot;'+idx+'&quot;]\'))">Customize</button>' +
             '</div>' +
           '</div>' +
         '</article>'
@@ -2868,67 +2893,25 @@ function filterAndGo(cat) {
     return;
   }
 
-  function smOpenProductView(idx){
-    var p = SM_PRODUCTS[idx];
-    if(!p) return;
-    var modal = document.getElementById('sm-view-modal');
-    var main = document.getElementById('sm-view-main');
-    var thumbs = document.getElementById('sm-view-thumbs');
-    var title = document.getElementById('sm-view-title');
-    var desc = document.getElementById('sm-view-desc');
-    var btn = document.getElementById('sm-view-customize-btn');
-    var pics = Array.isArray(p.objectImages) && p.objectImages.length ? p.objectImages : (Array.isArray(p.images) ? p.images : []);
-    if(title) title.textContent = p.title;
-    if(desc) desc.textContent = p.desc || '';
-    if(main && pics[0]) main.style.backgroundImage = "url('"+pics[0]+"')";
-    if(thumbs){
-      thumbs.innerHTML = pics.map(function(u,j){
-        return '<button type="button" class="sm-ikea-thumb'+(j===0?' active':'')+'" style="width:100%;aspect-ratio:1;background-image:url(\''+u+'\')" onclick="smSetViewImage(\''+u.replace(/'/g,"\\'")+'\',this)"></button>';
-      }).join('');
-    }
-    if(btn){
-      btn.onclick = function(){
-        smCloseProductView();
-        smPickFromCatalog(idx, document.querySelector('[data-sm-card="'+idx+'"]'));
-      };
-    }
-    if(modal) modal.style.display = 'block';
-  }
-
-  function smSetViewImage(url, btn){
-    var main = document.getElementById('sm-view-main');
-    if(main) main.style.backgroundImage = "url('"+url+"')";
-    document.querySelectorAll('#sm-view-thumbs .sm-ikea-thumb').forEach(function(el){el.classList.remove('active');});
-    if(btn) btn.classList.add('active');
-  }
-
-  function smCloseProductView(){
-    var modal = document.getElementById('sm-view-modal');
-    if(modal) modal.style.display = 'none';
-  }
-
   function applyFurniturePageLang(lang){
     var map = {
       fr: {
-        collectionTitle: 'Explore products first, then customize',
+        collectionTitle: 'Cliquez sur un produit pour ouvrir le configurateur',
         configTitle: 'Change dimensions, colors and details',
         deliveryStep: 'Livré en 2 semaines',
-        viewBtn: 'View',
-        customBtn: 'Customize this product'
+        viewBtn: 'Voir'
       },
       en: {
-        collectionTitle: 'Explore products first, then customize',
+        collectionTitle: 'Click a product to open the configurator',
         configTitle: 'Change dimensions, colors and details',
         deliveryStep: 'Delivered in 2 weeks',
-        viewBtn: 'View',
-        customBtn: 'Customize this product'
+        viewBtn: 'View'
       },
       ar: {
-        collectionTitle: 'شاهد المنتجات أولا ثم عدّلها',
+        collectionTitle: 'اضغط على منتج لفتح أداة التخصيص',
         configTitle: 'غيّر القياسات والألوان والتفاصيل',
         deliveryStep: 'التسليم خلال أسبوعين',
-        viewBtn: 'عرض',
-        customBtn: 'تخصيص هذا المنتج'
+        viewBtn: 'عرض'
       }
     };
     var t = map[lang] || map.fr;
@@ -2940,8 +2923,6 @@ function filterAndGo(cat) {
     var deliveryNode = document.getElementById('sm-delivery-step');
     if(deliveryNode) deliveryNode.textContent = t.deliveryStep;
     document.querySelectorAll('#sm-collection-grid .sm-ikea-btn').forEach(function(b){ b.textContent = t.viewBtn; });
-    var b2 = document.getElementById('sm-view-customize-btn');
-    if(b2) b2.textContent = t.customBtn;
   }
 
   function openCustomProjectForm(){
@@ -3005,16 +2986,11 @@ function filterAndGo(cat) {
   }
 
   function smInspoClick(idx, card) {
-    // Scroll to configurator top
     var tabs = document.querySelectorAll('.sm-tab');
     if (tabs[idx]) {
-      selectSMProduct(idx, tabs[idx]);
-      // Highlight selected card
+      selectSMProduct(idx, tabs[idx], true);
       document.querySelectorAll('.sm-inspo-card').forEach(function(c){ c.style.border='1px solid rgba(107,63,212,0.1)'; });
-      card.style.border = '2px solid #7c3aed';
-      // Scroll to configurator
-      var config = document.getElementById('sm-photo');
-      if (config) config.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (card) card.style.border = '2px solid #7c3aed';
       if (typeof toast === 'function') toast('✦ ' + SM_PRODUCTS[idx].title + ' sélectionné!', 'success');
     }
   }
@@ -3023,7 +2999,7 @@ function filterAndGo(cat) {
     renderSMIkeaGrid();
     renderSMCollectionGrid();
     const firstTab = document.querySelector('.sm-tab');
-    if (firstTab) selectSMProduct(0, firstTab);
+    if (firstTab) selectSMProduct(0, firstTab, false);
     updateSM();
     var modal = document.getElementById('sm-custom-modal');
     if(modal){
@@ -3031,12 +3007,18 @@ function filterAndGo(cat) {
         if(ev.target === modal) closeCustomProjectForm();
       });
     }
-    var viewModal = document.getElementById('sm-view-modal');
-    if(viewModal){
-      viewModal.addEventListener('click', function(ev){
-        if(ev.target === viewModal) smCloseProductView();
+    var confModal = document.getElementById('sm-configurator-modal');
+    if(confModal){
+      confModal.addEventListener('click', function(ev){
+        if(ev.target === confModal) closeSMConfiguratorSheet();
       });
     }
+    document.addEventListener('keydown', function(ev){
+      if(ev.key !== 'Escape') return;
+      var cm = document.getElementById('sm-configurator-modal');
+      if(!cm || cm.style.display === 'none') return;
+      closeSMConfiguratorSheet();
+    });
     setTimeout(function(){
       var active = document.querySelector('.lang-btn.active');
       var lang = active ? active.id.replace('lang-','') : 'fr';
@@ -3047,7 +3029,7 @@ function filterAndGo(cat) {
     renderSMIkeaGrid();
     renderSMCollectionGrid();
     const firstTab = document.querySelector('.sm-tab');
-    if (firstTab) selectSMProduct(0, firstTab);
+    if (firstTab) selectSMProduct(0, firstTab, false);
     updateSM();
   },200);
   if (typeof window.setLang === 'function' && !window.__stnFurnitureLangWrapped) {

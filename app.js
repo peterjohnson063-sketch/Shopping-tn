@@ -931,6 +931,12 @@ function syncAboutNavLink() {
 function showPage(id) {
   console.log('🔄 showPage called with:', id);
 
+  if (typeof closeSMConfiguratorSheet === 'function') {
+    try {
+      closeSMConfiguratorSheet();
+    } catch (e) {}
+  }
+
   if (typeof toggleNavDrawer === 'function') toggleNavDrawer(false);
 
   // Stop tracking timers/subscriptions when leaving the track page
