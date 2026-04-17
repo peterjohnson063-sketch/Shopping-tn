@@ -2284,7 +2284,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
         <div style="text-align:center;flex:1;min-width:120px;max-width:160px">
           <div style="width:54px;height:54px;background:linear-gradient(135deg,#7c3aed,#6b3fd4);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto .8rem;font-size:.9rem;font-weight:700;color:white;box-shadow:0 6px 20px rgba(124,58,237,.35)">4</div>
           <div style="font-size:.88rem;color:var(--text-dark);font-weight:700;margin-bottom:.3rem">Livraison</div>
-          <div style="font-size:.74rem;color:var(--text-muted);line-height:1.6">Livré en 2 semaines</div>
+          <div id="sm-delivery-step" style="font-size:.74rem;color:var(--text-muted);line-height:1.6">Livré en 2 semaines</div>
         </div>
       </div>
     </div>
@@ -2936,9 +2936,8 @@ function filterAndGo(cat) {
     if(cTitle) cTitle.textContent = t.collectionTitle;
     var configTitle = document.querySelector('#sm-configurator-wrap .s-header h2.display');
     if(configTitle) configTitle.textContent = t.configTitle;
-    var deliveryNode = Array.from(document.querySelectorAll('#page-carpenter div')).find(function(el){
-      return el.textContent && (el.textContent.indexOf('Livré en 2 semaines')>=0 || el.textContent.indexOf('Delivered in 2 weeks')>=0 || el.textContent.indexOf('التسليم خلال أسبوعين')>=0);
-    });
+    // Must target this leaf only: ancestor divs also contain this phrase in aggregated textContent, which used to wipe the whole page.
+    var deliveryNode = document.getElementById('sm-delivery-step');
     if(deliveryNode) deliveryNode.textContent = t.deliveryStep;
     document.querySelectorAll('#sm-collection-grid .sm-ikea-btn').forEach(function(b){ b.textContent = t.viewBtn; });
     var b2 = document.getElementById('sm-view-customize-btn');
