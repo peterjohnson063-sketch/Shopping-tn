@@ -2054,7 +2054,22 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
       <div id="sm-ikea-grid" class="sm-ikea-grid"></div>
     </div>
 
+    <!-- PRODUCT COLLECTION (VIEW FIRST) -->
+    <div style="max-width:1200px;margin:0 auto 2.8rem">
+      <div class="s-header" style="margin-bottom:1.2rem">
+        <span class="eyebrow">Collection Everest</span>
+        <h2 class="display" style="font-size:clamp(1.8rem,4vw,3rem)">Explore products first, then customize</h2>
+        <div class="divider center"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem" id="sm-collection-grid"></div>
+    </div>
+
     <!-- CONFIGURATOR -->
+    <div class="s-header" style="margin:0 auto 1.35rem">
+      <span class="eyebrow">Customize</span>
+      <h2 class="display" style="font-size:clamp(1.6rem,3.7vw,2.6rem)">Change dimensions, colors and details</h2>
+      <div class="divider center"></div>
+    </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:start;max-width:1200px;margin:0 auto">
 
       <!-- LEFT: VISUAL -->
@@ -2190,43 +2205,19 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
       </div>
     </div>
 
-    <!-- INSPIRATION GALLERY -->
-    <div style="margin-top:5rem">
-      <div class="s-header">
-        <span class="eyebrow">Galerie d'Inspiration · معرض</span>
-        <h2 class="display" style="font-size:clamp(1.8rem,4vw,3rem)">Everest <em class="gold-text">Lookbook</em></h2>
-        <div class="divider center"></div>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;max-width:1100px;margin:0 auto">
-        <div class="sm-inspo-card" onclick="smInspoClick(0,this)" title="Configurer cette pièce">
-          <div class="sm-inspo-img" style="background-image:url('https://source.unsplash.com/1200x900/?oak,chair,interior&sig=101');background-size:cover;background-position:center"><div class="sm-inspo-badge">Chaise Bistrot</div></div>
-          <div class="sm-inspo-info"><strong>Chaise Bistrot Chêne</strong><span>1,200 TND</span></div>
-          <div class="sm-inspo-cta">✦ Configurer</div>
+    <div id="sm-view-modal" style="display:none;position:fixed;inset:0;z-index:1300;background:rgba(15,23,42,.6);backdrop-filter:blur(3px);padding:1rem;overflow:auto">
+      <div style="max-width:840px;margin:2rem auto;background:white;border-radius:18px;border:1px solid rgba(107,63,212,.2);box-shadow:0 22px 64px rgba(15,23,42,.3);overflow:hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.9rem 1rem;background:linear-gradient(135deg,#1e0a4e,#4a1fa8);color:white">
+          <h3 id="sm-view-title" style="margin:0;font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:500">Product view</h3>
+          <button type="button" onclick="smCloseProductView()" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:white;border-radius:10px;padding:.4rem .7rem;cursor:pointer">Close ✕</button>
         </div>
-        <div class="sm-inspo-card" onclick="smInspoClick(1,this)" title="Configurer cette pièce">
-          <div class="sm-inspo-img" style="background-image:url('https://source.unsplash.com/1200x900/?oak,dining,table,interior&sig=102');background-size:cover;background-position:center"><div class="sm-inspo-badge">Table Famille</div></div>
-          <div class="sm-inspo-info"><strong>Table à Manger 8 pers.</strong><span>3,800 TND</span></div>
-          <div class="sm-inspo-cta">✦ Configurer</div>
-        </div>
-        <div class="sm-inspo-card" onclick="smInspoClick(2,this)" title="Configurer cette pièce">
-          <div class="sm-inspo-img" style="background-image:url('https://source.unsplash.com/1200x900/?wooden,sofa,scandinavian,interior&sig=103');background-size:cover;background-position:center"><div class="sm-inspo-badge">Canapé Cadre</div></div>
-          <div class="sm-inspo-info"><strong>Canapé 3 Places</strong><span>4,200 TND</span></div>
-          <div class="sm-inspo-cta">✦ Configurer</div>
-        </div>
-        <div class="sm-inspo-card" onclick="smInspoClick(3,this)" title="Configurer cette pièce">
-          <div class="sm-inspo-img" style="background-image:url('https://source.unsplash.com/1200x900/?wardrobe,wood,bedroom&sig=104');background-size:cover;background-position:center"><div class="sm-inspo-badge">Armoire Luxe</div></div>
-          <div class="sm-inspo-info"><strong>Armoire 3 Portes</strong><span>5,500 TND</span></div>
-          <div class="sm-inspo-cta">✦ Configurer</div>
-        </div>
-        <div class="sm-inspo-card" onclick="smInspoClick(4,this)" title="Configurer cette pièce">
-          <div class="sm-inspo-img" style="background-image:url('https://source.unsplash.com/1200x900/?coffee,table,wooden,living-room&sig=105');background-size:cover;background-position:center"><div class="sm-inspo-badge">Table Scandinave</div></div>
-          <div class="sm-inspo-info"><strong>Table Basse Design</strong><span>1,450 TND</span></div>
-          <div class="sm-inspo-cta">✦ Configurer</div>
-        </div>
-        <div class="sm-inspo-card" onclick="smInspoClick(5,this)" title="Configurer cette pièce">
-          <div class="sm-inspo-img" style="background-image:url('https://source.unsplash.com/1200x900/?vanity,table,wood,mirror&sig=106');background-size:cover;background-position:center"><div class="sm-inspo-badge">Coiffeuse Vintage</div></div>
-          <div class="sm-inspo-info"><strong>Coiffeuse avec Miroir</strong><span>2,100 TND</span></div>
-          <div class="sm-inspo-cta">✦ Configurer</div>
+        <div style="padding:1rem">
+          <div id="sm-view-main" style="height:360px;border-radius:14px;background:#f5f2ff;background-size:cover;background-position:center;margin-bottom:.8rem"></div>
+          <div id="sm-view-thumbs" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.45rem;margin-bottom:1rem"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
+            <p id="sm-view-desc" style="margin:0;color:var(--text-muted);font-size:.84rem;line-height:1.6;max-width:560px"></p>
+            <button type="button" id="sm-view-customize-btn" class="sm-ikea-btn" style="padding:.6rem .9rem">Customize this product</button>
+          </div>
         </div>
       </div>
     </div>
@@ -2357,6 +2348,8 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   .sm-f-input:focus{border-color:#7c3aed;box-shadow:0 0 0 3px rgba(124,58,237,.1)}
   @media (max-width:980px){.sm-ikea-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
   @media (max-width:640px){.sm-ikea-grid{grid-template-columns:1fr}}
+  @media (max-width:980px){#sm-collection-grid{grid-template-columns:repeat(2,minmax(0,1fr)) !important}}
+  @media (max-width:640px){#sm-collection-grid{grid-template-columns:1fr !important}}
   </style>
 
   <!-- SM script moved to bottom -->
@@ -2836,6 +2829,67 @@ function filterAndGo(cat) {
     }).join('');
   }
 
+  function renderSMCollectionGrid(){
+    var grid=document.getElementById('sm-collection-grid');
+    if(!grid || !Array.isArray(SM_PRODUCTS)) return;
+    grid.innerHTML = SM_PRODUCTS.map(function(p, idx){
+      var pics = Array.isArray(p.objectImages) && p.objectImages.length ? p.objectImages : (Array.isArray(p.images) ? p.images : []);
+      var cover = pics[0] || '';
+      return (
+        '<article class="sm-ikea-card" style="overflow:hidden">' +
+          '<div class="sm-ikea-img" style="height:220px;background-image:url(\''+cover+'\')"></div>' +
+          '<div class="sm-ikea-body">' +
+            '<div class="sm-ikea-title">'+p.title+'</div>' +
+            '<div class="sm-ikea-desc">'+String(p.desc||'').slice(0,95)+(String(p.desc||'').length>95?'...':'')+'</div>' +
+            '<div class="sm-ikea-row">' +
+              '<span class="sm-ikea-price">From '+p.base+' TND</span>' +
+              '<button type="button" class="sm-ikea-btn" onclick="smOpenProductView('+idx+')">View</button>' +
+            '</div>' +
+          '</div>' +
+        '</article>'
+      );
+    }).join('');
+  }
+
+  function smOpenProductView(idx){
+    var p = SM_PRODUCTS[idx];
+    if(!p) return;
+    var modal = document.getElementById('sm-view-modal');
+    var main = document.getElementById('sm-view-main');
+    var thumbs = document.getElementById('sm-view-thumbs');
+    var title = document.getElementById('sm-view-title');
+    var desc = document.getElementById('sm-view-desc');
+    var btn = document.getElementById('sm-view-customize-btn');
+    var pics = Array.isArray(p.objectImages) && p.objectImages.length ? p.objectImages : (Array.isArray(p.images) ? p.images : []);
+    if(title) title.textContent = p.title;
+    if(desc) desc.textContent = p.desc || '';
+    if(main && pics[0]) main.style.backgroundImage = "url('"+pics[0]+"')";
+    if(thumbs){
+      thumbs.innerHTML = pics.map(function(u,j){
+        return '<button type="button" class="sm-ikea-thumb'+(j===0?' active':'')+'" style="width:100%;aspect-ratio:1;background-image:url(\''+u+'\')" onclick="smSetViewImage(\''+u.replace(/'/g,"\\'")+'\',this)"></button>';
+      }).join('');
+    }
+    if(btn){
+      btn.onclick = function(){
+        smCloseProductView();
+        smPickFromCatalog(idx, document.querySelector('[data-sm-card="'+idx+'"]'));
+      };
+    }
+    if(modal) modal.style.display = 'block';
+  }
+
+  function smSetViewImage(url, btn){
+    var main = document.getElementById('sm-view-main');
+    if(main) main.style.backgroundImage = "url('"+url+"')";
+    document.querySelectorAll('#sm-view-thumbs .sm-ikea-thumb').forEach(function(el){el.classList.remove('active');});
+    if(btn) btn.classList.add('active');
+  }
+
+  function smCloseProductView(){
+    var modal = document.getElementById('sm-view-modal');
+    if(modal) modal.style.display = 'none';
+  }
+
   function openCustomProjectForm(){
     var modal = document.getElementById('sm-custom-modal');
     if(modal) modal.style.display = 'block';
@@ -2913,6 +2967,7 @@ function filterAndGo(cat) {
 
   document.addEventListener('DOMContentLoaded',()=>{
     renderSMIkeaGrid();
+    renderSMCollectionGrid();
     const firstTab = document.querySelector('.sm-tab');
     if (firstTab) selectSMProduct(0, firstTab);
     updateSM();
@@ -2922,9 +2977,16 @@ function filterAndGo(cat) {
         if(ev.target === modal) closeCustomProjectForm();
       });
     }
+    var viewModal = document.getElementById('sm-view-modal');
+    if(viewModal){
+      viewModal.addEventListener('click', function(ev){
+        if(ev.target === viewModal) smCloseProductView();
+      });
+    }
   });
   setTimeout(()=>{
     renderSMIkeaGrid();
+    renderSMCollectionGrid();
     const firstTab = document.querySelector('.sm-tab');
     if (firstTab) selectSMProduct(0, firstTab);
     updateSM();
