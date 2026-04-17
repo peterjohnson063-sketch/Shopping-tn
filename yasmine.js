@@ -4,7 +4,7 @@ var TRANSLATIONS={
   en:{
     'nav-home':'Home','nav-products':'Collections','nav-carpenter':'Custom Furniture',
     'nav-track':'Track','nav-loyalty':'Rewards','nav-about':'About','nav-about-vendor':'Rules for Vendors','signin-btn':'Sign In',
-    'hero-badge':"Tunisias #1 Artisan Marketplace",
+    'hero-badge':"Tunisia's #1 Artisan Marketplace",
     'hero-search':'Search products, artisans, regions...','hero-search-btn':'Search',
     'stat-products':'Products','stat-regions':'Regions','stat-satisfaction':'Satisfaction','stat-delivery':'Max Delivery',
     'browse-label':'Browse by Category','browse-title':'Our Collections',
@@ -37,7 +37,24 @@ var TRANSLATIONS={
     'vr-s3-h':'Section 3: Data Privacy & Security (The "Blind" Flow)',
     'vr-s3-1-l':'Customer Privacy (Blind Shipping):','vr-s3-1-t':'Vendors/Factories have ZERO access to customer personal data (No name, No phone, No address). They only receive the "Order ID" and "Product Details" for preparation.',
     'vr-s3-2-l':'Driver Access Control:','vr-s3-2-t':'Drivers only receive the necessary delivery info (Name, Phone Number, and GPS Location). All other customer data remains encrypted and hidden within the Everest system.',
-    'vr-s3-3-l':'Verified Reviews Only:','vr-s3-3-t':'Rating or reviewing a product is only possible after a successful purchase and delivery. This prevents fraud and fake ratings.'
+    'vr-s3-3-l':'Verified Reviews Only:','vr-s3-3-t':'Rating or reviewing a product is only possible after a successful purchase and delivery. This prevents fraud and fake ratings.',
+    'prod-eyebrow':'All products','prod-h1':'Our Collections','prod-filters':'Filters','prod-clear':'Clear All','prod-categories':'Categories',
+    'prod-cat-all':'All Products','prod-cat-furniture':'Furniture','prod-cat-lighting':'Lighting','prod-cat-decor':'Decor','prod-cat-ceramics':'Ceramics','prod-cat-bedroom':'Bedroom','prod-cat-outdoor':'Outdoor','prod-cat-fragrance':'Fragrance',
+    'prod-price':'Price Range','prod-min':'Min','prod-max':'Max','prod-search-ph':'Search products, brands, regions…','prod-search-btn':'Search',
+    'sm-hero-badge':'Custom configurator · Made to order','sm-hero-h1a':'Your furniture,','sm-hero-h1b':'Your vision','sm-hero-desc':'Configure like IKEA: clean lines, live preview, custom dimensions and finishes — Everest.',
+    'sm-st-weeks':'Weeks','sm-st-oak':'Solid oak','sm-st-warranty':'Year warranty','sm-st-reply':'Reply',
+    'sm-eyebrow-piece':'Choose a piece','sm-h2-oak':'Our oak designs','sm-studio-desc':'Everest Studio: minimal style, premium materials, precise personalization.',
+    'sm-cat-lbl':'Everest catalog','sm-cat-h3':'Browse rows IKEA-style','sm-request-custom':'Request custom project','sm-coll-eyebrow':'Everest collection','sm-coll-h2':'Click a product to open the configurator',
+    'sm-back':'← Back to catalog','sm-toolbar-hint':'Customize · Everest Sur Mesure','sm-cfg-eyebrow':'Customize','sm-cfg-h2':'Change dimensions, colors and details','sm-delivery-step':'Delivered in 2 weeks','sm-view':'View','sm-customize':'Customize','sm-from':'From','sm-personalize-short':'Personalize',
+    'prod-mobile-filters':'🎯 Filters','prod-rating-h':'Customer Rating','prod-rating-up':'& Up','prod-avail-h':'Availability','prod-in-stock':'✅ In Stock','prod-out-stock':'⏳ Out of Stock','prod-offers-h':'Special Offers','prod-free-ship':'🚚 Free Shipping','prod-on-sale':'🏷️ On Sale','prod-sort-by':'Sort by:','prod-sort-featured':'Featured','prod-sort-price-low':'Price: Low to High','prod-sort-price-high':'Price: High to Low','prod-sort-rating':'Customer Rating','prod-sort-newest':'Newest Arrivals','prod-results':'results',
+    'sm-label-min':'min','sm-label-max':'max','sm-units-cm':'cm','sm-dim-width':'Width','sm-dim-depth':'Depth','sm-dim-height':'Height','sm-teinte-hdr':'🎨 Oak finish tone','sm-selected-prefix':'Selected:','sm-estimated-badge':'Est. price','sm-dim-hdr':'📐 Dimensions','sm-dim-sub':'(limits set by Everest)','sm-locked-hdr':'🔒 Fixed by Everest quality standard','sm-summary-hdr':'Configuration summary','sm-base-price-lbl':'Base price','sm-dim-extra-lbl':'Dimension adjustment','sm-total-est-lbl':'Estimated total','sm-price-footnote':'* Final price confirmed by the Everest team within 24h','sm-add-cart':'🛒 Add to cart','sm-blender-btn':'✨ Customize (Blender)','sm-save-cfg':'💾 Save','sm-save-toast':'Configuration saved','sm-success-title':'Added to cart!','sm-success-sub':'The Everest team will confirm within 24h','sm-cf-close':'Close ✕','sm-cf-h3':'Customize your special furniture','sm-cf-intro':'Send your own model (Blender/3D file), color palette, dimensions and details. Our Everest team will prepare your quote.','sm-cf-name':'Full name *','sm-cf-phone':'Phone *','sm-cf-email':'Email *','sm-cf-type':'Furniture type *','sm-cf-type-ph':'Chair, table, wardrobe...','sm-cf-width':'Width (cm) *','sm-cf-depth':'Depth (cm) *','sm-cf-height':'Height (cm) *','sm-cf-color':'Preferred color / finish *','sm-cf-color-ph':'Oak dark, matte black...','sm-cf-notes':'Material / style notes *','sm-cf-notes-ph':'Any details: wood type, drawers, legs, handle style...','sm-cf-upload':'Upload your model / references *','sm-cf-nofile':'No file selected','sm-cf-selected-prefix':'Selected:','sm-cf-submit-note':'By submitting, your request is sent to Everest team for manual quote review.','sm-cf-submit':'Accept & request quote','sm-cf-sending':'Sending request...','sm-cf-ok-msg':'✅ Request received. Please wait for the devis to be ready so you can know the final price.','sm-cf-toast':'Request sent. Please wait for the quote.','sm-thumb-title':'Image',
+    'sm-hiw-eyebrow':'How it works','sm-hiw-h2':'Simple as it gets','sm-hiw-s1t':'Choose','sm-hiw-s1d':'Pick a model from our catalog','sm-hiw-s2t':'Configure','sm-hiw-s2d':'Adjust dimensions and finish','sm-hiw-s3t':'Order','sm-hiw-s3d':'Quote confirmed within 24h','sm-hiw-s4t':'Delivery',
+    'track-h1':'Track your order','track-empty-msg':'Enter your order ID above to track your shipment in real time.','track-try':'Try:',
+    'wish-eyebrow':'Wishlist','wish-h1':'Your wishlist',
+    'gift-back':'← Back to shopping','gift-eyebrow':'Gift','gift-h1':'Send a gift','gift-desc':'Tell us who receives the delivery. You will pay on the next step.',
+    'loy-h1':'Loyalty Rewards','loy-how':'How it works:','loy-pt1':'1 TND spent = 1 point','loy-pt2':'100 points = 1 TND off','loy-cta':'Start earning points →',
+    'ab-eyebrow':'Our story','ab-h1':'About Everest','ab-lead':'Born in the heart of Tunisia\'s Sahel region, Everest was created to connect the world with the extraordinary craftsmanship of Monastir, Ksar Hellal, and beyond.',
+    'ab-miss-k':'Our mission','ab-miss-h':'Sahel to the world'
   },
   fr:{
     'nav-home':'Accueil','nav-products':'Collections','nav-carpenter':'Sur Mesure',
@@ -75,7 +92,24 @@ var TRANSLATIONS={
     'vr-s3-h':'Section 3 : Confidentialité et sécurité des données (flux « aveugle »)',
     'vr-s3-1-l':'Vie privée des clients (expédition aveugle) :','vr-s3-1-t':'Les vendeurs et usines n\'ont AUCUN accès aux données personnelles des clients (pas de nom, téléphone ni adresse). Ils ne reçoivent que l\'identifiant de commande et le détail des produits à préparer.',
     'vr-s3-2-l':'Accès contrôlé pour les livreurs :','vr-s3-2-t':'Les livreurs ne reçoivent que les informations nécessaires à la livraison (nom, téléphone, position GPS). Les autres données restent chiffrées et invisibles dans le système Everest.',
-    'vr-s3-3-l':'Avis vérifiés uniquement :','vr-s3-3-t':'Noter ou commenter un produit n\'est possible qu\'après un achat et une livraison réussis, afin d\'éviter la fraude et les faux avis.'
+    'vr-s3-3-l':'Avis vérifiés uniquement :','vr-s3-3-t':'Noter ou commenter un produit n\'est possible qu\'après un achat et une livraison réussis, afin d\'éviter la fraude et les faux avis.',
+    'prod-eyebrow':'Tous les produits','prod-h1':'Nos collections','prod-filters':'Filtres','prod-clear':'Tout effacer','prod-categories':'Catégories',
+    'prod-cat-all':'Tous les produits','prod-cat-furniture':'Meubles','prod-cat-lighting':'Luminaires','prod-cat-decor':'Décoration','prod-cat-ceramics':'Céramiques','prod-cat-bedroom':'Chambre','prod-cat-outdoor':'Extérieur','prod-cat-fragrance':'Parfums',
+    'prod-price':'Fourchette de prix','prod-min':'Min','prod-max':'Max','prod-search-ph':'Rechercher produits, marques, régions…','prod-search-btn':'Rechercher',
+    'sm-hero-badge':'Configurateur sur mesure','sm-hero-h1a':'Votre meuble,','sm-hero-h1b':'votre vision','sm-hero-desc':'Comme chez IKEA : lignes épurées, aperçu en direct, dimensions et finitions sur mesure — Everest.',
+    'sm-st-weeks':'Semaines','sm-st-oak':'Chêne massif','sm-st-warranty':'Garantie','sm-st-reply':'Réponse',
+    'sm-eyebrow-piece':'Choisir une pièce','sm-h2-oak':'Nos pièces en chêne','sm-studio-desc':'Studio Everest : style minimal, matériaux premium, personnalisation précise.',
+    'sm-cat-lbl':'Catalogue Everest','sm-cat-h3':'Parcourir en lignes, style IKEA','sm-request-custom':'Demander un projet sur mesure','sm-coll-eyebrow':'Collection Everest','sm-coll-h2':'Cliquez sur un produit pour ouvrir le configurateur',
+    'sm-back':'← Retour au catalogue','sm-toolbar-hint':'Personnaliser · Everest Sur Mesure','sm-cfg-eyebrow':'Personnaliser','sm-cfg-h2':'Modifiez dimensions, couleurs et détails','sm-delivery-step':'Livré en 2 semaines','sm-view':'Voir','sm-customize':'Personnaliser','sm-from':'À partir de','sm-personalize-short':'Personnaliser',
+    'prod-mobile-filters':'🎯 Filtres','prod-rating-h':'Avis clients','prod-rating-up':'et +','prod-avail-h':'Disponibilité','prod-in-stock':'✅ En stock','prod-out-stock':'⏳ Rupture','prod-offers-h':'Offres spéciales','prod-free-ship':'🚚 Livraison gratuite','prod-on-sale':'🏷️ Promo','prod-sort-by':'Trier par :','prod-sort-featured':'En vedette','prod-sort-price-low':'Prix croissant','prod-sort-price-high':'Prix décroissant','prod-sort-rating':'Avis clients','prod-sort-newest':'Nouveautés','prod-results':'résultats',
+    'sm-label-min':'min','sm-label-max':'max','sm-units-cm':'cm','sm-dim-width':'Largeur','sm-dim-depth':'Profondeur','sm-dim-height':'Hauteur','sm-teinte-hdr':'🎨 Teinte du chêne','sm-selected-prefix':'Sélectionné :','sm-estimated-badge':'Prix estimé','sm-dim-hdr':'📐 Dimensions','sm-dim-sub':'(limites fixées par Everest)','sm-locked-hdr':'🔒 Fixé par le standard qualité Everest','sm-summary-hdr':'Résumé de configuration','sm-base-price-lbl':'Prix de base','sm-dim-extra-lbl':'Ajustement dimensions','sm-total-est-lbl':'Total estimé','sm-price-footnote':'* Prix final confirmé par l’équipe Everest sous 24h','sm-add-cart':'🛒 Ajouter au panier','sm-blender-btn':'✨ Personnaliser (Blender)','sm-save-cfg':'💾 Sauvegarder','sm-save-toast':'Configuration enregistrée','sm-success-title':'Ajouté au panier !','sm-success-sub':'L’équipe Everest confirmera sous 24h','sm-cf-close':'Fermer ✕','sm-cf-h3':'Personnalisez votre meuble sur mesure','sm-cf-intro':'Envoyez votre modèle (Blender/3D), palette de couleurs, dimensions et détails. Notre équipe prépare votre devis.','sm-cf-name':'Nom complet *','sm-cf-phone':'Téléphone *','sm-cf-email':'E-mail *','sm-cf-type':'Type de meuble *','sm-cf-type-ph':'Chaise, table, armoire...','sm-cf-width':'Largeur (cm) *','sm-cf-depth':'Profondeur (cm) *','sm-cf-height':'Hauteur (cm) *','sm-cf-color':'Couleur / finition *','sm-cf-color-ph':'Chêne foncé, noir mat...','sm-cf-notes':'Notes matériau / style *','sm-cf-notes-ph':'Détails : bois, tiroirs, pieds, poignées...','sm-cf-upload':'Modèle / références *','sm-cf-nofile':'Aucun fichier','sm-cf-selected-prefix':'Sélection :','sm-cf-submit-note':'En envoyant, votre demande part à l’équipe Everest pour un devis manuel.','sm-cf-submit':'Accepter et demander le devis','sm-cf-sending':'Envoi...','sm-cf-ok-msg':'✅ Demande reçue. Merci d’attendre le devis pour connaître le prix final.','sm-cf-toast':'Demande envoyée. Merci d’attendre le devis.','sm-thumb-title':'Image',
+    'sm-hiw-eyebrow':'Comment ça marche','sm-hiw-h2':'Simple comme bonjour','sm-hiw-s1t':'Choisir','sm-hiw-s1d':'Sélectionnez votre meuble parmi nos modèles','sm-hiw-s2t':'Configurer','sm-hiw-s2d':'Ajustez dimensions et teinte','sm-hiw-s3t':'Commander','sm-hiw-s3d':'Devis confirmé sous 24h','sm-hiw-s4t':'Livraison',
+    'track-h1':'Suivez votre commande','track-empty-msg':'Entrez votre numéro de commande ci-dessus pour suivre votre envoi en temps réel.','track-try':'Essai :',
+    'wish-eyebrow':'Liste d\'envies','wish-h1':'Votre liste d\'envies',
+    'gift-back':'← Retour aux achats','gift-eyebrow':'Cadeau','gift-h1':'Offrir un cadeau','gift-desc':'Indiquez qui reçoit la livraison. Vous paierez à l\'étape suivante.',
+    'loy-h1':'Récompenses fidélité','loy-how':'Comment ça marche :','loy-pt1':'1 TND dépensé = 1 point','loy-pt2':'100 points = 1 TND de remise','loy-cta':'Commencer à cumuler →',
+    'ab-eyebrow':'Notre histoire','ab-h1':'À propos d\'Everest','ab-lead':'Née au cœur du Sahel tunisien, Everest relie le monde à l\'artisanat exceptionnel de Monastir, Ksar Hellal et au-delà.',
+    'ab-miss-k':'Notre mission','ab-miss-h':'Du Sahel au monde'
   },
   ar:{
     'nav-home':'\u0627\u0644\u0631\u0626\u064a\u0633\u064a\u0629',
@@ -140,7 +174,24 @@ var TRANSLATIONS={
     'vr-s3-h':'\u0627\u0644\u0642\u0633\u0645 3: \u062e\u0635\u0648\u0635\u064a\u0629 \u0627\u0644\u0628\u064a\u0627\u0646\u0627\u062a \u0648\u0627\u0644\u0623\u0645\u0627\u0646 (\u00ab\u0627\u0644\u062a\u062f\u0641\u0642 \u0627\u0644\u0623\u0639\u0645\u0649\u00bb)',
     'vr-s3-1-l':'\u062e\u0635\u0648\u0635\u064a\u0629 \u0627\u0644\u0639\u0645\u064a\u0644 (\u0634\u062d\u0646 \u0623\u0639\u0645\u0649):','vr-s3-1-t':'\u0644\u064a\u0633 \u0644\u062f\u0649 \u0627\u0644\u0628\u0627\u0626\u0639\u064a\u0646 \u0648\u0627\u0644\u0645\u0635\u0627\u0646\u0639 \u0623\u064a \u0648\u0635\u0648\u0644 \u0625\u0644\u0649 \u0627\u0644\u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u0634\u062e\u0635\u064a\u0629 \u0644\u0644\u0639\u0645\u064a\u0644 (\u0644\u0627 \u0627\u0633\u0645 \u0648\u0644\u0627 \u0647\u0627\u062a\u0641 \u0648\u0644\u0627 \u0639\u0646\u0648\u0627\u0646). \u064a\u062a\u0644\u0642\u0648\u0646 \u0641\u0642\u0637 \u00ab\u0631\u0642\u0645 \u0627\u0644\u0637\u0644\u0628\u00bb \u0648\u00ab\u062a\u0641\u0627\u0635\u064a\u0644 \u0627\u0644\u0645\u0646\u062a\u062c\u00bb \u0644\u0644\u062a\u062c\u0647\u064a\u0632.',
     'vr-s3-2-l':'\u062a\u062d\u0643\u0645 \u0648\u0635\u0648\u0644 \u0627\u0644\u0633\u0627\u0626\u0642\u064a\u0646:','vr-s3-2-t':'\u064a\u062a\u0644\u0642\u0649 \u0627\u0644\u0633\u0627\u0626\u0642\u0648\u0646 \u0641\u0642\u0637 \u0627\u0644\u0645\u0639\u0644\u0648\u0645\u0627\u062a \u0627\u0644\u0644\u0627\u0632\u0645\u0629 \u0644\u0644\u062a\u0633\u0644\u064a\u0645 (\u0627\u0644\u0627\u0633\u0645 \u0648\u0631\u0642\u0645 \u0627\u0644\u0647\u0627\u062a\u0641 \u0648\u0645\u0648\u0642\u0639 GPS). \u062a\u0628\u0642\u0649 \u0628\u0642\u064a\u0629 \u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u0639\u0645\u064a\u0644 \u0645\u0634\u0641\u0631\u0629 \u0648\u0645\u062e\u0641\u064a\u0629 \u062f\u0627\u062e\u0644 \u0646\u0638\u0627\u0645 \u0625\u064a\u0641\u0631\u0633\u062a.',
-    'vr-s3-3-l':'\u062a\u0642\u064a\u064a\u0645\u0627\u062a \u0645\u0648\u062b\u0642\u0629 \u0641\u0642\u0637:','vr-s3-3-t':'\u0627\u0644\u062a\u0642\u064a\u064a\u0645 \u0623\u0648 \u0627\u0644\u0645\u0631\u0627\u062c\u0639\u0629 \u0645\u0645\u0643\u0646\u0629 \u0641\u0642\u0637 \u0628\u0639\u062f \u0634\u0631\u0627\u0621 \u0648\u062a\u0633\u0644\u064a\u0645 \u0646\u0627\u062c\u062d\u064a\u0646. \u064a\u0645\u0646\u0639 \u0627\u0644\u0627\u062d\u062a\u064a\u0627\u0644 \u0648\u0627\u0644\u062a\u0642\u064a\u064a\u0645\u0627\u062a \u0627\u0644\u0648\u0647\u0645\u064a\u0629.'
+    'vr-s3-3-l':'\u062a\u0642\u064a\u064a\u0645\u0627\u062a \u0645\u0648\u062b\u0642\u0629 \u0641\u0642\u0637:','vr-s3-3-t':'\u0627\u0644\u062a\u0642\u064a\u064a\u0645 \u0623\u0648 \u0627\u0644\u0645\u0631\u0627\u062c\u0639\u0629 \u0645\u0645\u0643\u0646\u0629 \u0641\u0642\u0637 \u0628\u0639\u062f \u0634\u0631\u0627\u0621 \u0648\u062a\u0633\u0644\u064a\u0645 \u0646\u0627\u062c\u062d\u064a\u0646. \u064a\u0645\u0646\u0639 \u0627\u0644\u0627\u062d\u062a\u064a\u0627\u0644 \u0648\u0627\u0644\u062a\u0642\u064a\u064a\u0645\u0627\u062a \u0627\u0644\u0648\u0647\u0645\u064a\u0629.',
+    'prod-eyebrow':'\u062c\u0645\u064a\u0639 \u0627\u0644\u0645\u0646\u062a\u062c\u0627\u062a','prod-h1':'\u0645\u062c\u0645\u0648\u0639\u0627\u062a\u0646\u0627','prod-filters':'\u0639\u0648\u0627\u0645\u0644 \u0627\u0644\u062a\u0635\u0641\u064a\u0629','prod-clear':'\u0645\u0633\u062d \u0627\u0644\u0643\u0644','prod-categories':'\u0627\u0644\u0641\u0626\u0627\u062a',
+    'prod-cat-all':'\u0643\u0644 \u0627\u0644\u0645\u0646\u062a\u062c\u0627\u062a','prod-cat-furniture':'\u0623\u062b\u0627\u062b','prod-cat-lighting':'\u0625\u0636\u0627\u0621\u0629','prod-cat-decor':'\u062f\u064a\u0643\u0648\u0631','prod-cat-ceramics':'\u062e\u0632\u0641','prod-cat-bedroom':'\u063a\u0631\u0641\u0629 \u0646\u0648\u0645','prod-cat-outdoor':'\u062e\u0627\u0631\u062c\u064a','prod-cat-fragrance':'\u0639\u0637\u0648\u0631',
+    'prod-price':'\u0633\u0639\u0631','prod-min':'\u0623\u0642\u0644','prod-max':'\u0623\u0642\u0635\u0649','prod-search-ph':'\u0627\u0628\u062d\u062b \u0639\u0646 \u0645\u0646\u062a\u062c\u0627\u062a\u060c \u0639\u0644\u0627\u0645\u0627\u062a\u060c \u0645\u0646\u0627\u0637\u0642\u2026','prod-search-btn':'\u0628\u062d\u062b',
+    'sm-hero-badge':'\u0645\u0643\u0648\u0646 \u062d\u0633\u0628 \u0627\u0644\u0637\u0644\u0628','sm-hero-h1a':'\u0623\u062b\u0627\u062b\u062a\u0643\u060c','sm-hero-h1b':'\u0631\u0624\u064a\u062a\u0643','sm-hero-desc':'\u0643\u0645\u0627 \u0641\u064a IKEA: \u062e\u0637\u0648\u0637 \u0646\u0638\u064a\u0641\u0629\u060c \u0645\u0639\u0627\u064a\u0646\u0629 \u0645\u0628\u0627\u0634\u0631\u0629\u060c \u0642\u064a\u0627\u0633\u0627\u062a \u0648\u0623\u0644\u0648\u0627\u0646 \u0645\u062e\u0635\u0635\u0629 \u2014 Everest.',
+    'sm-st-weeks':'\u0623\u0633\u0628\u0648\u0639','sm-st-oak':'\u0628\u0644\u0648\u0637 \u0635\u0644\u0628','sm-st-warranty':'\u0633\u0646\u0648\u0627\u062a \u0636\u0645\u0627\u0646','sm-st-reply':'\u0631\u062f',
+    'sm-eyebrow-piece':'\u0627\u062e\u062a\u0631 \u0642\u0637\u0639\u0629','sm-h2-oak':'\u062a\u0635\u0627\u0645\u064a\u0645\u0646\u0627 \u0628\u0627\u0644\u0628\u0644\u0648\u0637','sm-studio-desc':'\u0633\u062a\u0648\u062f\u064a\u0648 Everest: \u0623\u0633\u0644\u0648\u0628 \u0628\u0633\u064a\u0637\u060c \u0645\u0648\u0627\u062f \u0641\u0627\u062e\u0631\u0629\u060c \u062a\u062e\u0635\u064a\u0635 \u062f\u0642\u064a\u0642.',
+    'sm-cat-lbl':'\u0643\u062a\u0627\u0644\u0648\u062c Everest','sm-cat-h3':'\u062a\u0635\u0641\u062d \u0628\u0635\u0641 \u0623\u0633\u0637\u0631\u060c \u0623\u0633\u0644\u0648\u0628 IKEA','sm-request-custom':'\u0637\u0644\u0628 \u0645\u0634\u0631\u0648\u0639 \u062e\u0627\u0635','sm-coll-eyebrow':'\u0645\u062c\u0645\u0648\u0639\u0629 Everest','sm-coll-h2':'\u0627\u0636\u063a\u0637 \u0639\u0644\u0649 \u0645\u0646\u062a\u062c \u0644\u0641\u062a\u062d \u0623\u062f\u0627\u0629 \u0627\u0644\u062a\u062e\u0635\u064a\u0635',
+    'sm-back':'\u2190 \u0627\u0644\u0639\u0648\u062f\u0629 \u0625\u0644\u0649 \u0627\u0644\u0643\u062a\u0627\u0644\u0648\u062c','sm-toolbar-hint':'\u062a\u062e\u0635\u064a\u0635 \u00b7 Everest \u062d\u0633\u0628 \u0627\u0644\u0637\u0644\u0628','sm-cfg-eyebrow':'\u062a\u062e\u0635\u064a\u0635','sm-cfg-h2':'\u063a\u064a\u0651\u0631 \u0627\u0644\u0642\u064a\u0627\u0633\u0627\u062a \u0648\u0627\u0644\u0623\u0644\u0648\u0627\u0646 \u0648\u0627\u0644\u062a\u0641\u0627\u0635\u064a\u0644',    'sm-delivery-step':'\u0627\u0644\u062a\u0633\u0644\u064a\u0645 \u062e\u0644\u0627\u0644 \u0623\u0633\u0628\u0648\u0639\u064a\u0646','sm-view':'\u0639\u0631\u0636','sm-customize':'\u062a\u062e\u0635\u064a\u0635','sm-from':'\u0645\u0646','sm-personalize-short':'\u062a\u062e\u0635\u064a\u0635',
+    'prod-mobile-filters':'\ud83c\udfaf \u0645\u0644\u0641\u0627\u062a','prod-rating-h':'\u062a\u0642\u064a\u064a\u0645 \u0627\u0644\u0639\u0645\u0644\u0627\u0621','prod-rating-up':'\u0641\u0623\u0643\u062b\u0631','prod-avail-h':'\u0627\u0644\u062a\u0648\u0641\u0631','prod-in-stock':'\u2705 \u0645\u062a\u0648\u0641\u0631','prod-out-stock':'\u23f3 \u063a\u064a\u0631 \u0645\u062a\u0648\u0641\u0631','prod-offers-h':'\u0639\u0631\u0648\u0636 \u062e\u0627\u0635\u0629','prod-free-ship':'\ud83d\ude9a \u0634\u062d\u0646 \u0645\u062c\u0627\u0646\u064a','prod-on-sale':'\ud83c\udff7\ufe0f \u062a\u062e\u0641\u064a\u0636\u0627\u062a','prod-sort-by':'\u062a\u0631\u062a\u064a\u0628:','prod-sort-featured':'\u0645\u0645\u064a\u0632','prod-sort-price-low':'\u0627\u0644\u0633\u0639\u0631: \u0645\u0646 \u0627\u0644\u0623\u0642\u0644 \u0644\u0644\u0623\u0639\u0644\u0649','prod-sort-price-high':'\u0627\u0644\u0633\u0639\u0631: \u0645\u0646 \u0627\u0644\u0623\u0639\u0644\u0649 \u0644\u0644\u0623\u0642\u0644','prod-sort-rating':'\u0627\u0644\u062a\u0642\u064a\u064a\u0645','prod-sort-newest':'\u0627\u0644\u0623\u062d\u062f\u062b','prod-results':'\u0646\u062a\u0627\u0626\u062c',
+    'sm-label-min':'\u0623\u062f\u0646\u0649','sm-label-max':'\u0623\u0642\u0635\u0649','sm-units-cm':'\u0633\u0645','sm-dim-width':'\u0627\u0644\u0639\u0631\u0636','sm-dim-depth':'\u0627\u0644\u0639\u0645\u0642','sm-dim-height':'\u0627\u0644\u0627\u0631\u062a\u0641\u0627\u0639','sm-teinte-hdr':'\ud83c\udfa8 \u0644\u0648\u0646 \u0627\u0644\u0625\u0646\u0627\u0621\u0629','sm-selected-prefix':'\u0627\u0644\u0645\u062d\u062f\u062f:','sm-estimated-badge':'\u0633\u0639\u0631 \u062a\u0642\u062f\u064a\u0631\u064a','sm-dim-hdr':'\ud83d\udccf \u0627\u0644\u0642\u064a\u0627\u0633\u0627\u062a','sm-dim-sub':'(\u062d\u062f\u0648\u062f \u0645\u0646 Everest)','sm-locked-hdr':'\ud83d\udd12 \u062b\u0627\u0628\u062a \u062c\u0648\u062f\u0629 Everest','sm-summary-hdr':'\u0645\u0644\u062e\u0635 \u0627\u0644\u0625\u0639\u062f\u0627\u062f','sm-base-price-lbl':'\u0627\u0644\u0633\u0639\u0631 \u0627\u0644\u0623\u0633\u0627\u0633\u064a','sm-dim-extra-lbl':'\u062a\u0639\u062f\u064a\u0644 \u0627\u0644\u0642\u064a\u0627\u0633\u0627\u062a','sm-total-est-lbl':'\u0627\u0644\u0625\u062c\u0645\u0627\u0644\u064a \u0627\u0644\u062a\u0642\u062f\u064a\u0631\u064a','sm-price-footnote':'* \u0627\u0644\u0633\u0639\u0631 \u0627\u0644\u0646\u0647\u0627\u0626\u064a \u064a\u0624\u0643\u062f\u0647 \u0641\u0631\u064a\u0642 Everest \u062e\u0644\u0627\u0644 24\u0633','sm-add-cart':'\ud83d\uded2 \u0623\u0636\u0641 \u0625\u0644\u0649 \u0627\u0644\u0633\u0644\u0629','sm-blender-btn':'\u2728 \u062a\u062e\u0635\u064a\u0635 (Blender)','sm-save-cfg':'\ud83d\udcbe \u062d\u0641\u0638','sm-save-toast':'\u062a\u0645 \u062d\u0641\u0638 \u0627\u0644\u0625\u0639\u062f\u0627\u062f','sm-success-title':'\u062a\u0645 \u0627\u0644\u0625\u0636\u0627\u0641\u0629 \u0625\u0644\u0649 \u0627\u0644\u0633\u0644\u0629!','sm-success-sub':'\u064a\u0624\u0643\u062f \u0641\u0631\u064a\u0642 Everest \u062e\u0644\u0627\u0644 24\u0633','sm-cf-close':'\u0625\u063a\u0644\u0627\u0642 \u2715','sm-cf-h3':'\u062e\u0635\u0635 \u0623\u062b\u0627\u062b\u062a\u0643 \u0627\u0644\u062e\u0627\u0635','sm-cf-intro':'\u0623\u0631\u0633\u0644 \u0646\u0645\u0648\u0630\u062c\u0643 (Blender/3D)\u060c \u0627\u0644\u0623\u0644\u0648\u0627\u0646\u060c \u0627\u0644\u0642\u064a\u0627\u0633\u0627\u062a \u0648\u0627\u0644\u062a\u0641\u0627\u0635\u064a\u0644. \u064a\u062d\u0636\u0631 \u0627\u0644\u0641\u0631\u064a\u0642 \u0639\u0631\u0636 \u0627\u0644\u0633\u0639\u0631.','sm-cf-name':'\u0627\u0644\u0627\u0633\u0645 \u0627\u0644\u0643\u0627\u0645\u0644 *','sm-cf-phone':'\u0647\u0627\u062a\u0641 *','sm-cf-email':'\u0628\u0631\u064a\u062f *','sm-cf-type':'\u0646\u0648\u0639 \u0627\u0644\u0623\u062b\u0627\u062b *','sm-cf-type-ph':'\u0643\u0631\u0633\u064a\u060c \u0637\u0627\u0648\u0644\u0629\u2026','sm-cf-width':'\u0627\u0644\u0639\u0631\u0636 (\u0633\u0645) *','sm-cf-depth':'\u0627\u0644\u0639\u0645\u0642 (\u0633\u0645) *','sm-cf-height':'\u0627\u0644\u0627\u0631\u062a\u0641\u0627\u0639 (\u0633\u0645) *','sm-cf-color':'\u0627\u0644\u0644\u0648\u0646 / \u0627\u0644\u0644\u0645\u0639\u0629 *','sm-cf-color-ph':'\u0628\u0644\u0648\u0637 \u063a\u0627\u0645\u0642\u060c \u0623\u0633\u0648\u062f \u0645\u0627\u062a\u2026','sm-cf-notes':'\u0645\u0644\u0627\u062d\u0638\u0627\u062a \u0627\u0644\u0645\u0648\u0627\u062f / \u0627\u0644\u0633\u0644\u0648\u0643 *','sm-cf-notes-ph':'\u062a\u0641\u0627\u0635\u064a\u0644: \u0646\u0648\u0639 \u0627\u0644\u062e\u0634\u0628\u060c \u0623\u062f\u0631\u0627\u062c\u2026','sm-cf-upload':'\u0627\u0631\u0641\u0639 \u0627\u0644\u0646\u0645\u0648\u0630\u062c / \u0645\u0631\u0627\u062c\u0639 *','sm-cf-nofile':'\u0644\u0627 \u0645\u0644\u0641','sm-cf-selected-prefix':'\u0627\u0644\u0645\u062d\u062f\u062f:','sm-cf-submit-note':'\u0628\u0627\u0644\u0625\u0631\u0633\u0627\u0644 \u062a\u0635\u0644 \u0637\u0644\u0628\u0643 \u0644\u0641\u0631\u064a\u0642 Everest \u0644\u0645\u0631\u0627\u062c\u0639\u0629 \u064a\u062f\u0648\u064a\u0629.','sm-cf-submit':'\u0642\u0628\u0648\u0644 \u0637\u0644\u0628 \u0627\u0644\u0639\u0631\u0636','sm-cf-sending':'\u062c\u0627\u0631\u064a \u0627\u0644\u0625\u0631\u0633\u0627\u0644\u2026','sm-cf-ok-msg':'\u2705 \u062a\u0645 \u0627\u0633\u062a\u0644\u0627\u0645 \u0627\u0644\u0637\u0644\u0628. \u064a\u0631\u062c\u0649 \u0627\u0646\u062a\u0638\u0627\u0631 \u0627\u0644\u0639\u0631\u0636.','sm-cf-toast':'\u062a\u0645 \u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0637\u0644\u0628. \u064a\u0631\u062c\u0649 \u0627\u0646\u062a\u0638\u0627\u0631 \u0627\u0644\u0639\u0631\u0636.','sm-thumb-title':'\u0635\u0648\u0631\u0629',
+    'sm-hiw-eyebrow':'\u0643\u064a\u0641 \u064a\u0639\u0645\u0644','sm-hiw-h2':'\u0628\u0633\u064a\u0637 \u0648\u0648\u0636\u062d','sm-hiw-s1t':'\u0627\u062e\u062a\u0631','sm-hiw-s1d':'\u0627\u062e\u062a\u0631 \u0645\u0648\u062f\u064a\u0644\u0627\u064b \u0645\u0646 \u0627\u0644\u0643\u062a\u0627\u0644\u0648\u062c','sm-hiw-s2t':'\u0625\u0639\u062f\u0627\u062f','sm-hiw-s2d':'\u0636\u0628\u0637 \u0627\u0644\u0642\u064a\u0627\u0633\u0627\u062a \u0648\u0627\u0644\u0644\u0645\u0639\u0629','sm-hiw-s3t':'\u0637\u0644\u0628','sm-hiw-s3d':'\u062a\u0623\u0643\u064a\u062f \u0627\u0644\u0639\u0631\u0636 \u062e\u0644\u0627\u0644 24\u0633','sm-hiw-s4t':'\u0627\u0644\u062a\u0648\u0635\u064a\u0644',
+    'track-h1':'\u062a\u062a\u0628\u0639 \u0637\u0644\u0628\u0643','track-empty-msg':'\u0623\u062f\u062e\u0644 \u0631\u0642\u0645 \u0627\u0644\u0637\u0644\u0628 \u0623\u0639\u0644\u0627\u0647 \u0644\u0645\u062a\u0627\u0628\u0639\u0629 \u0627\u0644\u0634\u062d\u0646 \u0644\u062d\u0638\u0629.','track-try':'\u062c\u0631\u0628:',
+    'wish-eyebrow':'\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0623\u0645\u0646\u064a\u0627\u062a','wish-h1':'\u0642\u0627\u0626\u0645\u0629 \u0623\u0645\u0646\u064a\u0627\u062a\u0643',
+    'gift-back':'\u2190 \u0627\u0644\u0639\u0648\u062f\u0629 \u0644\u0644\u062a\u0633\u0648\u0642','gift-eyebrow':'\u0647\u062f\u064a\u0629','gift-h1':'\u0623\u0631\u0633\u0644 \u0647\u062f\u064a\u0629','gift-desc':'\u0623\u062e\u0628\u0631\u0646\u0627 \u0645\u0646 \u064a\u0633\u062a\u0644\u0645 \u0627\u0644\u062a\u0648\u0635\u064a\u0644. \u0627\u0644\u062f\u0641\u0639 \u0641\u064a \u0627\u0644\u062e\u0637\u0648\u0629 \u0627\u0644\u062a\u0627\u0644\u064a\u0629.',
+    'loy-h1':'\u0645\u0643\u0627\u0641\u0622\u062a \u0627\u0644\u0648\u0641\u0627\u0621','loy-how':'\u0643\u064a\u0641 \u064a\u0639\u0645\u0644:','loy-pt1':'1 \u062f\u064a\u0646\u0627\u0631 \u0645\u0635\u0631\u0648\u0641 = 1 \u0646\u0642\u0637\u0629','loy-pt2':'100 \u0646\u0642\u0637\u0629 = 1 \u062f\u064a\u0646\u0627\u0631 \u062e\u0635\u0645','loy-cta':'\u0627\u0628\u062f\u0623 \u062c\u0645\u0639 \u0627\u0644\u0646\u0642\u0627\u0637 \u2192',
+    'ab-eyebrow':'\u0642\u0635\u062a\u0646\u0627','ab-h1':'\u0645\u0646 \u0646\u062d\u0646 Everest','ab-lead':'\u0648\u0644\u062f\u062a \u0641\u064a \u0642\u0644\u0628 \u0627\u0644\u0633\u0627\u062d\u0644 \u0627\u0644\u062a\u0648\u0646\u0633\u064a\u060c \u0644\u062a\u0631\u0628\u0637 \u0627\u0644\u0639\u0627\u0644\u0645 \u0628\u062d\u0631\u0641\u064a\u0629 \u0645\u0648\u0646\u0627\u0633\u062a\u064a\u0631 \u0648\u0642\u0635\u0631 \u0647\u0644\u0627\u0644 \u0648\u0623\u0628\u0639\u062f.',
+    'ab-miss-k':'\u0645\u0647\u0645\u062a\u0646\u0627','ab-miss-h':'\u0645\u0646 \u0627\u0644\u0633\u0627\u062d\u0644 \u0625\u0644\u0649 \u0627\u0644\u0639\u0627\u0644\u0645'
   }
 };
 
@@ -253,7 +304,8 @@ async function _stnTranslateWholeDom(targetLang) {
     if (x && x.el && x.el.isConnected) x.el.setAttribute(x.attr, x.original);
   });
 
-  if (lang === 'en') return;
+  // EN/FR use the in-repo dictionary only. Arabic may still use machine fill for unmigrated nodes.
+  if (lang !== 'ar') return;
 
   var maxItems = 3000;
   var textItems = __stnRtI18n.textNodes.filter(function (x) { return x && x.node && x.node.isConnected; }).slice(0, maxItems);
@@ -284,6 +336,11 @@ async function _stnTranslateWholeDom(targetLang) {
   await Promise.all(workers);
 }
 
+function _tLookup(lang, key) {
+  var T = TRANSLATIONS[lang] || {};
+  return T[key] || TRANSLATIONS.en[key] || '';
+}
+
 function _applyLangToDom(lang) {
   var T = TRANSLATIONS[lang];
   if (!T) return;
@@ -301,25 +358,40 @@ function _applyLangToDom(lang) {
 
   document.querySelectorAll('[data-lang]').forEach(function (el) {
     var key = el.getAttribute('data-lang');
-    if (T[key]) el.textContent = T[key];
+    var v = _tLookup(lang, key);
+    if (v) el.textContent = v;
   });
   document.querySelectorAll('[data-lang-placeholder]').forEach(function (el) {
     var key = el.getAttribute('data-lang-placeholder');
-    if (T[key]) el.setAttribute('placeholder', T[key]);
+    var v = _tLookup(lang, key);
+    if (v) el.setAttribute('placeholder', v);
   });
   document.querySelectorAll('[data-lang-title]').forEach(function (el) {
     var key = el.getAttribute('data-lang-title');
-    if (T[key]) el.setAttribute('title', T[key]);
+    var v = _tLookup(lang, key);
+    if (v) el.setAttribute('title', v);
   });
 
   var hs = document.getElementById('home-search');
-  if (hs && T['hero-search']) hs.placeholder = T['hero-search'];
+  if (hs) {
+    var hp = _tLookup(lang, 'hero-search');
+    if (hp) hs.placeholder = hp;
+  }
   var cartTitle = document.querySelector('.cart-header h2');
-  if (cartTitle && T['cart-title']) cartTitle.textContent = T['cart-title'];
+  if (cartTitle) {
+    var ct = _tLookup(lang, 'cart-title');
+    if (ct) cartTitle.textContent = ct;
+  }
   var checkoutBtn = document.getElementById('cart-checkout-btn');
-  if (checkoutBtn && T['checkout-btn']) checkoutBtn.textContent = T['checkout-btn'] + ' \u2192';
+  if (checkoutBtn) {
+    var co = _tLookup(lang, 'checkout-btn');
+    if (co) checkoutBtn.textContent = co + ' \u2192';
+  }
   var trackInput = document.getElementById('track-num');
-  if (trackInput && T['track-placeholder']) trackInput.placeholder = T['track-placeholder'];
+  if (trackInput) {
+    var tp = _tLookup(lang, 'track-placeholder');
+    if (tp) trackInput.placeholder = tp;
+  }
 }
 
 function setLang(lang, opts){
@@ -337,6 +409,13 @@ function setLang(lang, opts){
     var f = {ar:'AR - \u0639\u0631\u0628\u064a', fr:'FR - Francais', en:'EN - English'};
     toast(f[safe], 'default');
   }
+
+  setTimeout(function () {
+    try {
+      if (typeof window.renderSMIkeaGrid === 'function') window.renderSMIkeaGrid();
+      if (typeof window.updateSM === 'function') window.updateSM();
+    } catch (eSm) {}
+  }, 90);
 }
 
 window.STNI18N = {
@@ -345,7 +424,7 @@ window.STNI18N = {
   t: function (key, fallback) {
     var lang = _safeLang(window._currentLang || 'fr');
     var T = TRANSLATIONS[lang] || {};
-    return T[key] || fallback || key;
+    return T[key] || TRANSLATIONS.en[key] || fallback || key;
   }
 };
 

@@ -1779,20 +1779,20 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 <div class="page page-products" id="page-products">
   <div class="s page-products-s" style="padding-top:5rem">
     <div class="page-products-intro" style="margin-bottom:3rem">
-      <span class="eyebrow reveal">كل المنتجات · All Products</span>
-      <h1 class="display reveal" style="font-size:clamp(2.5rem,6vw,4.5rem)">Our <em class="gold-text">Collections</em></h1>
+      <span class="eyebrow reveal" data-lang="prod-eyebrow">All products</span>
+      <h1 class="display reveal gold-text" style="font-size:clamp(2.5rem,6vw,4.5rem)"><span data-lang="prod-h1">Our Collections</span></h1>
       <div class="divider reveal"></div>
     </div>
     
     <!-- Mobile Filter Toggle -->
     <div class="products-toolbar" style="display:flex;gap:1rem;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap">
       <button class="btn btn-outline btn-sm" onclick="toggleSidebar()" style="display:none;" id="mobile-filter-btn">
-        🎯 Filters <span id="filter-count" style="background:#7c3aed;color:white;padding:0.1rem 0.4rem;border-radius:12px;margin-left:0.3rem;font-size:0.65rem">0</span>
+        <span data-lang="prod-mobile-filters">🎯 Filters</span> <span id="filter-count" style="background:#7c3aed;color:white;padding:0.1rem 0.4rem;border-radius:12px;margin-left:0.3rem;font-size:0.65rem">0</span>
       </button>
       <div class="search-bar reveal products-page-search" style="flex:1;min-width:0">
         <div class="search-icon-wrap">⌕</div>
-        <input type="text" class="search-input" id="prod-search" placeholder="Search products, brands, regions…" onkeydown="if(event.key==='Enter')searchProducts()" oninput="searchProducts()"/>
-        <button class="search-btn" onclick="searchProducts()">Search</button>
+        <input type="text" class="search-input" id="prod-search" data-lang-placeholder="prod-search-ph" placeholder="Search products, brands, regions…" onkeydown="if(event.key==='Enter')searchProducts()" oninput="searchProducts()"/>
+        <button class="search-btn" onclick="searchProducts()" data-lang="prod-search-btn">Search</button>
       </div>
     </div>
     
@@ -1804,60 +1804,60 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
         <div class="sidebar-card">
           <!-- Sidebar Header -->
           <div class="sidebar-header">
-            <h3 style="font-family:var(--font-display);font-size:1.2rem;color:var(--text-dark);margin-bottom:0.5rem">Filters</h3>
-            <button onclick="clearAllFilters()" style="background:none;border:none;color:var(--accent);font-size:0.75rem;font-weight:600;cursor:pointer">Clear All</button>
+            <h3 style="font-family:var(--font-display);font-size:1.2rem;color:var(--text-dark);margin-bottom:0.5rem" data-lang="prod-filters">Filters</h3>
+            <button onclick="clearAllFilters()" style="background:none;border:none;color:var(--accent);font-size:0.75rem;font-weight:600;cursor:pointer" data-lang="prod-clear">Clear All</button>
           </div>
           
           <!-- Categories -->
           <div class="sidebar-section">
-            <h4 class="sidebar-title">📦 Categories</h4>
+            <h4 class="sidebar-title"><span aria-hidden="true">📦 </span><span data-lang="prod-categories">Categories</span></h4>
             <div class="category-list">
               <label class="category-item">
                 <input type="checkbox" value="all" onchange="applyFilters()" checked id="cat-all">
                 <span class="checkmark"></span>
-                <span>All Products</span>
+                <span><span data-lang="prod-cat-all">All Products</span></span>
                 <span class="count">248</span>
               </label>
               <label class="category-item">
                 <input type="checkbox" value="furniture" onchange="applyFilters()" id="cat-furniture">
                 <span class="checkmark"></span>
-                <span>🛋️ Furniture</span>
+                <span><span aria-hidden="true">🛋️ </span><span data-lang="prod-cat-furniture">Furniture</span></span>
                 <span class="count">67</span>
               </label>
               <label class="category-item">
                 <input type="checkbox" value="lighting" onchange="applyFilters()" id="cat-lighting">
                 <span class="checkmark"></span>
-                <span>💡 Lighting</span>
+                <span><span aria-hidden="true">💡 </span><span data-lang="prod-cat-lighting">Lighting</span></span>
                 <span class="count">43</span>
               </label>
               <label class="category-item">
                 <input type="checkbox" value="decor" onchange="applyFilters()" id="cat-decor">
                 <span class="checkmark"></span>
-                <span>🎨 Decor</span>
+                <span><span aria-hidden="true">🎨 </span><span data-lang="prod-cat-decor">Decor</span></span>
                 <span class="count">52</span>
               </label>
               <label class="category-item">
                 <input type="checkbox" value="ceramics" onchange="applyFilters()" id="cat-ceramics">
                 <span class="checkmark"></span>
-                <span>🏺 Ceramics</span>
+                <span><span aria-hidden="true">🏺 </span><span data-lang="prod-cat-ceramics">Ceramics</span></span>
                 <span class="count">38</span>
               </label>
               <label class="category-item">
                 <input type="checkbox" value="bedroom" onchange="applyFilters()" id="cat-bedroom">
                 <span class="checkmark"></span>
-                <span>🛏️ Bedroom</span>
+                <span><span aria-hidden="true">🛏️ </span><span data-lang="prod-cat-bedroom">Bedroom</span></span>
                 <span class="count">28</span>
               </label>
               <label class="category-item">
                 <input type="checkbox" value="outdoor" onchange="applyFilters()" id="cat-outdoor">
                 <span class="checkmark"></span>
-                <span>🌿 Outdoor</span>
+                <span><span aria-hidden="true">🌿 </span><span data-lang="prod-cat-outdoor">Outdoor</span></span>
                 <span class="count">20</span>
               </label>
               <label class="category-item">
                 <input type="checkbox" value="fragrance" onchange="applyFilters()" id="cat-fragrance">
                 <span class="checkmark"></span>
-                <span>🧴 Fragrance</span>
+                <span><span aria-hidden="true">🧴 </span><span data-lang="prod-cat-fragrance">Fragrance</span></span>
                 <span class="count">12</span>
               </label>
             </div>
@@ -1865,11 +1865,11 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
           
           <!-- Price Range -->
           <div class="sidebar-section">
-            <h4 class="sidebar-title">💰 Price Range</h4>
+            <h4 class="sidebar-title"><span aria-hidden="true">💰 </span><span data-lang="prod-price">Price Range</span></h4>
             <div style="margin-bottom:1rem">
               <div style="display:flex;justify-content:space-between;margin-bottom:0.8rem">
-                <span style="font-size:0.75rem;color:var(--text-muted)">Min</span>
-                <span style="font-size:0.75rem;color:var(--text-muted)">Max</span>
+                <span style="font-size:0.75rem;color:var(--text-muted)" data-lang="prod-min">Min</span>
+                <span style="font-size:0.75rem;color:var(--text-muted)" data-lang="prod-max">Max</span>
               </div>
               <div style="display:flex;gap:0.8rem;align-items:center">
                 <input type="number" id="price-min" placeholder="0" min="0" max="5000" step="10" onchange="applyFilters()" style="flex:1;padding:0.5rem;border:1px solid var(--border);border-radius:6px;font-size:0.85rem">
@@ -1893,30 +1893,30 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
           
           <!-- Rating -->
           <div class="sidebar-section">
-            <h4 class="sidebar-title">⭐ Customer Rating</h4>
+            <h4 class="sidebar-title"><span aria-hidden="true">⭐ </span><span data-lang="prod-rating-h">Customer Rating</span></h4>
             <div class="rating-list">
               <label class="rating-item" onclick="setRatingFilter(4)">
                 <input type="radio" name="rating" value="4" onchange="applyFilters()">
                 <span class="stars">★★★★☆</span>
-                <span class="rating-text">& Up</span>
+                <span class="rating-text" data-lang="prod-rating-up">& Up</span>
                 <span class="count">156</span>
               </label>
               <label class="rating-item" onclick="setRatingFilter(3)">
                 <input type="radio" name="rating" value="3" onchange="applyFilters()">
                 <span class="stars">★★★☆☆</span>
-                <span class="rating-text">& Up</span>
+                <span class="rating-text" data-lang="prod-rating-up">& Up</span>
                 <span class="count">189</span>
               </label>
               <label class="rating-item" onclick="setRatingFilter(2)">
                 <input type="radio" name="rating" value="2" onchange="applyFilters()">
                 <span class="stars">★★☆☆☆</span>
-                <span class="rating-text">& Up</span>
+                <span class="rating-text" data-lang="prod-rating-up">& Up</span>
                 <span class="count">203</span>
               </label>
               <label class="rating-item" onclick="setRatingFilter(1)">
                 <input type="radio" name="rating" value="1" onchange="applyFilters()">
                 <span class="stars">★☆☆☆☆</span>
-                <span class="rating-text">& Up</span>
+                <span class="rating-text" data-lang="prod-rating-up">& Up</span>
                 <span class="count">248</span>
               </label>
             </div>
@@ -1924,18 +1924,18 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
           
           <!-- Availability -->
           <div class="sidebar-section">
-            <h4 class="sidebar-title">📦 Availability</h4>
+            <h4 class="sidebar-title"><span aria-hidden="true">📦 </span><span data-lang="prod-avail-h">Availability</span></h4>
             <div class="availability-options">
               <label class="availability-item">
                 <input type="checkbox" id="in-stock" onchange="applyFilters()" checked>
                 <span class="checkmark"></span>
-                <span>✅ In Stock</span>
+                <span data-lang="prod-in-stock">✅ In Stock</span>
                 <span class="count">234</span>
               </label>
               <label class="availability-item">
                 <input type="checkbox" id="out-of-stock" onchange="applyFilters()">
                 <span class="checkmark"></span>
-                <span>⏳ Out of Stock</span>
+                <span data-lang="prod-out-stock">⏳ Out of Stock</span>
                 <span class="count">14</span>
               </label>
             </div>
@@ -1943,18 +1943,18 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
           
           <!-- Special Offers -->
           <div class="sidebar-section">
-            <h4 class="sidebar-title">🎁 Special Offers</h4>
+            <h4 class="sidebar-title"><span aria-hidden="true">🎁 </span><span data-lang="prod-offers-h">Special Offers</span></h4>
             <div class="offer-list">
               <label class="offer-item">
                 <input type="checkbox" onchange="applyFilters()">
                 <span class="checkmark"></span>
-                <span>🚚 Free Shipping</span>
+                <span data-lang="prod-free-ship">🚚 Free Shipping</span>
                 <span class="count">89</span>
               </label>
               <label class="offer-item">
                 <input type="checkbox" onchange="applyFilters()">
                 <span class="checkmark"></span>
-                <span>🏷️ On Sale</span>
+                <span data-lang="prod-on-sale">🏷️ On Sale</span>
                 <span class="count">42</span>
               </label>
             </div>
@@ -1970,22 +1970,22 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
         <!-- Active Filters Bar -->
         <div id="active-filters-bar" style="display:none;background:white;border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:1.5rem;align-items:center;justify-content:space-between">
           <div id="active-filters-list" style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center"></div>
-          <button onclick="clearAllFilters()" style="background:none;border:none;color:var(--danger);font-size:0.75rem;font-weight:600;cursor:pointer">Clear All</button>
+          <button onclick="clearAllFilters()" style="background:none;border:none;color:var(--danger);font-size:0.75rem;font-weight:600;cursor:pointer" data-lang="prod-clear">Clear All</button>
         </div>
         
         <!-- Results Header -->
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem">
           <div style="font-size:0.9rem;color:var(--text-body)">
-            <span id="results-count" style="font-weight:600;color:var(--text-dark)">248</span> results
+            <span id="results-count" style="font-weight:600;color:var(--text-dark)">248</span> <span data-lang="prod-results">results</span>
           </div>
           <div style="display:flex;gap:0.8rem;align-items:center">
-            <span style="font-size:0.75rem;color:var(--text-muted)">Sort by:</span>
+            <span style="font-size:0.75rem;color:var(--text-muted)" data-lang="prod-sort-by">Sort by:</span>
             <select class="form-select" style="width:auto;padding:0.5rem 0.8rem;font-size:0.85rem" onchange="sortProducts(this.value)">
-              <option value="featured">Featured</option>
-              <option value="price-low">Price: Low to High</option>
-              <option value="price-high">Price: High to Low</option>
-              <option value="rating">Customer Rating</option>
-              <option value="newest">Newest Arrivals</option>
+              <option value="featured" data-lang="prod-sort-featured">Featured</option>
+              <option value="price-low" data-lang="prod-sort-price-low">Price: Low to High</option>
+              <option value="price-high" data-lang="prod-sort-price-high">Price: High to Low</option>
+              <option value="rating" data-lang="prod-sort-rating">Customer Rating</option>
+              <option value="newest" data-lang="prod-sort-newest">Newest Arrivals</option>
             </select>
           </div>
         </div>
@@ -2008,22 +2008,22 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     <div style="position:relative;z-index:1">
       <div style="display:inline-flex;align-items:center;gap:.6rem;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:30px;padding:.4rem 1.2rem;margin-bottom:1.5rem;animation:fadeSlideUp .6s ease both">
         <span style="width:6px;height:6px;background:#4ade80;border-radius:50%;animation:pulse-dot 1.5s infinite;display:inline-block;flex-shrink:0"></span>
-        <span style="font-size:.68rem;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.9)">Configurateur Sur Mesure · حسب الطلب</span>
+        <span style="font-size:.68rem;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.9)" data-lang="sm-hero-badge">Custom configurator · Made to order</span>
       </div>
       <h1 style="font-family:'Cormorant Garamond',serif;font-size:clamp(2.5rem,7vw,5rem);color:white;font-weight:400;line-height:1.05;margin-bottom:1rem;animation:fadeSlideUp .6s .1s ease both">
-        Votre Meuble,<br/><em style="color:#c4b5fd;font-style:italic">Votre Vision</em>
+        <span data-lang="sm-hero-h1a">Your furniture,</span><br/><em style="color:#c4b5fd;font-style:italic" data-lang="sm-hero-h1b">Your vision</em>
       </h1>
-      <p style="font-size:.95rem;color:rgba(255,255,255,.75);max-width:560px;margin:0 auto 2.5rem;line-height:1.8;animation:fadeSlideUp .6s .2s ease both">
-        Configurez votre meuble comme chez IKEA: lignes propres, aperçu premium en direct, dimensions et teintes personnalisées — le tout signé Everest.
+      <p style="font-size:.95rem;color:rgba(255,255,255,.75);max-width:560px;margin:0 auto 2.5rem;line-height:1.8;animation:fadeSlideUp .6s .2s ease both" data-lang="sm-hero-desc">
+        Configure like IKEA: clean lines, live preview, custom dimensions and finishes — Everest.
       </p>
       <div style="display:flex;gap:2rem;justify-content:center;flex-wrap:wrap;animation:fadeSlideUp .6s .3s ease both">
-        <div style="text-align:center"><div style="font-family:'Cormorant Garamond',serif;font-size:2.2rem;color:white">2</div><div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.55)">Semaines</div></div>
+        <div style="text-align:center"><div style="font-family:'Cormorant Garamond',serif;font-size:2.2rem;color:white">2</div><div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.55)" data-lang="sm-st-weeks">Weeks</div></div>
         <div style="color:rgba(255,255,255,.2);font-size:2rem;align-self:center">·</div>
-        <div style="text-align:center"><div style="font-family:'Cormorant Garamond',serif;font-size:2.2rem;color:white">100%</div><div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.55)">Chêne Massif</div></div>
+        <div style="text-align:center"><div style="font-family:'Cormorant Garamond',serif;font-size:2.2rem;color:white">100%</div><div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.55)" data-lang="sm-st-oak">Solid oak</div></div>
         <div style="color:rgba(255,255,255,.2);font-size:2rem;align-self:center">·</div>
-        <div style="text-align:center"><div style="font-family:'Cormorant Garamond',serif;font-size:2.2rem;color:white">10</div><div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.55)">Ans Garantie</div></div>
+        <div style="text-align:center"><div style="font-family:'Cormorant Garamond',serif;font-size:2.2rem;color:white">10</div><div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.55)" data-lang="sm-st-warranty">Year warranty</div></div>
         <div style="color:rgba(255,255,255,.2);font-size:2rem;align-self:center">·</div>
-        <div style="text-align:center"><div style="font-family:'Cormorant Garamond',serif;font-size:2.2rem;color:white">24h</div><div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.55)">Réponse</div></div>
+        <div style="text-align:center"><div style="font-family:'Cormorant Garamond',serif;font-size:2.2rem;color:white">24h</div><div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.55)" data-lang="sm-st-reply">Reply</div></div>
       </div>
     </div>
   </div>
@@ -2032,10 +2032,10 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 
     <!-- SECTION TITLE -->
     <div class="s-header">
-      <span class="eyebrow">Choisir une pièce · اختر قطعة</span>
-      <h2 class="display" style="font-size:clamp(2rem,5vw,3.5rem)">Nos Pièces en <em class="gold-text">Chêne</em></h2>
+      <span class="eyebrow" data-lang="sm-eyebrow-piece">Choose a piece</span>
+      <h2 class="display gold-text" style="font-size:clamp(2rem,5vw,3.5rem)"><span data-lang="sm-h2-oak">Our oak designs</span></h2>
       <div class="divider center wide"></div>
-      <p class="body" style="max-width:550px;margin:.5rem auto 0;color:var(--text-muted)">Conception Everest Studio: style minimal, matériaux premium, personnalisation précise.</p>
+      <p class="body" style="max-width:550px;margin:.5rem auto 0;color:var(--text-muted)" data-lang="sm-studio-desc">Everest Studio: minimal style, premium materials, precise personalization.</p>
     </div>
 
     <!-- PRODUCT TABS -->
@@ -2052,10 +2052,10 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     <div style="max-width:1200px;margin:0 auto 2rem">
       <div style="display:flex;align-items:end;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1rem">
         <div>
-          <div style="font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:700">Everest Catalog</div>
-          <h3 style="font-family:'Cormorant Garamond',serif;font-size:2rem;color:var(--text-dark);margin:.2rem 0 0">Browse furniture in rows, IKEA style</h3>
+          <div style="font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:700" data-lang="sm-cat-lbl">Everest catalog</div>
+          <h3 style="font-family:'Cormorant Garamond',serif;font-size:2rem;color:var(--text-dark);margin:.2rem 0 0" data-lang="sm-cat-h3">Browse rows IKEA-style</h3>
         </div>
-        <button type="button" onclick="openCustomProjectForm()" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:12px;padding:.8rem 1.1rem;font-size:.78rem;font-weight:700;cursor:pointer;box-shadow:0 10px 24px rgba(124,58,237,.25)">Request custom project</button>
+        <button type="button" onclick="openCustomProjectForm()" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:12px;padding:.8rem 1.1rem;font-size:.78rem;font-weight:700;cursor:pointer;box-shadow:0 10px 24px rgba(124,58,237,.25)" data-lang="sm-request-custom">Request custom project</button>
       </div>
       <div id="sm-ikea-grid" class="sm-ikea-grid"></div>
     </div>
@@ -2063,34 +2063,34 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     <!-- PRODUCT COLLECTION (VIEW FIRST) -->
     <div style="max-width:1200px;margin:0 auto 2.8rem">
       <div class="s-header" style="margin-bottom:1.2rem">
-        <span class="eyebrow">Collection Everest</span>
-        <h2 class="display" style="font-size:clamp(1.8rem,4vw,3rem)">Click a product to open the configurator</h2>
+        <span class="eyebrow" data-lang="sm-coll-eyebrow">Everest collection</span>
+        <h2 class="display" style="font-size:clamp(1.8rem,4vw,3rem)" data-lang="sm-coll-h2">Click a product to open the configurator</h2>
         <div class="divider center"></div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem" id="sm-collection-grid">
         <article class="sm-ikea-card" style="overflow:hidden;cursor:pointer" onclick="smGoToConfigurator(0)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();smGoToConfigurator(0);}">
           <div class="sm-ikea-img" style="height:220px;background-image:url('https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1400&q=80')"></div>
-          <div class="sm-ikea-body"><div class="sm-ikea-title">Chaise en Chêne</div><div class="sm-ikea-desc">Chaise premium en chêne massif, finition soignée.</div><div class="sm-ikea-row"><span class="sm-ikea-price">From 850 TND</span><span class="sm-ikea-btn" style="pointer-events:none">View</span></div></div>
+          <div class="sm-ikea-body"><div class="sm-ikea-title">Chaise en Chêne</div><div class="sm-ikea-desc">Chaise premium en chêne massif, finition soignée.</div><div class="sm-ikea-row"><span class="sm-ikea-price"><span data-lang="sm-from">From</span> 850 TND</span><span class="sm-ikea-btn" style="pointer-events:none" data-lang="sm-view">View</span></div></div>
         </article>
         <article class="sm-ikea-card" style="overflow:hidden;cursor:pointer" onclick="smGoToConfigurator(1)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();smGoToConfigurator(1);}">
           <div class="sm-ikea-img" style="height:220px;background-image:url('https://source.unsplash.com/1200x900/?oak,dining,table&sig=11')"></div>
-          <div class="sm-ikea-body"><div class="sm-ikea-title">Table à Manger</div><div class="sm-ikea-desc">Table robuste, style clean, grande capacité.</div><div class="sm-ikea-row"><span class="sm-ikea-price">From 2800 TND</span><span class="sm-ikea-btn" style="pointer-events:none">View</span></div></div>
+          <div class="sm-ikea-body"><div class="sm-ikea-title">Table à Manger</div><div class="sm-ikea-desc">Table robuste, style clean, grande capacité.</div><div class="sm-ikea-row"><span class="sm-ikea-price"><span data-lang="sm-from">From</span> 2800 TND</span><span class="sm-ikea-btn" style="pointer-events:none" data-lang="sm-view">View</span></div></div>
         </article>
         <article class="sm-ikea-card" style="overflow:hidden;cursor:pointer" onclick="smGoToConfigurator(2)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();smGoToConfigurator(2);}">
           <div class="sm-ikea-img" style="height:220px;background-image:url('https://source.unsplash.com/1200x900/?wooden,sofa,living-room&sig=21')"></div>
-          <div class="sm-ikea-body"><div class="sm-ikea-title">Canapé Cadre Chêne</div><div class="sm-ikea-desc">Cadre premium avec look moderne.</div><div class="sm-ikea-row"><span class="sm-ikea-price">From 3200 TND</span><span class="sm-ikea-btn" style="pointer-events:none">View</span></div></div>
+          <div class="sm-ikea-body"><div class="sm-ikea-title">Canapé Cadre Chêne</div><div class="sm-ikea-desc">Cadre premium avec look moderne.</div><div class="sm-ikea-row"><span class="sm-ikea-price"><span data-lang="sm-from">From</span> 3200 TND</span><span class="sm-ikea-btn" style="pointer-events:none" data-lang="sm-view">View</span></div></div>
         </article>
         <article class="sm-ikea-card" style="overflow:hidden;cursor:pointer" onclick="smGoToConfigurator(3)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();smGoToConfigurator(3);}">
           <div class="sm-ikea-img" style="height:220px;background-image:url('https://source.unsplash.com/1200x900/?oak,wardrobe,bedroom&sig=31')"></div>
-          <div class="sm-ikea-body"><div class="sm-ikea-title">Armoire en Chêne</div><div class="sm-ikea-desc">Rangement propre et élégant.</div><div class="sm-ikea-row"><span class="sm-ikea-price">From 4500 TND</span><span class="sm-ikea-btn" style="pointer-events:none">View</span></div></div>
+          <div class="sm-ikea-body"><div class="sm-ikea-title">Armoire en Chêne</div><div class="sm-ikea-desc">Rangement propre et élégant.</div><div class="sm-ikea-row"><span class="sm-ikea-price"><span data-lang="sm-from">From</span> 4500 TND</span><span class="sm-ikea-btn" style="pointer-events:none" data-lang="sm-view">View</span></div></div>
         </article>
         <article class="sm-ikea-card" style="overflow:hidden;cursor:pointer" onclick="smGoToConfigurator(4)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();smGoToConfigurator(4);}">
           <div class="sm-ikea-img" style="height:220px;background-image:url('https://source.unsplash.com/1200x900/?coffee,table,wood,living-room&sig=41')"></div>
-          <div class="sm-ikea-body"><div class="sm-ikea-title">Table Basse</div><div class="sm-ikea-desc">Table basse minimaliste, usage quotidien.</div><div class="sm-ikea-row"><span class="sm-ikea-price">From 1200 TND</span><span class="sm-ikea-btn" style="pointer-events:none">View</span></div></div>
+          <div class="sm-ikea-body"><div class="sm-ikea-title">Table Basse</div><div class="sm-ikea-desc">Table basse minimaliste, usage quotidien.</div><div class="sm-ikea-row"><span class="sm-ikea-price"><span data-lang="sm-from">From</span> 1200 TND</span><span class="sm-ikea-btn" style="pointer-events:none" data-lang="sm-view">View</span></div></div>
         </article>
         <article class="sm-ikea-card" style="overflow:hidden;cursor:pointer" onclick="smGoToConfigurator(5)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();smGoToConfigurator(5);}">
           <div class="sm-ikea-img" style="height:220px;background-image:url('https://source.unsplash.com/1200x900/?vanity,table,wood,mirror&sig=51')"></div>
-          <div class="sm-ikea-body"><div class="sm-ikea-title">Coiffeuse avec Miroir</div><div class="sm-ikea-desc">Coiffeuse moderne avec miroir intégré.</div><div class="sm-ikea-row"><span class="sm-ikea-price">From 1800 TND</span><span class="sm-ikea-btn" style="pointer-events:none">View</span></div></div>
+          <div class="sm-ikea-body"><div class="sm-ikea-title">Coiffeuse avec Miroir</div><div class="sm-ikea-desc">Coiffeuse moderne avec miroir intégré.</div><div class="sm-ikea-row"><span class="sm-ikea-price"><span data-lang="sm-from">From</span> 1800 TND</span><span class="sm-ikea-btn" style="pointer-events:none" data-lang="sm-view">View</span></div></div>
         </article>
       </div>
     </div>
@@ -2099,14 +2099,14 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     <div id="sm-configurator-modal" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(15,23,42,.58);backdrop-filter:blur(4px);overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(var(--stn-main-nav-h,112px) + 8px) 0.75rem 2rem;box-sizing:border-box" aria-hidden="true" role="dialog" aria-labelledby="sm-configurator-title">
       <div style="max-width:1220px;margin:0 auto;background:var(--bg-1);border-radius:20px;border:1px solid rgba(107,63,212,.15);box-shadow:0 24px 80px rgba(15,23,42,.28);overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:0.85rem 1.1rem;border-bottom:1px solid rgba(107,63,212,.12);background:white;position:sticky;top:0;z-index:3">
-          <button type="button" onclick="closeSMConfiguratorSheet()" style="display:inline-flex;align-items:center;gap:.4rem;background:#f5f2ff;color:#5b21b6;border:1px solid rgba(107,63,212,.25);border-radius:10px;padding:.55rem 1rem;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">← Catalogue</button>
-          <p id="sm-configurator-title" style="margin:0;font-size:.75rem;color:var(--text-muted);flex:1;text-align:right">Personnaliser · Everest Sur Mesure</p>
+          <button type="button" onclick="closeSMConfiguratorSheet()" style="display:inline-flex;align-items:center;gap:.4rem;background:#f5f2ff;color:#5b21b6;border:1px solid rgba(107,63,212,.25);border-radius:10px;padding:.55rem 1rem;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit"><span data-lang="sm-back">← Back to catalog</span></button>
+          <p id="sm-configurator-title" style="margin:0;font-size:.75rem;color:var(--text-muted);flex:1;text-align:right;display:flex;justify-content:flex-end;align-items:center;gap:.25rem;flex-wrap:wrap"><span id="sm-configurator-product-name" style="font-weight:600;color:var(--text-dark)"></span><span aria-hidden="true">·</span><span data-lang="sm-personalize-short">Personalize</span></p>
         </div>
         <div style="padding:1.25rem 1.25rem 2rem" id="sm-configurator-panel-inner">
     <div id="sm-configurator-wrap">
     <div class="s-header" style="margin:0 auto 1.35rem">
-      <span class="eyebrow">Customize</span>
-      <h2 class="display" style="font-size:clamp(1.6rem,3.7vw,2.6rem)">Change dimensions, colors and details</h2>
+      <span class="eyebrow" data-lang="sm-cfg-eyebrow">Customize</span>
+      <h2 class="display" style="font-size:clamp(1.6rem,3.7vw,2.6rem)" data-lang="sm-cfg-h2">Change dimensions, colors and details</h2>
       <div class="divider center"></div>
     </div>
     <div class="sm-conf-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:start;max-width:1200px;margin:0 auto">
@@ -2123,7 +2123,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
           <div style="position:absolute;top:12px;left:12px;background:rgba(30,10,78,.85);backdrop-filter:blur(8px);color:white;font-size:.62rem;padding:.35rem .8rem;border-radius:20px;font-weight:600">Everest Signature Collection</div>
           <div style="position:absolute;top:12px;right:12px;background:rgba(5,150,105,.9);color:white;font-size:.6rem;padding:.3rem .7rem;border-radius:20px;font-weight:700">✓ Everest Quality</div>
           <div id="sm-dim-float" style="position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:rgba(30,10,78,.8);backdrop-filter:blur(8px);color:white;font-size:.72rem;padding:.4rem 1rem;border-radius:20px;font-weight:600;white-space:nowrap;transition:all .3s">
-            <span id="sm-dim-w">45</span>×<span id="sm-dim-d">42</span>×<span id="sm-dim-h">88</span> cm
+            <span id="sm-dim-w">45</span>×<span id="sm-dim-d">42</span>×<span id="sm-dim-h">88</span> <span data-lang="sm-units-cm">cm</span>
           </div>
         </div>
 
@@ -2158,17 +2158,17 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
           <p id="sm-desc" style="font-size:.82rem;color:var(--text-muted);line-height:1.7;margin-bottom:1rem">Chaise premium en chêne massif. Structure solide, finition soignée.</p>
           <div style="display:flex;align-items:center;gap:1rem">
             <div id="sm-price" style="font-family:'Cormorant Garamond',serif;font-size:2rem;color:var(--text-dark);transition:all .3s">850 <span style="font-size:1rem;color:var(--text-muted)">TND</span></div>
-            <span style="font-size:.68rem;color:var(--text-muted);background:var(--bg-1);border:1px solid rgba(107,63,212,0.12);padding:.3rem .8rem;border-radius:20px">Prix estimé</span>
+            <span style="font-size:.68rem;color:var(--text-muted);background:var(--bg-1);border:1px solid rgba(107,63,212,0.12);padding:.3rem .8rem;border-radius:20px" data-lang="sm-estimated-badge">Est. price</span>
           </div>
         </div>
 
         <!-- DIMENSIONS -->
         <div style="background:white;border:1.5px solid rgba(107,63,212,0.12);border-radius:16px;padding:1.5rem;box-shadow:0 2px 8px rgba(74,31,168,0.06);animation:fadeSlideUp .5s .1s ease both">
-          <div style="font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:1.2rem">📐 Dimensions <span style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0;font-size:.62rem">(limites fixées par Everest)</span></div>
+          <div style="font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:1.2rem"><span data-lang="sm-dim-hdr">📐 Dimensions</span> <span style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0;font-size:.62rem" data-lang="sm-dim-sub">(limits set by Everest)</span></div>
 
           <div style="margin-bottom:1.2rem">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
-              <span style="font-size:.82rem;color:var(--text-body);font-weight:500">Largeur</span>
+              <span style="font-size:.82rem;color:var(--text-body);font-weight:500" data-lang="sm-dim-width">Width</span>
               <span id="sm-width-val" style="font-size:.85rem;color:var(--accent);font-weight:700;background:#ede8ff;padding:.2rem .75rem;border-radius:20px">45 cm</span>
             </div>
             <input type="range" id="sm-width" min="40" max="60" value="45" oninput="updateSM()" style="width:100%;-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;outline:none;cursor:none;background:linear-gradient(to right,#7c3aed 50%,#e8e4ff 50%)"/>
@@ -2177,7 +2177,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 
           <div style="margin-bottom:1.2rem">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
-              <span style="font-size:.82rem;color:var(--text-body);font-weight:500">Profondeur</span>
+              <span style="font-size:.82rem;color:var(--text-body);font-weight:500" data-lang="sm-dim-depth">Depth</span>
               <span id="sm-depth-val" style="font-size:.85rem;color:var(--accent);font-weight:700;background:#ede8ff;padding:.2rem .75rem;border-radius:20px">42 cm</span>
             </div>
             <input type="range" id="sm-depth" min="38" max="55" value="42" oninput="updateSM()" style="width:100%;-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;outline:none;cursor:none;background:linear-gradient(to right,#7c3aed 50%,#e8e4ff 50%)"/>
@@ -2186,7 +2186,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 
           <div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
-              <span style="font-size:.82rem;color:var(--text-body);font-weight:500">Hauteur</span>
+              <span style="font-size:.82rem;color:var(--text-body);font-weight:500" data-lang="sm-dim-height">Height</span>
               <span id="sm-height-val" style="font-size:.85rem;color:var(--accent);font-weight:700;background:#ede8ff;padding:.2rem .75rem;border-radius:20px">88 cm</span>
             </div>
             <input type="range" id="sm-height" min="80" max="100" value="88" oninput="updateSM()" style="width:100%;-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;outline:none;cursor:none;background:linear-gradient(to right,#7c3aed 50%,#e8e4ff 50%)"/>
@@ -2196,7 +2196,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 
         <!-- COLORS -->
         <div style="background:white;border:1.5px solid rgba(107,63,212,0.12);border-radius:16px;padding:1.5rem;box-shadow:0 2px 8px rgba(74,31,168,0.06);animation:fadeSlideUp .5s .15s ease both">
-          <div style="font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:1.2rem">🎨 Teinte du Chêne</div>
+          <div style="font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:1.2rem" data-lang="sm-teinte-hdr">🎨 Oak finish tone</div>
           <div style="display:flex;gap:.8rem;flex-wrap:wrap;margin-bottom:.8rem" id="sm-colors">
             <div class="sm-clr active" onclick="selectColor(this,'#D4A853','Chêne Naturel')"><div style="width:38px;height:38px;border-radius:50%;background:#D4A853;border:3px solid white;box-shadow:0 0 0 2.5px #7c3aed;transition:box-shadow .2s"></div><span>Naturel</span></div>
             <div class="sm-clr" onclick="selectColor(this,'#8B5E3C','Chêne Brun')"><div style="width:38px;height:38px;border-radius:50%;background:#8B5E3C;border:3px solid white;box-shadow:0 0 0 2px transparent;transition:box-shadow .2s"></div><span>Brun</span></div>
@@ -2205,12 +2205,12 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
             <div class="sm-clr" onclick="selectColor(this,'#2C2C2C','Chêne Noir')"><div style="width:38px;height:38px;border-radius:50%;background:#2C2C2C;border:3px solid white;box-shadow:0 0 0 2px transparent;transition:box-shadow .2s"></div><span>Noir</span></div>
             <div class="sm-clr" onclick="selectColor(this,'#F0EEE9','Chêne Blanc')"><div style="width:38px;height:38px;border-radius:50%;background:#F0EEE9;border:3px solid #ddd;box-shadow:0 0 0 2px transparent;transition:box-shadow .2s"></div><span>Blanc</span></div>
           </div>
-          <div style="font-size:.75rem;color:var(--text-body)">Sélectionné: <strong id="sm-color-name" style="color:var(--accent)">Chêne Naturel</strong></div>
+          <div style="font-size:.75rem;color:var(--text-body)"><span data-lang="sm-selected-prefix">Selected:</span> <strong id="sm-color-name" style="color:var(--accent)">Chêne Naturel</strong></div>
         </div>
 
         <!-- LOCKED -->
         <div style="background:var(--bg-1);border:1.5px dashed rgba(107,63,212,0.2);border-radius:16px;padding:1.2rem;animation:fadeSlideUp .5s .2s ease both">
-          <div style="font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;color:var(--text-dim);font-weight:700;margin-bottom:.8rem">🔒 Fixed by Everest quality standard</div>
+          <div style="font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;color:var(--text-dim);font-weight:700;margin-bottom:.8rem" data-lang="sm-locked-hdr">🔒 Fixed by Everest quality standard</div>
           <div style="display:flex;flex-wrap:wrap;gap:.5rem" id="sm-locked-tags">
             <span style="background:rgba(107,63,212,0.06);border:1px solid rgba(107,63,212,0.12);color:var(--text-dim);font-size:.7rem;padding:.25rem .75rem;border-radius:20px">🔒 Chêne massif</span>
             <span style="background:rgba(107,63,212,0.06);border:1px solid rgba(107,63,212,0.12);color:var(--text-dim);font-size:.7rem;padding:.25rem .75rem;border-radius:20px">🔒 Assemblage tenon-mortaise</span>
@@ -2220,26 +2220,26 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 
         <!-- PRICE SUMMARY -->
         <div style="background:linear-gradient(135deg,#1e0a4e,#4a1fa8);border-radius:16px;padding:1.5rem;color:white;animation:fadeSlideUp .5s .25s ease both">
-          <div style="font-size:.62rem;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:1rem">Résumé de Configuration</div>
-          <div style="display:flex;justify-content:space-between;font-size:.8rem;color:rgba(255,255,255,.75);margin-bottom:.5rem"><span>Prix de base</span><span id="sm-base-price">850 TND</span></div>
-          <div style="display:flex;justify-content:space-between;font-size:.8rem;color:rgba(255,255,255,.75);margin-bottom:.5rem"><span>Ajustement dimensions</span><span id="sm-dim-extra">+0 TND</span></div>
+          <div style="font-size:.62rem;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:1rem" data-lang="sm-summary-hdr">Configuration summary</div>
+          <div style="display:flex;justify-content:space-between;font-size:.8rem;color:rgba(255,255,255,.75);margin-bottom:.5rem"><span data-lang="sm-base-price-lbl">Base price</span><span id="sm-base-price">850 TND</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:.8rem;color:rgba(255,255,255,.75);margin-bottom:.5rem"><span data-lang="sm-dim-extra-lbl">Dimension adjustment</span><span id="sm-dim-extra">+0 TND</span></div>
           <div style="border-top:1px solid rgba(255,255,255,.15);padding-top:.9rem;margin-top:.4rem;display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:.88rem;color:rgba(255,255,255,.9);font-weight:600">Total Estimé</span>
+            <span style="font-size:.88rem;color:rgba(255,255,255,.9);font-weight:600" data-lang="sm-total-est-lbl">Estimated total</span>
             <span id="sm-total-price" style="font-family:'Cormorant Garamond',serif;font-size:2rem;color:white">850 TND</span>
           </div>
-          <div style="font-size:.62rem;color:rgba(255,255,255,.4);margin-top:.6rem">* Prix final confirmé par l'équipe Everest sous 24h</div>
+          <div style="font-size:.62rem;color:rgba(255,255,255,.4);margin-top:.6rem" data-lang="sm-price-footnote">* Final price confirmed by the Everest team within 24h</div>
         </div>
 
         <!-- CTA -->
         <div style="display:flex;gap:.8rem;animation:fadeSlideUp .5s .3s ease both">
-          <button class="btn btn-gold btn-lg" style="flex:1" onclick="addSMToCart()">🛒 Ajouter au Panier</button>
-          <button class="btn" onclick="openCustomProjectForm()" style="padding:.95rem 1.1rem;background:#1e0a4e;color:white;border:none;border-radius:12px;font-size:.82rem;font-weight:700;cursor:pointer">✨ Customize (Blender)</button>
-          <button class="btn btn-ghost" onclick="saveSMConfig()" style="padding:.95rem 1.2rem">💾 Sauvegarder</button>
+          <button class="btn btn-gold btn-lg" style="flex:1" onclick="addSMToCart()" data-lang="sm-add-cart">🛒 Add to cart</button>
+          <button class="btn" onclick="openCustomProjectForm()" style="padding:.95rem 1.1rem;background:#1e0a4e;color:white;border:none;border-radius:12px;font-size:.82rem;font-weight:700;cursor:pointer" data-lang="sm-blender-btn">✨ Customize (Blender)</button>
+          <button class="btn btn-ghost" onclick="saveSMConfig()" style="padding:.95rem 1.2rem" data-lang="sm-save-cfg">💾 Save</button>
         </div>
 
         <div id="sm-success" style="display:none;background:rgba(5,150,105,.08);border:1px solid rgba(5,150,105,.25);border-radius:12px;padding:1rem;display:none;align-items:center;gap:.8rem">
           <span style="font-size:1.5rem">✅</span>
-          <div><div style="font-size:.85rem;font-weight:600;color:#059669">Ajouté au panier!</div><div style="font-size:.72rem;color:var(--text-muted)">L'équipe Everest confirmera sous 24h</div></div>
+          <div><div style="font-size:.85rem;font-weight:600;color:#059669" data-lang="sm-success-title">Added to cart!</div><div style="font-size:.72rem;color:var(--text-muted)" data-lang="sm-success-sub">The Everest team will confirm within 24h</div></div>
         </div>
       </div>
     </div>
@@ -2251,33 +2251,33 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     <!-- HOW IT WORKS -->
     <div style="margin-top:5rem;margin-bottom:3rem">
       <div class="s-header">
-        <span class="eyebrow">Comment ça marche · كيف يعمل</span>
-        <h2 class="display" style="font-size:clamp(1.8rem,4vw,3rem)">Simple comme <em class="gold-text">Bonjour</em></h2>
+        <span class="eyebrow" data-lang="sm-hiw-eyebrow">How it works</span>
+        <h2 class="display gold-text" style="font-size:clamp(1.8rem,4vw,3rem)"><span data-lang="sm-hiw-h2">Simple as it gets</span></h2>
         <div class="divider center"></div>
       </div>
       <div style="display:flex;align-items:center;justify-content:center;gap:1rem;flex-wrap:wrap;max-width:900px;margin:0 auto">
         <div style="text-align:center;flex:1;min-width:120px;max-width:160px">
           <div style="width:54px;height:54px;background:linear-gradient(135deg,#7c3aed,#6b3fd4);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto .8rem;font-size:.9rem;font-weight:700;color:white;box-shadow:0 6px 20px rgba(124,58,237,.35)">1</div>
-          <div style="font-size:.88rem;color:var(--text-dark);font-weight:700;margin-bottom:.3rem">Choisir</div>
-          <div style="font-size:.74rem;color:var(--text-muted);line-height:1.6">Sélectionnez votre meuble parmi nos modèles</div>
+          <div style="font-size:.88rem;color:var(--text-dark);font-weight:700;margin-bottom:.3rem" data-lang="sm-hiw-s1t">Choose</div>
+          <div style="font-size:.74rem;color:var(--text-muted);line-height:1.6" data-lang="sm-hiw-s1d">Pick a model from our catalog</div>
         </div>
         <div style="color:#c4b5fd;font-size:1.5rem">→</div>
         <div style="text-align:center;flex:1;min-width:120px;max-width:160px">
           <div style="width:54px;height:54px;background:linear-gradient(135deg,#7c3aed,#6b3fd4);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto .8rem;font-size:.9rem;font-weight:700;color:white;box-shadow:0 6px 20px rgba(124,58,237,.35)">2</div>
-          <div style="font-size:.88rem;color:var(--text-dark);font-weight:700;margin-bottom:.3rem">Configurer</div>
-          <div style="font-size:.74rem;color:var(--text-muted);line-height:1.6">Ajustez dimensions et teinte</div>
+          <div style="font-size:.88rem;color:var(--text-dark);font-weight:700;margin-bottom:.3rem" data-lang="sm-hiw-s2t">Configure</div>
+          <div style="font-size:.74rem;color:var(--text-muted);line-height:1.6" data-lang="sm-hiw-s2d">Adjust dimensions and finish</div>
         </div>
         <div style="color:#c4b5fd;font-size:1.5rem">→</div>
         <div style="text-align:center;flex:1;min-width:120px;max-width:160px">
           <div style="width:54px;height:54px;background:linear-gradient(135deg,#7c3aed,#6b3fd4);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto .8rem;font-size:.9rem;font-weight:700;color:white;box-shadow:0 6px 20px rgba(124,58,237,.35)">3</div>
-          <div style="font-size:.88rem;color:var(--text-dark);font-weight:700;margin-bottom:.3rem">Commander</div>
-          <div style="font-size:.74rem;color:var(--text-muted);line-height:1.6">Devis confirmé sous 24h</div>
+          <div style="font-size:.88rem;color:var(--text-dark);font-weight:700;margin-bottom:.3rem" data-lang="sm-hiw-s3t">Order</div>
+          <div style="font-size:.74rem;color:var(--text-muted);line-height:1.6" data-lang="sm-hiw-s3d">Quote confirmed within 24h</div>
         </div>
         <div style="color:#c4b5fd;font-size:1.5rem">→</div>
         <div style="text-align:center;flex:1;min-width:120px;max-width:160px">
           <div style="width:54px;height:54px;background:linear-gradient(135deg,#7c3aed,#6b3fd4);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto .8rem;font-size:.9rem;font-weight:700;color:white;box-shadow:0 6px 20px rgba(124,58,237,.35)">4</div>
-          <div style="font-size:.88rem;color:var(--text-dark);font-weight:700;margin-bottom:.3rem">Livraison</div>
-          <div id="sm-delivery-step" style="font-size:.74rem;color:var(--text-muted);line-height:1.6">Livré en 2 semaines</div>
+          <div style="font-size:.88rem;color:var(--text-dark);font-weight:700;margin-bottom:.3rem" data-lang="sm-hiw-s4t">Delivery</div>
+          <div id="sm-delivery-step" style="font-size:.74rem;color:var(--text-muted);line-height:1.6" data-lang="sm-delivery-step">Delivered in 2 weeks</div>
         </div>
       </div>
     </div>
@@ -2290,25 +2290,25 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
       <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.1rem 1.2rem;background:linear-gradient(135deg,#1e0a4e,#4a1fa8);color:white">
         <div>
           <div style="font-size:.68rem;letter-spacing:.13em;text-transform:uppercase;opacity:.8">Everest Bespoke</div>
-          <h3 style="margin:.2rem 0 0;font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:500">Customize your special furniture</h3>
+          <h3 style="margin:.2rem 0 0;font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:500" data-lang="sm-cf-h3">Customize your special furniture</h3>
         </div>
-        <button type="button" onclick="closeCustomProjectForm()" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:white;border-radius:10px;padding:.45rem .7rem;font-size:.78rem;cursor:pointer">Close ✕</button>
+        <button type="button" onclick="closeCustomProjectForm()" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:white;border-radius:10px;padding:.45rem .7rem;font-size:.78rem;cursor:pointer" data-lang="sm-cf-close">Close ✕</button>
       </div>
       <div style="padding:1.2rem">
-        <p style="font-size:.84rem;color:var(--text-muted);line-height:1.7;margin:0 0 1rem">Send your own model (Blender/3D file), color palette, dimensions and details. Our Everest team will prepare your quote. After submit, we show: <strong>wait for devis</strong>.</p>
+        <p style="font-size:.84rem;color:var(--text-muted);line-height:1.7;margin:0 0 1rem" data-lang="sm-cf-intro">Send your own model (Blender/3D file), color palette, dimensions and details. Our Everest team will prepare your quote.</p>
         <form onsubmit="submitCustomProjectRequest(event)" id="sm-custom-form">
           <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem">
-            <div><label class="sm-f-lbl">Full name *</label><input id="sm-cf-name" class="sm-f-input" required/></div>
-            <div><label class="sm-f-lbl">Phone *</label><input id="sm-cf-phone" class="sm-f-input" required/></div>
-            <div><label class="sm-f-lbl">Email *</label><input id="sm-cf-email" class="sm-f-input" type="email" required/></div>
-            <div><label class="sm-f-lbl">Furniture type *</label><input id="sm-cf-type" class="sm-f-input" placeholder="Chair, table, wardrobe..." required/></div>
-            <div><label class="sm-f-lbl">Width (cm) *</label><input id="sm-cf-width" class="sm-f-input" type="number" min="10" required/></div>
-            <div><label class="sm-f-lbl">Depth (cm) *</label><input id="sm-cf-depth" class="sm-f-input" type="number" min="10" required/></div>
-            <div><label class="sm-f-lbl">Height (cm) *</label><input id="sm-cf-height" class="sm-f-input" type="number" min="10" required/></div>
-            <div><label class="sm-f-lbl">Preferred color / finish *</label><input id="sm-cf-color" class="sm-f-input" placeholder="Oak dark, matte black..." required/></div>
-            <div style="grid-column:1/-1"><label class="sm-f-lbl">Material / style notes *</label><textarea id="sm-cf-notes" class="sm-f-input" rows="3" required placeholder="Any details: wood type, drawers, legs, handle style..."></textarea></div>
+            <div><label class="sm-f-lbl" data-lang="sm-cf-name">Full name *</label><input id="sm-cf-name" class="sm-f-input" required/></div>
+            <div><label class="sm-f-lbl" data-lang="sm-cf-phone">Phone *</label><input id="sm-cf-phone" class="sm-f-input" required/></div>
+            <div><label class="sm-f-lbl" data-lang="sm-cf-email">Email *</label><input id="sm-cf-email" class="sm-f-input" type="email" required/></div>
+            <div><label class="sm-f-lbl" data-lang="sm-cf-type">Furniture type *</label><input id="sm-cf-type" class="sm-f-input" data-lang-placeholder="sm-cf-type-ph" placeholder="Chair, table, wardrobe..." required/></div>
+            <div><label class="sm-f-lbl" data-lang="sm-cf-width">Width (cm) *</label><input id="sm-cf-width" class="sm-f-input" type="number" min="10" required/></div>
+            <div><label class="sm-f-lbl" data-lang="sm-cf-depth">Depth (cm) *</label><input id="sm-cf-depth" class="sm-f-input" type="number" min="10" required/></div>
+            <div><label class="sm-f-lbl" data-lang="sm-cf-height">Height (cm) *</label><input id="sm-cf-height" class="sm-f-input" type="number" min="10" required/></div>
+            <div><label class="sm-f-lbl" data-lang="sm-cf-color">Preferred color / finish *</label><input id="sm-cf-color" class="sm-f-input" data-lang-placeholder="sm-cf-color-ph" placeholder="Oak dark, matte black..." required/></div>
+            <div style="grid-column:1/-1"><label class="sm-f-lbl" data-lang="sm-cf-notes">Material / style notes *</label><textarea id="sm-cf-notes" class="sm-f-input" rows="3" required data-lang-placeholder="sm-cf-notes-ph" placeholder="Any details: wood type, drawers, legs, handle style..."></textarea></div>
             <div style="grid-column:1/-1">
-              <label class="sm-f-lbl">Upload your model / references *</label>
+              <label class="sm-f-lbl" data-lang="sm-cf-upload">Upload your model / references *</label>
               <div style="border:1.5px dashed rgba(107,63,212,.28);border-radius:12px;padding:.8rem;background:#faf8ff">
                 <input id="sm-cf-model" type="file" accept=".blend,.glb,.gltf,.obj,.fbx,.zip,image/*" onchange="selectCustomModelFile(this)" required style="width:100%"/>
                 <div id="sm-cf-model-name" style="margin-top:.45rem;font-size:.74rem;color:var(--text-muted)">No file selected</div>
@@ -2316,11 +2316,11 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
             </div>
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;gap:.8rem;flex-wrap:wrap;margin-top:1rem">
-            <div style="font-size:.72rem;color:var(--text-dim)">By submitting, your request is sent to Everest team for manual quote review.</div>
-            <button id="sm-custom-submit" type="submit" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:12px;padding:.78rem 1.2rem;font-size:.82rem;font-weight:700;cursor:pointer">Accept & request quote</button>
+            <div style="font-size:.72rem;color:var(--text-dim)" data-lang="sm-cf-submit-note">By submitting, your request is sent to Everest team for manual quote review.</div>
+            <button id="sm-custom-submit" type="submit" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:12px;padding:.78rem 1.2rem;font-size:.82rem;font-weight:700;cursor:pointer" data-lang="sm-cf-submit">Accept & request quote</button>
           </div>
         </form>
-        <div id="sm-custom-ok" style="display:none;margin-top:.95rem;background:rgba(5,150,105,.08);border:1px solid rgba(5,150,105,.25);border-radius:12px;padding:.9rem;font-size:.82rem;color:#065f46">
+        <div id="sm-custom-ok" style="display:none;margin-top:.95rem;background:rgba(5,150,105,.08);border:1px solid rgba(5,150,105,.25);border-radius:12px;padding:.9rem;font-size:.82rem;color:#065f46" data-lang="sm-cf-ok-msg">
           ✅ Request received. Please wait for the devis to be ready so you can know the final price.
         </div>
       </div>
@@ -2390,20 +2390,20 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 <div class="page" id="page-track">
   <div style="padding:6rem 5% 4rem;text-align:center">
     <p style="font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:#7c3aed;margin-bottom:1rem"><span data-lang="track-label">تتبع طلبك · Track Order</span></p>
-    <h1 style="font-family:'Cormorant Garamond',serif;font-size:clamp(2.5rem,6vw,4rem);color:#1e0a4e;margin-bottom:1rem;font-weight:400">Track Your <em style="color:#7c3aed;font-style:italic">Order</em></h1>
-    <p style="color:#3d3460;max-width:440px;margin:0 auto 3rem;font-size:1rem">Real-time updates from our artisans workshops all the way to your door.</p>
+    <h1 style="font-family:'Cormorant Garamond',serif;font-size:clamp(2.5rem,6vw,4rem);color:#1e0a4e;margin-bottom:1rem;font-weight:400"><span data-lang="track-h1">Track your order</span></h1>
+    <p style="color:#3d3460;max-width:440px;margin:0 auto 3rem;font-size:1rem" data-lang="track-sub">Real-time updates from our artisans workshops all the way to your door.</p>
     <div style="max-width:580px;margin:0 auto 2rem;display:flex;gap:0.5rem;background:white;border:1px solid rgba(107,63,212,0.2);border-radius:50px;padding:0.4rem 0.4rem 0.4rem 1.2rem;box-shadow:0 4px 20px rgba(74,31,168,0.1)">
       <span style="font-size:1.2rem;display:flex;align-items:center">📦</span>
-      <input type="text" id="track-num" placeholder="Enter order ID e.g. SHP-2026-0042" onkeydown="if(event.key==='Enter')trackOrder()" style="flex:1;border:none;outline:none;font-size:0.9rem;color:#1e0a4e;background:transparent;font-family:inherit"/>
-      <button onclick="trackOrder()" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:40px;padding:0.6rem 1.5rem;font-size:0.85rem;cursor:pointer;font-family:inherit;font-weight:500">Track</button>
+      <input type="text" id="track-num" data-lang-placeholder="track-placeholder" placeholder="Enter tracking number..." onkeydown="if(event.key==='Enter')trackOrder()" style="flex:1;border:none;outline:none;font-size:0.9rem;color:#1e0a4e;background:transparent;font-family:inherit"/>
+      <button onclick="trackOrder()" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:40px;padding:0.6rem 1.5rem;font-size:0.85rem;cursor:pointer;font-family:inherit;font-weight:500" data-lang="track-btn">Track</button>
     </div>
     <div style="display:flex;gap:0.5rem;justify-content:center;flex-wrap:wrap;margin-bottom:3rem">
-      <span onclick="document.getElementById('track-num').value='SHP-2026-0042';trackOrder()" style="background:#f5f2ff;border:1px solid rgba(107,63,212,0.2);color:#7c3aed;font-size:0.75rem;padding:0.3rem 0.9rem;border-radius:20px;cursor:pointer">Try: SHP-2026-0042</span>
-      <span onclick="document.getElementById('track-num').value='SHP-2026-0001';trackOrder()" style="background:#f5f2ff;border:1px solid rgba(107,63,212,0.2);color:#7c3aed;font-size:0.75rem;padding:0.3rem 0.9rem;border-radius:20px;cursor:pointer">Try: SHP-2026-0001</span>
+      <span onclick="document.getElementById('track-num').value='SHP-2026-0042';trackOrder()" style="background:#f5f2ff;border:1px solid rgba(107,63,212,0.2);color:#7c3aed;font-size:0.75rem;padding:0.3rem 0.9rem;border-radius:20px;cursor:pointer"><span data-lang="track-try">Try:</span> SHP-2026-0042</span>
+      <span onclick="document.getElementById('track-num').value='SHP-2026-0001';trackOrder()" style="background:#f5f2ff;border:1px solid rgba(107,63,212,0.2);color:#7c3aed;font-size:0.75rem;padding:0.3rem 0.9rem;border-radius:20px;cursor:pointer"><span data-lang="track-try">Try:</span> SHP-2026-0001</span>
     </div>
     <div id="track-empty" style="max-width:450px;margin:0 auto;padding:3rem;text-align:center;background:white;border:1px solid rgba(107,63,212,0.15);border-radius:18px;box-shadow:0 2px 12px rgba(74,31,168,0.08)">
       <div style="font-size:4rem;margin-bottom:1rem">📦</div>
-      <p style="color:#3d3460;font-size:1rem">Enter your order ID above to track your shipment in real time.</p>
+      <p style="color:#3d3460;font-size:1rem" data-lang="track-empty-msg">Enter your order ID above to track your shipment in real time.</p>
     </div>
     <div id="track-result" style="display:none;max-width:600px;margin:0 auto;text-align:left"></div>
   </div>
@@ -2415,11 +2415,11 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 <div class="page" id="page-gift-checkout">
   <div class="s" style="padding-top:5rem;padding-bottom:4rem">
     <div style="max-width:520px;margin:0 auto;padding:0 1.25rem">
-      <button type="button" onclick="showPage('products')" style="background:none;border:none;color:#7c3aed;font-size:0.85rem;cursor:pointer;margin-bottom:1.25rem;font-family:inherit">← Back to shopping</button>
+      <button type="button" onclick="showPage('products')" style="background:none;border:none;color:#7c3aed;font-size:0.85rem;cursor:pointer;margin-bottom:1.25rem;font-family:inherit" data-lang="gift-back">← Back to shopping</button>
       <div style="margin-bottom:2rem">
-        <span class="eyebrow reveal">Cadeau · Gift</span>
-        <h1 class="display reveal" style="font-size:clamp(2rem,5vw,3rem);margin-top:0.5rem">Send a <em class="gold-text">gift</em></h1>
-        <p style="color:#7b72a8;font-size:0.9rem;line-height:1.5;margin-top:0.75rem">Tell us who receives the delivery. You will pay on the next step.</p>
+        <span class="eyebrow reveal" data-lang="gift-eyebrow">Gift</span>
+        <h1 class="display reveal gold-text" style="font-size:clamp(2rem,5vw,3rem);margin-top:0.5rem"><span data-lang="gift-h1">Send a gift</span></h1>
+        <p style="color:#7b72a8;font-size:0.9rem;line-height:1.5;margin-top:0.75rem" data-lang="gift-desc">Tell us who receives the delivery. You will pay on the next step.</p>
       </div>
       <div id="gift-checkout-root"></div>
     </div>
@@ -2432,8 +2432,8 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 <div class="page" id="page-wishlist">
   <div class="s" style="padding-top:5rem">
     <div style="margin-bottom:3rem">
-      <span class="eyebrow reveal">قائمة الأمنيات · Ma Liste</span>
-      <h1 class="display reveal" style="font-size:clamp(2.5rem,6vw,4.5rem)">Your <em class="gold-text">Wishlist</em></h1>
+      <span class="eyebrow reveal" data-lang="wish-eyebrow">Wishlist</span>
+      <h1 class="display reveal gold-text" style="font-size:clamp(2.5rem,6vw,4.5rem)"><span data-lang="wish-h1">Your wishlist</span></h1>
       <div class="divider reveal"></div>
     </div>
     <div class="grid-auto" id="wishlist-grid"></div>
@@ -2472,16 +2472,16 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   <div id="loyalty-promo-section" style="display:none" aria-hidden="true"></div>
   <div style="padding:5rem 5% 4rem;text-align:center;background:white;min-height:60vh">
     <p style="font-size:0.75rem;letter-spacing:0.2em;text-transform:uppercase;color:#7c3aed;margin-bottom:1rem" data-lang="rewards-label">Programme Fidelite</p>
-    <h1 style="font-family:'Cormorant Garamond',serif;font-size:3.5rem;color:#1e0a4e;font-weight:400;margin-bottom:1rem">Loyalty <em style="color:#7c3aed;font-style:italic">Rewards</em></h1>
+    <h1 style="font-family:'Cormorant Garamond',serif;font-size:3.5rem;color:#1e0a4e;font-weight:400;margin-bottom:1rem"><span data-lang="loy-h1">Loyalty Rewards</span></h1>
     <p style="color:#3d3460;max-width:500px;margin:0 auto 2rem;font-size:1rem" data-lang="rewards-sub">Earn points on every purchase and unlock exclusive perks!</p>
     <div style="display:inline-flex;align-items:center;gap:1.5rem;padding:1rem 2rem;border-radius:30px;margin-bottom:3rem;flex-wrap:wrap;justify-content:center;background:white;border:1px solid rgba(107,63,212,0.2);box-shadow:0 2px 12px rgba(74,31,168,0.08)">
-      <span style="font-size:0.78rem;color:#3d3460">How it works:</span>
-      <span style="font-size:0.78rem;color:#1e0a4e">1 TND spent = <strong style="color:#7c3aed">1 point</strong></span>
-      <span style="font-size:0.78rem;color:#1e0a4e">100 points = <strong style="color:#7c3aed">1 TND off</strong></span>
+      <span style="font-size:0.78rem;color:#3d3460" data-lang="loy-how">How it works:</span>
+      <span style="font-size:0.78rem;color:#1e0a4e" data-lang="loy-pt1">1 TND spent = 1 point</span>
+      <span style="font-size:0.78rem;color:#1e0a4e" data-lang="loy-pt2">100 points = 1 TND off</span>
     </div>
     <div id="loyalty-tiers-grid" style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.5rem"></div>
     <div style="margin-top:3rem">
-      <button onclick="showPage('products')" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.9rem 2.5rem;border-radius:50px;font-size:0.9rem;cursor:pointer;font-family:inherit">Start Earning Points →</button>
+      <button onclick="showPage('products')" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0.9rem 2.5rem;border-radius:50px;font-size:0.9rem;cursor:pointer;font-family:inherit" data-lang="loy-cta">Start earning points →</button>
     </div>
   </div>
 </div>
@@ -2501,17 +2501,17 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   <div id="about-customer-wrap">
   <div style="padding:6rem 5% 4rem">
     <div style="text-align:center;margin-bottom:4rem">
-      <p style="font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:#7c3aed;margin-bottom:1rem">قصتنا · Notre Histoire</p>
-      <h1 style="font-family:'Cormorant Garamond',serif;font-size:clamp(2.5rem,6vw,4rem);color:#1e0a4e;font-weight:400;margin-bottom:1.5rem">About <em style="color:#7c3aed;font-style:italic">Everest</em></h1>
+      <p style="font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:#7c3aed;margin-bottom:1rem" data-lang="ab-eyebrow">Our story</p>
+      <h1 style="font-family:'Cormorant Garamond',serif;font-size:clamp(2.5rem,6vw,4rem);color:#1e0a4e;font-weight:400;margin-bottom:1.5rem"><span data-lang="ab-h1">About Everest</span></h1>
       <div style="width:60px;height:2px;background:linear-gradient(90deg,#7c3aed,#9b72f0);margin:0 auto 2rem"></div>
-      <p style="color:#3d3460;max-width:600px;margin:0 auto;font-size:1rem;line-height:1.8">Born in the heart of Tunisia's Sahel region, Everest was created to connect the world with the extraordinary craftsmanship of Monastir, Ksar Hellal, and beyond.</p>
+      <p style="color:#3d3460;max-width:600px;margin:0 auto;font-size:1rem;line-height:1.8" data-lang="ab-lead">Born in the heart of Tunisia's Sahel region, Everest was created to connect the world with the extraordinary craftsmanship of Monastir, Ksar Hellal, and beyond.</p>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:3rem;margin-bottom:5rem;align-items:center;max-width:1100px;margin:0 auto 5rem">
       <div style="aspect-ratio:4/3;background:linear-gradient(135deg,#ede8ff,#e8e4ff);border-radius:20px;border:1px solid rgba(107,63,212,0.12);display:flex;align-items:center;justify-content:center;font-size:8rem">🇹🇳</div>
       <div>
-        <p style="font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:#7c3aed;margin-bottom:0.8rem">Our Mission</p>
-        <h2 style="font-family:'Cormorant Garamond',serif;font-size:2.2rem;color:#1e0a4e;font-weight:400;margin-bottom:1rem">Sahel <em style="color:#7c3aed;font-style:italic">to the World</em></h2>
+        <p style="font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:#7c3aed;margin-bottom:0.8rem" data-lang="ab-miss-k">Our mission</p>
+        <h2 style="font-family:'Cormorant Garamond',serif;font-size:2.2rem;color:#1e0a4e;font-weight:400;margin-bottom:1rem"><span data-lang="ab-miss-h">Sahel to the world</span></h2>
         <div style="width:40px;height:2px;background:#7c3aed;margin-bottom:1.5rem"></div>
         <p style="color:#3d3460;line-height:1.8;margin-bottom:1rem">Tunisia's Sahel region has been producing world-class furniture and crafts for centuries. Everest is building the digital bridge that connects these master artisans with customers across 50+ countries.</p>
         <p style="color:#3d3460;line-height:1.8">Every purchase directly supports a Tunisian family, preserves a traditional craft, and keeps alive a 500-year-old heritage.</p>
@@ -2666,9 +2666,9 @@ function filterAndGo(cat) {
     document.documentElement.style.overflow = 'hidden';
     document.body.style.overflow = 'hidden';
     m.scrollTop = 0;
-    var titleBar = document.getElementById('sm-configurator-title');
+    var nameSpan = document.getElementById('sm-configurator-product-name');
     var p = SM_PRODUCTS[smCurrent];
-    if(titleBar && p) titleBar.textContent = (p.title || 'Sur mesure') + ' · Personnaliser';
+    if(nameSpan) nameSpan.textContent = (p && p.title) ? p.title : '';
   }
 
   function closeSMConfiguratorSheet(){
@@ -2766,9 +2766,12 @@ function filterAndGo(cat) {
     const w=parseInt(document.getElementById('sm-width').value);
     const d=parseInt(document.getElementById('sm-depth').value);
     const h=parseInt(document.getElementById('sm-height').value);
-    document.getElementById('sm-width-val').textContent=w+' cm';
-    document.getElementById('sm-depth-val').textContent=d+' cm';
-    document.getElementById('sm-height-val').textContent=h+' cm';
+    var u = (typeof STNI18N !== 'undefined' && STNI18N.t) ? STNI18N.t('sm-units-cm') : 'cm';
+    var mn = (typeof STNI18N !== 'undefined' && STNI18N.t) ? STNI18N.t('sm-label-min') : 'min';
+    var mx = (typeof STNI18N !== 'undefined' && STNI18N.t) ? STNI18N.t('sm-label-max') : 'max';
+    document.getElementById('sm-width-val').textContent=w+' '+u;
+    document.getElementById('sm-depth-val').textContent=d+' '+u;
+    document.getElementById('sm-height-val').textContent=h+' '+u;
     document.getElementById('sm-dim-w').textContent=w;
     document.getElementById('sm-dim-d').textContent=d;
     document.getElementById('sm-dim-h').textContent=h;
@@ -2786,12 +2789,12 @@ function filterAndGo(cat) {
     document.getElementById('sm-dim-extra').textContent=(extra>0?'+':'')+extra+' TND';
     document.getElementById('sm-total-price').textContent=total+' TND';
     document.getElementById('sm-price').innerHTML=total+' <span style="font-size:1rem;color:var(--text-muted)">TND</span>';
-    document.getElementById('sm-w-min').textContent=p.w.min+'cm min';
-    document.getElementById('sm-w-max').textContent=p.w.max+'cm max';
-    document.getElementById('sm-d-min').textContent=p.d.min+'cm min';
-    document.getElementById('sm-d-max').textContent=p.d.max+'cm max';
-    document.getElementById('sm-h-min').textContent=p.h.min+'cm min';
-    document.getElementById('sm-h-max').textContent=p.h.max+'cm max';
+    document.getElementById('sm-w-min').textContent=p.w.min+' '+u+' '+mn;
+    document.getElementById('sm-w-max').textContent=p.w.max+' '+u+' '+mx;
+    document.getElementById('sm-d-min').textContent=p.d.min+' '+u+' '+mn;
+    document.getElementById('sm-d-max').textContent=p.d.max+' '+u+' '+mx;
+    document.getElementById('sm-h-min').textContent=p.h.min+' '+u+' '+mn;
+    document.getElementById('sm-h-max').textContent=p.h.max+' '+u+' '+mx;
 
     var img=document.getElementById('sm-img');
     var tint=document.getElementById('sm-object-tint');
@@ -2838,7 +2841,7 @@ function filterAndGo(cat) {
   }
 
   function saveSMConfig(){
-    if(typeof toast==='function') toast('💾 Configuration sauvegardée!','default');
+    if(typeof toast==='function') toast((typeof STNI18N !== 'undefined' && STNI18N.t) ? STNI18N.t('sm-save-toast') : 'Configuration saved', 'default');
   }
 
   function smGoToConfigurator(idx){
@@ -2864,13 +2867,16 @@ function filterAndGo(cat) {
   function renderSMIkeaGrid(){
     var grid = document.getElementById('sm-ikea-grid');
     if(!grid || !Array.isArray(SM_PRODUCTS)) return;
+    var customizeLbl = (typeof STNI18N !== 'undefined' && STNI18N.t) ? STNI18N.t('sm-customize') : 'Customize';
+    var fromLbl = (typeof STNI18N !== 'undefined' && STNI18N.t) ? STNI18N.t('sm-from') : 'From';
+    var imgLbl = (typeof STNI18N !== 'undefined' && STNI18N.t) ? STNI18N.t('sm-thumb-title') : 'Image';
     grid.innerHTML = SM_PRODUCTS.map(function(p, idx){
       var img = (Array.isArray(p.images) && p.images[0]) || (Array.isArray(p.objectImages) && p.objectImages[0]) || '';
       var desc = String(p.desc || '').slice(0, 96);
       var safeDesc = desc.length < String(p.desc || '').length ? desc + '...' : desc;
       var picSet = Array.isArray(p.objectImages) && p.objectImages.length ? p.objectImages : (Array.isArray(p.images) ? p.images : []);
       var thumbs = picSet.slice(0,4).map(function(u,j){
-        return '<button type="button" class="sm-ikea-thumb'+(j===0?' active':'')+'" onclick="event.stopPropagation();smPickFromCatalogImage('+idx+','+j+',document.querySelector(\'[data-sm-card=&quot;'+idx+'&quot;]\'))" style="background-image:url(\''+u+'\')" title="Image '+(j+1)+'"></button>';
+        return '<button type="button" class="sm-ikea-thumb'+(j===0?' active':'')+'" onclick="event.stopPropagation();smPickFromCatalogImage('+idx+','+j+',document.querySelector(\'[data-sm-card=&quot;'+idx+'&quot;]\'))" style="background-image:url(\''+u+'\')" title="'+imgLbl+' '+(j+1)+'"></button>';
       }).join('');
       return (
         '<article class="sm-ikea-card'+(idx===0?' active':'')+'" data-sm-card="'+idx+'" onclick="smPickFromCatalog('+idx+',this)" style="cursor:pointer" role="button" tabindex="0" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();smPickFromCatalog('+idx+',this);}">' +
@@ -2879,8 +2885,8 @@ function filterAndGo(cat) {
             '<div class="sm-ikea-title">'+p.title+'</div>' +
             '<div class="sm-ikea-desc">'+safeDesc+'</div>' +
             '<div class="sm-ikea-thumbs">'+thumbs+'</div>' +
-            '<div class="sm-ikea-row"><span class="sm-ikea-price">From '+p.base+' TND</span>' +
-              '<button type="button" class="sm-ikea-btn" onclick="event.stopPropagation();smPickFromCatalog('+idx+',document.querySelector(\'[data-sm-card=&quot;'+idx+'&quot;]\'))">Customize</button>' +
+            '<div class="sm-ikea-row"><span class="sm-ikea-price">'+fromLbl+' '+p.base+' TND</span>' +
+              '<button type="button" class="sm-ikea-btn" onclick="event.stopPropagation();smPickFromCatalog('+idx+',document.querySelector(\'[data-sm-card=&quot;'+idx+'&quot;]\'))">'+customizeLbl+'</button>' +
             '</div>' +
           '</div>' +
         '</article>'
@@ -2893,57 +2899,35 @@ function filterAndGo(cat) {
     return;
   }
 
-  function applyFurniturePageLang(lang){
-    var map = {
-      fr: {
-        collectionTitle: 'Cliquez sur un produit pour ouvrir le configurateur',
-        configTitle: 'Change dimensions, colors and details',
-        deliveryStep: 'Livré en 2 semaines',
-        viewBtn: 'Voir'
-      },
-      en: {
-        collectionTitle: 'Click a product to open the configurator',
-        configTitle: 'Change dimensions, colors and details',
-        deliveryStep: 'Delivered in 2 weeks',
-        viewBtn: 'View'
-      },
-      ar: {
-        collectionTitle: 'اضغط على منتج لفتح أداة التخصيص',
-        configTitle: 'غيّر القياسات والألوان والتفاصيل',
-        deliveryStep: 'التسليم خلال أسبوعين',
-        viewBtn: 'عرض'
-      }
-    };
-    var t = map[lang] || map.fr;
-    var cTitle = document.querySelector('#sm-collection-grid') && document.querySelector('#sm-collection-grid').parentElement.querySelector('h2.display');
-    if(cTitle) cTitle.textContent = t.collectionTitle;
-    var configTitle = document.querySelector('#sm-configurator-wrap .s-header h2.display');
-    if(configTitle) configTitle.textContent = t.configTitle;
-    // Must target this leaf only: ancestor divs also contain this phrase in aggregated textContent, which used to wipe the whole page.
-    var deliveryNode = document.getElementById('sm-delivery-step');
-    if(deliveryNode) deliveryNode.textContent = t.deliveryStep;
-    document.querySelectorAll('#sm-collection-grid .sm-ikea-btn').forEach(function(b){ b.textContent = t.viewBtn; });
+  function applyFurniturePageLang(_lang){
+    if (typeof renderSMIkeaGrid === 'function') renderSMIkeaGrid();
+    if (typeof updateSM === 'function') updateSM();
   }
 
   function openCustomProjectForm(){
     var modal = document.getElementById('sm-custom-modal');
     if(modal) modal.style.display = 'block';
+    var out = document.getElementById('sm-cf-model-name');
+    if (out && typeof STNI18N !== 'undefined' && STNI18N.t) out.textContent = STNI18N.t('sm-cf-nofile');
   }
 
   function closeCustomProjectForm(){
     var modal = document.getElementById('sm-custom-modal');
     if(modal) modal.style.display = 'none';
+    var out = document.getElementById('sm-cf-model-name');
+    if (out && typeof STNI18N !== 'undefined' && STNI18N.t) out.textContent = STNI18N.t('sm-cf-nofile');
   }
 
   function selectCustomModelFile(input){
     var out = document.getElementById('sm-cf-model-name');
     if(!out) return;
     if(!input || !input.files || !input.files[0]){
-      out.textContent = 'No file selected';
+      out.textContent = (typeof STNI18N !== 'undefined' && STNI18N.t) ? STNI18N.t('sm-cf-nofile') : 'No file selected';
       return;
     }
     var f = input.files[0];
-    out.textContent = 'Selected: ' + f.name + ' (' + Math.max(1, Math.round(f.size/1024)) + ' KB)';
+    var pref = (typeof STNI18N !== 'undefined' && STNI18N.t) ? STNI18N.t('sm-cf-selected-prefix') : 'Selected:';
+    out.textContent = pref + ' ' + f.name + ' (' + Math.max(1, Math.round(f.size/1024)) + ' KB)';
   }
 
   function submitCustomProjectRequest(e){
@@ -2951,7 +2935,7 @@ function filterAndGo(cat) {
     var btn = document.getElementById('sm-custom-submit');
     if(btn){
       btn.disabled = true;
-      btn.textContent = 'Sending request...';
+      btn.textContent = (typeof STNI18N !== 'undefined' && STNI18N.t) ? STNI18N.t('sm-cf-sending') : 'Sending request...';
     }
     var payload = {
       id: 'CR-' + Date.now(),
@@ -2975,11 +2959,11 @@ function filterAndGo(cat) {
     }catch(x){}
     var ok = document.getElementById('sm-custom-ok');
     if(ok) ok.style.display = 'block';
-    if(typeof toast === 'function') toast('✅ Request sent. Please wait for the devis.', 'success');
+    if(typeof toast === 'function') toast((typeof STNI18N !== 'undefined' && STNI18N.t) ? STNI18N.t('sm-cf-toast') : 'Request sent.', 'success');
     setTimeout(function(){
       if(btn){
         btn.disabled = false;
-        btn.textContent = 'Accept & request quote';
+        btn.textContent = (typeof STNI18N !== 'undefined' && STNI18N.t) ? STNI18N.t('sm-cf-submit') : 'Accept & request quote';
       }
       closeCustomProjectForm();
     }, 1300);
@@ -3032,15 +3016,6 @@ function filterAndGo(cat) {
     if (firstTab) selectSMProduct(0, firstTab, false);
     updateSM();
   },200);
-  if (typeof window.setLang === 'function' && !window.__stnFurnitureLangWrapped) {
-    window.__stnFurnitureLangWrapped = true;
-    var __origSetLang = window.setLang;
-    window.setLang = function(lang){
-      var r = __origSetLang.apply(this, arguments);
-      setTimeout(function(){ applyFurniturePageLang(lang); }, 80);
-      return r;
-    };
-  }
   </script>
 <!-- SCRIPTS -->
 <script src="firebase-config.js"></script>
