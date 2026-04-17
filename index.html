@@ -2042,6 +2042,25 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
       <button class="sm-tab" onclick="selectSMProduct(5,this)">🪞 Coiffeuse</button>
     </div>
 
+    <!-- IKEA-STYLE QUICK CATALOG -->
+    <div style="max-width:1200px;margin:0 auto 2rem">
+      <div style="display:flex;align-items:end;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1rem">
+        <div>
+          <div style="font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:700">Everest Catalog</div>
+          <h3 style="font-family:'Cormorant Garamond',serif;font-size:2rem;color:var(--text-dark);margin:.2rem 0 0">Browse like IKEA, then customize</h3>
+        </div>
+        <button type="button" onclick="openCustomProjectForm()" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:12px;padding:.8rem 1.1rem;font-size:.78rem;font-weight:700;cursor:pointer;box-shadow:0 10px 24px rgba(124,58,237,.25)">Customize my own piece</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(6,minmax(130px,1fr));gap:.75rem" id="sm-mini-catalog">
+        <button class="sm-mini-item active" onclick="smPickFromCatalog(0,this)"><span>🪑</span><strong>Chair</strong><small>from 850 TND</small></button>
+        <button class="sm-mini-item" onclick="smPickFromCatalog(1,this)"><span>🍽</span><strong>Dining Table</strong><small>from 2800 TND</small></button>
+        <button class="sm-mini-item" onclick="smPickFromCatalog(2,this)"><span>🛋</span><strong>Sofa Frame</strong><small>from 3200 TND</small></button>
+        <button class="sm-mini-item" onclick="smPickFromCatalog(3,this)"><span>🚪</span><strong>Wardrobe</strong><small>from 4500 TND</small></button>
+        <button class="sm-mini-item" onclick="smPickFromCatalog(4,this)"><span>☕</span><strong>Coffee Table</strong><small>from 1200 TND</small></button>
+        <button class="sm-mini-item" onclick="smPickFromCatalog(5,this)"><span>🪞</span><strong>Vanity</strong><small>from 1800 TND</small></button>
+      </div>
+    </div>
+
     <!-- CONFIGURATOR -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:start;max-width:1200px;margin:0 auto">
 
@@ -2167,6 +2186,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
         <!-- CTA -->
         <div style="display:flex;gap:.8rem;animation:fadeSlideUp .5s .3s ease both">
           <button class="btn btn-gold btn-lg" style="flex:1" onclick="addSMToCart()">🛒 Ajouter au Panier</button>
+          <button class="btn" onclick="openCustomProjectForm()" style="padding:.95rem 1.1rem;background:#1e0a4e;color:white;border:none;border-radius:12px;font-size:.82rem;font-weight:700;cursor:pointer">✨ Customize</button>
           <button class="btn btn-ghost" onclick="saveSMConfig()" style="padding:.95rem 1.2rem">💾 Sauvegarder</button>
         </div>
 
@@ -2254,6 +2274,49 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 
   </div>
 
+  <!-- BESPOKE CUSTOM REQUEST -->
+  <div id="sm-custom-modal" style="display:none;position:fixed;inset:0;z-index:1300;background:rgba(15,23,42,.58);backdrop-filter:blur(3px);padding:1.2rem;overflow:auto">
+    <div style="max-width:760px;margin:2rem auto;background:white;border-radius:20px;border:1px solid rgba(107,63,212,.2);box-shadow:0 20px 65px rgba(15,23,42,.28);overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.1rem 1.2rem;background:linear-gradient(135deg,#1e0a4e,#4a1fa8);color:white">
+        <div>
+          <div style="font-size:.68rem;letter-spacing:.13em;text-transform:uppercase;opacity:.8">Everest Bespoke</div>
+          <h3 style="margin:.2rem 0 0;font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:500">Customize your special furniture</h3>
+        </div>
+        <button type="button" onclick="closeCustomProjectForm()" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:white;border-radius:10px;padding:.45rem .7rem;font-size:.78rem;cursor:pointer">Close ✕</button>
+      </div>
+      <div style="padding:1.2rem">
+        <p style="font-size:.84rem;color:var(--text-muted);line-height:1.7;margin:0 0 1rem">Send your own model (Blender/3D file), color palette, dimensions and details. Our Everest team will prepare your quote. After submit, we show: <strong>wait for devis</strong>.</p>
+        <form onsubmit="submitCustomProjectRequest(event)" id="sm-custom-form">
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem">
+            <div><label class="sm-f-lbl">Full name *</label><input id="sm-cf-name" class="sm-f-input" required/></div>
+            <div><label class="sm-f-lbl">Phone *</label><input id="sm-cf-phone" class="sm-f-input" required/></div>
+            <div><label class="sm-f-lbl">Email *</label><input id="sm-cf-email" class="sm-f-input" type="email" required/></div>
+            <div><label class="sm-f-lbl">Furniture type *</label><input id="sm-cf-type" class="sm-f-input" placeholder="Chair, table, wardrobe..." required/></div>
+            <div><label class="sm-f-lbl">Width (cm) *</label><input id="sm-cf-width" class="sm-f-input" type="number" min="10" required/></div>
+            <div><label class="sm-f-lbl">Depth (cm) *</label><input id="sm-cf-depth" class="sm-f-input" type="number" min="10" required/></div>
+            <div><label class="sm-f-lbl">Height (cm) *</label><input id="sm-cf-height" class="sm-f-input" type="number" min="10" required/></div>
+            <div><label class="sm-f-lbl">Preferred color / finish *</label><input id="sm-cf-color" class="sm-f-input" placeholder="Oak dark, matte black..." required/></div>
+            <div style="grid-column:1/-1"><label class="sm-f-lbl">Material / style notes *</label><textarea id="sm-cf-notes" class="sm-f-input" rows="3" required placeholder="Any details: wood type, drawers, legs, handle style..."></textarea></div>
+            <div style="grid-column:1/-1">
+              <label class="sm-f-lbl">Upload your model / references *</label>
+              <div style="border:1.5px dashed rgba(107,63,212,.28);border-radius:12px;padding:.8rem;background:#faf8ff">
+                <input id="sm-cf-model" type="file" accept=".blend,.glb,.gltf,.obj,.fbx,.zip,image/*" onchange="selectCustomModelFile(this)" required style="width:100%"/>
+                <div id="sm-cf-model-name" style="margin-top:.45rem;font-size:.74rem;color:var(--text-muted)">No file selected</div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:.8rem;flex-wrap:wrap;margin-top:1rem">
+            <div style="font-size:.72rem;color:var(--text-dim)">By submitting, your request is sent to Everest team for manual quote review.</div>
+            <button id="sm-custom-submit" type="submit" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:12px;padding:.78rem 1.2rem;font-size:.82rem;font-weight:700;cursor:pointer">Accept & request quote</button>
+          </div>
+        </form>
+        <div id="sm-custom-ok" style="display:none;margin-top:.95rem;background:rgba(5,150,105,.08);border:1px solid rgba(5,150,105,.25);border-radius:12px;padding:.9rem;font-size:.82rem;color:#065f46">
+          ✅ Request received. Please wait for the devis to be ready so you can know the final price.
+        </div>
+      </div>
+    </div>
+  </div>
+
   <style>
   .sm-tab{background:white;border:1.5px solid rgba(107,63,212,0.15);color:var(--text-muted);padding:.65rem 1.4rem;border-radius:25px;font-size:.78rem;font-weight:500;transition:all .25s;cursor:pointer;font-family:inherit;box-shadow:0 2px 8px rgba(74,31,168,0.05)}
   .sm-tab:hover{border-color:var(--accent);color:var(--accent);background:#f5f2ff;transform:translateY(-2px)}
@@ -2280,6 +2343,16 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   .sm-inspo-info span{font-size:.75rem;color:var(--accent);font-weight:700}
   .sm-inspo-cta{background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;text-align:center;font-size:.72rem;font-weight:600;padding:.5rem;letter-spacing:.05em;opacity:0;transform:translateY(6px);transition:all .25s}
   .sm-inspo-card:hover .sm-inspo-cta{opacity:1;transform:translateY(0)}
+  .sm-mini-item{display:flex;flex-direction:column;align-items:flex-start;gap:.25rem;padding:.75rem;border-radius:12px;border:1px solid rgba(107,63,212,.14);background:white;cursor:pointer;transition:all .22s;text-align:left}
+  .sm-mini-item span{font-size:1.1rem}
+  .sm-mini-item strong{font-size:.78rem;color:var(--text-dark)}
+  .sm-mini-item small{font-size:.66rem;color:var(--text-muted)}
+  .sm-mini-item:hover,.sm-mini-item.active{transform:translateY(-2px);border-color:rgba(107,63,212,.45);box-shadow:0 8px 20px rgba(74,31,168,.12)}
+  .sm-f-lbl{display:block;font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#5b21b6;margin-bottom:.35rem}
+  .sm-f-input{width:100%;box-sizing:border-box;border:1px solid #e9d5ff;border-radius:10px;padding:.62rem .75rem;font-size:.84rem;outline:none;font-family:inherit}
+  .sm-f-input:focus{border-color:#7c3aed;box-shadow:0 0 0 3px rgba(124,58,237,.1)}
+  @media (max-width:980px){#sm-mini-catalog{grid-template-columns:repeat(3,minmax(0,1fr)) !important}}
+  @media (max-width:640px){#sm-mini-catalog{grid-template-columns:repeat(2,minmax(0,1fr)) !important}}
   </style>
 
   <!-- SM script moved to bottom -->
@@ -2705,6 +2778,75 @@ function filterAndGo(cat) {
     if(typeof toast==='function') toast('💾 Configuration sauvegardée!','default');
   }
 
+  function smPickFromCatalog(idx, btn){
+    const tabs = document.querySelectorAll('.sm-tab');
+    if(tabs[idx]) selectSMProduct(idx, tabs[idx]);
+    document.querySelectorAll('.sm-mini-item').forEach(function(el){ el.classList.remove('active'); });
+    if(btn) btn.classList.add('active');
+    var conf = document.getElementById('sm-photo');
+    if(conf) conf.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function openCustomProjectForm(){
+    var modal = document.getElementById('sm-custom-modal');
+    if(modal) modal.style.display = 'block';
+  }
+
+  function closeCustomProjectForm(){
+    var modal = document.getElementById('sm-custom-modal');
+    if(modal) modal.style.display = 'none';
+  }
+
+  function selectCustomModelFile(input){
+    var out = document.getElementById('sm-cf-model-name');
+    if(!out) return;
+    if(!input || !input.files || !input.files[0]){
+      out.textContent = 'No file selected';
+      return;
+    }
+    var f = input.files[0];
+    out.textContent = 'Selected: ' + f.name + ' (' + Math.max(1, Math.round(f.size/1024)) + ' KB)';
+  }
+
+  function submitCustomProjectRequest(e){
+    e.preventDefault();
+    var btn = document.getElementById('sm-custom-submit');
+    if(btn){
+      btn.disabled = true;
+      btn.textContent = 'Sending request...';
+    }
+    var payload = {
+      id: 'CR-' + Date.now(),
+      createdAt: new Date().toISOString(),
+      name: (document.getElementById('sm-cf-name').value || '').trim(),
+      phone: (document.getElementById('sm-cf-phone').value || '').trim(),
+      email: (document.getElementById('sm-cf-email').value || '').trim(),
+      furnitureType: (document.getElementById('sm-cf-type').value || '').trim(),
+      widthCm: Number(document.getElementById('sm-cf-width').value || 0),
+      depthCm: Number(document.getElementById('sm-cf-depth').value || 0),
+      heightCm: Number(document.getElementById('sm-cf-height').value || 0),
+      color: (document.getElementById('sm-cf-color').value || '').trim(),
+      notes: (document.getElementById('sm-cf-notes').value || '').trim(),
+      modelFileName: document.getElementById('sm-cf-model').files[0] ? document.getElementById('sm-cf-model').files[0].name : null,
+      status: 'waiting_quote'
+    };
+    try{
+      var list = (typeof STN !== 'undefined' && STN.DB && STN.DB.get('customRequests')) || [];
+      list.push(payload);
+      if(typeof STN !== 'undefined' && STN.DB) STN.DB.set('customRequests', list);
+    }catch(x){}
+    var ok = document.getElementById('sm-custom-ok');
+    if(ok) ok.style.display = 'block';
+    if(typeof toast === 'function') toast('✅ Request sent. Please wait for the devis.', 'success');
+    setTimeout(function(){
+      if(btn){
+        btn.disabled = false;
+        btn.textContent = 'Accept & request quote';
+      }
+      closeCustomProjectForm();
+    }, 1300);
+  }
+
   function smInspoClick(idx, card) {
     // Scroll to configurator top
     var tabs = document.querySelectorAll('.sm-tab');
@@ -2724,6 +2866,12 @@ function filterAndGo(cat) {
     const firstTab = document.querySelector('.sm-tab');
     if (firstTab) selectSMProduct(0, firstTab);
     updateSM();
+    var modal = document.getElementById('sm-custom-modal');
+    if(modal){
+      modal.addEventListener('click', function(ev){
+        if(ev.target === modal) closeCustomProjectForm();
+      });
+    }
   });
   setTimeout(()=>{
     const firstTab = document.querySelector('.sm-tab');
