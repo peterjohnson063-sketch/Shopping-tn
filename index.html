@@ -2011,7 +2011,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
         Configurez votre meuble comme chez IKEA: lignes propres, aperçu premium en direct, dimensions et teintes personnalisées — le tout signé Everest.
       </p>
       <div style="display:flex;gap:2rem;justify-content:center;flex-wrap:wrap;animation:fadeSlideUp .6s .3s ease both">
-        <div style="text-align:center"><div style="font-family:'Cormorant Garamond',serif;font-size:2.2rem;color:white">4–6</div><div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.55)">Semaines</div></div>
+        <div style="text-align:center"><div style="font-family:'Cormorant Garamond',serif;font-size:2.2rem;color:white">2</div><div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.55)">Semaines</div></div>
         <div style="color:rgba(255,255,255,.2);font-size:2rem;align-self:center">·</div>
         <div style="text-align:center"><div style="font-family:'Cormorant Garamond',serif;font-size:2.2rem;color:white">100%</div><div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.55)">Chêne Massif</div></div>
         <div style="color:rgba(255,255,255,.2);font-size:2rem;align-self:center">·</div>
@@ -2049,7 +2049,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
           <div style="font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:700">Everest Catalog</div>
           <h3 style="font-family:'Cormorant Garamond',serif;font-size:2rem;color:var(--text-dark);margin:.2rem 0 0">Browse furniture in rows, IKEA style</h3>
         </div>
-        <button type="button" onclick="openCustomProjectForm()" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:12px;padding:.8rem 1.1rem;font-size:.78rem;font-weight:700;cursor:pointer;box-shadow:0 10px 24px rgba(124,58,237,.25)">Customize my own piece</button>
+        <button type="button" onclick="openCustomProjectForm()" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;border-radius:12px;padding:.8rem 1.1rem;font-size:.78rem;font-weight:700;cursor:pointer;box-shadow:0 10px 24px rgba(124,58,237,.25)">Request custom project</button>
       </div>
       <div id="sm-ikea-grid" class="sm-ikea-grid"></div>
     </div>
@@ -2064,7 +2064,8 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
       <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem" id="sm-collection-grid"></div>
     </div>
 
-    <!-- CONFIGURATOR -->
+    <!-- CONFIGURATOR (shown only after product view) -->
+    <div id="sm-configurator-wrap" style="display:none">
     <div class="s-header" style="margin:0 auto 1.35rem">
       <span class="eyebrow">Customize</span>
       <h2 class="display" style="font-size:clamp(1.6rem,3.7vw,2.6rem)">Change dimensions, colors and details</h2>
@@ -2194,7 +2195,6 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
         <!-- CTA -->
         <div style="display:flex;gap:.8rem;animation:fadeSlideUp .5s .3s ease both">
           <button class="btn btn-gold btn-lg" style="flex:1" onclick="addSMToCart()">🛒 Ajouter au Panier</button>
-          <button class="btn" onclick="openCustomProjectForm()" style="padding:.95rem 1.1rem;background:#1e0a4e;color:white;border:none;border-radius:12px;font-size:.82rem;font-weight:700;cursor:pointer">✨ Customize</button>
           <button class="btn btn-ghost" onclick="saveSMConfig()" style="padding:.95rem 1.2rem">💾 Sauvegarder</button>
         </div>
 
@@ -2203,6 +2203,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
           <div><div style="font-size:.85rem;font-weight:600;color:#059669">Ajouté au panier!</div><div style="font-size:.72rem;color:var(--text-muted)">L'équipe Everest confirmera sous 24h</div></div>
         </div>
       </div>
+    </div>
     </div>
 
     <div id="sm-view-modal" style="display:none;position:fixed;inset:0;z-index:1300;background:rgba(15,23,42,.6);backdrop-filter:blur(3px);padding:1rem;overflow:auto">
@@ -2251,7 +2252,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
         <div style="text-align:center;flex:1;min-width:120px;max-width:160px">
           <div style="width:54px;height:54px;background:linear-gradient(135deg,#7c3aed,#6b3fd4);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto .8rem;font-size:.9rem;font-weight:700;color:white;box-shadow:0 6px 20px rgba(124,58,237,.35)">4</div>
           <div style="font-size:.88rem;color:var(--text-dark);font-weight:700;margin-bottom:.3rem">Livraison</div>
-          <div style="font-size:.74rem;color:var(--text-muted);line-height:1.6">Livré en 4–6 semaines</div>
+          <div style="font-size:.74rem;color:var(--text-muted);line-height:1.6">Livré en 2 semaines</div>
         </div>
       </div>
     </div>
@@ -2790,6 +2791,8 @@ function filterAndGo(cat) {
     if(tabs[idx]) selectSMProduct(idx, tabs[idx]);
     document.querySelectorAll('.sm-ikea-card').forEach(function(el){ el.classList.remove('active'); });
     if(btn) btn.classList.add('active');
+    var wrap = document.getElementById('sm-configurator-wrap');
+    if(wrap) wrap.style.display = 'block';
     var conf = document.getElementById('sm-photo');
     if(conf) conf.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
@@ -2890,6 +2893,44 @@ function filterAndGo(cat) {
     if(modal) modal.style.display = 'none';
   }
 
+  function applyFurniturePageLang(lang){
+    var map = {
+      fr: {
+        collectionTitle: 'Explore products first, then customize',
+        configTitle: 'Change dimensions, colors and details',
+        deliveryStep: 'Livré en 2 semaines',
+        viewBtn: 'View',
+        customBtn: 'Customize this product'
+      },
+      en: {
+        collectionTitle: 'Explore products first, then customize',
+        configTitle: 'Change dimensions, colors and details',
+        deliveryStep: 'Delivered in 2 weeks',
+        viewBtn: 'View',
+        customBtn: 'Customize this product'
+      },
+      ar: {
+        collectionTitle: 'شاهد المنتجات أولا ثم عدّلها',
+        configTitle: 'غيّر القياسات والألوان والتفاصيل',
+        deliveryStep: 'التسليم خلال أسبوعين',
+        viewBtn: 'عرض',
+        customBtn: 'تخصيص هذا المنتج'
+      }
+    };
+    var t = map[lang] || map.fr;
+    var cTitle = document.querySelector('#sm-collection-grid') && document.querySelector('#sm-collection-grid').parentElement.querySelector('h2.display');
+    if(cTitle) cTitle.textContent = t.collectionTitle;
+    var configTitle = document.querySelector('#sm-configurator-wrap .s-header h2.display');
+    if(configTitle) configTitle.textContent = t.configTitle;
+    var deliveryNode = Array.from(document.querySelectorAll('#page-carpenter div')).find(function(el){
+      return el.textContent && (el.textContent.indexOf('Livré en 2 semaines')>=0 || el.textContent.indexOf('Delivered in 2 weeks')>=0 || el.textContent.indexOf('التسليم خلال أسبوعين')>=0);
+    });
+    if(deliveryNode) deliveryNode.textContent = t.deliveryStep;
+    document.querySelectorAll('#sm-collection-grid .sm-ikea-btn').forEach(function(b){ b.textContent = t.viewBtn; });
+    var b2 = document.getElementById('sm-view-customize-btn');
+    if(b2) b2.textContent = t.customBtn;
+  }
+
   function openCustomProjectForm(){
     var modal = document.getElementById('sm-custom-modal');
     if(modal) modal.style.display = 'block';
@@ -2983,6 +3024,11 @@ function filterAndGo(cat) {
         if(ev.target === viewModal) smCloseProductView();
       });
     }
+    setTimeout(function(){
+      var active = document.querySelector('.lang-btn.active');
+      var lang = active ? active.id.replace('lang-','') : 'fr';
+      applyFurniturePageLang(lang);
+    },120);
   });
   setTimeout(()=>{
     renderSMIkeaGrid();
@@ -2991,6 +3037,15 @@ function filterAndGo(cat) {
     if (firstTab) selectSMProduct(0, firstTab);
     updateSM();
   },200);
+  if (typeof window.setLang === 'function' && !window.__stnFurnitureLangWrapped) {
+    window.__stnFurnitureLangWrapped = true;
+    var __origSetLang = window.setLang;
+    window.setLang = function(lang){
+      var r = __origSetLang.apply(this, arguments);
+      setTimeout(function(){ applyFurniturePageLang(lang); }, 80);
+      return r;
+    };
+  }
   </script>
 <!-- SCRIPTS -->
 <script src="firebase-config.js"></script>
