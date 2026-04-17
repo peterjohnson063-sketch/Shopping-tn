@@ -3635,26 +3635,33 @@ function filterProducts(cat, btn) {
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
   }
-  
-  // Update sidebar categories based on legacy filter
+
+  // Home shortcuts use legacy keys (sofa, rug, ceramic) — map to sidebar slugs (furniture, decor, ceramics)
+  var slug = 'all';
+  if (cat !== 'all') {
+    var resolved =
+      typeof STN !== 'undefined' && STN.resolveProductCategorySlug && STN.resolveProductCategorySlug(cat);
+    slug = resolved || cat;
+  }
+
   const allCheckbox = document.getElementById('cat-all');
-  const categoryCheckbox = document.getElementById(`cat-${cat}`);
-  
-  if (cat === 'all') {
-    // Check "All Products" and uncheck others
+  const categoryCheckbox = document.getElementById('cat-' + slug);
+
+  if (slug === 'all') {
     if (allCheckbox) allCheckbox.checked = true;
     document.querySelectorAll('.category-item input[type="checkbox"]:not(#cat-all)').forEach(cb => {
       cb.checked = false;
     });
     FilterState.categories = [];
   } else {
-    // Uncheck "All Products" and check specific category
     if (allCheckbox) allCheckbox.checked = false;
+    document.querySelectorAll('.category-item input[type="checkbox"]:not(#cat-all)').forEach(cb => {
+      cb.checked = false;
+    });
     if (categoryCheckbox) categoryCheckbox.checked = true;
-    FilterState.categories = [cat];
+    FilterState.categories = [slug];
   }
-  
-  // Apply filters
+
   applyFilters();
 }
 
@@ -9312,11 +9319,18 @@ function filterAndRenderProducts() {
     });
   }
   
-  // Category filter
+  // Category filter (DB may store legacy labels; normalize to canonical slugs)
   if (FilterState.categories.length > 0) {
-    filteredProducts = filteredProducts.filter(product => 
-      FilterState.categories.includes(product.category || product.cat)
-    );
+    filteredProducts = filteredProducts.filter(function (product) {
+      var raw = product.category || product.cat;
+      if (raw == null || raw === '') return false;
+      var resolved =
+        typeof STN !== 'undefined' &&
+        STN.resolveProductCategorySlug &&
+        STN.resolveProductCategorySlug(raw);
+      var key = resolved || raw;
+      return FilterState.categories.indexOf(key) !== -1;
+    });
   }
   
   // Price filter
