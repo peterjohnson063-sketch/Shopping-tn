@@ -2356,6 +2356,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   .sm-inspo-card:hover .sm-inspo-cta{opacity:1;transform:translateY(0)}
   .sm-ikea-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}
   .sm-ikea-card{background:white;border:1px solid rgba(107,63,212,.12);border-radius:16px;overflow:hidden;box-shadow:0 8px 22px rgba(74,31,168,.08);transition:transform .22s,box-shadow .22s,border-color .22s}
+  #sm-collection-grid{display:grid !important;visibility:visible !important;opacity:1 !important}
   .sm-ikea-card:hover{transform:translateY(-4px);box-shadow:0 14px 30px rgba(74,31,168,.14);border-color:rgba(107,63,212,.32)}
   .sm-ikea-card.active{border-color:#7c3aed;box-shadow:0 0 0 2px rgba(124,58,237,.12),0 14px 30px rgba(74,31,168,.14)}
   .sm-ikea-img{height:190px;background-size:cover;background-position:center;position:relative}
@@ -2857,29 +2858,8 @@ function filterAndGo(cat) {
   }
 
   function renderSMCollectionGrid(){
-    var grid=document.getElementById('sm-collection-grid');
-    if(!grid || !Array.isArray(SM_PRODUCTS)) return;
-    var list = SM_PRODUCTS.concat(SM_PRODUCTS.map(function(x){
-      return Object.assign({}, x, { title: x.title + ' · Edition' });
-    }));
-    grid.innerHTML = list.map(function(p, rawIdx){
-      var idx = rawIdx % SM_PRODUCTS.length;
-      var pics = Array.isArray(p.objectImages) && p.objectImages.length ? p.objectImages : (Array.isArray(p.images) ? p.images : []);
-      var cover = pics[0] || '';
-      return (
-        '<article class="sm-ikea-card" style="overflow:hidden">' +
-          '<div class="sm-ikea-img" style="height:220px;background-image:url(\''+cover+'\')"></div>' +
-          '<div class="sm-ikea-body">' +
-            '<div class="sm-ikea-title">'+p.title+'</div>' +
-            '<div class="sm-ikea-desc">'+String(p.desc||'').slice(0,95)+(String(p.desc||'').length>95?'...':'')+'</div>' +
-            '<div class="sm-ikea-row">' +
-              '<span class="sm-ikea-price">From '+p.base+' TND</span>' +
-              '<button type="button" class="sm-ikea-btn" onclick="smOpenProductView('+idx+')">View</button>' +
-            '</div>' +
-          '</div>' +
-        '</article>'
-      );
-    }).join('');
+    // Keep the static HTML collection visible and stable.
+    return;
   }
 
   function smOpenProductView(idx){
