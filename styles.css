@@ -558,6 +558,15 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   font-weight: 600;
 }
 
+/* Sur Mesure — dimension sliders stay LTR so track, fill, and thumb align in Arabic (RTL) */
+.sm-dim-slider-track {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+html[dir="rtl"] input.sm-dim-range {
+  direction: ltr;
+}
+
 /* Active Filters Bar */
 #active-filters-bar {
   display: flex !important;

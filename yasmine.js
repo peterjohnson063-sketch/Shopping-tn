@@ -54,7 +54,8 @@ var TRANSLATIONS={
     'gift-back':'← Back to shopping','gift-eyebrow':'Gift','gift-h1':'Send a gift','gift-desc':'Tell us who receives the delivery. You will pay on the next step.',
     'loy-h1':'Loyalty Rewards','loy-how':'How it works:','loy-pt1':'1 TND spent = 1 point','loy-pt2':'100 points = 1 TND off','loy-cta':'Start earning points →',
     'ab-eyebrow':'Our story','ab-h1':'About Everest','ab-lead':'Born in the heart of Tunisia\'s Sahel region, Everest was created to connect the world with the extraordinary craftsmanship of Monastir, Ksar Hellal, and beyond.',
-    'ab-miss-k':'Our mission','ab-miss-h':'Sahel to the world'
+    'ab-miss-k':'Our mission','ab-miss-h':'Sahel to the world',
+    'home-hero-h1a':'Authentic','home-hero-h1b':'Tunisian','home-hero-h1c':'Craftsmanship','home-hero-lead':'From Monastir\'s master craftsmen to your door — handcrafted with tradition','home-hero-shop':'Shop Now →','home-hero-custom':'Custom Furniture','home-cat-all':'All','home-cat-sofa':'Sofas','home-cat-rug':'Rugs','home-cat-lighting':'Lighting','home-cat-ceramic':'Ceramics','home-cat-bedroom':'Bedroom','home-cat-outdoor':'Outdoor','home-cat-fragrance':'Fragrance','home-cat-custom':'Custom','home-flash-badge':'⚡ FLASH SALE','home-flash-offer':'Up to 40% OFF — Today Only!','home-flash-ends':'Ends in:','sm-badge-signature':'Everest Signature Collection','sm-badge-quality':'✓ Everest Quality','sm-card-studio':'Everest Design Studio','sm-card-team':'Everest Studio Team','sm-card-curated':'Curated by Everest','sm-card-blurb':'Premium finish · Secure logistics · Verified quality','sm-tag-quality':'✓ Quality checked','sm-tag-precision':'📐 Precision fit','sm-tag-delivery':'🚚 Delivery included'
   },
   fr:{
     'nav-home':'Accueil','nav-products':'Collections','nav-carpenter':'Sur Mesure',
@@ -109,7 +110,8 @@ var TRANSLATIONS={
     'gift-back':'← Retour aux achats','gift-eyebrow':'Cadeau','gift-h1':'Offrir un cadeau','gift-desc':'Indiquez qui reçoit la livraison. Vous paierez à l\'étape suivante.',
     'loy-h1':'Récompenses fidélité','loy-how':'Comment ça marche :','loy-pt1':'1 TND dépensé = 1 point','loy-pt2':'100 points = 1 TND de remise','loy-cta':'Commencer à cumuler →',
     'ab-eyebrow':'Notre histoire','ab-h1':'À propos d\'Everest','ab-lead':'Née au cœur du Sahel tunisien, Everest relie le monde à l\'artisanat exceptionnel de Monastir, Ksar Hellal et au-delà.',
-    'ab-miss-k':'Notre mission','ab-miss-h':'Du Sahel au monde'
+    'ab-miss-k':'Notre mission','ab-miss-h':'Du Sahel au monde',
+    'home-hero-h1a':'Authentique','home-hero-h1b':'tunisien','home-hero-h1c':'artisanat','home-hero-lead':'Des maîtres artisans de Monastir jusqu\'à vous — fait main dans la tradition.','home-hero-shop':'Acheter →','home-hero-custom':'Meuble sur mesure','home-cat-all':'Tout','home-cat-sofa':'Canapés','home-cat-rug':'Tapis','home-cat-lighting':'Luminaires','home-cat-ceramic':'Céramiques','home-cat-bedroom':'Chambre','home-cat-outdoor':'Extérieur','home-cat-fragrance':'Parfums','home-cat-custom':'Sur mesure','home-flash-badge':'⚡ VENTE FLASH','home-flash-offer':'Jusqu\'à 40 % de remise — aujourd\'hui seulement !','home-flash-ends':'Se termine dans :','sm-badge-signature':'Collection Signature Everest','sm-badge-quality':'✓ Qualité Everest','sm-card-studio':'Everest Design Studio','sm-card-team':'Équipe Studio Everest','sm-card-curated':'Sélection Everest','sm-card-blurb':'Finition premium · Logistique sécurisée · Qualité vérifiée','sm-tag-quality':'✓ Contrôle qualité','sm-tag-precision':'📐 Ajustement précis','sm-tag-delivery':'🚚 Livraison incluse'
   },
   ar:{
     'nav-home':'\u0627\u0644\u0631\u0626\u064a\u0633\u064a\u0629',
@@ -219,7 +221,7 @@ function _stnCaptureOriginalDomTexts() {
     var p = n.parentElement;
     if (!p) continue;
     if (skipTag[p.tagName]) continue;
-    if (p.closest && p.closest('[data-no-translate="1"]')) continue;
+    if (p.closest && (p.closest('[data-no-translate="1"]') || p.closest('.stn-notranslate') || p.closest('[translate="no"]'))) continue;
     var txt = String(n.nodeValue || '').replace(/\s+/g, ' ').trim();
     if (!txt) continue;
     if (/^[0-9\s.,:%+\-/*()]+$/.test(txt)) continue;
@@ -230,7 +232,7 @@ function _stnCaptureOriginalDomTexts() {
 
   var attrs = ['placeholder', 'title', 'aria-label'];
   document.querySelectorAll('input,textarea,button,a,[title],[aria-label]').forEach(function (el) {
-    if (el.closest && el.closest('[data-no-translate="1"]')) return;
+    if (el.closest && (el.closest('[data-no-translate="1"]') || el.closest('.stn-notranslate') || el.closest('[translate="no"]'))) return;
     var seen = __stnRtI18n.attrSeenByEl.get(el);
     if (!seen) {
       seen = {};
@@ -304,8 +306,9 @@ async function _stnTranslateWholeDom(targetLang) {
     if (x && x.el && x.el.isConnected) x.el.setAttribute(x.attr, x.original);
   });
 
-  // EN/FR use the in-repo dictionary only. Arabic may still use machine fill for unmigrated nodes.
-  if (lang !== 'ar') return;
+  // Machine translate the live DOM (Google translate_a) for ar, fr, and en so copy matches
+  // what users expect, not only the partial in-repo dictionary.
+  if (lang !== 'ar' && lang !== 'fr' && lang !== 'en') return;
 
   var maxItems = 3000;
   var textItems = __stnRtI18n.textNodes.filter(function (x) { return x && x.node && x.node.isConnected; }).slice(0, maxItems);
@@ -401,6 +404,10 @@ function setLang(lang, opts){
   window._currentLang = safe;
   try { localStorage.setItem('stn_lang', safe); } catch(e) {}
 
+  // Record unseen text/attr nodes while they still match the HTML baseline (before dictionary
+  // patches). Otherwise originals freeze to dictionary strings and machine translate degrades.
+  _stnCaptureOriginalDomTexts();
+
   _applyLangToDom(safe);
   _stnTranslateWholeDom(safe).catch(function () {});
 
@@ -414,6 +421,9 @@ function setLang(lang, opts){
     try {
       if (typeof window.renderSMIkeaGrid === 'function') window.renderSMIkeaGrid();
       if (typeof window.updateSM === 'function') window.updateSM();
+      // Sur Mesure grid is injected after first pass; capture + translate new nodes.
+      _stnCaptureOriginalDomTexts();
+      _stnTranslateWholeDom(safe).catch(function () {});
     } catch (eSm) {}
   }, 90);
 }
@@ -425,7 +435,13 @@ window.STNI18N = {
     var lang = _safeLang(window._currentLang || 'fr');
     var T = TRANSLATIONS[lang] || {};
     return T[key] || TRANSLATIONS.en[key] || fallback || key;
-  }
+  },
+  /** Re-run machine translation after large innerHTML updates (e.g. product modal). */
+  refreshMachineTranslate: function () {
+    var lang = _safeLang(window._currentLang || 'fr');
+    _stnCaptureOriginalDomTexts();
+    return _stnTranslateWholeDom(lang);
+  },
 };
 
 (function initLanguageSystem() {

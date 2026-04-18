@@ -1599,11 +1599,11 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
         <span style="color:#fbbf24;font-size:0.7rem">🇹🇳</span>
         <span style="color:rgba(255,255,255,0.9);font-size:0.7rem;letter-spacing:0.1em" data-lang="hero-badge">Tunisia's #1 Artisan Marketplace</span>
       </div>
-      <h1 style="font-family:'Cormorant Garamond',serif;font-size:clamp(2.5rem,6vw,4.5rem);color:white;font-weight:300;line-height:1.1;margin-bottom:1rem">Authentic <em style="color:#c4b5fd;font-style:italic">Tunisian</em><br>Craftsmanship</h1>
-      <p style="color:rgba(255,255,255,0.75);font-size:0.95rem;margin-bottom:2rem;line-height:1.6">From Monastir's master craftsmen to your door — handcrafted with tradition</p>
+      <h1 style="font-family:'Cormorant Garamond',serif;font-size:clamp(2.5rem,6vw,4.5rem);color:white;font-weight:300;line-height:1.1;margin-bottom:1rem"><span data-lang="home-hero-h1a">Authentic</span> <em style="color:#c4b5fd;font-style:italic"><span data-lang="home-hero-h1b">Tunisian</span></em><br/><span data-lang="home-hero-h1c">Craftsmanship</span></h1>
+      <p style="color:rgba(255,255,255,0.75);font-size:0.95rem;margin-bottom:2rem;line-height:1.6" data-lang="home-hero-lead">From Monastir's master craftsmen to your door — handcrafted with tradition</p>
       <div style="display:flex;gap:1rem;flex-wrap:wrap">
-        <button onclick="showPage('products')" style="background:white;color:#4a1fa8;border:none;padding:0.85rem 2rem;border-radius:50px;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:inherit">Shop Now →</button>
-        <button onclick="showPage('carpenter')" style="background:transparent;color:white;border:2px solid rgba(255,255,255,0.4);padding:0.85rem 2rem;border-radius:50px;font-weight:600;font-size:0.9rem;cursor:pointer;font-family:inherit">Custom Furniture</button>
+        <button onclick="showPage('products')" style="background:white;color:#4a1fa8;border:none;padding:0.85rem 2rem;border-radius:50px;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:inherit" data-lang="home-hero-shop">Shop Now →</button>
+        <button onclick="showPage('carpenter')" style="background:transparent;color:white;border:2px solid rgba(255,255,255,0.4);padding:0.85rem 2rem;border-radius:50px;font-weight:600;font-size:0.9rem;cursor:pointer;font-family:inherit" data-lang="home-hero-custom">Custom Furniture</button>
       </div>
     </div>
     <div style="position:relative;z-index:1;display:flex;gap:1.5rem;flex-wrap:wrap">
@@ -1627,7 +1627,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     <div class="home-search-row" style="max-width:800px;margin:0 auto;display:flex;gap:0.5rem">
       <div style="flex:1;display:flex;align-items:center;background:white;border:2px solid rgba(124,58,237,0.3);border-radius:8px;padding:0 1rem;transition:border-color 0.2s" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='rgba(124,58,237,0.3)'">
         <span style="color:#9b72f0;margin-right:0.5rem">🔍</span>
-        <input id="home-search" placeholder="Search products, artisans, regions..." style="flex:1;border:none;outline:none;font-size:0.95rem;color:#1e0a4e;background:transparent;font-family:'Outfit',sans-serif;padding:0.7rem 0" onkeydown="if(event.key==='Enter')searchHome()"/>
+        <input id="home-search" data-lang-placeholder="hero-search" placeholder="Search products, artisans, regions..." style="flex:1;border:none;outline:none;font-size:0.95rem;color:#1e0a4e;background:transparent;font-family:'Outfit',sans-serif;padding:0.7rem 0" onkeydown="if(event.key==='Enter')searchHome()"/>
       </div>
       <button onclick="searchHome()" style="background:linear-gradient(135deg,#7c3aed,#6b3fd4);color:white;border:none;padding:0 1.5rem;border-radius:8px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap" data-lang="hero-search-btn">Search</button>
     </div>
@@ -1637,31 +1637,31 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   <div class="home-cats-strip" style="background:white;padding:1.5rem 4%;border-bottom:1px solid #f0eeff">
     <div class="home-cats-scroll" style="display:flex;gap:1rem;overflow-x:auto;padding-bottom:0.5rem;scrollbar-width:none">
       <div onclick="filterAndGo('all')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.15);transition:all 0.2s;min-width:80px" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f2ff'" onmouseout="this.style.borderColor='rgba(124,58,237,0.15)';this.style.background='white'">
-        <span style="font-size:1.8rem">🛍️</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap">All</span>
+        <span style="font-size:1.8rem">🛍️</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap" data-lang="home-cat-all">All</span>
       </div>
       <div onclick="filterAndGo('sofa')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.15);transition:all 0.2s;min-width:80px" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f2ff'" onmouseout="this.style.borderColor='rgba(124,58,237,0.15)';this.style.background='white'">
-        <span style="font-size:1.8rem">🛋️</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap">Sofas</span>
+        <span style="font-size:1.8rem">🛋️</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap" data-lang="home-cat-sofa">Sofas</span>
       </div>
       <div onclick="filterAndGo('rug')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.15);transition:all 0.2s;min-width:80px" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f2ff'" onmouseout="this.style.borderColor='rgba(124,58,237,0.15)';this.style.background='white'">
-        <span style="font-size:1.8rem">🏺</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap">Rugs</span>
+        <span style="font-size:1.8rem">🏺</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap" data-lang="home-cat-rug">Rugs</span>
       </div>
       <div onclick="filterAndGo('lighting')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.15);transition:all 0.2s;min-width:80px" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f2ff'" onmouseout="this.style.borderColor='rgba(124,58,237,0.15)';this.style.background='white'">
-        <span style="font-size:1.8rem">💡</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap">Lighting</span>
+        <span style="font-size:1.8rem">💡</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap" data-lang="home-cat-lighting">Lighting</span>
       </div>
       <div onclick="filterAndGo('ceramic')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.15);transition:all 0.2s;min-width:80px" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f2ff'" onmouseout="this.style.borderColor='rgba(124,58,237,0.15)';this.style.background='white'">
-        <span style="font-size:1.8rem">🏺</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap">Ceramics</span>
+        <span style="font-size:1.8rem">🏺</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap" data-lang="home-cat-ceramic">Ceramics</span>
       </div>
       <div onclick="filterAndGo('bedroom')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.15);transition:all 0.2s;min-width:80px" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f2ff'" onmouseout="this.style.borderColor='rgba(124,58,237,0.15)';this.style.background='white'">
-        <span style="font-size:1.8rem">🛏️</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap">Bedroom</span>
+        <span style="font-size:1.8rem">🛏️</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap" data-lang="home-cat-bedroom">Bedroom</span>
       </div>
       <div onclick="filterAndGo('outdoor')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.15);transition:all 0.2s;min-width:80px" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f2ff'" onmouseout="this.style.borderColor='rgba(124,58,237,0.15)';this.style.background='white'">
-        <span style="font-size:1.8rem">🌿</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap">Outdoor</span>
+        <span style="font-size:1.8rem">🌿</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap" data-lang="home-cat-outdoor">Outdoor</span>
       </div>
       <div onclick="filterAndGo('fragrance')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.15);transition:all 0.2s;min-width:80px" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f2ff'" onmouseout="this.style.borderColor='rgba(124,58,237,0.15)';this.style.background='white'">
-        <span style="font-size:1.8rem">🧴</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap">Fragrance</span>
+        <span style="font-size:1.8rem">🧴</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap" data-lang="home-cat-fragrance">Fragrance</span>
       </div>
       <div onclick="showPage('carpenter')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.3);background:#f5f2ff;transition:all 0.2s;min-width:80px">
-        <span style="font-size:1.8rem">🪵</span><span style="font-size:0.7rem;color:#7c3aed;font-weight:700;white-space:nowrap">Custom</span>
+        <span style="font-size:1.8rem">🪵</span><span style="font-size:0.7rem;color:#7c3aed;font-weight:700;white-space:nowrap" data-lang="home-cat-custom">Custom</span>
       </div>
     </div>
   </div>
@@ -1669,13 +1669,13 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   <!-- FLASH SALE BANNER -->
   <div class="home-flash-row" style="background:linear-gradient(135deg,#7c3aed,#4a1fa8);padding:0.8rem 4%;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem">
     <div style="display:flex;align-items:center;gap:1rem">
-      <span style="background:#fbbf24;color:#1e0a4e;padding:0.2rem 0.8rem;border-radius:20px;font-size:0.7rem;font-weight:800;letter-spacing:0.05em">⚡ FLASH SALE</span>
-      <span style="color:white;font-size:0.85rem;font-weight:600">Up to <strong style="color:#fbbf24">40% OFF</strong> — Today Only!</span>
+      <span style="background:#fbbf24;color:#1e0a4e;padding:0.2rem 0.8rem;border-radius:20px;font-size:0.7rem;font-weight:800;letter-spacing:0.05em" data-lang="home-flash-badge">⚡ FLASH SALE</span>
+      <span style="color:white;font-size:0.85rem;font-weight:600" data-lang="home-flash-offer">Up to 40% OFF — Today Only!</span>
     </div>
     <div style="display:flex;align-items:center;gap:0.5rem;color:white">
-      <span style="font-size:0.75rem;color:rgba(255,255,255,0.8)">Ends in:</span>
+      <span style="font-size:0.75rem;color:rgba(255,255,255,0.8)" data-lang="home-flash-ends">Ends in:</span>
       <span style="background:rgba(0,0,0,0.3);padding:0.2rem 0.6rem;border-radius:6px;font-weight:700;font-size:0.9rem;font-family:monospace"><span class="flash-h">05</span>:<span class="flash-m">00</span>:<span class="flash-s">00</span></span>
-      <button onclick="showPage('products')" style="background:white;color:#7c3aed;border:none;padding:0.3rem 1rem;border-radius:20px;font-size:0.75rem;font-weight:700;cursor:pointer;margin-left:0.5rem">Shop Now</button>
+      <button onclick="showPage('products')" style="background:white;color:#7c3aed;border:none;padding:0.3rem 1rem;border-radius:20px;font-size:0.75rem;font-weight:700;cursor:pointer;margin-left:0.5rem" data-lang="shop-now">Shop Now</button>
     </div>
   </div>
 
@@ -2120,8 +2120,8 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
           <img id="sm-img" src="" alt="Customized furniture object" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center bottom;transition:all .5s ease;display:block;z-index:2"/>
           <div id="sm-color-overlay" style="position:absolute;inset:0;opacity:0;transition:opacity .5s;mix-blend-mode:multiply;pointer-events:none;z-index:1"></div>
           <div id="sm-object-tint" style="position:absolute;inset:0;opacity:0;transition:opacity .45s,background .3s;mix-blend-mode:multiply;pointer-events:none;z-index:3"></div>
-          <div style="position:absolute;top:12px;left:12px;background:rgba(30,10,78,.85);backdrop-filter:blur(8px);color:white;font-size:.62rem;padding:.35rem .8rem;border-radius:20px;font-weight:600">Everest Signature Collection</div>
-          <div style="position:absolute;top:12px;right:12px;background:rgba(5,150,105,.9);color:white;font-size:.6rem;padding:.3rem .7rem;border-radius:20px;font-weight:700">✓ Everest Quality</div>
+          <div style="position:absolute;top:12px;left:12px;background:rgba(30,10,78,.85);backdrop-filter:blur(8px);color:white;font-size:.62rem;padding:.35rem .8rem;border-radius:20px;font-weight:600" data-lang="sm-badge-signature">Everest Signature Collection</div>
+          <div style="position:absolute;top:12px;right:12px;background:rgba(5,150,105,.9);color:white;font-size:.6rem;padding:.3rem .7rem;border-radius:20px;font-weight:700" data-lang="sm-badge-quality">✓ Everest Quality</div>
           <div id="sm-dim-float" style="position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:rgba(30,10,78,.8);backdrop-filter:blur(8px);color:white;font-size:.72rem;padding:.4rem 1rem;border-radius:20px;font-weight:600;white-space:nowrap;transition:all .3s">
             <span id="sm-dim-w">45</span>×<span id="sm-dim-d">42</span>×<span id="sm-dim-h">88</span> <span data-lang="sm-units-cm">cm</span>
           </div>
@@ -2132,19 +2132,19 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 
         <!-- EVEREST DESIGN CARD -->
         <div style="background:white;border:1px solid rgba(107,63,212,0.12);border-radius:16px;padding:1.3rem;box-shadow:0 2px 8px rgba(74,31,168,0.06)">
-          <div style="font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:.8rem;font-weight:700">Everest Design Studio</div>
+          <div style="font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:.8rem;font-weight:700" data-lang="sm-card-studio">Everest Design Studio</div>
           <div style="display:flex;align-items:center;gap:1rem;margin-bottom:.9rem">
             <div style="width:50px;height:50px;background:linear-gradient(135deg,#4a1fa8,#6b3fd4);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;box-shadow:0 4px 12px rgba(74,31,168,.25)">🟣</div>
             <div>
-              <div style="font-size:.92rem;color:var(--text-dark);font-weight:700">Everest Studio Team</div>
-              <div style="font-size:.72rem;color:var(--accent);margin-top:.1rem">Curated by Everest</div>
-              <div style="font-size:.65rem;color:var(--text-muted);margin-top:.2rem">Premium finish · Secure logistics · Verified quality</div>
+              <div style="font-size:.92rem;color:var(--text-dark);font-weight:700" data-lang="sm-card-team">Everest Studio Team</div>
+              <div style="font-size:.72rem;color:var(--accent);margin-top:.1rem" data-lang="sm-card-curated">Curated by Everest</div>
+              <div style="font-size:.65rem;color:var(--text-muted);margin-top:.2rem" data-lang="sm-card-blurb">Premium finish · Secure logistics · Verified quality</div>
             </div>
           </div>
           <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-            <span style="background:rgba(5,150,105,.08);border:1px solid rgba(5,150,105,.2);color:#059669;font-size:.62rem;padding:.2rem .65rem;border-radius:20px;font-weight:600">✓ Quality checked</span>
-            <span style="background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);color:var(--accent);font-size:.62rem;padding:.2rem .65rem;border-radius:20px">📐 Precision fit</span>
-            <span style="background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);color:var(--accent);font-size:.62rem;padding:.2rem .65rem;border-radius:20px">🚚 Delivery included</span>
+            <span style="background:rgba(5,150,105,.08);border:1px solid rgba(5,150,105,.2);color:#059669;font-size:.62rem;padding:.2rem .65rem;border-radius:20px;font-weight:600" data-lang="sm-tag-quality">✓ Quality checked</span>
+            <span style="background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);color:var(--accent);font-size:.62rem;padding:.2rem .65rem;border-radius:20px" data-lang="sm-tag-precision">📐 Precision fit</span>
+            <span style="background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);color:var(--accent);font-size:.62rem;padding:.2rem .65rem;border-radius:20px" data-lang="sm-tag-delivery">🚚 Delivery included</span>
           </div>
         </div>
       </div>
@@ -2171,8 +2171,10 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
               <span style="font-size:.82rem;color:var(--text-body);font-weight:500" data-lang="sm-dim-width">Width</span>
               <span id="sm-width-val" style="font-size:.85rem;color:var(--accent);font-weight:700;background:#ede8ff;padding:.2rem .75rem;border-radius:20px">45 cm</span>
             </div>
-            <input type="range" id="sm-width" min="40" max="60" value="45" oninput="updateSM()" style="width:100%;-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;outline:none;cursor:none;background:linear-gradient(to right,#7c3aed 50%,#e8e4ff 50%)"/>
+            <div class="sm-dim-slider-track" dir="ltr" style="unicode-bidi:isolate">
+            <input type="range" class="sm-dim-range" id="sm-width" min="40" max="60" value="45" oninput="updateSM()" style="width:100%;-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;outline:none;cursor:pointer;background:linear-gradient(to right,#7c3aed 50%,#e8e4ff 50%)"/>
             <div style="display:flex;justify-content:space-between;font-size:.6rem;color:var(--text-dim);margin-top:.3rem"><span id="sm-w-min">40cm min</span><span id="sm-w-max">60cm max</span></div>
+            </div>
           </div>
 
           <div style="margin-bottom:1.2rem">
@@ -2180,8 +2182,10 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
               <span style="font-size:.82rem;color:var(--text-body);font-weight:500" data-lang="sm-dim-depth">Depth</span>
               <span id="sm-depth-val" style="font-size:.85rem;color:var(--accent);font-weight:700;background:#ede8ff;padding:.2rem .75rem;border-radius:20px">42 cm</span>
             </div>
-            <input type="range" id="sm-depth" min="38" max="55" value="42" oninput="updateSM()" style="width:100%;-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;outline:none;cursor:none;background:linear-gradient(to right,#7c3aed 50%,#e8e4ff 50%)"/>
+            <div class="sm-dim-slider-track" dir="ltr" style="unicode-bidi:isolate">
+            <input type="range" class="sm-dim-range" id="sm-depth" min="38" max="55" value="42" oninput="updateSM()" style="width:100%;-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;outline:none;cursor:pointer;background:linear-gradient(to right,#7c3aed 50%,#e8e4ff 50%)"/>
             <div style="display:flex;justify-content:space-between;font-size:.6rem;color:var(--text-dim);margin-top:.3rem"><span id="sm-d-min">38cm min</span><span id="sm-d-max">55cm max</span></div>
+            </div>
           </div>
 
           <div>
@@ -2189,8 +2193,10 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
               <span style="font-size:.82rem;color:var(--text-body);font-weight:500" data-lang="sm-dim-height">Height</span>
               <span id="sm-height-val" style="font-size:.85rem;color:var(--accent);font-weight:700;background:#ede8ff;padding:.2rem .75rem;border-radius:20px">88 cm</span>
             </div>
-            <input type="range" id="sm-height" min="80" max="100" value="88" oninput="updateSM()" style="width:100%;-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;outline:none;cursor:none;background:linear-gradient(to right,#7c3aed 50%,#e8e4ff 50%)"/>
+            <div class="sm-dim-slider-track" dir="ltr" style="unicode-bidi:isolate">
+            <input type="range" class="sm-dim-range" id="sm-height" min="80" max="100" value="88" oninput="updateSM()" style="width:100%;-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;outline:none;cursor:pointer;background:linear-gradient(to right,#7c3aed 50%,#e8e4ff 50%)"/>
             <div style="display:flex;justify-content:space-between;font-size:.6rem;color:var(--text-dim);margin-top:.3rem"><span id="sm-h-min">80cm min</span><span id="sm-h-max">100cm max</span></div>
+            </div>
           </div>
         </div>
 
@@ -2763,21 +2769,32 @@ function filterAndGo(cat) {
 
   function updateSM(){
     const p=SM_PRODUCTS[smCurrent];
-    const w=parseInt(document.getElementById('sm-width').value);
-    const d=parseInt(document.getElementById('sm-depth').value);
-    const h=parseInt(document.getElementById('sm-height').value);
+    if(!p) return;
+    var wEl=document.getElementById('sm-width'), dEl=document.getElementById('sm-depth'), hEl=document.getElementById('sm-height');
+    if(!wEl||!dEl||!hEl) return;
+    const w=parseInt(wEl.value,10);
+    const d=parseInt(dEl.value,10);
+    const h=parseInt(hEl.value,10);
     var u = (typeof STNI18N !== 'undefined' && STNI18N.t) ? STNI18N.t('sm-units-cm') : 'cm';
     var mn = (typeof STNI18N !== 'undefined' && STNI18N.t) ? STNI18N.t('sm-label-min') : 'min';
     var mx = (typeof STNI18N !== 'undefined' && STNI18N.t) ? STNI18N.t('sm-label-max') : 'max';
-    document.getElementById('sm-width-val').textContent=w+' '+u;
-    document.getElementById('sm-depth-val').textContent=d+' '+u;
-    document.getElementById('sm-height-val').textContent=h+' '+u;
-    document.getElementById('sm-dim-w').textContent=w;
-    document.getElementById('sm-dim-d').textContent=d;
-    document.getElementById('sm-dim-h').textContent=h;
-    ['sm-width','sm-depth','sm-height'].forEach(id=>{
-      const el=document.getElementById(id);
-      const pct=((el.value-el.min)/(el.max-el.min))*100;
+    var elWv = document.getElementById('sm-width-val');
+    var elDv = document.getElementById('sm-depth-val');
+    var elHv = document.getElementById('sm-height-val');
+    var elDw = document.getElementById('sm-dim-w');
+    var elDd = document.getElementById('sm-dim-d');
+    var elDh = document.getElementById('sm-dim-h');
+    if (elWv) elWv.textContent = w + ' ' + u;
+    if (elDv) elDv.textContent = d + ' ' + u;
+    if (elHv) elHv.textContent = h + ' ' + u;
+    if (elDw) elDw.textContent = String(w);
+    if (elDd) elDd.textContent = String(d);
+    if (elDh) elDh.textContent = String(h);
+    ['sm-width','sm-depth','sm-height'].forEach(function(id){
+      var el=document.getElementById(id);
+      if(!el) return;
+      var pct=((Number(el.value)-Number(el.min))/(Number(el.max)-Number(el.min)))*100;
+      if(!Number.isFinite(pct)) pct=0;
       el.style.background='linear-gradient(to right,#7c3aed '+pct+'%,#e8e4ff '+pct+'%)';
     });
     const wE=Math.round((w-p.w.val)*2.5);
@@ -2798,13 +2815,17 @@ function filterAndGo(cat) {
 
     var img=document.getElementById('sm-img');
     var tint=document.getElementById('sm-object-tint');
-    var sx=Math.max(0.88,Math.min(1.16,1+(w-p.w.val)/Math.max(80,(p.w.max-p.w.min)*3)));
-    var sy=Math.max(0.9,Math.min(1.2,1+(h-p.h.val)/Math.max(120,(p.h.max-p.h.min)*3)));
-    var ty=Math.max(-14,Math.min(16,Math.round((p.h.val-h)*0.4+(d-p.d.val)*0.15)));
-    var tx=Math.max(-12,Math.min(12,Math.round((w-p.w.val)*0.2)));
-    var tr='translate('+tx+'px,'+ty+'px) scale('+sx.toFixed(3)+','+sy.toFixed(3)+')';
-    if(img) img.style.transform=tr;
-    if(tint) tint.style.transform=tr;
+    var ty = Math.max(-14, Math.min(16, Math.round((p.h.val - h) * 0.4 + (d - p.d.val) * 0.15)));
+    var tx = Math.max(-12, Math.min(12, Math.round((w - p.w.val) * 0.2)));
+    var tr = tx !== 0 || ty !== 0 ? 'translate(' + tx + 'px,' + ty + 'px)' : 'none';
+    if (img) {
+      img.style.transformOrigin = 'center bottom';
+      img.style.transform = tr;
+    }
+    if (tint) {
+      tint.style.transformOrigin = 'center bottom';
+      tint.style.transform = tr;
+    }
   }
 
   function selectColor(btn,color,name){
@@ -2830,12 +2851,37 @@ function filterAndGo(cat) {
     const succ=document.getElementById('sm-success');
     succ.style.display='flex';
     setTimeout(()=>{succ.style.display='none';},3500);
+    var wEl=document.getElementById('sm-width'), dEl=document.getElementById('sm-depth'), hEl=document.getElementById('sm-height');
+    var w=wEl?parseInt(wEl.value,10):null, d=dEl?parseInt(dEl.value,10):null, h=hEl?parseInt(hEl.value,10):null;
+    var colorNameEl=document.getElementById('sm-color-name');
+    var colorName=colorNameEl?String(colorNameEl.textContent||'').trim():'';
+    var galIdx=0;
+    document.querySelectorAll('#sm-gallery .sm-gal-item').forEach(function(el,i){ if(el.classList.contains('active')) galIdx=i; });
+    var imgEl=document.getElementById('sm-img');
+    var previewSrc=imgEl?String(imgEl.getAttribute('src')||''):'';
     // Add to real cart
     if(typeof State !== 'undefined') {
-      const cartItem = { id: 'SM-'+Date.now(), name: p?.title || 'Custom Chair', price: total, emoji: '🛋️', image: (p.images && p.images[0]) || null, quantity: 1, custom: true };
+      const cartItem = {
+        id: 'SM-'+Date.now(),
+        name: (p && p.title) ? p.title : 'Custom Chair',
+        price: total,
+        emoji: '🛋️',
+        image: (p && p.images && p.images[0]) || null,
+        qty: 1,
+        custom: true,
+        sm: {
+          productIndex: smCurrent,
+          w: w, d: d, h: h,
+          color: typeof smColor !== 'undefined' ? smColor : '',
+          colorName: colorName,
+          galleryIndex: galIdx,
+          previewImage: previewSrc || null
+        }
+      };
       State.cart.push(cartItem);
       if(typeof STN !== 'undefined') STN.DB.set('cart', State.cart);
       if(typeof updateCartBadge === 'function') updateCartBadge();
+      if(typeof renderCartDrawer === 'function') renderCartDrawer();
     }
     if(typeof toast==='function') toast('🪑 '+(p?.title || 'Custom Chair')+' ajouté au panier! '+total+' TND','success');
   }
@@ -3024,6 +3070,7 @@ function filterAndGo(cat) {
 <script src="supabase-fixed.js"></script>
 <script src="yasmine-routing.js"></script>
 <script src="data.js"></script>
+<script src="everest-seo.js"></script>
 <script src="app.js"></script>
 <script src="yasmine-context.js"></script>
 <script src="everest-env.js?v=44"></script>

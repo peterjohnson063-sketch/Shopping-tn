@@ -335,6 +335,9 @@ async function init() {
   startTrackOrderNotifyPoller();
   parseEverestDeepLinks();
   initEverestFCM();
+  if (typeof EverestSEO !== 'undefined' && EverestSEO.injectDefaults) {
+    EverestSEO.injectDefaults();
+  }
 }
 
 function syncMainNavHeight() {
@@ -1638,8 +1641,28 @@ async function animateProductCardsEntry(grid) {
 }
 
 // ── CART ──
+function cartLineQty(i) {
+  return Math.max(1, Number(i && (i.qty != null ? i.qty : i.quantity)) || 1);
+}
+
+function formatSmCartSummaryHtml(item) {
+  if (!item || !item.custom || !item.sm) return '';
+  var s = item.sm;
+  var parts = [];
+  if (s.w != null && s.d != null && s.h != null) {
+    parts.push(String(s.w) + '×' + String(s.d) + '×' + String(s.h) + ' cm');
+  }
+  if (s.colorName) parts.push(String(s.colorName));
+  if (!parts.length) return '';
+  return (
+    '<div class="cart-item-sm stn-notranslate" translate="no" data-no-translate="1" style="font-size:0.72rem;color:#7b72a8;margin-top:0.35rem;line-height:1.35">' +
+    escHtml(parts.join(' · ')) +
+    '</div>'
+  );
+}
+
 function updateCartBadge() {
-  const total = State.cart.reduce((s, i) => s + i.qty, 0);
+  const total = State.cart.reduce((s, i) => s + cartLineQty(i), 0);
   document.querySelectorAll('.cart-badge').forEach(b => b.textContent = total);
   document.querySelectorAll('#bottom-nav .cart-badge').forEach(b => {
     b.style.display = total > 0 ? 'flex' : 'none';
@@ -1693,14 +1716,15 @@ function removeFromCart(productId) {
 function updateQty(productId, delta) {
   const item = State.cart.find(i => String(i.id) === String(productId));
   if (!item) return;
-  item.qty = Math.max(1, item.qty + delta);
+  var q = cartLineQty(item);
+  item.qty = Math.max(1, q + delta);
   STN.DB.set('cart', State.cart);
   updateCartBadge();
   renderCartDrawer();
 }
 
 function getCartTotal() {
-  let subtotal = State.cart.reduce((s, i) => s + i.price * i.qty, 0);
+  let subtotal = State.cart.reduce((s, i) => s + i.price * cartLineQty(i), 0);
   if (State.promoApplied) {
     const promo = STN.PROMO_CODES[State.promoApplied];
     if (promo.type === 'percent') subtotal *= (1 - promo.value / 100);
@@ -1890,34 +1914,38 @@ function renderCartDrawer() {
     return;
   }
 
-  body.innerHTML = State.cart.map(item => `
+  body.innerHTML = State.cart.map(item => {
+    var q = cartLineQty(item);
+    return `
     <div class="cart-item">
       <div class="cart-item-emoji">${item.emoji}</div>
       <div class="cart-item-info">
         <div class="cart-item-name">${item.name}</div>
-        <div class="cart-item-price">${(item.price * item.qty).toLocaleString()} TND</div>
+        ${formatSmCartSummaryHtml(item)}
+        <div class="cart-item-price stn-notranslate" translate="no" data-no-translate="1">${(item.price * q).toLocaleString()} TND</div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.5rem">
         <button class="wishlist-btn" onclick="removeFromCart('${item.id}')" style="width:28px;height:28px;font-size:0.8rem;color:var(--danger);border-color:rgba(255,71,87,0.2)">✕</button>
         <div class="qty-control">
           <button class="qty-btn" onclick="updateQty('${item.id}',-1)">−</button>
-          <span style="font-size:0.85rem;min-width:20px;text-align:center">${item.qty}</span>
+          <span class="stn-notranslate" translate="no" data-no-translate="1" style="font-size:0.85rem;min-width:20px;text-align:center">${q}</span>
           <button class="qty-btn" onclick="updateQty('${item.id}',1)">+</button>
         </div>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 
-  const subtotal = State.cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const subtotal = State.cart.reduce((s, i) => s + i.price * cartLineQty(i), 0);
   const total = getCartTotal();
   const saved = subtotal - total;
 
   document.getElementById('cart-footer').innerHTML = `
     <div style="padding:1.2rem 1.6rem;border-top:1px solid rgba(107,63,212,0.12)">
       
-      <div style="display:flex;justify-content:space-between;font-size:0.82rem;color:var(--text-muted);margin-bottom:0.4rem"><span>Subtotal</span><span>${subtotal.toLocaleString()} TND</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:0.82rem;color:var(--text-muted);margin-bottom:0.4rem"><span>Subtotal</span><span class="stn-notranslate" translate="no" data-no-translate="1">${subtotal.toLocaleString()} TND</span></div>
       <div style="display:flex;justify-content:space-between;font-size:0.82rem;color:var(--text-muted);margin-bottom:0.8rem"><span>Shipping</span><span style="color:var(--success)">Free</span></div>
-      <div style="display:flex;justify-content:space-between;font-size:1rem;color:var(--champagne);font-weight:600;margin-bottom:1.2rem"><span>Total</span><span>${total.toLocaleString()} TND</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:1rem;color:var(--champagne);font-weight:600;margin-bottom:1.2rem"><span>Total</span><span class="stn-notranslate" translate="no" data-no-translate="1">${total.toLocaleString()} TND</span></div>
       <button type="button" id="cart-checkout-btn" class="btn btn-gold btn-full" onclick="openCheckoutFromCart()" style="margin-bottom:0.55rem">Checkout →</button>
       <button type="button" id="cart-gift-btn" class="btn btn-ghost btn-full" onclick="openGiftCheckoutPage()" style="border:1px solid rgba(219,39,119,0.35);color:#9d174d;font-weight:600">🎁 Send as a gift</button>
     </div>`;
@@ -2029,7 +2057,7 @@ async function checkout() {
     '<h3 style="font-family:Cormorant Garamond,serif;font-size:1.8rem;color:#1e0a4e;margin-bottom:0.3rem">' +
     (giftStep ? 'Pay for your gift' : 'Complete order') +
     '</h3>' +
-    '<p style="color:#7b72a8;font-size:0.8rem;margin-bottom:1.5rem">Total: <strong style="color:#7c3aed">' +
+    '<p style="color:#7b72a8;font-size:0.8rem;margin-bottom:1.5rem">Total: <strong class="stn-notranslate" translate="no" data-no-translate="1" style="color:#7c3aed">' +
     getCartTotal().toLocaleString() +
     ' TND</strong></p>' +
     giftSummaryHtml +
@@ -2280,7 +2308,7 @@ async function submitOrder() {
     const deadlineIso = new Date(Date.now() + (90 * 60 * 1000)).toISOString();
     var groups = groupCartByVendor(State.cart);
     var cartSubtotal = State.cart.reduce(function (s, i) {
-      return s + i.price * i.qty;
+      return s + i.price * cartLineQty(i);
     }, 0);
     var totalVal = getCartTotal();
     var customerNotes = [];
@@ -2298,7 +2326,7 @@ async function submitOrder() {
     for (var gi = 0; gi < groups.length; gi++) {
       var g = groups[gi];
       var gSub = g.items.reduce(function (s, i) {
-        return s + i.price * i.qty;
+        return s + i.price * cartLineQty(i);
       }, 0);
       var share = cartSubtotal > 0 ? (totalVal * gSub) / cartSubtotal : totalVal / Math.max(1, groups.length);
       var trackingRef = generateEverestTrackingNumber();
@@ -2714,9 +2742,9 @@ function productCardHTML(p) {
       <div class="product-name">${p.name}</div>
       <div class="product-rating">
         <span class="stars" style="letter-spacing:2px">${'★'.repeat(Math.floor(p.rating))}${'☆'.repeat(5-Math.floor(p.rating))}</span>
-        <span class="rating-num">${p.rating} (${p.reviews})</span>
+        <span class="rating-num stn-notranslate" translate="no" data-no-translate="1">${p.rating} (${p.reviews})</span>
       </div>
-      <div class="product-price-row">
+      <div class="product-price-row stn-notranslate" translate="no" data-no-translate="1">
         <span class="price">${p.price.toLocaleString()}</span>
         <span class="price-currency">TND</span>
         ${p.oldPrice ? `<span class="price-old">${p.oldPrice.toLocaleString()} TND</span>` : ''}
@@ -2878,10 +2906,10 @@ async function openProductDetail(productId) {
         <h2 style="font-family:var(--font-display);font-size:1.8rem;font-weight:300;color:var(--champagne);margin-bottom:0.8rem">${p.name}</h2>
         <div class="product-rating" style="margin-bottom:1rem">
           <span class="stars" style="font-size:0.9rem;letter-spacing:2px">${'★'.repeat(Math.floor(p.rating))}${'☆'.repeat(5-Math.floor(p.rating))}</span>
-          <span class="rating-num">${p.rating} · ${p.reviews} reviews</span>
+          <span class="rating-num stn-notranslate" translate="no" data-no-translate="1">${p.rating} · ${p.reviews} reviews</span>
           ${p.verified ? `<span class="verified-buyer">✓ Verified on Everest</span>` : ''}
         </div>
-        <div style="margin-bottom:1.5rem">
+        <div class="stn-notranslate" translate="no" data-no-translate="1" style="margin-bottom:1.5rem">
           <span style="font-size:2rem;font-family:var(--font-display);color:var(--champagne)">${p.price.toLocaleString()}</span>
           <span style="font-size:1rem;color:var(--text-muted);margin-left:0.3rem">TND</span>
           ${p.oldPrice ? `<span class="price-old" style="margin-left:0.8rem">${p.oldPrice.toLocaleString()} TND</span>` : ''}
@@ -2897,14 +2925,14 @@ async function openProductDetail(productId) {
         <div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:1.2rem;flex-wrap:wrap">
           <div class="qty-selector">
             <button class="qty-btn" onclick="changeDetailQty(-1)">−</button>
-            <div class="qty-display" id="detail-qty">1</div>
+            <div class="qty-display stn-notranslate" translate="no" data-no-translate="1" id="detail-qty">1</div>
             <button class="qty-btn" onclick="changeDetailQty(1)">+</button>
           </div>
           <button class="btn btn-gold" style="flex:1;min-width:140px" onclick='addToCart(${JSON.stringify(p.id)});closeModal("product-modal")'>Add to Cart</button>
           <button type="button" id="detail-preorder-btn" class="btn" style="display:none;flex:1;min-width:140px;background:white;color:#92400e;border:2px solid #fbbf24;font-weight:600" onclick='addToCart(${JSON.stringify(p.id)});closeModal("product-modal");toast("Pre-order added — timing is shown at checkout.", "success")'>Pre-order</button>
           <button class="wishlist-btn ${State.wishlist.some(function (w) { return String(w) === String(p.id); }) ? 'active' : ''}" data-wish="${_detailEscapeAttr(String(p.id))}" onclick='toggleWishlist(${JSON.stringify(p.id)})'>${State.wishlist.some(function (w) { return String(w) === String(p.id); }) ? '♥' : '♡'}</button>
         </div>
-        <div style="font-size:0.75rem;color:var(--text-muted)">📦 In stock: ${p.stock} units · 🚚 Free delivery · 🔄 30-day returns</div>
+        <div class="stn-notranslate" translate="no" data-no-translate="1" style="font-size:0.75rem;color:var(--text-muted)">📦 In stock: ${p.stock} units · 🚚 Free delivery · 🔄 30-day returns</div>
       </div>
     </div>
 
@@ -2943,6 +2971,21 @@ async function openProductDetail(productId) {
   openModal('product-modal');
   bindProductDetailThumbs(p);
   hydrateProductDetailVendor(p);
+  if (typeof EverestSEO !== 'undefined' && EverestSEO.setProduct) {
+    EverestSEO.setProduct({
+      id: p.id,
+      name: p.name,
+      desc: typeof p.desc === 'string' ? p.desc : '',
+      price: p.price,
+      image: productSrc,
+      images: productImages,
+    });
+  }
+  if (typeof STNI18N !== 'undefined' && STNI18N.refreshMachineTranslate) {
+    requestAnimationFrame(function () {
+      STNI18N.refreshMachineTranslate().catch(function () {});
+    });
+  }
   (function hydrateDetailDelivery() {
     var el = document.getElementById('detail-delivery-hint');
     var hoursEl = document.getElementById('detail-shop-hours');
@@ -3100,6 +3143,9 @@ function openModal(id) {
 }
 function closeModal(id) {
   document.getElementById(id)?.classList.remove('open');
+  if (id === 'product-modal' && typeof EverestSEO !== 'undefined' && EverestSEO.clearProduct) {
+    EverestSEO.clearProduct();
+  }
 }
 
 // ── AUTH ──
