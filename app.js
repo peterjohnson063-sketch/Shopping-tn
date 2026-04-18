@@ -2754,6 +2754,62 @@ function productCardHTML(p) {
   </div>`;
 }
 
+/** Home “deals” rail — compact product chips */
+function homeRailProductHTML(p) {
+  if (!p || typeof p !== 'object') return '';
+  var src = _primaryProductImage(p);
+  var th = src
+    ? '<img class="home-rail-card__img" src="' + _cardEscapeAttr(String(src)) + '" alt="" loading="lazy" decoding="async"/>'
+    : '<div class="home-rail-card__img home-rail-card__img--emoji">' + String(p.emoji || '📦') + '</div>';
+  return (
+    '<button type="button" class="home-rail-card" onclick="openProductDetail(' +
+    JSON.stringify(String(p.id)) +
+    ')">' +
+    th +
+    '<span class="home-rail-card__name">' +
+    escHtml(String(p.name || 'Product')) +
+    '</span>' +
+    '<span class="home-rail-card__price stn-notranslate" translate="no" data-no-translate="1">' +
+    Number(p.price).toLocaleString() +
+    ' TND</span></button>'
+  );
+}
+
+function renderHomeHeroMosaic(products) {
+  var host = document.getElementById('home-hero-mosaic');
+  if (!host) return;
+  var list = Array.isArray(products) ? products : [];
+  var picks = [];
+  for (var i = 0; i < list.length && picks.length < 4; i++) {
+    var u = _primaryProductImage(list[i]);
+    if (u) picks.push({ url: u, id: list[i].id });
+  }
+  var cls = ['home-hero-mosaic__cell--a', 'home-hero-mosaic__cell--b', 'home-hero-mosaic__cell--c', 'home-hero-mosaic__cell--d'];
+  if (!picks.length) {
+    host.innerHTML =
+      '<div class="home-hero-mosaic__cell home-hero-mosaic__cell--a home-hero-mosaic__filler"></div>' +
+      '<div class="home-hero-mosaic__cell home-hero-mosaic__cell--b home-hero-mosaic__filler"></div>' +
+      '<div class="home-hero-mosaic__cell home-hero-mosaic__cell--c home-hero-mosaic__filler"></div>' +
+      '<div class="home-hero-mosaic__cell home-hero-mosaic__cell--d home-hero-mosaic__filler"></div>';
+    return;
+  }
+  while (picks.length < 4) picks.push(picks[picks.length - 1]);
+  host.innerHTML = picks
+    .slice(0, 4)
+    .map(function (x, idx) {
+      return (
+        '<button type="button" class="home-hero-mosaic__cell ' +
+        cls[idx] +
+        '" onclick="openProductDetail(' +
+        JSON.stringify(String(x.id)) +
+        ')"><img src="' +
+        _cardEscapeAttr(String(x.url)) +
+        '" alt=""/></button>'
+      );
+    })
+    .join('');
+}
+
 // ── PRODUCT DETAIL MODAL ──
 function _detailEscapeHtml(s) {
   if (s == null) return '';
@@ -3646,27 +3702,37 @@ async function deleteMyAccount() {
 
 // ── HOME ──
 function renderHome() {
-  const products = State.products;
-  
-  // Featured - first 8
+  const products = State.products || [];
+  renderHomeHeroMosaic(products);
+
+  var rail = document.getElementById('home-deals-rail');
+  if (rail) {
+    var deals = products.filter(function (p) {
+      return p && p.oldPrice != null && Number(p.oldPrice) > Number(p.price);
+    });
+    var railSrc = deals.length ? deals.slice(0, 18) : products.slice(0, 18);
+    rail.innerHTML = railSrc.map(homeRailProductHTML).join('');
+  }
+
+  // Featured — first 10
   const grid = document.getElementById('home-featured-grid');
   if (grid) {
-    grid.innerHTML = products.slice(0, 8).map(productCardHTML).join('');
+    grid.innerHTML = products.slice(0, 10).map(productCardHTML).join('');
     animateProductCardsEntry(grid);
   }
 
-  // Best sellers - sort by reviews
+  // Best sellers — sort by reviews
   const bsGrid = document.getElementById('home-bestsellers-grid');
   if (bsGrid) {
-    const bs = [...products].sort((a,b) => b.reviews - a.reviews).slice(0, 8);
+    const bs = [...products].sort((a, b) => b.reviews - a.reviews).slice(0, 10);
     bsGrid.innerHTML = bs.map(productCardHTML).join('');
     animateProductCardsEntry(bsGrid);
   }
 
-  // New arrivals - last 6
+  // New arrivals — last 8
   const newGrid = document.getElementById('home-new-grid');
   if (newGrid) {
-    newGrid.innerHTML = products.slice(-6).map(productCardHTML).join('');
+    newGrid.innerHTML = products.slice(-8).map(productCardHTML).join('');
     animateProductCardsEntry(newGrid);
   }
 
