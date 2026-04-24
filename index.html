@@ -108,9 +108,10 @@ body.cursor-big #cursor-ring { width: 50px; height: 50px; }
 .orb-3 { display: none; }
 @keyframes orb-float { 0%,100% { transform: translate(0,0); } 50% { transform: translate(20px,-20px); } }
 
-/* NAV */
-#main-nav { position: fixed; top: 0; left: 0; right: 0; z-index: 900; display: flex; align-items: center; gap: 1.5rem; padding: 0 4%; height: 112px; background: rgba(255,255,255,0.93); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(107,63,212,0.12); box-shadow: 0 2px 8px rgba(74,31,168,0.07); transition: var(--transition); }
-#main-nav.scrolled { box-shadow: 0 4px 20px rgba(74,31,168,0.11); }
+/* NAV — Everest marketplace shell (.stn-amazon-nav); layout in styles.css */
+#main-nav.stn-amazon-nav { position: fixed; top: 0; left: 0; right: 0; z-index: 900; display: block; height: auto; min-height: 0; padding: 0; background: transparent; border: none; box-shadow: none; max-width: 100%; width: 100%; box-sizing: border-box; }
+#main-nav.stn-amazon-nav.scrolled .stn-amazon-nav__primary { box-shadow: 0 6px 22px rgba(74, 31, 168, 0.12); }
+.stn-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 .nav-logo { font-family: var(--font-display); font-size: 1.5rem; font-weight: 600; color: #1e0a4e; white-space: nowrap; cursor: none; }
 .nav-logo span { color: #7c3aed; }
 .nav-logo sub { font-size: 0.5rem; color: #7b72a8; vertical-align: super; letter-spacing: .12em; text-transform: uppercase; }
@@ -1295,7 +1296,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 
 <!-- Leaflet CSS for Interactive Map -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
-<link rel="stylesheet" href="styles.css?v=202503222000">
+<link rel="stylesheet" href="styles.css?v=202504193400">
 <link rel="manifest" href="manifest.json?v=202503221200">
 <style id="everest-mobile-shell">
 /* Must load after styles.css — fixes overflow + nav (cache-safe) */
@@ -1317,55 +1318,54 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     overscroll-behavior-x: none !important;
     margin: 0 !important;
   }
-  #main-nav {
+  #main-nav.stn-amazon-nav .stn-amazon-nav__inner {
     display: grid !important;
     grid-template-columns: 44px minmax(0, 1fr) auto !important;
-    grid-template-rows: auto auto !important;
-    grid-template-areas: "menu logo actions" "lang lang lang" !important;
+    grid-template-rows: auto auto auto !important;
+    grid-template-areas:
+      "menu logo actions"
+      "search search search"
+      "lang lang lang" !important;
     height: auto !important;
     max-width: 100% !important;
     width: 100% !important;
-    padding: 0.4rem max(10px, env(safe-area-inset-left)) 0.45rem max(10px, env(safe-area-inset-right)) !important;
+    padding: 0.35rem max(10px, env(safe-area-inset-left)) 0.4rem max(10px, env(safe-area-inset-right)) !important;
     box-sizing: border-box !important;
     align-items: center !important;
     gap: 0.35rem 0.4rem !important;
   }
-  #main-nav .nav-menu-btn { grid-area: menu !important; display: flex !important; }
-  #main-nav .nav-logo {
+  #main-nav.stn-amazon-nav .nav-menu-btn { grid-area: menu !important; display: flex !important; }
+  #main-nav.stn-amazon-nav .stn-amazon-nav__logo {
     grid-area: logo !important;
-    min-width: 0 !important;
+    min-width: min(260px, 62vw) !important;
     max-width: 100% !important;
     justify-self: center !important;
-    overflow: hidden !important;
+    overflow: visible !important;
   }
-  #main-nav .nav-brand-logo {
-    max-height: 76px !important;
-    width: auto !important;
-    max-width: min(340px, 74vw) !important;
-    object-fit: contain !important;
-    margin: 0 auto !important;
-    display: block !important;
+  #main-nav.stn-amazon-nav .stn-amazon-nav__search {
+    grid-area: search !important;
+    width: 100% !important;
+    min-width: 0 !important;
   }
-  #main-nav .nav-links { display: none !important; }
-  #main-nav .nav-lang-bar {
+  #main-nav.stn-amazon-nav .nav-lang-bar {
     grid-area: lang !important;
     display: flex !important;
     justify-content: center !important;
     width: 100% !important;
     flex-wrap: wrap !important;
     gap: 0.35rem !important;
-    padding: 0.4rem 0 0 !important;
+    padding: 0.35rem 0 0 !important;
     margin: 0 !important;
-    border-top: 1px solid rgba(107, 63, 212, 0.14) !important;
+    border-top: 1px solid rgba(167, 139, 250, 0.28) !important;
     box-sizing: border-box !important;
   }
-  #main-nav .nav-lang-bar .lang-btn {
+  #main-nav.stn-amazon-nav .nav-lang-bar .lang-btn {
     min-height: 36px !important;
     min-width: 44px !important;
     font-size: 0.72rem !important;
     font-weight: 700 !important;
   }
-  #main-nav .nav-actions {
+  #main-nav.stn-amazon-nav .nav-actions {
     grid-area: actions !important;
     margin-left: 0 !important;
     min-width: 0 !important;
@@ -1374,13 +1374,13 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     flex-shrink: 1 !important;
     overflow: visible !important;
   }
-  #main-nav .nav-user-slot {
+  #main-nav.stn-amazon-nav .nav-user-slot {
     min-width: 0 !important;
     max-width: min(118px, 36vw) !important;
     display: flex !important;
     justify-content: flex-end !important;
   }
-  #main-nav .nav-header-user-btn {
+  #main-nav.stn-amazon-nav .nav-header-user-btn {
     padding: 0.4rem 0.5rem !important;
     font-size: 0.62rem !important;
     max-width: 100% !important;
@@ -1390,7 +1390,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     white-space: nowrap !important;
     box-sizing: border-box !important;
   }
-  #main-nav .nav-user-ico {
+  #main-nav.stn-amazon-nav .nav-user-ico {
     flex-shrink: 0 !important;
     margin-inline-end: 0.25rem !important;
   }
@@ -1399,7 +1399,6 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   body.everest-logistics-cutoff-bar-visible .page {
     padding-top: calc(var(--stn-main-nav-h, 6.85rem) + var(--stn-logistics-bar-h, 3.5rem) + env(safe-area-inset-top, 0px)) !important;
   }
-  #page-home .home-mega-search__row { max-width: 100% !important; min-width: 0 !important; }
   #home-featured-grid, #home-bestsellers-grid, #home-new-grid, .home-prod-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     width: 100% !important;
@@ -1419,22 +1418,26 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   }
 }
 @media (max-width: 380px) {
-  #main-nav .nav-brand-logo {
-    max-width: min(280px, 70vw) !important;
-    max-height: 64px !important;
+  #main-nav.stn-amazon-nav .nav-brand-logo {
+    min-height: 52px !important;
+    max-height: 82px !important;
+    min-width: 155px !important;
+    width: auto !important;
+    max-width: min(320px, 94vw) !important;
+    object-fit: contain !important;
   }
-  #main-nav .nav-user-slot {
+  #main-nav.stn-amazon-nav .nav-user-slot {
     max-width: min(104px, 34vw) !important;
   }
-  #main-nav .nav-header-user-btn.guest-signin .nav-user-txt {
+  #main-nav.stn-amazon-nav .nav-header-user-btn.guest-signin .nav-user-txt {
     display: none !important;
   }
-  #main-nav .nav-header-user-btn.guest-signin {
+  #main-nav.stn-amazon-nav .nav-header-user-btn.guest-signin {
     padding: 0.45rem !important;
     min-width: 40px !important;
     justify-content: center !important;
   }
-  #main-nav .nav-header-user-btn.guest-signin .nav-user-ico {
+  #main-nav.stn-amazon-nav .nav-header-user-btn.guest-signin .nav-user-ico {
     margin-inline-end: 0 !important;
   }
 }
@@ -1457,32 +1460,65 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 <!-- ════════════════════════════════ -->
 <!-- NAVIGATION                       -->
 <!-- ════════════════════════════════ -->
-<nav id="main-nav">
-  <button type="button" class="nav-menu-btn" id="nav-menu-btn" onclick="toggleNavDrawer()" aria-label="Menu" aria-expanded="false" aria-controls="nav-drawer">☰</button>
-    <a class="nav-logo" onclick="showPage('home')" style="display:flex;align-items:center;gap:0.5rem;text-decoration:none;cursor:pointer" aria-label="Everest — Home">
-      <img class="nav-brand-logo" src="assets/everest-logo.svg" alt="Everest — Hit Your Dreams" width="560" height="120" decoding="async"/>
-    </a>
-  <ul class="nav-links">
-    <li><button class="nav-btn" id="navbtn-home" data-lang="nav-home" onclick="showPage('home')">Home</button></li>
-    <li><button class="nav-btn" id="navbtn-products" data-lang="nav-products" onclick="showPage('products')">Collections</button></li>
-    <li><button class="nav-btn" id="navbtn-carpenter" data-lang="nav-carpenter" onclick="showPage('carpenter')">Sur Mesure</button></li>
-    <li><button class="nav-btn" id="navbtn-track" data-lang="nav-track" onclick="showPage('track')">Track</button></li>
-    <li><button class="nav-btn" id="navbtn-loyalty" data-lang="nav-loyalty" onclick="showPage('loyalty')">Rewards</button></li>
-    <li><button class="nav-btn" id="navbtn-about" data-lang="nav-about" onclick="showPage('about')">About</button></li>
-  </ul>
-  <div class="lang-wrap nav-lang-bar" aria-label="Language">
-    <button class="lang-btn" id="lang-ar" type="button" onclick="setLang('ar')">AR</button>
-    <button class="lang-btn active" id="lang-fr" type="button" onclick="setLang('fr')">FR</button>
-    <button class="lang-btn" id="lang-en" type="button" onclick="setLang('en')">EN</button>
+<nav id="main-nav" class="stn-amazon-nav" aria-label="Primary">
+  <div class="stn-amazon-nav__primary">
+    <div class="stn-amazon-nav__inner">
+      <button type="button" class="nav-menu-btn" id="nav-menu-btn" onclick="toggleNavDrawer()" aria-label="Menu" aria-expanded="false" aria-controls="nav-drawer">☰</button>
+      <a class="nav-logo stn-amazon-nav__logo" href="#" onclick="event.preventDefault();showPage('home');" style="display:flex;align-items:center;text-decoration:none;cursor:pointer" aria-label="Everest — Home">
+        <img class="nav-brand-logo" src="assets/everest-logo.svg?v=refcolors" alt="Everest — Hit Your Dreams" width="288" height="64" decoding="async" fetchpriority="high"/>
+      </a>
+      <form class="stn-amazon-nav__search" role="search" action="#" onsubmit="event.preventDefault();if(typeof stnHeaderSearch==='function')stnHeaderSearch();return false;">
+        <div class="stn-amazon-nav__search-inner">
+          <label class="stn-sr-only" for="stn-header-search-q">Search keywords</label>
+          <input id="stn-header-search-q" class="stn-amazon-nav__q" type="search" name="q" placeholder="Search Everest" autocomplete="off" autocapitalize="off" spellcheck="false" data-lang-placeholder="hero-search" />
+          <button type="submit" class="stn-amazon-nav__search-go" aria-label="Search">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </button>
+        </div>
+      </form>
+      <div class="lang-wrap nav-lang-bar stn-amazon-nav__lang" aria-label="Language">
+        <button class="lang-btn" id="lang-ar" type="button" onclick="setLang('ar')">AR</button>
+        <button class="lang-btn active" id="lang-fr" type="button" onclick="setLang('fr')">FR</button>
+        <button class="lang-btn" id="lang-en" type="button" onclick="setLang('en')">EN</button>
+      </div>
+      <div class="nav-actions stn-amazon-nav__actions">
+        <button class="nav-icon-btn nav-hide-mobile-commerce stn-amazon-nav__iconbtn" type="button" onclick="showPage('wishlist')" title="Wishlist">
+          ♡ <span class="badge wishlist-badge">0</span>
+        </button>
+        <button class="nav-icon-btn nav-hide-mobile-commerce stn-amazon-nav__iconbtn" type="button" onclick="openCart()" title="Cart">
+          🛒 <span class="badge cart-badge">0</span>
+        </button>
+        <button type="button" class="stn-amazon-nav__orders nav-hide-mobile-commerce" onclick="showPage('track')" title="Orders">
+          <span class="stn-amazon-nav__orders-l1" data-lang="nav-returns">Returns</span>
+          <strong class="stn-amazon-nav__orders-l2">&amp; Orders</strong>
+        </button>
+        <div id="nav-user-area" class="nav-user-slot stn-amazon-nav__user"></div>
+      </div>
+    </div>
   </div>
-  <div class="nav-actions">
-    <button class="nav-icon-btn nav-hide-mobile-commerce" onclick="showPage('wishlist')" title="Wishlist">
-      ♡ <span class="badge wishlist-badge">0</span>
-    </button>
-    <button class="nav-icon-btn nav-hide-mobile-commerce" onclick="openCart()" title="Cart">
-      🛒 <span class="badge cart-badge">0</span>
-    </button>
-    <div id="nav-user-area" class="nav-user-slot"></div>
+  <div class="stn-amazon-nav__sub" aria-label="Quick shop">
+    <div class="stn-amazon-nav__sub-inner">
+      <button type="button" class="stn-amazon-nav__sub-all stn-amazon-nav__sub-all--desk" onclick="toggleNavDrawer()" aria-label="Open all categories menu">
+        <span class="stn-amazon-nav__sub-ham" aria-hidden="true">☰</span>
+        <span>All</span>
+      </button>
+      <div class="stn-amazon-nav__sub-scroll">
+        <button type="button" class="stn-amazon-nav__sub-link" onclick="showPage('home')">All</button>
+        <button type="button" class="stn-amazon-nav__sub-link stn-amazon-nav__sub-link--key" onclick="showPage('carpenter')" data-lang="nav-carpenter">Sur Mesure</button>
+        <button type="button" class="stn-amazon-nav__sub-link stn-amazon-nav__sub-link--key" onclick="showPage('track')" data-lang="nav-track">Track</button>
+        <button type="button" class="stn-amazon-nav__sub-link" onclick="showPage('products')">Tactical Gear</button>
+        <button type="button" class="stn-amazon-nav__sub-link" onclick="showPage('products')">Best Sellers</button>
+        <button type="button" class="stn-amazon-nav__sub-link" onclick="showPage('about')">Customer Service</button>
+      </div>
+    </div>
+  </div>
+  <div class="stn-amazon-nav__legacy-nav" aria-hidden="true">
+    <button type="button" id="navbtn-home" class="nav-btn" data-lang="nav-home" onclick="showPage('home')">Home</button>
+    <button type="button" id="navbtn-products" class="nav-btn" data-lang="nav-products" onclick="showPage('products')">Shop</button>
+    <button type="button" id="navbtn-carpenter" class="nav-btn" data-lang="nav-carpenter" onclick="showPage('carpenter')">Sur Mesure</button>
+    <button type="button" id="navbtn-track" class="nav-btn" data-lang="nav-track" onclick="showPage('track')">Track</button>
+    <button type="button" id="navbtn-loyalty" class="nav-btn" data-lang="nav-loyalty" onclick="showPage('loyalty')">Rewards</button>
+    <button type="button" id="navbtn-about" class="nav-btn" data-lang="nav-about" onclick="showPage('about')">About</button>
   </div>
 </nav>
 <div id="everest-logistics-cutoff-bar" class="everest-logistics-cutoff-bar" role="status" aria-live="polite" hidden></div>
@@ -1500,9 +1536,9 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   </div>
   <ul class="nav-drawer-list">
     <li><button type="button" class="nav-drawer-link" data-lang="nav-home" onclick="toggleNavDrawer(false);showPage('home')">Home</button></li>
-    <li><button type="button" class="nav-drawer-link" data-lang="nav-products" onclick="toggleNavDrawer(false);showPage('products')">Collections</button></li>
-    <li><button type="button" class="nav-drawer-link" data-lang="nav-carpenter" onclick="toggleNavDrawer(false);showPage('carpenter')">Sur Mesure</button></li>
-    <li><button type="button" class="nav-drawer-link" data-lang="nav-track" onclick="toggleNavDrawer(false);showPage('track')">Track</button></li>
+    <li><button type="button" class="nav-drawer-link nav-drawer-link--key" data-lang="nav-carpenter" onclick="toggleNavDrawer(false);showPage('carpenter')">Sur Mesure</button></li>
+    <li><button type="button" class="nav-drawer-link nav-drawer-link--key" data-lang="nav-track" onclick="toggleNavDrawer(false);showPage('track')">Track</button></li>
+    <li><button type="button" class="nav-drawer-link" data-lang="nav-products" onclick="toggleNavDrawer(false);showPage('products')">Shop</button></li>
     <li><button type="button" class="nav-drawer-link" data-lang="nav-loyalty" onclick="toggleNavDrawer(false);showPage('loyalty')">Rewards</button></li>
     <li><button type="button" class="nav-drawer-link" data-lang="nav-about" onclick="toggleNavDrawer(false);showPage('about')">About</button></li>
     <li><button type="button" class="nav-drawer-link" onclick="toggleNavDrawer(false);showPage('wishlist')">♡ Wishlist</button></li>
@@ -1519,7 +1555,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     </button>
     <button type="button" class="bottom-nav__btn" id="bottomnav-products" onclick="showPage('products'); return false;">
       <span class="bottom-nav__icon" aria-hidden="true">🛍️</span>
-      <span data-lang="nav-products">Collections</span>
+      <span data-lang="nav-products">Shop</span>
     </button>
     <button type="button" class="bottom-nav__btn" id="bottomnav-track" onclick="showPage('track'); return false;">
       <span class="bottom-nav__icon" aria-hidden="true">📦</span>
@@ -1589,271 +1625,189 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 <!-- ════════════════════════════════════════════════════════════════ -->
 <div class="page page-home-retail" id="page-home">
 
-  <div class="home-top-trust" aria-label="Service">
-    <div class="home-top-trust__inner">
-      <span data-lang="home-trust-freeship">500+ TND · free delivery</span>
-      <span class="home-top-trust__dot" aria-hidden="true"></span>
-      <span data-lang="home-trust-checkout">Secure checkout</span>
-      <span class="home-top-trust__dot" aria-hidden="true"></span>
-      <span data-lang="home-trust-logistics">Tracked logistics nationwide</span>
-    </div>
-  </div>
+  <!-- #home-search: hidden sync target for header search + homeSearch() / homeSearchTag() -->
+  <input type="search" id="home-search" class="stn-sr-only" autocomplete="off" tabindex="-1" aria-hidden="true" title="" />
 
-  <section class="home-retail-hero">
-    <div class="home-retail-hero__inner">
-      <div class="home-retail-hero__copy">
-        <div class="home-retail-hero__badge"><span aria-hidden="true">🇹🇳</span> <span data-lang="hero-badge">Tunisia's #1 Artisan Marketplace</span></div>
-        <h1 class="home-retail-hero__h1"><span data-lang="home-hero-h1a">Authentic</span> <span class="home-retail-hero__accent" data-lang="home-hero-h1b">Tunisian</span><br/><span data-lang="home-hero-h1c">Craftsmanship</span></h1>
-        <p class="home-retail-hero__lead" data-lang="home-hero-lead">From Monastir's master craftsmen to your door — handcrafted with tradition</p>
-        <div class="home-mega-search">
-          <div class="home-mega-search__row">
-            <div class="home-mega-search__field">
-              <span style="color:#9b72f0;margin-inline-end:0.45rem" aria-hidden="true">🔍</span>
-              <input id="home-search" data-lang-placeholder="hero-search" placeholder="Search products, artisans, regions..." onkeydown="if(event.key==='Enter')searchHome()"/>
+  <section class="home-tactical-hub" aria-label="3D design studios and tactical categories">
+    <div class="home-tactical-hub__inner">
+      <div class="home-studio-dual">
+        <article class="home-studio-card home-studio-card--outfit">
+          <div class="home-studio-card__mesh" aria-hidden="true"></div>
+          <div class="home-studio-card__visual">
+            <div class="home-studio-card__photo-stack">
+              <div class="home-studio-card__hero-photo home-studio-card__hero-photo--outfit" role="img" aria-label="Snapchat-style 3D cartoon avatar" style="background-image:url('https://images.unsplash.com/photo-1772371272152-d1806d4351e0?auto=format&amp;fit=crop&amp;w=720&amp;h=900&amp;q=82')"></div>
+              <span class="home-studio-card__ph-label">Make an avatar</span>
             </div>
-            <button type="button" class="home-mega-search__btn" onclick="searchHome()" data-lang="hero-search-btn">Search</button>
           </div>
-        </div>
-        <div class="home-hero-cta-row">
-          <button type="button" class="btn-home-primary" onclick="showPage('products')" data-lang="home-hero-shop">Shop Now →</button>
-          <button type="button" class="btn-home-secondary" onclick="showPage('carpenter')" data-lang="home-hero-custom">Custom Furniture</button>
-          <button type="button" class="btn-home-ghost" onclick="showPage('track')" data-lang="nav-track">Track</button>
-        </div>
-        <div class="home-hero-stats">
-          <div class="home-hero-stat"><div class="home-hero-stat__num stn-notranslate" translate="no" data-no-translate="1">12K+</div><div class="home-hero-stat__lbl" data-lang="stat-products">Products</div></div>
-          <div class="home-hero-stat"><div class="home-hero-stat__num stn-notranslate" translate="no" data-no-translate="1">98%</div><div class="home-hero-stat__lbl" data-lang="stat-satisfaction">Satisfaction</div></div>
-          <div class="home-hero-stat"><div class="home-hero-stat__num stn-notranslate" translate="no" data-no-translate="1">48h</div><div class="home-hero-stat__lbl" data-lang="stat-delivery">Delivery</div></div>
-        </div>
-      </div>
-      <div class="home-retail-hero__visual">
-        <div class="home-hero-visual__glow" aria-hidden="true"></div>
-        <div id="home-hero-mosaic" class="home-hero-mosaic" aria-label="Catalog preview"></div>
+          <div class="home-studio-card__body">
+            <h2 id="home-studio-outfit-title" class="home-studio-card__title">DESIGN MY OUTFIT</h2>
+            <p class="home-studio-card__sub">Customize your tactical gear in 3D</p>
+            <button type="button" class="home-studio-card__btn home-studio-card__btn--studio" onclick="showPage('products')">ENTER STUDIO</button>
+          </div>
+        </article>
+        <article class="home-studio-card home-studio-card--place">
+          <div class="home-studio-card__mesh home-studio-card__mesh--alt" aria-hidden="true"></div>
+          <div class="home-studio-card__visual">
+            <div class="home-studio-card__photo-stack">
+              <div class="home-studio-card__hero-photo home-studio-card__hero-photo--place" role="img" aria-label="Room and desk setup reference" style="background-image:url('https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&amp;fit=crop&amp;w=720&amp;h=900&amp;q=82')"></div>
+              <span class="home-studio-card__ph-label">3D space</span>
+            </div>
+          </div>
+          <div class="home-studio-card__body">
+            <h2 class="home-studio-card__title">DESIGN MY PLACE</h2>
+            <p class="home-studio-card__sub">Architect your gaming setup with precision</p>
+            <button type="button" class="home-studio-card__btn home-studio-card__btn--arch" onclick="showPage('carpenter')">START ARCHITECTING</button>
+          </div>
+        </article>
       </div>
     </div>
   </section>
 
-  <section class="home-dept-section">
-    <header class="home-section-head">
-      <h2 class="home-section-head__title" data-lang="home-dept-head">Shop by department</h2>
-      <p class="home-section-head__sub" data-lang="home-dept-sub">Full-scale catalog — furniture, décor, lighting, bedroom & more.</p>
-    </header>
-    <div class="home-dept-grid">
-      <button type="button" class="home-dept-tile" onclick="filterAndGo('all')"><span class="home-dept-tile__bg" style="background-image:url('https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?auto=format&amp;fit=crop&amp;w=900&amp;q=75')"></span><span class="home-dept-tile__shade"></span><span class="home-dept-tile__body"><span class="home-dept-tile__title" data-lang="home-dept-all">Full catalog</span></span></button>
-      <button type="button" class="home-dept-tile" onclick="filterAndGo('sofa')"><span class="home-dept-tile__bg" style="background-image:url('https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&amp;fit=crop&amp;w=900&amp;q=75')"></span><span class="home-dept-tile__shade"></span><span class="home-dept-tile__body"><span class="home-dept-tile__title" data-lang="home-dept-furniture">Furniture &amp; seating</span></span></button>
-      <button type="button" class="home-dept-tile" onclick="filterAndGo('bedroom')"><span class="home-dept-tile__bg" style="background-image:url('https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&amp;fit=crop&amp;w=900&amp;q=75')"></span><span class="home-dept-tile__shade"></span><span class="home-dept-tile__body"><span class="home-dept-tile__title" data-lang="home-cat-bedroom">Bedroom</span></span></button>
-      <button type="button" class="home-dept-tile" onclick="filterAndGo('rug')"><span class="home-dept-tile__bg" style="background-image:url('https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&amp;fit=crop&amp;w=900&amp;q=75')"></span><span class="home-dept-tile__shade"></span><span class="home-dept-tile__body"><span class="home-dept-tile__title" data-lang="home-dept-decor">Rugs &amp; décor</span></span></button>
-      <button type="button" class="home-dept-tile" onclick="filterAndGo('ceramic')"><span class="home-dept-tile__bg" style="background-image:url('https://images.unsplash.com/photo-1578662996442-48f60103fc96?auto=format&amp;fit=crop&amp;w=900&amp;q=75')"></span><span class="home-dept-tile__shade"></span><span class="home-dept-tile__body"><span class="home-dept-tile__title" data-lang="home-dept-ceramics">Dining &amp; ceramics</span></span></button>
-      <button type="button" class="home-dept-tile" onclick="filterAndGo('lighting')"><span class="home-dept-tile__bg" style="background-image:url('https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?auto=format&amp;fit=crop&amp;w=900&amp;q=75')"></span><span class="home-dept-tile__shade"></span><span class="home-dept-tile__body"><span class="home-dept-tile__title" data-lang="home-dept-lighting">Lighting</span></span></button>
-      <button type="button" class="home-dept-tile" onclick="filterAndGo('outdoor')"><span class="home-dept-tile__bg" style="background-image:url('https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&amp;fit=crop&amp;w=900&amp;q=75')"></span><span class="home-dept-tile__shade"></span><span class="home-dept-tile__body"><span class="home-dept-tile__title" data-lang="home-dept-outdoor">Garden &amp; outdoor</span></span></button>
-      <button type="button" class="home-dept-tile" onclick="filterAndGo('fragrance')"><span class="home-dept-tile__bg" style="background-image:url('https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&amp;fit=crop&amp;w=900&amp;q=75')"></span><span class="home-dept-tile__shade"></span><span class="home-dept-tile__body"><span class="home-dept-tile__title" data-lang="home-dept-fragrance">Fragrance</span></span></button>
-      <button type="button" class="home-dept-tile" onclick="showPage('carpenter')"><span class="home-dept-tile__bg" style="background-image:url('https://images.unsplash.com/photo-1618220179428-22790b461013?auto=format&amp;fit=crop&amp;w=900&amp;q=75')"></span><span class="home-dept-tile__shade"></span><span class="home-dept-tile__body"><span class="home-dept-tile__title" data-lang="home-dept-custom">Made to order</span></span></button>
+  <section class="home-trendy-bar" aria-labelledby="home-trendy-title">
+    <div class="home-trendy-bar__inner">
+      <div class="home-trendy-bar__head">
+        <div>
+          <h2 id="home-trendy-title" class="home-trendy-bar__title" data-lang="home-trendy-title">Trendy products</h2>
+          <p class="home-trendy-bar__sub" data-lang="home-trendy-sub">Hot right now on Everest — tap a tile for details.</p>
+        </div>
+        <button type="button" class="home-trendy-bar__see" onclick="showPage('products')" data-lang="home-trendy-see">See all →</button>
+      </div>
+      <div id="home-trendy-rail" class="home-product-rail" role="list"></div>
     </div>
-    <p class="home-dept-seeall-wrap"><button type="button" class="home-link-all" onclick="showPage('products')" data-lang="home-see-all-cats">Browse all categories →</button></p>
   </section>
 
-  <!-- CATEGORIES ROW - quick chips -->
-  <div class="home-cats-strip home-cats-strip--below-dept" style="background:white;padding:1.5rem 4%;border-bottom:1px solid #f0eeff">
-    <div class="home-cats-scroll" style="display:flex;gap:1rem;overflow-x:auto;padding-bottom:0.5rem;scrollbar-width:none">
-      <div onclick="filterAndGo('all')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.15);transition:all 0.2s;min-width:80px" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f2ff'" onmouseout="this.style.borderColor='rgba(124,58,237,0.15)';this.style.background='white'">
-        <span style="font-size:1.8rem">🛍️</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap" data-lang="home-cat-all">All</span>
-      </div>
-      <div onclick="filterAndGo('sofa')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.15);transition:all 0.2s;min-width:80px" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f2ff'" onmouseout="this.style.borderColor='rgba(124,58,237,0.15)';this.style.background='white'">
-        <span style="font-size:1.8rem">🛋️</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap" data-lang="home-cat-sofa">Sofas</span>
-      </div>
-      <div onclick="filterAndGo('rug')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.15);transition:all 0.2s;min-width:80px" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f2ff'" onmouseout="this.style.borderColor='rgba(124,58,237,0.15)';this.style.background='white'">
-        <span style="font-size:1.8rem">🏺</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap" data-lang="home-cat-rug">Rugs</span>
-      </div>
-      <div onclick="filterAndGo('lighting')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.15);transition:all 0.2s;min-width:80px" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f2ff'" onmouseout="this.style.borderColor='rgba(124,58,237,0.15)';this.style.background='white'">
-        <span style="font-size:1.8rem">💡</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap" data-lang="home-cat-lighting">Lighting</span>
-      </div>
-      <div onclick="filterAndGo('ceramic')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.15);transition:all 0.2s;min-width:80px" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f2ff'" onmouseout="this.style.borderColor='rgba(124,58,237,0.15)';this.style.background='white'">
-        <span style="font-size:1.8rem">🏺</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap" data-lang="home-cat-ceramic">Ceramics</span>
-      </div>
-      <div onclick="filterAndGo('bedroom')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.15);transition:all 0.2s;min-width:80px" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f2ff'" onmouseout="this.style.borderColor='rgba(124,58,237,0.15)';this.style.background='white'">
-        <span style="font-size:1.8rem">🛏️</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap" data-lang="home-cat-bedroom">Bedroom</span>
-      </div>
-      <div onclick="filterAndGo('outdoor')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.15);transition:all 0.2s;min-width:80px" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f2ff'" onmouseout="this.style.borderColor='rgba(124,58,237,0.15)';this.style.background='white'">
-        <span style="font-size:1.8rem">🌿</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap" data-lang="home-cat-outdoor">Outdoor</span>
-      </div>
-      <div onclick="filterAndGo('fragrance')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.15);transition:all 0.2s;min-width:80px" onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f2ff'" onmouseout="this.style.borderColor='rgba(124,58,237,0.15)';this.style.background='white'">
-        <span style="font-size:1.8rem">🧴</span><span style="font-size:0.7rem;color:#3d3460;font-weight:600;white-space:nowrap" data-lang="home-cat-fragrance">Fragrance</span>
-      </div>
-      <div onclick="showPage('carpenter')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;padding:0.8rem 1.2rem;border-radius:12px;border:2px solid rgba(124,58,237,0.3);background:#f5f2ff;transition:all 0.2s;min-width:80px">
-        <span style="font-size:1.8rem">🪵</span><span style="font-size:0.7rem;color:#7c3aed;font-weight:700;white-space:nowrap" data-lang="home-cat-custom">Custom</span>
-      </div>
+  <div class="home-amazon-shop" aria-label="Shop by category">
+    <div class="home-amazon-shop__inner">
+      <section class="home-amz-row" aria-labelledby="home-amz-row-tactical">
+        <div class="home-amz-row__head">
+          <h2 id="home-amz-row-tactical" class="home-amz-row__title">Gear &amp; tactical</h2>
+          <button type="button" class="home-amz-row__see" onclick="filterAndGo('all')">See all</button>
+        </div>
+        <div class="home-amz-row__rail">
+          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1595590424283-b41f0c39910b?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Tactical Gear</span></button>
+          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1593640408182-31adebbca8e0?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">PC Components</span></button>
+          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1585506948048-e7a99d0c9b09?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Military Collectibles</span></button>
+          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Field Kits</span></button>
+          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1518544889280-95e2b14de6b9?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Optics &amp; Sights</span></button>
+          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1556906781-9a412961c28c?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Apparel</span></button>
+          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1584568694244-14bcdef4d1ab?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">EDC &amp; tools</span></button>
+          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1508609349938-5ec4ae374ebf?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Training</span></button>
+        </div>
+      </section>
+      <section class="home-amz-row" aria-labelledby="home-amz-row-home">
+        <div class="home-amz-row__head">
+          <h2 id="home-amz-row-home" class="home-amz-row__title">Home &amp; living</h2>
+          <button type="button" class="home-amz-row__see" onclick="filterAndGo('all')" data-lang="home-see-all-cats">Browse all categories</button>
+        </div>
+        <div class="home-amz-row__rail">
+          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap" data-lang="home-dept-all">Full catalog</span></button>
+          <button type="button" class="home-amz-card" onclick="filterAndGo('sofa')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap" data-lang="home-dept-furniture">Furniture &amp; seating</span></button>
+          <button type="button" class="home-amz-card" onclick="filterAndGo('bedroom')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap" data-lang="home-cat-bedroom">Bedroom</span></button>
+          <button type="button" class="home-amz-card" onclick="filterAndGo('rug')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap" data-lang="home-dept-decor">Rugs &amp; décor</span></button>
+          <button type="button" class="home-amz-card" onclick="filterAndGo('ceramic')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap" data-lang="home-dept-ceramics">Dining &amp; ceramics</span></button>
+          <button type="button" class="home-amz-card" onclick="filterAndGo('lighting')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap" data-lang="home-dept-lighting">Lighting</span></button>
+          <button type="button" class="home-amz-card" onclick="filterAndGo('outdoor')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap" data-lang="home-dept-outdoor">Garden &amp; outdoor</span></button>
+          <button type="button" class="home-amz-card" onclick="filterAndGo('fragrance')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap" data-lang="home-dept-fragrance">Fragrance</span></button>
+          <button type="button" class="home-amz-card" onclick="showPage('carpenter')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1618220179428-22790b461013?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap" data-lang="home-dept-custom">Made to order</span></button>
+        </div>
+      </section>
+      <section class="home-amz-row" aria-labelledby="home-amz-row-desk">
+        <div class="home-amz-row__head">
+          <h2 id="home-amz-row-desk" class="home-amz-row__title">Desk &amp; battlestation</h2>
+          <button type="button" class="home-amz-row__see" onclick="filterAndGo('all')">Shop setup</button>
+        </div>
+        <div class="home-amz-row__rail">
+          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1527443224154-c3e268668657?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Monitors</span></button>
+          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1587825140708-dfaf72a8b164?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Keyboards</span></button>
+          <button type="button" class="home-amz-card" onclick="filterAndGo('lighting')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1499951360447-b19be8fe80f5?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Desk lamps</span></button>
+          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1580487135568-922226ce6648?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Chairs</span></button>
+          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1614624532983-4ce03382d63d?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Audio</span></button>
+          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Cable &amp; power</span></button>
+          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1593062096033-9a26b09da905?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Streaming</span></button>
+        </div>
+      </section>
+      <section class="home-amz-row" aria-labelledby="home-amz-row-carry">
+        <div class="home-amz-row__head">
+          <h2 id="home-amz-row-carry" class="home-amz-row__title">Carry &amp; everyday</h2>
+          <button type="button" class="home-amz-row__see" onclick="filterAndGo('all')">Explore</button>
+        </div>
+        <div class="home-amz-row__rail">
+          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1526948128573-703ee1aeb6fa?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Bags &amp; packs</span></button>
+          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1524592093904-607929368e34?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Watches</span></button>
+          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1543163521-3176aef30956?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Footwear</span></button>
+          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1515562141-f783f76c0cb8?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Jewelry</span></button>
+          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1572635196233-37c373a0d324?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Eyewear</span></button>
+          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Wallets</span></button>
+          <button type="button" class="home-amz-card" onclick="filterAndGo('fragrance')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1595425970377-c970029bf94e?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Scent</span></button>
+        </div>
+      </section>
     </div>
   </div>
 
-  <!-- FLASH SALE BANNER -->
-  <div class="home-flash-row" style="background:linear-gradient(135deg,#7c3aed,#4a1fa8);padding:0.8rem 4%;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem">
-    <div style="display:flex;align-items:center;gap:1rem">
-      <span style="background:#fbbf24;color:#1e0a4e;padding:0.2rem 0.8rem;border-radius:20px;font-size:0.7rem;font-weight:800;letter-spacing:0.05em" data-lang="home-flash-badge">⚡ FLASH SALE</span>
-      <span style="color:white;font-size:0.85rem;font-weight:600" data-lang="home-flash-offer">Up to 40% OFF — Today Only!</span>
+  <section class="home-new-products" aria-labelledby="home-new-products-title">
+    <div class="home-new-products__inner">
+      <div class="home-new-products__head">
+        <h2 id="home-new-products-title" class="home-new-products__title" data-lang="home-new-products-title">New products</h2>
+        <button type="button" class="home-new-products__see" onclick="showPage('products')" data-lang="home-new-products-see">See all →</button>
+      </div>
+      <div id="home-new-grid" class="home-prod-grid home-prod-grid--tight"></div>
     </div>
-    <div style="display:flex;align-items:center;gap:0.5rem;color:white">
-      <span style="font-size:0.75rem;color:rgba(255,255,255,0.8)" data-lang="home-flash-ends">Ends in:</span>
-      <span style="background:rgba(0,0,0,0.3);padding:0.2rem 0.6rem;border-radius:6px;font-weight:700;font-size:0.9rem;font-family:monospace"><span class="flash-h">05</span>:<span class="flash-m">00</span>:<span class="flash-s">00</span></span>
-      <button onclick="showPage('products')" style="background:white;color:#7c3aed;border:none;padding:0.3rem 1rem;border-radius:20px;font-size:0.75rem;font-weight:700;cursor:pointer;margin-left:0.5rem" data-lang="shop-now">Shop Now</button>
-    </div>
+  </section>
+
+  <div class="home-amz-footer-cta">
+    <p class="home-amz-footer-cta__txt">Browse the full catalog with filters and search on the shop page.</p>
+    <button type="button" class="home-amz-footer-cta__btn" onclick="showPage('products')">Open shop</button>
   </div>
 
-  <!-- MAIN -->
-  <div class="home-main home-main--retail">
-
-    <section class="home-panel home-deals-panel">
-      <header class="home-section-head home-section-head--row">
-        <div>
-          <h2 class="home-section-head__title" style="margin:0;font-size:clamp(1.35rem,3.2vw,1.85rem)" data-lang="home-deals-head">Trending picks</h2>
-          <p class="home-section-head__sub" style="text-align:left;margin:0.4rem 0 0;font-size:0.84rem;max-width:36rem" data-lang="home-deals-sub">Spotlight from the live catalog — tap a tile for full specs.</p>
-        </div>
-        <button type="button" onclick="showPage('products')" class="home-link-all" style="text-decoration:none;border:1px solid rgba(124,58,237,0.35);padding:0.5rem 1rem;border-radius:999px;background:#fff;white-space:nowrap" data-lang="view-all">View All →</button>
-      </header>
-      <div id="home-deals-rail"></div>
-    </section>
-
-    <section class="home-panel">
-      <header class="home-section-head home-section-head--row">
-        <div>
-          <p class="home-section-head__eyebrow" data-lang="home-picks-head">Editor’s picks</p>
-          <h2 class="home-section-head__title" style="margin:0" data-lang="featured-title">Featured Products</h2>
-        </div>
-        <button type="button" onclick="showPage('products')" class="home-link-all" style="text-decoration:none;border:1px solid rgba(124,58,237,0.25);padding:0.5rem 1rem;border-radius:999px;background:#faf8ff;color:#7c3aed;white-space:nowrap" data-lang="view-all">View All →</button>
-      </header>
-      <div id="home-featured-grid" class="home-prod-grid" style="margin-top:1rem"></div>
-    </section>
-
-    <section class="home-room-section home-panel">
-      <header class="home-section-head" style="margin-bottom:1rem;text-align:center">
-        <h2 class="home-section-head__title" style="margin:0;font-size:clamp(1.35rem,3.2vw,1.85rem)" data-lang="home-room-head">Shop by space</h2>
-        <p class="home-section-head__sub" style="margin:0.35rem 0 0;font-size:0.82rem" data-lang="home-chips-hint">Quick category chips</p>
-      </header>
-      <div class="home-room-grid">
-        <button type="button" class="home-room-card" onclick="filterAndGo('sofa')"><span class="home-room-card__ico" aria-hidden="true">🛋️</span><span class="home-room-card__lbl" data-lang="home-room-living">Living room</span></button>
-        <button type="button" class="home-room-card" onclick="filterAndGo('bedroom')"><span class="home-room-card__ico" aria-hidden="true">🛏️</span><span class="home-room-card__lbl" data-lang="home-cat-bedroom">Bedroom</span></button>
-        <button type="button" class="home-room-card" onclick="filterAndGo('ceramic')"><span class="home-room-card__ico" aria-hidden="true">🍽️</span><span class="home-room-card__lbl" data-lang="home-room-dining">Dining</span></button>
-        <button type="button" class="home-room-card" onclick="filterAndGo('decor')"><span class="home-room-card__ico" aria-hidden="true">💼</span><span class="home-room-card__lbl" data-lang="home-room-office">Office · décor</span></button>
-        <button type="button" class="home-room-card" onclick="filterAndGo('outdoor')"><span class="home-room-card__ico" aria-hidden="true">🌿</span><span class="home-room-card__lbl" data-lang="home-room-garden">Garden</span></button>
-      </div>
-    </section>
-
-    <div class="home-promo-banners" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-bottom:1.5rem">
-      <div role="button" tabindex="0" onclick="filterAndGo('sofa')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();filterAndGo('sofa');}" style="background:linear-gradient(135deg,#1e0a4e,#4a1fa8);border-radius:16px;padding:1.5rem;cursor:pointer;position:relative;overflow:hidden;min-height:150px;display:flex;flex-direction:column;justify-content:space-between">
-        <div style="position:absolute;right:-10px;bottom:-10px;font-size:5rem;opacity:0.2">🛋️</div>
-        <div>
-          <div style="color:rgba(255,255,255,0.75);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:0.45rem" data-lang="home-promo-sofa-eyebrow">Living room</div>
-          <div style="color:white;font-family:'Cormorant Garamond',serif;font-size:1.45rem;font-weight:400;line-height:1.15" data-lang="home-promo-sofa-title">Sofas &amp; solid wood</div>
-        </div>
-        <div style="color:#c4b5fd;font-size:0.82rem;font-weight:700" data-lang="home-promo-sofa-cta">Shop the line →</div>
-      </div>
-      <div role="button" tabindex="0" onclick="filterAndGo('rug')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();filterAndGo('rug');}" style="background:linear-gradient(135deg,#92400e,#b45309);border-radius:16px;padding:1.5rem;cursor:pointer;position:relative;overflow:hidden;min-height:150px;display:flex;flex-direction:column;justify-content:space-between">
-        <div style="position:absolute;right:-10px;bottom:-10px;font-size:5rem;opacity:0.2">🏺</div>
-        <div>
-          <div style="color:rgba(255,255,255,0.75);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:0.45rem" data-lang="home-promo-rug-eyebrow">Handwoven</div>
-          <div style="color:white;font-family:'Cormorant Garamond',serif;font-size:1.45rem;font-weight:400;line-height:1.15" data-lang="home-promo-rug-title">Rugs &amp; textiles</div>
-        </div>
-        <div style="color:#fcd34d;font-size:0.82rem;font-weight:700" data-lang="home-promo-rug-cta">See collection →</div>
-      </div>
-      <div role="button" tabindex="0" onclick="showPage('carpenter')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showPage('carpenter');}" style="background:linear-gradient(135deg,#064e3b,#065f46);border-radius:16px;padding:1.5rem;cursor:pointer;position:relative;overflow:hidden;min-height:150px;display:flex;flex-direction:column;justify-content:space-between">
-        <div style="position:absolute;right:-10px;bottom:-10px;font-size:5rem;opacity:0.2">🪵</div>
-        <div>
-          <div style="color:rgba(255,255,255,0.75);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:0.45rem" data-lang="home-promo-custom-eyebrow">Sur Mesure</div>
-          <div style="color:white;font-family:'Cormorant Garamond',serif;font-size:1.45rem;font-weight:400;line-height:1.15" data-lang="home-promo-custom-title">Your dimensions &amp; finish</div>
-        </div>
-        <div style="color:#6ee7b7;font-size:0.82rem;font-weight:700" data-lang="home-promo-custom-cta">Open configurator →</div>
-      </div>
-    </div>
-
-    <section class="home-panel">
-      <header class="home-section-head home-section-head--row">
-        <div>
-          <h2 class="home-section-head__title" style="margin:0"><span aria-hidden="true">🔥</span> <span data-lang="home-best-head">Customer favourites</span></h2>
-        </div>
-        <button type="button" onclick="showPage('products')" class="home-link-all" style="text-decoration:none;border:1px solid rgba(124,58,237,0.25);padding:0.5rem 1rem;border-radius:999px;background:#faf8ff;color:#7c3aed" data-lang="view-all">See All →</button>
-      </header>
-      <div id="home-bestsellers-grid" class="home-prod-grid" style="margin-top:1rem"></div>
-    </section>
-
-    <div class="home-artisan-split" style="display:grid;grid-template-columns:280px 1fr;gap:1.5rem;margin-bottom:1.5rem">
-      <div style="background:linear-gradient(180deg,#1e0a4e,#4a1fa8);border-radius:16px;padding:2rem;display:flex;flex-direction:column;justify-content:space-between">
-        <div>
-          <div style="font-size:3rem;margin-bottom:1rem" aria-hidden="true">👨‍🎨</div>
-          <div style="color:rgba(255,255,255,0.75);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:0.5rem" data-lang="home-artisan-eyebrow">The makers</div>
-          <div style="font-family:'Cormorant Garamond',serif;font-size:1.55rem;color:white;line-height:1.2;margin-bottom:0.75rem" data-lang="home-artisan-title">Sahel workshops on Everest</div>
-          <p style="color:rgba(255,255,255,0.7);font-size:0.8rem;line-height:1.55;margin:0" data-lang="home-artisan-body">Verified artisans · privacy-first logistics.</p>
-        </div>
-        <button type="button" onclick="showPage('about')" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.3);padding:0.65rem 1.2rem;border-radius:10px;font-size:0.82rem;cursor:pointer;font-family:inherit;margin-top:1.25rem;font-weight:600" data-lang="home-artisan-cta">Our story →</button>
-      </div>
-      <div class="home-panel" style="margin:0;box-shadow:0 4px 24px rgba(74,31,168,0.07)">
-        <header class="home-section-head home-section-head--row" style="margin-bottom:1rem">
-          <div>
-            <h2 class="home-section-head__title" style="margin:0"><span aria-hidden="true">✨</span> <span data-lang="home-new-head">Just landed</span></h2>
-          </div>
-          <button type="button" onclick="showPage('products')" class="home-link-all" style="text-decoration:none;border:1px solid rgba(124,58,237,0.25);padding:0.5rem 1rem;border-radius:999px;background:#faf8ff;color:#7c3aed" data-lang="view-all">View All →</button>
-        </header>
-        <div id="home-new-grid" class="home-prod-grid home-prod-grid--tight"></div>
-      </div>
-    </div>
-
-    <div class="home-trust-banner home-panel" style="margin:0;display:flex;align-items:center;justify-content:space-around;flex-wrap:wrap;gap:1rem;padding:1.25rem 1.5rem">
-      <div style="display:flex;align-items:center;gap:0.8rem">
-        <span style="font-size:1.8rem" aria-hidden="true">🚚</span>
-        <div><div style="font-weight:700;color:#1e0a4e;font-size:0.9rem" data-lang="home-trust-delivery-title">Free delivery</div><div style="color:#7b72a8;font-size:0.75rem" data-lang="home-trust-delivery-sub">500 TND+ orders</div></div>
-      </div>
-      <div style="width:1px;height:40px;background:#f0eeff" class="home-trust-divider"></div>
-      <div style="display:flex;align-items:center;gap:0.8rem">
-        <span style="font-size:1.8rem" aria-hidden="true">↩️</span>
-        <div><div style="font-weight:700;color:#1e0a4e;font-size:0.9rem" data-lang="home-trust-returns-title">30-day returns</div><div style="color:#7b72a8;font-size:0.75rem" data-lang="home-trust-returns-sub">Policy at checkout</div></div>
-      </div>
-      <div style="width:1px;height:40px;background:#f0eeff" class="home-trust-divider"></div>
-      <div style="display:flex;align-items:center;gap:0.8rem">
-        <span style="font-size:1.8rem" aria-hidden="true">✓</span>
-        <div><div style="font-weight:700;color:#1e0a4e;font-size:0.9rem" data-lang="home-trust-artisan-title">Verified sellers</div><div style="color:#7b72a8;font-size:0.75rem" data-lang="home-trust-artisan-sub">Authentic TN supply</div></div>
-      </div>
-      <div style="width:1px;height:40px;background:#f0eeff" class="home-trust-divider"></div>
-      <div style="display:flex;align-items:center;gap:0.8rem">
-        <span style="font-size:1.8rem" aria-hidden="true">💳</span>
-        <div><div style="font-weight:700;color:#1e0a4e;font-size:0.9rem" data-lang="home-trust-pay-title">Flexible checkout</div><div style="color:#7b72a8;font-size:0.75rem" data-lang="home-trust-pay-sub">COD + online</div></div>
-      </div>
-    </div>
-
+  <!-- Off-screen targets for renderHome() (legacy grids; not shown on home) -->
+  <div class="stn-sr-only" aria-hidden="true">
+    <div id="home-deals-rail" class="home-product-rail"></div>
+    <div id="home-featured-grid"></div>
+    <div id="home-bestsellers-grid"></div>
   </div>
+
 </div>
 
 <div class="page page-products" id="page-products">
-  <div class="s page-products-s" style="padding-top:5rem">
-    <div class="page-products-intro" style="margin-bottom:3rem">
-      <span class="eyebrow reveal" data-lang="prod-eyebrow">All products</span>
-      <h1 class="display reveal gold-text" style="font-size:clamp(2.5rem,6vw,4.5rem)"><span data-lang="prod-h1">Our Collections</span></h1>
-      <div class="divider reveal"></div>
-    </div>
-    
-    <!-- Mobile Filter Toggle -->
-    <div class="products-toolbar" style="display:flex;gap:1rem;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap">
-      <button class="btn btn-outline btn-sm" onclick="toggleSidebar()" style="display:none;" id="mobile-filter-btn">
-        <span data-lang="prod-mobile-filters">🎯 Filters</span> <span id="filter-count" style="background:#7c3aed;color:white;padding:0.1rem 0.4rem;border-radius:12px;margin-left:0.3rem;font-size:0.65rem">0</span>
-      </button>
-      <div class="search-bar reveal products-page-search" style="flex:1;min-width:0">
-        <div class="search-icon-wrap">⌕</div>
-        <input type="text" class="search-input" id="prod-search" data-lang-placeholder="prod-search-ph" placeholder="Search products, brands, regions…" onkeydown="if(event.key==='Enter')searchProducts()" oninput="searchProducts()"/>
-        <button class="search-btn" onclick="searchProducts()" data-lang="prod-search-btn">Search</button>
+<div class="s page-products-s stn-market-amz" id="catalog-root">
+
+    <div class="stn-amz-dept-wrap" role="navigation" aria-label="Categories">
+      <span class="stn-amz-dept-label" data-lang="prod-amz-shop-by">Shop by department</span>
+      <div class="stn-amz-dept-scroll">
+        <button type="button" class="stn-amz-dept-pill is-active" data-stn-dept="all" onclick="stnAmzSelectDepartment('all')"><span data-lang="home-cat-all">All</span></button>
+        <button type="button" class="stn-amz-dept-pill" data-stn-dept="furniture" onclick="stnAmzSelectDepartment('furniture')"><span data-lang="prod-cat-furniture">Furniture</span></button>
+        <button type="button" class="stn-amz-dept-pill" data-stn-dept="lighting" onclick="stnAmzSelectDepartment('lighting')"><span data-lang="prod-cat-lighting">Lighting</span></button>
+        <button type="button" class="stn-amz-dept-pill" data-stn-dept="decor" onclick="stnAmzSelectDepartment('decor')"><span data-lang="prod-cat-decor">Decor</span></button>
+        <button type="button" class="stn-amz-dept-pill" data-stn-dept="ceramics" onclick="stnAmzSelectDepartment('ceramics')"><span data-lang="prod-cat-ceramics">Ceramics</span></button>
+        <button type="button" class="stn-amz-dept-pill" data-stn-dept="bedroom" onclick="stnAmzSelectDepartment('bedroom')"><span data-lang="prod-cat-bedroom">Bedroom</span></button>
+        <button type="button" class="stn-amz-dept-pill" data-stn-dept="outdoor" onclick="stnAmzSelectDepartment('outdoor')"><span data-lang="prod-cat-outdoor">Outdoor</span></button>
+        <button type="button" class="stn-amz-dept-pill" data-stn-dept="fragrance" onclick="stnAmzSelectDepartment('fragrance')"><span data-lang="prod-cat-fragrance">Fragrance</span></button>
       </div>
     </div>
-    
-    <!-- Amazon-style Layout: Sidebar + Main Content -->
-    <div class="products-layout-grid" style="display:grid;grid-template-columns:280px 1fr;gap:2rem;align-items:start;max-width:100%;min-width:0">
-      
-      <!-- SIDEBAR -->
-      <aside id="ecom-sidebar" style="position:sticky;top:84px;z-index:10">
-        <div class="sidebar-card">
-          <!-- Sidebar Header -->
-          <div class="sidebar-header">
-            <h3 style="font-family:var(--font-display);font-size:1.2rem;color:var(--text-dark);margin-bottom:0.5rem" data-lang="prod-filters">Filters</h3>
-            <button onclick="clearAllFilters()" style="background:none;border:none;color:var(--accent);font-size:0.75rem;font-weight:600;cursor:pointer" data-lang="prod-clear">Clear All</button>
+
+    <div class="products-toolbar stn-amz-toolbar">
+      <button type="button" class="btn btn-outline btn-sm stn-amz-filter-btn" onclick="toggleSidebar()" id="mobile-filter-btn">
+        <span data-lang="prod-mobile-filters">Filters</span>
+        <span class="stn-amz-filter-count" id="filter-count">0</span>
+      </button>
+      <div class="search-bar products-page-search stn-amz-search">
+        <div class="search-icon-wrap" aria-hidden="true">⌕</div>
+        <input type="text" class="search-input" id="prod-search" data-lang-placeholder="prod-search-ph" placeholder="Search by name, material, artisan, or region…" onkeydown="if(event.key==='Enter')searchProducts()" oninput="searchProducts()"/>
+        <button type="button" class="search-btn" onclick="searchProducts()" data-lang="prod-search-btn">Search</button>
+      </div>
+    </div>
+
+    <div class="products-layout-grid stn-amz-layout">
+      <aside id="ecom-sidebar" class="stn-amz-aside">
+        <div class="sidebar-card stn-amz-sidebar-card">
+          <div class="sidebar-header stn-amz-sidebar-head">
+            <h3 class="stn-amz-sidebar-title" data-lang="prod-filters">Filters</h3>
+            <button type="button" class="stn-amz-link-btn" onclick="clearAllFilters()" data-lang="prod-clear">Clear</button>
           </div>
           
-          <!-- Categories -->
+          <!-- Department (same filters as top strip; refine here) -->
           <div class="sidebar-section">
-            <h4 class="sidebar-title"><span aria-hidden="true">📦 </span><span data-lang="prod-categories">Categories</span></h4>
+            <h4 class="sidebar-title"><span data-lang="prod-amz-department">Department</span></h4>
             <div class="category-list">
               <label class="category-item">
                 <input type="checkbox" value="all" onchange="applyFilters()" checked id="cat-all">
@@ -2008,22 +1962,20 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
       <!-- Mobile Sidebar Overlay -->
       <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
       
-      <!-- MAIN CONTENT -->
-      <main>
-        <!-- Active Filters Bar -->
-        <div id="active-filters-bar" style="display:none;background:white;border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:1.5rem;align-items:center;justify-content:space-between">
-          <div id="active-filters-list" style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center"></div>
-          <button onclick="clearAllFilters()" style="background:none;border:none;color:var(--danger);font-size:0.75rem;font-weight:600;cursor:pointer" data-lang="prod-clear">Clear All</button>
+      <main class="stn-amz-main">
+        <div id="active-filters-bar" class="stn-amz-active-bar" style="display:none">
+          <div id="active-filters-list" class="stn-amz-active-list"></div>
+          <button type="button" class="stn-amz-link-btn stn-amz-link-btn--danger" onclick="clearAllFilters()" data-lang="prod-clear">Clear</button>
         </div>
-        
-        <!-- Results Header -->
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem">
-          <div style="font-size:0.9rem;color:var(--text-body)">
-            <span id="results-count" style="font-weight:600;color:var(--text-dark)">248</span> <span data-lang="prod-results">results</span>
+
+        <div class="stn-amz-results-row">
+          <div class="stn-amz-results-meta">
+            <span id="results-count" class="stn-amz-results-count">248</span>
+            <span data-lang="prod-results">results</span>
           </div>
-          <div style="display:flex;gap:0.8rem;align-items:center">
-            <span style="font-size:0.75rem;color:var(--text-muted)" data-lang="prod-sort-by">Sort by:</span>
-            <select class="form-select" style="width:auto;padding:0.5rem 0.8rem;font-size:0.85rem" onchange="sortProducts(this.value)">
+          <div class="stn-amz-sort">
+            <label class="stn-amz-sort-label" for="stn-amz-sort-select" data-lang="prod-sort-by">Sort by:</label>
+            <select id="stn-amz-sort-select" class="form-select stn-amz-sort-select" onchange="sortProducts(this.value)">
               <option value="featured" data-lang="prod-sort-featured">Featured</option>
               <option value="price-low" data-lang="prod-sort-price-low">Price: Low to High</option>
               <option value="price-high" data-lang="prod-sort-price-high">Price: High to Low</option>
@@ -2689,11 +2641,11 @@ function homeSearchTag(tag) {
 function filterAndGo(cat) {
   showPage('products');
   setTimeout(() => {
-    document.querySelectorAll('#page-products .filter-btn').forEach(b => b.classList.remove('active'));
-    const btn = document.querySelector('#page-products .filter-btn[onclick*="' + cat + '"]');
+    document.querySelectorAll('#catalog-root .filter-btn').forEach(b => b.classList.remove('active'));
+    const btn = document.querySelector('#catalog-root .filter-btn[onclick*="' + cat + '"]');
     if (btn) { btn.classList.add('active'); filterProducts(cat, btn); }
     else filterProducts(cat, null);
-  }, 100);
+  }, 160);
 }
 </script>
 <script>

@@ -78,11 +78,56 @@ function slugifyCategoryInput(text) {
   return s;
 }
 
+/** Strip Latin combining marks (e.g. é → e) for slug generation. */
+function stripLatinDiacritics(s) {
+  if (!s || typeof s !== 'string') return '';
+  try {
+    return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  } catch (e) {
+    return s;
+  }
+}
+
+/**
+ * Turn a human category name into a safe slug (vendor “create category”).
+ * Non-Latin-only names may return null — vendor can then fill the URL key field.
+ */
+function slugifyCategoryName(name) {
+  if (!name || typeof name !== 'string') return null;
+  var t = stripLatinDiacritics(name.trim().toLowerCase());
+  t = t.replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+  if (!t) return null;
+  if (!/^[a-z]/.test(t)) {
+    t = 'cat_' + t.replace(/^[^a-z0-9]+/, '');
+    t = t.replace(/[^a-z0-9_]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+  }
+  if (!t) return null;
+  if (t.length > 40) t = t.slice(0, 40).replace(/_+$/g, '');
+  if (!/^[a-z][a-z0-9_]*$/.test(t)) return null;
+  return t;
+}
+
 function categoryEmoji(slug) {
   for (var i = 0; i < PRODUCT_CATEGORIES.length; i++) {
     if (PRODUCT_CATEGORIES[i].slug === slug) return PRODUCT_CATEGORIES[i].emoji;
   }
   return '📦';
+}
+
+/** Plain name for shop copy (e.g. "🛋️ Furniture" → "Furniture"). */
+function categoryDisplayName(slug) {
+  if (slug == null || slug === '' || slug === 'all') return 'Catalog';
+  var s = String(slug);
+  for (var i = 0; i < PRODUCT_CATEGORIES.length; i++) {
+    if (PRODUCT_CATEGORIES[i].slug === s) {
+      var lab = String(PRODUCT_CATEGORIES[i].label || '').trim();
+      var parts = lab.split(/\s+/);
+      if (parts.length > 1) return parts.slice(1).join(' ');
+      return lab || s;
+    }
+  }
+  var t = s.replace(/_/g, ' ');
+  return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
 // ── DB ──
@@ -196,7 +241,9 @@ window.STN = {
   PRODUCT_CATEGORIES,
   resolveProductCategorySlug,
   slugifyCategoryInput,
+  slugifyCategoryName,
   categoryEmoji,
+  categoryDisplayName,
 };
 console.log('🛒 Everest data layer ready');
 

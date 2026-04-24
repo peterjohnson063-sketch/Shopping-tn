@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
+import { ContentShell } from "@/components/ContentShell";
 
 const SAHEL_REGIONS = ["Tripoli", "Benghazi", "Misrata", "Zliten", "Sirte", "Ajdabiya", "Sebha"];
 
@@ -28,6 +29,7 @@ export default async function AdminVendorsPage() {
     .order("created_at", { ascending: false });
 
   return (
+    <ContentShell>
     <section className="space-y-6">
       <h1 className="font-display text-4xl">Vendor Management</h1>
       <form action={createVendor} className="card grid gap-4 md:grid-cols-2">
@@ -72,5 +74,6 @@ export default async function AdminVendorsPage() {
         </table>
       </div>
     </section>
+    </ContentShell>
   );
 }

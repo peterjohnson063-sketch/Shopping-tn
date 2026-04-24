@@ -282,7 +282,7 @@ async function init() {
   State.cart = STN.DB.get('cart') || [];
   State.wishlist = STN.DB.get('wishlist') || [];
 
-  // Keep Shop (products page) and dashboards in sync when products change
+  // Keep shop catalog (on home) and dashboards in sync when products change
   if (!window.__productsChangedListenerInstalled) {
     window.__productsChangedListenerInstalled = true;
     window.addEventListener('products:changed', async () => {
@@ -400,9 +400,11 @@ function startEverestLogisticsClockTick() {
     if (lastCut !== nowCut) {
       lastCut = nowCut;
       try {
-        if (State.currentPage === 'home') renderHome();
-        else if (State.currentPage === 'products') filterAndRenderProducts();
-        else if (State.currentPage === 'wishlist') renderWishlist();
+        if (State.currentPage === 'home') {
+          renderHome();
+        } else if (State.currentPage === 'products' && document.getElementById('products-grid')) {
+          filterAndRenderProducts();
+        } else if (State.currentPage === 'wishlist') renderWishlist();
       } catch (e) {}
     }
   }
@@ -657,7 +659,7 @@ function startPreorderReadyNotifier() {
 function refreshProductViewsAfterCatalogLoad() {
   try {
     if (State.currentPage === 'home') renderHome();
-    if (State.currentPage === 'products') filterAndRenderProducts();
+    if (State.currentPage === 'products' && document.getElementById('products-grid')) filterAndRenderProducts();
     if (State.currentPage === 'wishlist') renderWishlist();
   } catch (e) {
     if (typeof STNLog !== 'undefined') STNLog.warn('products.refreshViews', e && e.message);
@@ -1006,6 +1008,7 @@ function showPage(id) {
   }
   syncBottomNavActive(id);
   syncLogisticsCutoffBanner();
+
   return false;
 }
 
@@ -1058,7 +1061,7 @@ function mobileNavAccount() {
   else showPage('account');
 }
 
-function syncBottomNavActive(pageId) {
+function syncBottomNavActive(pageId, bottomNavTabOverride) {
   var nav = document.getElementById('bottom-nav');
   if (!nav) return;
   nav.querySelectorAll('.bottom-nav__btn').forEach(function (b) { b.classList.remove('active'); });
@@ -1069,7 +1072,8 @@ function syncBottomNavActive(pageId) {
     if (acc) acc.classList.add('active');
     return;
   }
-  var bid = map[pageId];
+  var tabKey = bottomNavTabOverride && map[bottomNavTabOverride] ? bottomNavTabOverride : pageId;
+  var bid = map[tabKey];
   if (bid) {
     var el = document.getElementById(bid);
     if (el) el.classList.add('active');
@@ -1908,7 +1912,7 @@ function renderCartDrawer() {
       <div style="text-align:center;padding:4rem 2rem;color:var(--text-muted)">
         <div style="font-size:3rem;margin-bottom:1rem">🛒</div>
         <p style="margin-bottom:1.5rem">Your cart is empty</p>
-        <button class="btn btn-ghost btn-sm" onclick="closeCart();showPage('products')">Browse Collections</button>
+        <button class="btn btn-ghost btn-sm" onclick="closeCart();showPage('products')">Continue shopping</button>
       </div>`;
     document.getElementById('cart-footer').innerHTML = '';
     return;
@@ -3705,6 +3709,22 @@ function renderHome() {
   const products = State.products || [];
   renderHomeHeroMosaic(products);
 
+  var trendy = document.getElementById('home-trendy-rail');
+  if (trendy) {
+    if (!products.length) {
+      trendy.innerHTML =
+        '<p class="home-trendy-bar__empty" data-lang="home-trendy-empty">No listings yet — check back soon.</p>';
+    } else {
+      var trSrc = products
+        .slice()
+        .sort(function (a, b) {
+          return (b.reviews || 0) - (a.reviews || 0);
+        })
+        .slice(0, 18);
+      trendy.innerHTML = trSrc.map(homeRailProductHTML).join('');
+    }
+  }
+
   var rail = document.getElementById('home-deals-rail');
   if (rail) {
     var deals = products.filter(function (p) {
@@ -3729,11 +3749,22 @@ function renderHome() {
     animateProductCardsEntry(bsGrid);
   }
 
-  // New arrivals — last 8
+  // New products — newest first (visible section on home)
   const newGrid = document.getElementById('home-new-grid');
   if (newGrid) {
-    newGrid.innerHTML = products.slice(-8).map(productCardHTML).join('');
-    animateProductCardsEntry(newGrid);
+    if (!products.length) {
+      newGrid.innerHTML =
+        '<p class="home-new-products__empty" data-lang="home-new-products-empty">No new arrivals yet.</p>';
+    } else {
+      const sorted = products.slice().sort(function (a, b) {
+        var da = new Date(a.createdAt || 0).getTime();
+        var db = new Date(b.createdAt || 0).getTime();
+        if (db !== da) return db - da;
+        return (b.reviews || 0) - (a.reviews || 0);
+      });
+      newGrid.innerHTML = sorted.slice(0, 8).map(productCardHTML).join('');
+      animateProductCardsEntry(newGrid);
+    }
   }
 
   startFlashTimer();
@@ -3741,9 +3772,27 @@ function renderHome() {
 }
 
 // ── PRODUCTS ──
+/** Shop page: show grid + filters only after search, department, or refinement — not a random full catalog. */
+function stnProductsHasShopIntent() {
+  var q = String(State.searchQuery == null ? '' : State.searchQuery).trim();
+  if (q.length > 0) return true;
+  if (FilterState.categories && FilterState.categories.length > 0) return true;
+  if (FilterState.priceMin > 0 || FilterState.priceMax < 5000) return true;
+  if (FilterState.rating != null) return true;
+  if (FilterState.freeShipping || FilterState.onSale) return true;
+  if (!FilterState.inStock || FilterState.outOfStock) return true;
+  return false;
+}
+
+function syncCatalogRootBrowseIdle() {
+  var root = document.getElementById('catalog-root');
+  if (!root) return;
+  root.classList.toggle('catalog-root--browse-idle', !stnProductsHasShopIntent());
+}
+
 function renderProducts() {
-  // Initialize the sidebar with current products
   filterAndRenderProducts();
+  syncStnAmzDepartmentStrip();
   initReveal();
 }
 
@@ -3782,6 +3831,28 @@ function filterProducts(cat, btn) {
 
   applyFilters();
 }
+
+/** Amazon-style department strip: sync pill highlight with FilterState. */
+function syncStnAmzDepartmentStrip() {
+  var root = document.getElementById('catalog-root');
+  if (!root || !root.classList.contains('stn-market-amz')) return;
+  var pills = root.querySelectorAll('.stn-amz-dept-pill');
+  if (!pills.length) return;
+  var cats = FilterState.categories || [];
+  var activeSlug = null;
+  if (!cats.length) activeSlug = 'all';
+  else if (cats.length === 1) activeSlug = cats[0];
+  pills.forEach(function (el) {
+    var d = el.getAttribute('data-stn-dept') || 'all';
+    el.classList.toggle('is-active', activeSlug != null && d === activeSlug);
+  });
+}
+
+function stnAmzSelectDepartment(rawSlug) {
+  var slug = rawSlug == null || rawSlug === '' ? 'all' : String(rawSlug);
+  filterProducts(slug === 'all' ? 'all' : slug, null);
+}
+window.stnAmzSelectDepartment = stnAmzSelectDepartment;
 
 function searchProducts() {
   const q = String(document.getElementById('prod-search')?.value || '')
@@ -4188,7 +4259,7 @@ function renderWishlist() {
   if (!grid) return;
   const items = State.products.filter(p => State.wishlist.includes(p.id));
   if (items.length === 0) {
-    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:4rem;color:var(--text-muted)"><div style="font-size:3rem;margin-bottom:1rem">♡</div><p>Your wishlist is empty</p><button class="btn btn-ghost btn-sm" style="margin-top:1.5rem" onclick="showPage('products')">Browse Collections</button></div>`;
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:4rem;color:var(--text-muted)"><div style="font-size:3rem;margin-bottom:1rem">♡</div><p>Your wishlist is empty</p><button class="btn btn-ghost btn-sm" style="margin-top:1.5rem" onclick="showPage('products')">Continue shopping</button></div>`;
   } else {
     grid.innerHTML = items.map(productCardHTML).join('');
     animateProductCardsEntry(grid);
@@ -8151,15 +8222,45 @@ function buildVendorCategorySelectOptionsHTML() {
     var c = cats[i];
     parts.push('<option value="' + c.slug + '">' + c.label + '</option>');
   }
-  parts.push('<option value="__new__">+ Other (new category)…</option>');
+  parts.push('<option value="__new__">+ Create your own category…</option>');
   return parts.join('');
+}
+
+function onVendorCustomCategoryNameInput() {
+  var nameEl = document.getElementById('vp-cat-other-name');
+  var slugEl = document.getElementById('vp-cat-other-slug');
+  if (!nameEl || !slugEl) return;
+  if (slugEl.dataset.userEdited === '1') return;
+  var s =
+    typeof STN !== 'undefined' && STN.slugifyCategoryName ? STN.slugifyCategoryName(nameEl.value) : null;
+  slugEl.value = s || '';
+}
+
+function onVendorCustomCategorySlugInput() {
+  var slugEl = document.getElementById('vp-cat-other-slug');
+  if (!slugEl) return;
+  slugEl.dataset.userEdited = slugEl.value.trim() ? '1' : '0';
+}
+
+function vendorIsPresetCategorySlug(slug) {
+  if (!slug || typeof STN === 'undefined' || !STN.resolveProductCategorySlug) return false;
+  return STN.resolveProductCategorySlug(String(slug).trim()) != null;
 }
 
 function onVendorCategoryChange(val) {
   var wrap = document.getElementById('vp-cat-other-wrap');
-  var input = document.getElementById('vp-cat-other');
+  var nameEl = document.getElementById('vp-cat-other-name');
+  var slugEl = document.getElementById('vp-cat-other-slug');
   if (wrap) wrap.style.display = val === '__new__' ? 'block' : 'none';
-  if (input && val !== '__new__') input.value = '';
+  if (val === '__new__') {
+    if (slugEl) slugEl.dataset.userEdited = '0';
+  } else {
+    if (nameEl) nameEl.value = '';
+    if (slugEl) {
+      slugEl.value = '';
+      slugEl.dataset.userEdited = '0';
+    }
+  }
 }
 
 /** Drop optional UI fields when PostgREST reports missing columns (emoji, badge, etc.). */
@@ -8323,9 +8424,11 @@ function switchVendorSection(section) {
                 ${buildVendorCategorySelectOptionsHTML()}
               </select>
               <div id="vp-cat-other-wrap" style="display:none;margin-top:0.5rem">
-                <label style="display:block;font-size:0.75rem;font-weight:600;color:#374151;margin-bottom:0.35rem">New category (slug)</label>
-                <input type="text" id="vp-cat-other" placeholder="e.g. artisan_leather" autocomplete="off" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.5rem 0.75rem;font-size:0.875rem;box-sizing:border-box"/>
-                <p style="font-size:0.7rem;color:#6b7280;margin-top:0.35rem;line-height:1.35">Lowercase letters, numbers, underscores. We register it in the database when a <code style="font-size:0.65rem">categories</code> table exists; otherwise the product still saves with this category text.</p>
+                <label style="display:block;font-size:0.75rem;font-weight:600;color:#374151;margin-bottom:0.35rem">Category name *</label>
+                <input type="text" id="vp-cat-other-name" placeholder="e.g. Hand-painted ceramics, Tech accessories…" autocomplete="off" oninput="onVendorCustomCategoryNameInput()" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.5rem 0.75rem;font-size:0.875rem;box-sizing:border-box"/>
+                <label style="display:block;font-size:0.75rem;font-weight:600;color:#374151;margin:0.65rem 0 0.35rem">URL key (auto — edit if you want)</label>
+                <input type="text" id="vp-cat-other-slug" placeholder="e.g. hand_painted_ceramics" autocomplete="off" oninput="onVendorCustomCategorySlugInput()" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.5rem 0.75rem;font-size:0.875rem;box-sizing:border-box;font-family:ui-monospace,monospace"/>
+                <p style="font-size:0.7rem;color:#6b7280;margin-top:0.35rem;line-height:1.35">We save the <strong>name</strong> for shoppers and a short <strong>key</strong> for filters and links. If the name uses only Arabic or symbols, type a Latin key yourself (letters, numbers, underscores). When your project has a <code style="font-size:0.65rem">categories</code> table, we also try to register the row there.</p>
               </div>
             </div>
             <div><label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:0.4rem">Badge (optional)</label><input type="text" id="vp-badge" placeholder="New, Bestseller..." style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:0.65rem 0.875rem;font-size:0.875rem;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"/></div>
@@ -8355,7 +8458,7 @@ function switchVendorSection(section) {
                   <tr style="border-top:1px solid #f3f4f6">
                     <td style="padding:0.875rem 1rem"><div style="display:flex;align-items:center;gap:0.75rem">
                       <div style="width:40px;height:40px;background:#f5f3ff;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.3rem">${p.emoji||'📦'}</div>
-                      <div><div style="font-size:0.82rem;font-weight:600;color:#111827">${p.name}</div><div style="font-size:0.72rem;color:#9ca3af">${p.cat||p.category||''}</div></div>
+                      <div><div style="font-size:0.82rem;font-weight:600;color:#111827">${p.name}</div><div style="font-size:0.72rem;color:#9ca3af">${typeof STN !== 'undefined' && STN.categoryDisplayName ? STN.categoryDisplayName(p.cat || p.category || '') : (p.cat || p.category || '')}</div></div>
                     </div></td>
                     <td style="padding:0.875rem 1rem;font-size:0.875rem;font-weight:600;color:#111827">${(p.price||0).toLocaleString()} TND</td>
                     <td style="padding:0.875rem 1rem;font-size:0.875rem"><span style="color:${(p.stock||0)>5?'#059669':'#dc2626'};font-weight:600">${p.stock||0} units</span></td>
@@ -8594,7 +8697,20 @@ function vendorSetUploadMode(product) {
   var editId = document.getElementById('vp-edit-id');
   var hiddenUrl = document.getElementById('vp-image-url');
   var catSelect = document.getElementById('vp-cat');
-  var fields = ['vp-title', 'vp-brand', 'vp-desc', 'vp-price', 'vp-old-price', 'vp-stock', 'vp-badge', 'vp-cat-other', 'vp-parent-sku', 'vp-color-id', 'vp-size-id'];
+  var fields = [
+    'vp-title',
+    'vp-brand',
+    'vp-desc',
+    'vp-price',
+    'vp-old-price',
+    'vp-stock',
+    'vp-badge',
+    'vp-cat-other-name',
+    'vp-cat-other-slug',
+    'vp-parent-sku',
+    'vp-color-id',
+    'vp-size-id',
+  ];
   if (!product) {
     State.vendorEditingProductId = null;
     State.vendorUploadImageUrls = [];
@@ -8640,8 +8756,26 @@ function vendorSetUploadMode(product) {
     if (el) el.value = fieldMap[id];
   });
   if (catSelect) {
-    catSelect.value = product.cat || product.category || '';
-    onVendorCategoryChange(catSelect.value);
+    var rawCat = String(product.cat || product.category || '').trim();
+    if (rawCat && !vendorIsPresetCategorySlug(rawCat)) {
+      catSelect.value = '__new__';
+      onVendorCategoryChange('__new__');
+      var nameEl = document.getElementById('vp-cat-other-name');
+      var slugEl = document.getElementById('vp-cat-other-slug');
+      if (nameEl) {
+        nameEl.value =
+          product.category_label ||
+          product.categoryLabel ||
+          (typeof STN !== 'undefined' && STN.categoryDisplayName ? STN.categoryDisplayName(rawCat) : rawCat);
+      }
+      if (slugEl) {
+        slugEl.value = rawCat;
+        slugEl.dataset.userEdited = '1';
+      }
+    } else {
+      catSelect.value = rawCat;
+      onVendorCategoryChange(catSelect.value);
+    }
   }
   if (hiddenUrl) hiddenUrl.value = State.vendorUploadImageUrls[0] || '';
   if (formTitle) formTitle.textContent = 'Edit Product';
@@ -8694,9 +8828,7 @@ async function deleteVendorProduct(productId) {
     // Notify other parts of the app to refresh (Shop page, dashboards, etc.)
     try { window.dispatchEvent(new CustomEvent('products:changed', { detail: { source: 'deleteVendorProduct', productId } })); } catch(e) {}
     
-    // Refresh products display if on products page
-    if (State.currentPage === 'products') {
-      // Re-fetch from Supabase to get the latest data
+    if (document.getElementById('products-grid')) {
       await initializeProducts();
       filterAndRenderProducts();
     }
@@ -8802,12 +8934,23 @@ async function uploadProduct() {
 
   let catSlug = null;
   if (rawCat === '__new__') {
-    const customRaw = document.getElementById('vp-cat-other')?.value?.trim() || '';
-    const customSlug = STN.slugifyCategoryInput(customRaw);
+    const customName = document.getElementById('vp-cat-other-name')?.value?.trim() || '';
+    const customSlugField = document.getElementById('vp-cat-other-slug')?.value?.trim() || '';
+    var customSlug = customSlugField ? STN.slugifyCategoryInput(customSlugField) : null;
+    if (!customSlug && customName && STN.slugifyCategoryName) {
+      customSlug = STN.slugifyCategoryName(customName);
+    }
+    if (!customSlug && customName) {
+      customSlug = STN.slugifyCategoryInput(customName.replace(/\s+/g, '_'));
+    }
     if (!customSlug) {
-      toast('⚠️ Enter a valid new category (e.g. handwoven_bags). Use letters, numbers, underscores only.', 'error');
+      toast(
+        '⚠️ Enter a category name (e.g. Artisan leather bags). If it cannot build a URL key automatically, fill the URL key with Latin letters, numbers, and underscores (e.g. artisan_leather_bags).',
+        'error'
+      );
       return;
     }
+    var labelForCategory = customName || customSlug.replace(/_/g, ' ');
     const asKnown = STN.resolveProductCategorySlug(customSlug);
     if (asKnown) {
       catSlug = asKnown;
@@ -8815,7 +8958,7 @@ async function uploadProduct() {
       var createdRow = null;
       if (typeof SB !== 'undefined' && SB.ensureCategoryRecord) {
         try {
-          createdRow = await SB.ensureCategoryRecord(customSlug, customRaw);
+          createdRow = await SB.ensureCategoryRecord(customSlug, labelForCategory);
         } catch (e) {
           if (typeof STNLog !== 'undefined') STNLog.warn('vendor.uploadProduct', 'ensureCategoryRecord threw', { message: e && e.message });
         }
@@ -9000,13 +9143,9 @@ async function uploadProduct() {
     showCelebrationOverlay();
     switchVendorSection('inventory');
 
-    if (State.currentPage === 'products') {
-      await initializeProducts();
-      filterAndRenderProducts();
-    }
     try {
       await initializeProducts();
-      if (State.currentPage === 'products') filterAndRenderProducts();
+      if (document.getElementById('products-grid')) filterAndRenderProducts();
     } catch (refreshErr) {}
 
     try { window.dispatchEvent(new CustomEvent('products:changed', { detail: { source: 'uploadProduct', productId: savedProduct?.id } })); } catch(e) {}
@@ -9138,8 +9277,18 @@ function homeSearch() {
 function searchHome() {
   homeSearch();
 }
+
+/** Amazon-style header search → shop + prod filter (syncs #home-search for homeSearch). */
+function stnHeaderSearch() {
+  var qEl = document.getElementById('stn-header-search-q');
+  var q = qEl && qEl.value ? String(qEl.value).trim() : '';
+  var hs = document.getElementById('home-search');
+  if (hs) hs.value = q;
+  homeSearch();
+}
 window.homeSearch = homeSearch;
 window.searchHome = searchHome;
+window.stnHeaderSearch = stnHeaderSearch;
 
 // ── START ──
 document.addEventListener('DOMContentLoaded', init);
@@ -9264,6 +9413,7 @@ function applyFilters() {
   
   // Apply filters to products
   filterAndRenderProducts();
+  syncStnAmzDepartmentStrip();
 }
 
 // Update active filters bar
@@ -9373,6 +9523,10 @@ function removeFilter(type, value) {
 
 // Clear all filters
 function clearAllFilters() {
+  State.searchQuery = '';
+  var ps = document.getElementById('prod-search');
+  if (ps) ps.value = '';
+
   // Reset checkboxes
   document.querySelectorAll('.category-item input[type="checkbox"]').forEach(cb => {
     cb.checked = cb.value === 'all';
@@ -9412,29 +9566,47 @@ function clearAllFilters() {
 
 // Filter and render products
 function filterAndRenderProducts() {
+  syncCatalogRootBrowseIdle();
+
+  if (!stnProductsHasShopIntent()) {
+    var rc = document.getElementById('results-count');
+    if (rc) rc.textContent = '—';
+    if (typeof updateActiveFiltersBar === 'function') updateActiveFiltersBar();
+    renderProductsGrid([]);
+    syncStnAmzDepartmentStrip();
+    return;
+  }
+
   let filteredProducts = [...State.products];
-  
-  // Search filter
-  if (State.searchQuery) {
-    const query = String(State.searchQuery).toLowerCase();
-    filteredProducts = filteredProducts.filter(product => {
-      const searchable = [
-        product?.name,
-        product?.title,
-        product?.brand,
-        product?.region,
-        product?.category,
-        product?.cat,
-        product?.desc,
-        product?.description,
-        product?.material,
-        product?.color,
-      ]
-        .filter(v => v !== undefined && v !== null)
-        .join(' ')
-        .toLowerCase();
-      return searchable.includes(query);
-    });
+
+  // Search filter (all words must match — e.g. "laser wall" → both substrings in searchable text)
+  var rawQ = String(State.searchQuery == null ? '' : State.searchQuery).trim().toLowerCase();
+  if (rawQ) {
+    var terms = rawQ.split(/\s+/).filter(Boolean);
+    if (terms.length) {
+      filteredProducts = filteredProducts.filter(function (product) {
+        var searchable = [
+          product && product.name,
+          product && product.title,
+          product && product.brand,
+          product && product.region,
+          product && product.category,
+          product && product.cat,
+          product && product.desc,
+          product && product.description,
+          product && product.material,
+          product && product.color,
+        ]
+          .filter(function (v) {
+            return v !== undefined && v !== null;
+          })
+          .join(' ')
+          .toLowerCase();
+        return terms.every(function (term) {
+          return searchable.indexOf(term) !== -1;
+        });
+      });
+    }
   }
   
   // Category filter (DB may store legacy labels; normalize to canonical slugs)
@@ -9491,9 +9663,23 @@ function filterAndRenderProducts() {
   if (resultsCount) {
     resultsCount.textContent = filteredProducts.length;
   }
-  
+
+  var emptyCategoryBrodaaMsg = null;
+  if (filteredProducts.length === 0) {
+    var sqBro = String(State.searchQuery == null ? '' : State.searchQuery).trim();
+    if (!sqBro && FilterState.categories && FilterState.categories.length === 1) {
+      var slugBro = FilterState.categories[0];
+      if (slugBro && slugBro !== 'all' && typeof STN !== 'undefined' && STN.categoryDisplayName) {
+        var displayBro = STN.categoryDisplayName(slugBro);
+        if (displayBro) {
+          emptyCategoryBrodaaMsg = 'Sorry, there is NO ' + displayBro + ' Products Brodaa';
+        }
+      }
+    }
+  }
+
   // Render products
-  renderProductsGrid(filteredProducts);
+  renderProductsGrid(filteredProducts, emptyCategoryBrodaaMsg);
 }
 
 // Sort products array
@@ -9578,20 +9764,41 @@ function _stnInstallProductsGridClickDelegate(grid) {
   });
 }
 
+function stnShopEscapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 // Render products grid
-function renderProductsGrid(products) {
+function renderProductsGrid(products, emptyCategoryMsg) {
   const grid = document.getElementById('products-grid');
   if (!grid) return;
-  
+
+  if (!stnProductsHasShopIntent()) {
+    grid.innerHTML =
+      '<div class="stn-shop-idle">' +
+      '<p class="stn-shop-idle__eyebrow" data-lang="prod-idle-eyebrow">Everest atelier</p>' +
+      '<h2 class="stn-shop-idle__title" data-lang="prod-idle-title">Search the collection</h2>' +
+      '<p class="stn-shop-idle__sub" data-lang="prod-idle-sub">Type a name, material, region, or maker. Filters appear when your search or category is active — we do not show random inventory.</p>' +
+      '</div>';
+    grid.removeAttribute('data-stn-delegated');
+    return;
+  }
+
   if (products.length === 0) {
-    grid.innerHTML = `
-      <div style="grid-column: 1/-1; text-align: center; padding: 3rem;">
-        <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
-        <h3 style="color: var(--text-dark); margin-bottom: 0.5rem;">No products found</h3>
-        <p style="color: var(--text-muted);">Try adjusting your filters or search terms</p>
-        <button class="btn btn-outline" onclick="clearAllFilters()" style="margin-top: 1rem;">Clear All Filters</button>
-      </div>
-    `;
+    var emptyMsgHtml =
+      emptyCategoryMsg && String(emptyCategoryMsg).trim()
+        ? '<p class="stn-shop-empty__msg stn-shop-empty__msg--brodaa">' + stnShopEscapeHtml(emptyCategoryMsg) + '</p>'
+        : '<p class="stn-shop-empty__msg" data-lang="prod-no-match">No pieces match your search. Try another phrase or clear filters.</p>';
+    grid.innerHTML =
+      '<div class="stn-shop-empty">' +
+      emptyMsgHtml +
+      '<button type="button" class="btn btn-outline stn-shop-empty__btn" onclick="clearAllFilters()" data-lang="prod-clear">Clear</button>' +
+      '</div>';
+    grid.removeAttribute('data-stn-delegated');
     return;
   }
 

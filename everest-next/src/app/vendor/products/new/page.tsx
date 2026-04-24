@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
+import { ContentShell } from "@/components/ContentShell";
 
 function toSlug(value: string) {
   return value
@@ -77,6 +78,7 @@ export default async function NewProductPage() {
   await requireRole(["vendor", "admin"]);
 
   return (
+    <ContentShell>
     <section className="space-y-6">
       <h1 className="font-display text-4xl">Create Product + Album</h1>
       <form action={createProductWithAlbum} className="card grid gap-4">
@@ -103,5 +105,6 @@ export default async function NewProductPage() {
         <button className="btn-primary">Publish Product</button>
       </form>
     </section>
+    </ContentShell>
   );
 }

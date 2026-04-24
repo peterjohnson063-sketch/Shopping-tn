@@ -1,6 +1,7 @@
 import AlbumViewer from "@/components/album-viewer";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
+import { ContentShell } from "@/components/ContentShell";
 
 export default async function ProductPage({ params }: { params: { slug: string } }) {
   const supabase = createClient();
@@ -19,6 +20,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
     .order("created_at", { ascending: true });
 
   return (
+    <ContentShell>
     <div className="grid gap-10 lg:grid-cols-2">
       <div className="space-y-5">
         <h1 className="font-display text-4xl">{product.name}</h1>
@@ -45,5 +47,6 @@ export default async function ProductPage({ params }: { params: { slug: string }
       </div>
       <AlbumViewer albums={(albums as any[]) ?? []} />
     </div>
+    </ContentShell>
   );
 }

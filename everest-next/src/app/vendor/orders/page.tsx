@@ -1,4 +1,5 @@
 import { requireRole } from "@/lib/auth";
+import { ContentShell } from "@/components/ContentShell";
 
 export default async function VendorOrdersPage() {
   const { supabase, user } = await requireRole(["vendor", "admin"]);
@@ -11,6 +12,7 @@ export default async function VendorOrdersPage() {
     .order("created_at", { ascending: false });
 
   return (
+    <ContentShell>
     <section className="space-y-6">
       <h1 className="font-display text-4xl">Custom Orders</h1>
       <div className="grid gap-4">
@@ -35,5 +37,6 @@ export default async function VendorOrdersPage() {
         ))}
       </div>
     </section>
+    </ContentShell>
   );
 }

@@ -33,6 +33,9 @@ test.describe('Everest smoke', () => {
   test('add standard product to cart from listing', async ({ page }) => {
     await page.goto('/');
     await page.locator('#navbtn-products').click();
+    await page.evaluate(() => {
+      if (typeof filterAndGo === 'function') filterAndGo('furniture');
+    });
     await page.waitForSelector('.product-card', { timeout: 45000 });
     await page.locator('.product-card').first().getByRole('button', { name: '+ Cart' }).click();
     await page.locator('#float-cart').click();
@@ -43,6 +46,9 @@ test.describe('Everest smoke', () => {
   test('product detail sets Product JSON-LD then clears on close', async ({ page }) => {
     await page.goto('/');
     await page.locator('#navbtn-products').click();
+    await page.evaluate(() => {
+      if (typeof filterAndGo === 'function') filterAndGo('furniture');
+    });
     await page.waitForSelector('.product-card', { timeout: 45000 });
     await page.locator('.product-card').first().getByRole('button', { name: 'View Details' }).click();
     await expect(page.locator('#jsonld-product')).toHaveCount(1, { timeout: 15000 });

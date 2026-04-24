@@ -1,40 +1,27 @@
-import Link from "next/link";
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
+import { EverestHome } from "@/components/home/EverestHome";
+import type { TrendingProduct } from "@/components/home/types";
+
+export const metadata: Metadata = {
+  title: "Everest — Premium Marketplace",
+  description: "Modern e-commerce for custom furniture, tech, apparel, and home office — with Yasmine AI assistance."
+};
 
 export default async function HomePage() {
   const supabase = createClient();
-  const { data: products } = await supabase
+  const { data: rows } = await supabase
     .from("products")
     .select("id, name, slug, base_price, vendor:vendors(company_name)")
-    .limit(6);
+    .limit(8);
 
-  return (
-    <div className="space-y-10">
-      <header className="space-y-4">
-        <p className="text-sm uppercase tracking-[0.2em] text-zinc-500">Everest Marketplace</p>
-        <h1 className="font-display text-5xl leading-tight">Custom Furniture, Crafted for Sahel Living</h1>
-        <div className="flex gap-3">
-          <Link href="/vendor" className="btn-light">
-            Vendor Dashboard
-          </Link>
-          <Link href="/admin/vendors" className="btn-light">
-            Admin Vendor Control
-          </Link>
-        </div>
-      </header>
+  const initialProducts: TrendingProduct[] = (rows ?? []).map((r) => ({
+    id: String(r.id),
+    name: String(r.name ?? "Product"),
+    slug: r.slug != null ? String(r.slug) : null,
+    base_price: r.base_price != null ? Number(r.base_price) : null,
+    vendorLabel: (r.vendor as { company_name?: string } | null)?.company_name ?? null
+  }));
 
-      <section className="grid gap-6 md:grid-cols-3">
-        {(products ?? []).map((p) => (
-          <article key={p.id} className="card">
-            <h3 className="font-display text-2xl">{p.name}</h3>
-            <p className="mt-1 text-sm text-zinc-600">{(p.vendor as { company_name?: string })?.company_name}</p>
-            <p className="mt-4 text-sm">From ${p.base_price}</p>
-            <Link href={`/products/${p.slug}`} className="btn-primary mt-5">
-              Open Product
-            </Link>
-          </article>
-        ))}
-      </section>
-    </div>
-  );
+  return <EverestHome initialProducts={initialProducts} />;
 }

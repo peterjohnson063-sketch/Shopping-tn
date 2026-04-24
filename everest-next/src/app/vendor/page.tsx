@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/auth";
+import { ContentShell } from "@/components/ContentShell";
 
 export default async function VendorDashboardPage() {
   const { supabase, user } = await requireRole(["vendor", "admin"]);
@@ -21,6 +22,7 @@ export default async function VendorDashboardPage() {
     .eq("vendor_id", vendor?.id ?? "");
 
   return (
+    <ContentShell>
     <section className="space-y-8">
       <div>
         <p className="text-sm uppercase tracking-[0.2em] text-zinc-500">Najjar Interface</p>
@@ -44,5 +46,6 @@ export default async function VendorDashboardPage() {
         </article>
       </div>
     </section>
+    </ContentShell>
   );
 }

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { ContentShell } from "@/components/ContentShell";
 
 async function signIn(formData: FormData) {
   "use server";
@@ -13,6 +14,7 @@ async function signIn(formData: FormData) {
 
 export default function LoginPage() {
   return (
+    <ContentShell>
     <section className="mx-auto max-w-md space-y-5">
       <h1 className="font-display text-4xl">Login</h1>
       <form action={signIn} className="card grid gap-4">
@@ -21,5 +23,6 @@ export default function LoginPage() {
         <button className="btn-primary">Sign in</button>
       </form>
     </section>
+    </ContentShell>
   );
 }

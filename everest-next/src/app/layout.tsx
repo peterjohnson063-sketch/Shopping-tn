@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import ModelViewerScript from "@/components/model-viewer-script";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
   title: "Everest Marketplace",
@@ -9,10 +12,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" className={inter.variable}>
+      <body className={`${inter.className} min-h-screen antialiased`}>
         <ModelViewerScript />
-        <main className="mx-auto min-h-screen max-w-7xl px-6 py-10">{children}</main>
+        {children}
       </body>
     </html>
   );
