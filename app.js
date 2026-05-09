@@ -231,18 +231,6 @@ function _stnInstallDiagOverlayIfQuery() {
         var prev = sessionStorage.getItem('stn_diag_log') || '';
         sessionStorage.setItem('stn_diag_log', (prev ? prev + '\n' : '') + line);
       } catch (e) {}
-      try {
-        fetch('http://127.0.0.1:7472/ingest/e32ef648-4ad1-46fd-b914-26d2c0d1af57', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'a2e097' },
-          body: JSON.stringify({
-            sessionId: 'a2e097',
-            location: 'stn_diag',
-            message: String(text).slice(0, 500),
-            timestamp: Date.now(),
-          }),
-        }).catch(function () {});
-      } catch (e2) {}
     }
     window.addEventListener('error', function (e) {
       appendLine(
@@ -272,6 +260,10 @@ function _stnInstallDiagOverlayIfQuery() {
 
 // ── INIT ──
 async function init() {
+  if (window.__stnInitStarted066015) {
+    return;
+  }
+  window.__stnInitStarted066015 = true;
   _stnInstallDiagOverlayIfQuery();
   State.currentUser = STN.DB.get('currentUser');
   if (State.currentUser && State.currentUser.password) {
@@ -849,6 +841,11 @@ function navLabelForHeader(full, short) {
 
 function updateNavUser() {
   var btn = document.getElementById('nav-user-area');
+  try {
+    var staffMode = !!(State.currentUser && (State.currentUser.role === 'admin' || State.currentUser.role === 'hub'));
+    document.body.classList.toggle('stn-staff-mode', staffMode);
+    document.body.classList.toggle('stn-admin-mode', !!(State.currentUser && State.currentUser.role === 'admin'));
+  } catch (eClass) {}
   if (!btn) return;
   if (State.currentUser) {
     var role = State.currentUser.role;
@@ -934,8 +931,6 @@ function syncAboutNavLink() {
 
 // ── PAGE NAVIGATION ──
 function showPage(id) {
-  console.log('🔄 showPage called with:', id);
-
   if (typeof closeSMConfiguratorSheet === 'function') {
     try {
       closeSMConfiguratorSheet();
@@ -955,11 +950,10 @@ function showPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const page = document.getElementById('page-' + id);
   if (!page) {
-    console.log('❌ Page element not found: page-' + id);
+    if (typeof STNLog !== 'undefined') STNLog.warn('nav.showPage', 'Page not found', { id: id });
     return;
   }
   
-  console.log('✅ Page element found:', page);
   page.classList.add('active');
   State.currentPage = id;
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -985,18 +979,15 @@ function showPage(id) {
     driver: renderDriver,
     loyalty: renderLoyalty,
     about: renderAbout,
+    support: renderSupport,
     'gift-checkout': renderGiftCheckout,
     'vendor-hours': renderVendorHoursOnboarding,
   };
   
-  console.log('🔄 Available renderers:', Object.keys(renderers));
-  console.log('🔄 Looking for renderer:', id);
-  
   if (renderers[id]) {
-    console.log('✅ Found renderer, calling:', id);
     renderers[id]();
   } else {
-    console.log('❌ No renderer found for:', id);
+    if (typeof STNLog !== 'undefined') STNLog.warn('nav.showPage', 'Renderer not found', { id: id });
   }
 
   setTimeout(initReveal, 80);
@@ -2766,9 +2757,9 @@ function homeRailProductHTML(p) {
     ? '<img class="home-rail-card__img" src="' + _cardEscapeAttr(String(src)) + '" alt="" loading="lazy" decoding="async"/>'
     : '<div class="home-rail-card__img home-rail-card__img--emoji">' + String(p.emoji || '📦') + '</div>';
   return (
-    '<button type="button" class="home-rail-card" onclick="openProductDetail(' +
+    '<button type="button" class="home-rail-card" onclick=\'openProductDetail(' +
     JSON.stringify(String(p.id)) +
-    ')">' +
+    ')\'> ' +
     th +
     '<span class="home-rail-card__name">' +
     escHtml(String(p.name || 'Product')) +
@@ -2804,9 +2795,9 @@ function renderHomeHeroMosaic(products) {
       return (
         '<button type="button" class="home-hero-mosaic__cell ' +
         cls[idx] +
-        '" onclick="openProductDetail(' +
+        '" onclick=\'openProductDetail(' +
         JSON.stringify(String(x.id)) +
-        ')"><img src="' +
+        ')\'><img src="' +
         _cardEscapeAttr(String(x.url)) +
         '" alt=""/></button>'
       );
@@ -3728,10 +3719,13 @@ function renderHome() {
   var rail = document.getElementById('home-deals-rail');
   if (rail) {
     var deals = products.filter(function (p) {
-      return p && p.oldPrice != null && Number(p.oldPrice) > Number(p.price);
+      var oldPrice = p.oldPrice != null ? p.oldPrice : p.old_price;
+      return p && oldPrice != null && Number(oldPrice) > Number(p.price);
     });
     var railSrc = deals.length ? deals.slice(0, 18) : products.slice(0, 18);
-    rail.innerHTML = railSrc.map(homeRailProductHTML).join('');
+    rail.innerHTML = railSrc.length
+      ? railSrc.map(homeRailProductHTML).join('')
+      : '<p class="home-trendy-bar__empty">Fresh deals are being prepared.</p>';
   }
 
   // Featured — first 10
@@ -3744,7 +3738,7 @@ function renderHome() {
   // Best sellers — sort by reviews
   const bsGrid = document.getElementById('home-bestsellers-grid');
   if (bsGrid) {
-    const bs = [...products].sort((a, b) => b.reviews - a.reviews).slice(0, 10);
+    const bs = [...products].sort((a, b) => (b.reviews || 0) - (a.reviews || 0)).slice(0, 10);
     bsGrid.innerHTML = bs.map(productCardHTML).join('');
     animateProductCardsEntry(bsGrid);
   }
@@ -3757,8 +3751,8 @@ function renderHome() {
         '<p class="home-new-products__empty" data-lang="home-new-products-empty">No new arrivals yet.</p>';
     } else {
       const sorted = products.slice().sort(function (a, b) {
-        var da = new Date(a.createdAt || 0).getTime();
-        var db = new Date(b.createdAt || 0).getTime();
+        var da = new Date(a.createdAt || a.created_at || 0).getTime();
+        var db = new Date(b.createdAt || b.created_at || 0).getTime();
         if (db !== da) return db - da;
         return (b.reviews || 0) - (a.reviews || 0);
       });
@@ -3772,11 +3766,10 @@ function renderHome() {
 }
 
 // ── PRODUCTS ──
-/** Shop page: show grid + filters only after search, department, or refinement — not a random full catalog. */
+/** Product page: show results after search or a simple refinement — not a random full catalog. */
 function stnProductsHasShopIntent() {
   var q = String(State.searchQuery == null ? '' : State.searchQuery).trim();
   if (q.length > 0) return true;
-  if (FilterState.categories && FilterState.categories.length > 0) return true;
   if (FilterState.priceMin > 0 || FilterState.priceMax < 5000) return true;
   if (FilterState.rating != null) return true;
   if (FilterState.freeShipping || FilterState.onSale) return true;
@@ -3869,8 +3862,9 @@ window.searchProducts = searchProducts;
 async function renderTrack() {
   initReveal();
   
-  // Add test button for development
-  addTestButton();
+  if (typeof _stnDiagUrlEnabled === 'function' && _stnDiagUrlEnabled()) {
+    addTestButton();
+  }
   
   // If user is logged in, show their orders automatically
   if (State.currentUser && State.currentUser.id) {
@@ -5136,8 +5130,11 @@ function renderAdmin() {
 }
 
 function buildAdminHTML() {
+  var unread = _stnAdminUnreadSupportCount();
+  var msgLabel = 'Messages' + (unread > 0 ? ' · ' + unread : '');
   var tabs = [
     { id: 'overview', label: 'Overview' },
+    { id: 'messages', label: msgLabel },
     { id: 'orders', label: 'Orders' },
     { id: 'hub', label: 'Sahel Hub' },
     { id: 'logistics', label: 'Logistics' },
@@ -5188,6 +5185,11 @@ async function switchAdmin(section) {
   if (section === 'hub') {
     content.innerHTML = '<div id="hub-panel-root" style="padding:1.5rem"></div>';
     renderHubPanelInto('hub-panel-root');
+    return;
+  }
+
+  if (section === 'messages') {
+    renderAdminMessages(content);
     return;
   }
 
@@ -9230,6 +9232,425 @@ function renderAbout() {
   }, 50);
 }
 
+// ════════════════════════════════════════════════════════════════
+// SUPPORT — Customer ↔ Everest Staff chat (localStorage MVP).
+// Threads keyed by user id (or a stable guest id). Admin sees the
+// list & replies via the "Messages" tab.
+// ════════════════════════════════════════════════════════════════
+const STN_SUPPORT_KEY = 'support_threads';
+const STN_SUPPORT_GUEST_KEY = 'support_guest_id';
+
+function _stnSupportNow() { return Date.now(); }
+
+function _stnSupportGuestId() {
+  try {
+    var g = localStorage.getItem(STN_SUPPORT_GUEST_KEY);
+    if (g) return g;
+    g = 'guest_' + Math.random().toString(36).slice(2, 10) + _stnSupportNow().toString(36);
+    localStorage.setItem(STN_SUPPORT_GUEST_KEY, g);
+    return g;
+  } catch (e) {
+    return 'guest_anon';
+  }
+}
+
+function _stnSupportCurrentClientId() {
+  if (State.currentUser && State.currentUser.id != null) return String(State.currentUser.id);
+  return _stnSupportGuestId();
+}
+
+function _stnSupportClientLabel() {
+  var u = State.currentUser;
+  if (!u) return 'Guest';
+  var name = (u.first_name || u.firstName || '') + ' ' + (u.last_name || u.lastName || '');
+  name = name.trim();
+  if (name) return name;
+  if (u.email) return u.email;
+  return 'Customer #' + u.id;
+}
+
+function _stnSupportLoadThreads() {
+  var raw = STN.DB.get(STN_SUPPORT_KEY);
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw;
+  return {};
+}
+
+function _stnSupportSaveThreads(threads) {
+  STN.DB.set(STN_SUPPORT_KEY, threads || {});
+}
+
+function _stnSupportEnsureThread(threads, clientId) {
+  if (!threads[clientId]) {
+    threads[clientId] = {
+      clientId: clientId,
+      label: _stnSupportClientLabel(),
+      email: (State.currentUser && State.currentUser.email) || '',
+      role: (State.currentUser && State.currentUser.role) || 'guest',
+      isGuest: !State.currentUser,
+      createdAt: _stnSupportNow(),
+      updatedAt: _stnSupportNow(),
+      unreadForStaff: 0,
+      unreadForClient: 0,
+      messages: [],
+    };
+  } else {
+    var t = threads[clientId];
+    if (State.currentUser) {
+      t.label = _stnSupportClientLabel();
+      t.email = State.currentUser.email || t.email || '';
+      t.role = State.currentUser.role || t.role || 'customer';
+      t.isGuest = false;
+    }
+  }
+  return threads[clientId];
+}
+
+function _stnSupportEscape(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function _stnSupportFormatTime(ts) {
+  if (!ts) return '';
+  try {
+    var d = new Date(ts);
+    var today = new Date();
+    var sameDay = d.getFullYear() === today.getFullYear()
+      && d.getMonth() === today.getMonth()
+      && d.getDate() === today.getDate();
+    var hh = String(d.getHours()).padStart(2, '0');
+    var mm = String(d.getMinutes()).padStart(2, '0');
+    if (sameDay) return hh + ':' + mm;
+    return d.toLocaleDateString() + ' ' + hh + ':' + mm;
+  } catch (e) { return ''; }
+}
+
+function stnSupportPostMessage(clientId, from, text, opts) {
+  var msg = String(text == null ? '' : text).trim();
+  if (!msg) return null;
+  if (msg.length > 1500) msg = msg.slice(0, 1500);
+  var threads = _stnSupportLoadThreads();
+  var thread;
+  if (from === 'staff') {
+    thread = threads[clientId];
+    if (!thread) return null;
+  } else {
+    thread = _stnSupportEnsureThread(threads, clientId);
+  }
+  var entry = {
+    id: 'm_' + _stnSupportNow().toString(36) + '_' + Math.random().toString(36).slice(2, 7),
+    from: from === 'staff' ? 'staff' : 'user',
+    text: msg,
+    ts: _stnSupportNow(),
+    staffName: (opts && opts.staffName) || (from === 'staff' ? 'Everest Staff' : ''),
+  };
+  thread.messages.push(entry);
+  thread.updatedAt = entry.ts;
+  if (entry.from === 'user') {
+    thread.unreadForStaff = (thread.unreadForStaff || 0) + 1;
+  } else {
+    thread.unreadForClient = (thread.unreadForClient || 0) + 1;
+  }
+  _stnSupportSaveThreads(threads);
+  try {
+    window.dispatchEvent(new CustomEvent('stn:support:update', { detail: { clientId: clientId, from: entry.from } }));
+  } catch (e) {}
+  return entry;
+}
+
+function stnSupportMarkRead(clientId, side) {
+  var threads = _stnSupportLoadThreads();
+  var t = threads[clientId];
+  if (!t) return;
+  if (side === 'staff') t.unreadForStaff = 0;
+  else t.unreadForClient = 0;
+  _stnSupportSaveThreads(threads);
+}
+
+function stnSupportRenderClientThread() {
+  var body = document.getElementById('stn-support-body');
+  if (!body) return;
+  var clientId = _stnSupportCurrentClientId();
+  var threads = _stnSupportLoadThreads();
+  var thread = threads[clientId];
+  var msgs = (thread && thread.messages) || [];
+
+  if (!msgs.length) {
+    body.innerHTML =
+      '<div class="stn-support-empty">' +
+      '<div class="stn-support-empty-ico" aria-hidden="true">💬</div>' +
+      '<p class="stn-support-empty-title">Send your first message</p>' +
+      '<p class="stn-support-empty-sub">Our team reads every chat. Share your order number if you have one.</p>' +
+      '</div>';
+  } else {
+    body.innerHTML = msgs.map(function (m) {
+      var side = m.from === 'staff' ? 'staff' : 'user';
+      var label = m.from === 'staff' ? (m.staffName || 'Everest Staff') : 'You';
+      return (
+        '<div class="stn-support-msg stn-support-msg--' + side + '">' +
+          '<div class="stn-support-msg-bubble">' + _stnSupportEscape(m.text).replace(/\n/g, '<br>') + '</div>' +
+          '<div class="stn-support-msg-meta">' + _stnSupportEscape(label) + ' · ' + _stnSupportFormatTime(m.ts) + '</div>' +
+        '</div>'
+      );
+    }).join('');
+  }
+  body.scrollTop = body.scrollHeight;
+
+  var hint = document.getElementById('stn-support-guest-hint');
+  if (hint) hint.hidden = !!State.currentUser;
+
+  if (thread) stnSupportMarkRead(clientId, 'client');
+}
+
+function stnSupportSendFromInput() {
+  var input = document.getElementById('stn-support-input');
+  if (!input) return;
+  var val = input.value;
+  if (!val || !val.trim()) {
+    input.focus();
+    return;
+  }
+  var clientId = _stnSupportCurrentClientId();
+  stnSupportPostMessage(clientId, 'user', val);
+  input.value = '';
+  stnSupportRenderClientThread();
+  input.focus();
+}
+
+function stnSupportClear() {
+  if (!confirm('Clear this conversation? Our staff will keep a copy for service quality.')) return;
+  var clientId = _stnSupportCurrentClientId();
+  var threads = _stnSupportLoadThreads();
+  if (threads[clientId]) {
+    threads[clientId].messages = [];
+    threads[clientId].updatedAt = _stnSupportNow();
+    _stnSupportSaveThreads(threads);
+  }
+  stnSupportRenderClientThread();
+}
+
+function renderSupport() {
+  var clientId = _stnSupportCurrentClientId();
+  var threads = _stnSupportLoadThreads();
+  _stnSupportEnsureThread(threads, clientId);
+  _stnSupportSaveThreads(threads);
+  stnSupportRenderClientThread();
+  if (!window.__stnSupportListenerBound) {
+    window.__stnSupportListenerBound = true;
+    window.addEventListener('stn:support:update', function (ev) {
+      if (State.currentPage !== 'support') return;
+      var detail = ev && ev.detail;
+      if (detail && detail.clientId && detail.clientId !== _stnSupportCurrentClientId()) return;
+      stnSupportRenderClientThread();
+    });
+    window.addEventListener('storage', function (ev) {
+      if (!ev || ev.key !== STN_SUPPORT_KEY) return;
+      if (State.currentPage === 'support') stnSupportRenderClientThread();
+    });
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.STN = window.STN || {};
+  window.STN.Support = {
+    post: stnSupportPostMessage,
+    load: _stnSupportLoadThreads,
+    save: _stnSupportSaveThreads,
+    markRead: stnSupportMarkRead,
+    currentClientId: _stnSupportCurrentClientId,
+  };
+}
+
+// ── ADMIN MESSAGES TAB (replies to client support threads) ──
+function _stnAdminUnreadSupportCount() {
+  var threads = _stnSupportLoadThreads();
+  var n = 0;
+  for (var k in threads) {
+    if (Object.prototype.hasOwnProperty.call(threads, k)) {
+      n += (threads[k].unreadForStaff || 0);
+    }
+  }
+  return n;
+}
+
+function _stnAdminSortedThreads() {
+  var threads = _stnSupportLoadThreads();
+  var list = [];
+  for (var k in threads) {
+    if (Object.prototype.hasOwnProperty.call(threads, k)) list.push(threads[k]);
+  }
+  list.sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
+  return list;
+}
+
+function _stnAdminMessagesPickActive(list) {
+  if (!list.length) return null;
+  var sel = window.__stnAdminActiveThread;
+  if (sel) {
+    for (var i = 0; i < list.length; i++) {
+      if (String(list[i].clientId) === String(sel)) return list[i];
+    }
+  }
+  return list[0];
+}
+
+function renderAdminMessages(container) {
+  if (!container) container = document.getElementById('admin-content');
+  if (!container) return;
+  var list = _stnAdminSortedThreads();
+  var active = _stnAdminMessagesPickActive(list);
+  window.__stnAdminActiveThread = active ? active.clientId : null;
+
+  if (!list.length) {
+    container.innerHTML =
+      '<div style="padding:3rem 1.5rem;text-align:center;color:#64748b">' +
+      '<div style="font-size:2.4rem;margin-bottom:0.5rem">📭</div>' +
+      '<h2 style="font-size:1.15rem;color:#0f172a;margin:0 0 0.4rem">No customer messages yet</h2>' +
+      '<p style="font-size:0.85rem;margin:0;max-width:360px;margin:0 auto">When a visitor uses Customer Service, their conversation will appear here.</p>' +
+      '</div>';
+    return;
+  }
+
+  var listHTML = list.map(function (t) {
+    var isActive = active && String(active.clientId) === String(t.clientId);
+    var last = t.messages && t.messages.length ? t.messages[t.messages.length - 1] : null;
+    var preview = last ? (last.from === 'staff' ? 'You: ' : '') + (last.text || '') : 'No messages yet';
+    if (preview.length > 60) preview = preview.slice(0, 58) + '…';
+    var unread = t.unreadForStaff || 0;
+    var roleTag = t.isGuest ? 'Guest' : (t.role || 'customer');
+    return (
+      '<button type="button" class="stn-adm-msg-row' + (isActive ? ' stn-adm-msg-row--active' : '') + '"' +
+        ' onclick="selectAdminMessageThread(\'' + _stnSupportEscape(String(t.clientId)).replace(/\\/g, '\\\\') + '\')">' +
+        '<div class="stn-adm-msg-row-top">' +
+          '<span class="stn-adm-msg-row-name">' + _stnSupportEscape(t.label || 'Customer') + '</span>' +
+          '<span class="stn-adm-msg-row-time">' + _stnSupportEscape(_stnSupportFormatTime(t.updatedAt)) + '</span>' +
+        '</div>' +
+        '<div class="stn-adm-msg-row-preview">' + _stnSupportEscape(preview) + '</div>' +
+        '<div class="stn-adm-msg-row-foot">' +
+          '<span class="stn-adm-msg-row-tag">' + _stnSupportEscape(roleTag) + '</span>' +
+          (unread > 0 ? '<span class="stn-adm-msg-row-badge">' + unread + '</span>' : '') +
+        '</div>' +
+      '</button>'
+    );
+  }).join('');
+
+  container.innerHTML =
+    '<div class="stn-adm-msg">' +
+      '<aside class="stn-adm-msg-list" id="stn-adm-msg-list">' +
+        '<div class="stn-adm-msg-list-head">' +
+          '<h2>Conversations</h2>' +
+          '<span>' + list.length + ' total</span>' +
+        '</div>' +
+        '<div class="stn-adm-msg-list-body">' + listHTML + '</div>' +
+      '</aside>' +
+      '<section class="stn-adm-msg-pane" id="stn-adm-msg-pane"></section>' +
+    '</div>';
+
+  renderAdminMessagePane();
+
+  if (!window.__stnAdminMessagesListenerBound) {
+    window.__stnAdminMessagesListenerBound = true;
+    window.addEventListener('stn:support:update', function () {
+      var navMsg = document.getElementById('adm-nav-messages');
+      if (!navMsg) return;
+      if (navMsg.classList.contains('adm-active')) {
+        renderAdminMessages();
+      } else {
+        var unread = _stnAdminUnreadSupportCount();
+        navMsg.textContent = 'Messages' + (unread > 0 ? ' · ' + unread : '');
+      }
+    });
+    window.addEventListener('storage', function (ev) {
+      if (!ev || ev.key !== STN_SUPPORT_KEY) return;
+      var navMsg = document.getElementById('adm-nav-messages');
+      if (navMsg && navMsg.classList.contains('adm-active')) renderAdminMessages();
+    });
+  }
+}
+
+function renderAdminMessagePane() {
+  var pane = document.getElementById('stn-adm-msg-pane');
+  if (!pane) return;
+  var clientId = window.__stnAdminActiveThread;
+  var threads = _stnSupportLoadThreads();
+  var t = clientId ? threads[clientId] : null;
+  if (!t) {
+    pane.innerHTML = '<div class="stn-adm-msg-empty">Select a conversation</div>';
+    return;
+  }
+  if (t.unreadForStaff) {
+    t.unreadForStaff = 0;
+    _stnSupportSaveThreads(threads);
+    var navMsg = document.getElementById('adm-nav-messages');
+    if (navMsg) {
+      var unread = _stnAdminUnreadSupportCount();
+      navMsg.textContent = 'Messages' + (unread > 0 ? ' · ' + unread : '');
+    }
+  }
+
+  var msgs = t.messages || [];
+  var msgsHTML = msgs.length ? msgs.map(function (m) {
+    var side = m.from === 'staff' ? 'staff' : 'user';
+    var label = m.from === 'staff' ? (m.staffName || 'Staff') : (t.label || 'Customer');
+    return (
+      '<div class="stn-support-msg stn-support-msg--' + side + '">' +
+        '<div class="stn-support-msg-bubble">' + _stnSupportEscape(m.text).replace(/\n/g, '<br>') + '</div>' +
+        '<div class="stn-support-msg-meta">' + _stnSupportEscape(label) + ' · ' + _stnSupportFormatTime(m.ts) + '</div>' +
+      '</div>'
+    );
+  }).join('') : '<div class="stn-support-empty"><div class="stn-support-empty-ico">💬</div><p class="stn-support-empty-title">No messages in this thread</p></div>';
+
+  pane.innerHTML =
+    '<header class="stn-adm-msg-pane-head">' +
+      '<div>' +
+        '<div class="stn-adm-msg-pane-name">' + _stnSupportEscape(t.label || 'Customer') + '</div>' +
+        '<div class="stn-adm-msg-pane-meta">' +
+          (t.email ? _stnSupportEscape(t.email) + ' · ' : '') +
+          _stnSupportEscape(t.isGuest ? 'Guest visitor' : (t.role || 'customer')) +
+          ' · #' + _stnSupportEscape(String(t.clientId)) +
+        '</div>' +
+      '</div>' +
+    '</header>' +
+    '<div class="stn-adm-msg-pane-body" id="stn-adm-msg-pane-body">' + msgsHTML + '</div>' +
+    '<form class="stn-adm-msg-form" id="stn-adm-msg-form" onsubmit="event.preventDefault(); adminSendSupportReply();">' +
+      '<textarea id="stn-adm-msg-input" rows="2" maxlength="1500" placeholder="Reply as Everest Staff…" class="stn-support-input"></textarea>' +
+      '<button type="submit" class="stn-support-send">Send reply</button>' +
+    '</form>';
+
+  var body = document.getElementById('stn-adm-msg-pane-body');
+  if (body) body.scrollTop = body.scrollHeight;
+}
+
+function selectAdminMessageThread(clientId) {
+  window.__stnAdminActiveThread = clientId;
+  document.querySelectorAll('.stn-adm-msg-row').forEach(function (el) {
+    el.classList.remove('stn-adm-msg-row--active');
+  });
+  renderAdminMessages();
+}
+
+function adminSendSupportReply() {
+  if (!State.currentUser || State.currentUser.role !== 'admin') {
+    toast('Admin sign-in required', 'error');
+    return;
+  }
+  var clientId = window.__stnAdminActiveThread;
+  if (!clientId) return;
+  var input = document.getElementById('stn-adm-msg-input');
+  if (!input) return;
+  var val = input.value;
+  if (!val || !val.trim()) { input.focus(); return; }
+  var staffName = State.currentUser.first_name || State.currentUser.firstName || 'Everest Staff';
+  stnSupportPostMessage(clientId, 'staff', val, { staffName: staffName });
+  input.value = '';
+  renderAdminMessagePane();
+  input.focus();
+}
+
 // ── FLASH SALE TIMER ──
 function startFlashTimer() {
   const end = new Date();
@@ -9291,7 +9712,9 @@ window.searchHome = searchHome;
 window.stnHeaderSearch = stnHeaderSearch;
 
 // ── START ──
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', function () {
+  init();
+});
 
 // ── E-COMMERCE SIDEBAR FUNCTIONS ──
 
@@ -9374,34 +9797,12 @@ function setRatingFilter(rating) {
 
 // Apply all filters
 function applyFilters() {
-  // Update category filters
-  const categoryCheckboxes = document.querySelectorAll('.category-item input[type="checkbox"]');
+  // Department/category UI was removed; keep state clear so discovery stays search-first.
   FilterState.categories = [];
   
-  categoryCheckboxes.forEach(checkbox => {
-    if (checkbox.checked && checkbox.value !== 'all') {
-      FilterState.categories.push(checkbox.value);
-    }
-  });
-  
-  // Handle "All Products" checkbox
-  const allCheckbox = document.getElementById('cat-all');
-  if (allCheckbox.checked) {
-    FilterState.categories = [];
-    // Uncheck other categories
-    categoryCheckboxes.forEach(cb => {
-      if (cb.value !== 'all') cb.checked = false;
-    });
-  } else {
-    // Uncheck "All Products" if any specific category is selected
-    if (FilterState.categories.length > 0) {
-      allCheckbox.checked = false;
-    }
-  }
-  
   // Update availability filters
-  FilterState.inStock = document.getElementById('in-stock').checked;
-  FilterState.outOfStock = document.getElementById('out-of-stock').checked;
+  FilterState.inStock = !!document.getElementById('in-stock')?.checked;
+  FilterState.outOfStock = !!document.getElementById('out-of-stock')?.checked;
   
   // Update special offer filters
   const offerCheckboxes = document.querySelectorAll('.offer-item input[type="checkbox"]');
@@ -9541,14 +9942,20 @@ function clearAllFilters() {
   });
   
   // Reset availability
-  document.getElementById('in-stock').checked = true;
-  document.getElementById('out-of-stock').checked = false;
+  var inStockEl = document.getElementById('in-stock');
+  var outOfStockEl = document.getElementById('out-of-stock');
+  if (inStockEl) inStockEl.checked = true;
+  if (outOfStockEl) outOfStockEl.checked = false;
   
   // Reset price
-  document.getElementById('price-min').value = 0;
-  document.getElementById('price-max').value = 5000;
-  document.getElementById('price-min-slider').value = 0;
-  document.getElementById('price-max-slider').value = 5000;
+  var priceMinEl = document.getElementById('price-min');
+  var priceMaxEl = document.getElementById('price-max');
+  var priceMinSliderEl = document.getElementById('price-min-slider');
+  var priceMaxSliderEl = document.getElementById('price-max-slider');
+  if (priceMinEl) priceMinEl.value = 0;
+  if (priceMaxEl) priceMaxEl.value = 5000;
+  if (priceMinSliderEl) priceMinSliderEl.value = 0;
+  if (priceMaxSliderEl) priceMaxSliderEl.value = 5000;
   
   // Reset filter state
   FilterState.categories = [];
@@ -9607,20 +10014,6 @@ function filterAndRenderProducts() {
         });
       });
     }
-  }
-  
-  // Category filter (DB may store legacy labels; normalize to canonical slugs)
-  if (FilterState.categories.length > 0) {
-    filteredProducts = filteredProducts.filter(function (product) {
-      var raw = product.category || product.cat;
-      if (raw == null || raw === '') return false;
-      var resolved =
-        typeof STN !== 'undefined' &&
-        STN.resolveProductCategorySlug &&
-        STN.resolveProductCategorySlug(raw);
-      var key = resolved || raw;
-      return FilterState.categories.indexOf(key) !== -1;
-    });
   }
   
   // Price filter
@@ -9782,7 +10175,7 @@ function renderProductsGrid(products, emptyCategoryMsg) {
       '<div class="stn-shop-idle">' +
       '<p class="stn-shop-idle__eyebrow" data-lang="prod-idle-eyebrow">Everest atelier</p>' +
       '<h2 class="stn-shop-idle__title" data-lang="prod-idle-title">Search the collection</h2>' +
-      '<p class="stn-shop-idle__sub" data-lang="prod-idle-sub">Type a name, material, region, or maker. Filters appear when your search or category is active — we do not show random inventory.</p>' +
+      '<p class="stn-shop-idle__sub" data-lang="prod-idle-sub">Type a product name, material, region, or maker. Everest shows matching results instead of forcing visitors through departments.</p>' +
       '</div>';
     grid.removeAttribute('data-stn-delegated');
     return;

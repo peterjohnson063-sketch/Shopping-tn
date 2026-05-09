@@ -1506,15 +1506,12 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
         <button type="button" class="stn-amazon-nav__sub-link" onclick="showPage('home')">All</button>
         <button type="button" class="stn-amazon-nav__sub-link stn-amazon-nav__sub-link--key" onclick="showPage('carpenter')" data-lang="nav-carpenter">Sur Mesure</button>
         <button type="button" class="stn-amazon-nav__sub-link stn-amazon-nav__sub-link--key" onclick="showPage('track')" data-lang="nav-track">Track</button>
-        <button type="button" class="stn-amazon-nav__sub-link" onclick="showPage('products')">Tactical Gear</button>
-        <button type="button" class="stn-amazon-nav__sub-link" onclick="showPage('products')">Best Sellers</button>
-        <button type="button" class="stn-amazon-nav__sub-link" onclick="showPage('about')">Customer Service</button>
+        <button type="button" class="stn-amazon-nav__sub-link" onclick="showPage('support')" data-lang="nav-support">Customer Service</button>
       </div>
     </div>
   </div>
   <div class="stn-amazon-nav__legacy-nav" aria-hidden="true">
     <button type="button" id="navbtn-home" class="nav-btn" data-lang="nav-home" onclick="showPage('home')">Home</button>
-    <button type="button" id="navbtn-products" class="nav-btn" data-lang="nav-products" onclick="showPage('products')">Shop</button>
     <button type="button" id="navbtn-carpenter" class="nav-btn" data-lang="nav-carpenter" onclick="showPage('carpenter')">Sur Mesure</button>
     <button type="button" id="navbtn-track" class="nav-btn" data-lang="nav-track" onclick="showPage('track')">Track</button>
     <button type="button" id="navbtn-loyalty" class="nav-btn" data-lang="nav-loyalty" onclick="showPage('loyalty')">Rewards</button>
@@ -1538,7 +1535,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     <li><button type="button" class="nav-drawer-link" data-lang="nav-home" onclick="toggleNavDrawer(false);showPage('home')">Home</button></li>
     <li><button type="button" class="nav-drawer-link nav-drawer-link--key" data-lang="nav-carpenter" onclick="toggleNavDrawer(false);showPage('carpenter')">Sur Mesure</button></li>
     <li><button type="button" class="nav-drawer-link nav-drawer-link--key" data-lang="nav-track" onclick="toggleNavDrawer(false);showPage('track')">Track</button></li>
-    <li><button type="button" class="nav-drawer-link" data-lang="nav-products" onclick="toggleNavDrawer(false);showPage('products')">Shop</button></li>
+    <li><button type="button" class="nav-drawer-link" data-lang="nav-support" onclick="toggleNavDrawer(false);showPage('support')">Customer Service</button></li>
     <li><button type="button" class="nav-drawer-link" data-lang="nav-loyalty" onclick="toggleNavDrawer(false);showPage('loyalty')">Rewards</button></li>
     <li><button type="button" class="nav-drawer-link" data-lang="nav-about" onclick="toggleNavDrawer(false);showPage('about')">About</button></li>
     <li><button type="button" class="nav-drawer-link" onclick="toggleNavDrawer(false);showPage('wishlist')">♡ Wishlist</button></li>
@@ -1552,10 +1549,6 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     <button type="button" class="bottom-nav__btn active" id="bottomnav-home" onclick="showPage('home'); return false;">
       <span class="bottom-nav__icon" aria-hidden="true">🏠</span>
       <span data-lang="nav-home">Home</span>
-    </button>
-    <button type="button" class="bottom-nav__btn" id="bottomnav-products" onclick="showPage('products'); return false;">
-      <span class="bottom-nav__icon" aria-hidden="true">🛍️</span>
-      <span data-lang="nav-products">Shop</span>
     </button>
     <button type="button" class="bottom-nav__btn" id="bottomnav-track" onclick="showPage('track'); return false;">
       <span class="bottom-nav__icon" aria-hidden="true">📦</span>
@@ -1628,7 +1621,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   <!-- #home-search: hidden sync target for header search + homeSearch() / homeSearchTag() -->
   <input type="search" id="home-search" class="stn-sr-only" autocomplete="off" tabindex="-1" aria-hidden="true" title="" />
 
-  <section class="home-tactical-hub" aria-label="3D design studios and tactical categories">
+  <section class="home-tactical-hub" aria-label="Everest shopping highlights">
     <div class="home-tactical-hub__inner">
       <div class="home-studio-dual">
         <article class="home-studio-card home-studio-card--outfit">
@@ -1676,74 +1669,6 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     </div>
   </section>
 
-  <div class="home-amazon-shop" aria-label="Shop by category">
-    <div class="home-amazon-shop__inner">
-      <section class="home-amz-row" aria-labelledby="home-amz-row-tactical">
-        <div class="home-amz-row__head">
-          <h2 id="home-amz-row-tactical" class="home-amz-row__title">Gear &amp; tactical</h2>
-          <button type="button" class="home-amz-row__see" onclick="filterAndGo('all')">See all</button>
-        </div>
-        <div class="home-amz-row__rail">
-          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1595590424283-b41f0c39910b?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Tactical Gear</span></button>
-          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1593640408182-31adebbca8e0?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">PC Components</span></button>
-          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1585506948048-e7a99d0c9b09?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Military Collectibles</span></button>
-          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Field Kits</span></button>
-          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1518544889280-95e2b14de6b9?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Optics &amp; Sights</span></button>
-          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1556906781-9a412961c28c?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Apparel</span></button>
-          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1584568694244-14bcdef4d1ab?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">EDC &amp; tools</span></button>
-          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1508609349938-5ec4ae374ebf?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Training</span></button>
-        </div>
-      </section>
-      <section class="home-amz-row" aria-labelledby="home-amz-row-home">
-        <div class="home-amz-row__head">
-          <h2 id="home-amz-row-home" class="home-amz-row__title">Home &amp; living</h2>
-          <button type="button" class="home-amz-row__see" onclick="filterAndGo('all')" data-lang="home-see-all-cats">Browse all categories</button>
-        </div>
-        <div class="home-amz-row__rail">
-          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap" data-lang="home-dept-all">Full catalog</span></button>
-          <button type="button" class="home-amz-card" onclick="filterAndGo('sofa')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap" data-lang="home-dept-furniture">Furniture &amp; seating</span></button>
-          <button type="button" class="home-amz-card" onclick="filterAndGo('bedroom')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap" data-lang="home-cat-bedroom">Bedroom</span></button>
-          <button type="button" class="home-amz-card" onclick="filterAndGo('rug')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap" data-lang="home-dept-decor">Rugs &amp; décor</span></button>
-          <button type="button" class="home-amz-card" onclick="filterAndGo('ceramic')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap" data-lang="home-dept-ceramics">Dining &amp; ceramics</span></button>
-          <button type="button" class="home-amz-card" onclick="filterAndGo('lighting')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap" data-lang="home-dept-lighting">Lighting</span></button>
-          <button type="button" class="home-amz-card" onclick="filterAndGo('outdoor')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap" data-lang="home-dept-outdoor">Garden &amp; outdoor</span></button>
-          <button type="button" class="home-amz-card" onclick="filterAndGo('fragrance')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap" data-lang="home-dept-fragrance">Fragrance</span></button>
-          <button type="button" class="home-amz-card" onclick="showPage('carpenter')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1618220179428-22790b461013?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap" data-lang="home-dept-custom">Made to order</span></button>
-        </div>
-      </section>
-      <section class="home-amz-row" aria-labelledby="home-amz-row-desk">
-        <div class="home-amz-row__head">
-          <h2 id="home-amz-row-desk" class="home-amz-row__title">Desk &amp; battlestation</h2>
-          <button type="button" class="home-amz-row__see" onclick="filterAndGo('all')">Shop setup</button>
-        </div>
-        <div class="home-amz-row__rail">
-          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1527443224154-c3e268668657?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Monitors</span></button>
-          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1587825140708-dfaf72a8b164?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Keyboards</span></button>
-          <button type="button" class="home-amz-card" onclick="filterAndGo('lighting')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1499951360447-b19be8fe80f5?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Desk lamps</span></button>
-          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1580487135568-922226ce6648?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Chairs</span></button>
-          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1614624532983-4ce03382d63d?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Audio</span></button>
-          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Cable &amp; power</span></button>
-          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1593062096033-9a26b09da905?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Streaming</span></button>
-        </div>
-      </section>
-      <section class="home-amz-row" aria-labelledby="home-amz-row-carry">
-        <div class="home-amz-row__head">
-          <h2 id="home-amz-row-carry" class="home-amz-row__title">Carry &amp; everyday</h2>
-          <button type="button" class="home-amz-row__see" onclick="filterAndGo('all')">Explore</button>
-        </div>
-        <div class="home-amz-row__rail">
-          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1526948128573-703ee1aeb6fa?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Bags &amp; packs</span></button>
-          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1524592093904-607929368e34?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Watches</span></button>
-          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1543163521-3176aef30956?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Footwear</span></button>
-          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1515562141-f783f76c0cb8?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Jewelry</span></button>
-          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1572635196233-37c373a0d324?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Eyewear</span></button>
-          <button type="button" class="home-amz-card" onclick="filterAndGo('all')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Wallets</span></button>
-          <button type="button" class="home-amz-card" onclick="filterAndGo('fragrance')"><span class="home-amz-card__img" style="background-image:url('https://images.unsplash.com/photo-1595425970377-c970029bf94e?auto=format&amp;fit=crop&amp;w=640&amp;h=800&amp;q=82')"></span><span class="home-amz-card__cap">Scent</span></button>
-        </div>
-      </section>
-    </div>
-  </div>
-
   <section class="home-new-products" aria-labelledby="home-new-products-title">
     <div class="home-new-products__inner">
       <div class="home-new-products__head">
@@ -1754,10 +1679,109 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     </div>
   </section>
 
-  <div class="home-amz-footer-cta">
-    <p class="home-amz-footer-cta__txt">Browse the full catalog with filters and search on the shop page.</p>
-    <button type="button" class="home-amz-footer-cta__btn" onclick="showPage('products')">Open shop</button>
-  </div>
+  <section class="home-long-panel home-long-panel--promise" aria-labelledby="home-promise-title">
+    <div class="home-long-inner">
+      <div class="home-long-head">
+        <span class="home-long-kicker">Why shop on Everest</span>
+        <h2 id="home-promise-title">Everything a visitor needs before buying</h2>
+        <p>Browse curated products, save favorites, order from verified sellers, and track every delivery across Tunisia.</p>
+      </div>
+      <div class="home-promise-grid">
+        <article class="home-promise-card">
+          <span class="home-promise-icon" aria-hidden="true">✓</span>
+          <h3>Verified listings</h3>
+          <p>Products are presented with clear photos, prices in TND, seller context, and customer-ready details.</p>
+        </article>
+        <article class="home-promise-card">
+          <span class="home-promise-icon" aria-hidden="true">COD</span>
+          <h3>Simple checkout</h3>
+          <p>Customers can build a cart, confirm delivery details, and follow the order from the tracking page.</p>
+        </article>
+        <article class="home-promise-card">
+          <span class="home-promise-icon" aria-hidden="true">24</span>
+          <h3>Nationwide flow</h3>
+          <p>Everest is built around Tunisian wilayas, driver routing, and order updates from preparation to delivery.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="home-long-panel home-long-panel--collections" aria-labelledby="home-collections-title">
+    <div class="home-long-inner">
+      <div class="home-long-head home-long-head--row">
+        <div>
+          <span class="home-long-kicker">Explore more</span>
+          <h2 id="home-collections-title">Search ideas</h2>
+        </div>
+        <button type="button" class="home-long-link" onclick="document.getElementById('stn-header-search-q')?.focus()">Use search bar</button>
+      </div>
+      <div class="home-feature-grid">
+        <button type="button" class="home-feature-tile home-feature-tile--wide" onclick="homeSearchTag('sofa')" style="background-image:url('https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&amp;fit=crop&amp;w=1200&amp;q=82')">
+          <span>Try searching</span>
+          <strong>Sofa, table, lamp, gift, perfume</strong>
+        </button>
+        <button type="button" class="home-feature-tile" onclick="homeSearchTag('bedroom')" style="background-image:url('https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&amp;fit=crop&amp;w=900&amp;q=82')">
+          <span>Quick search</span>
+          <strong>Bedroom ideas</strong>
+        </button>
+        <button type="button" class="home-feature-tile" onclick="homeSearchTag('gift')" style="background-image:url('https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&amp;fit=crop&amp;w=900&amp;q=82')">
+          <span>Quick search</span>
+          <strong>Gift ideas</strong>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <section class="home-long-panel home-long-panel--steps" aria-labelledby="home-steps-title">
+    <div class="home-long-inner">
+      <div class="home-long-head">
+        <span class="home-long-kicker">How it works</span>
+        <h2 id="home-steps-title">From first visit to delivery</h2>
+      </div>
+      <div class="home-steps-grid">
+        <article class="home-step-card">
+          <span>01</span>
+          <h3>Find the product</h3>
+          <p>Use the search bar, trending products, or Yasmine to discover what fits your home.</p>
+        </article>
+        <article class="home-step-card">
+          <span>02</span>
+          <h3>Add to cart</h3>
+          <p>Open product details, check photos and price, then save to wishlist or add it directly to your cart.</p>
+        </article>
+        <article class="home-step-card">
+          <span>03</span>
+          <h3>Confirm order</h3>
+          <p>Enter delivery information, keep the tracking code, and follow updates from the Track page.</p>
+        </article>
+        <article class="home-step-card">
+          <span>04</span>
+          <h3>Receive it</h3>
+          <p>Drivers and vendors keep the fulfillment flow moving until the order reaches the customer.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="home-long-panel home-long-panel--story" aria-labelledby="home-story-title">
+    <div class="home-long-inner home-story-layout">
+      <div>
+        <span class="home-long-kicker">Everest experience</span>
+        <h2 id="home-story-title">A marketplace that feels alive before login</h2>
+        <p>Visitors can search products, understand delivery, ask Yasmine questions, and see clear paths to customize, track, or create an account.</p>
+        <div class="home-story-actions">
+          <button type="button" class="home-amz-footer-cta__btn" onclick="showPage('products')">Shop now</button>
+          <button type="button" class="home-long-outline" onclick="showPage('track')">Track an order</button>
+        </div>
+      </div>
+      <div class="home-story-card" aria-label="Everest visitor checklist">
+        <div><strong>Search</strong><span>Header search and trending products</span></div>
+        <div><strong>Save</strong><span>Wishlist and cart ready</span></div>
+        <div><strong>Ask</strong><span>Yasmine assistant on every page</span></div>
+        <div><strong>Track</strong><span>Order lookup with tracking code</span></div>
+      </div>
+    </div>
+  </section>
 
   <!-- Off-screen targets for renderHome() (legacy grids; not shown on home) -->
   <div class="stn-sr-only" aria-hidden="true">
@@ -1770,20 +1794,6 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 
 <div class="page page-products" id="page-products">
 <div class="s page-products-s stn-market-amz" id="catalog-root">
-
-    <div class="stn-amz-dept-wrap" role="navigation" aria-label="Categories">
-      <span class="stn-amz-dept-label" data-lang="prod-amz-shop-by">Shop by department</span>
-      <div class="stn-amz-dept-scroll">
-        <button type="button" class="stn-amz-dept-pill is-active" data-stn-dept="all" onclick="stnAmzSelectDepartment('all')"><span data-lang="home-cat-all">All</span></button>
-        <button type="button" class="stn-amz-dept-pill" data-stn-dept="furniture" onclick="stnAmzSelectDepartment('furniture')"><span data-lang="prod-cat-furniture">Furniture</span></button>
-        <button type="button" class="stn-amz-dept-pill" data-stn-dept="lighting" onclick="stnAmzSelectDepartment('lighting')"><span data-lang="prod-cat-lighting">Lighting</span></button>
-        <button type="button" class="stn-amz-dept-pill" data-stn-dept="decor" onclick="stnAmzSelectDepartment('decor')"><span data-lang="prod-cat-decor">Decor</span></button>
-        <button type="button" class="stn-amz-dept-pill" data-stn-dept="ceramics" onclick="stnAmzSelectDepartment('ceramics')"><span data-lang="prod-cat-ceramics">Ceramics</span></button>
-        <button type="button" class="stn-amz-dept-pill" data-stn-dept="bedroom" onclick="stnAmzSelectDepartment('bedroom')"><span data-lang="prod-cat-bedroom">Bedroom</span></button>
-        <button type="button" class="stn-amz-dept-pill" data-stn-dept="outdoor" onclick="stnAmzSelectDepartment('outdoor')"><span data-lang="prod-cat-outdoor">Outdoor</span></button>
-        <button type="button" class="stn-amz-dept-pill" data-stn-dept="fragrance" onclick="stnAmzSelectDepartment('fragrance')"><span data-lang="prod-cat-fragrance">Fragrance</span></button>
-      </div>
-    </div>
 
     <div class="products-toolbar stn-amz-toolbar">
       <button type="button" class="btn btn-outline btn-sm stn-amz-filter-btn" onclick="toggleSidebar()" id="mobile-filter-btn">
@@ -1803,61 +1813,6 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
           <div class="sidebar-header stn-amz-sidebar-head">
             <h3 class="stn-amz-sidebar-title" data-lang="prod-filters">Filters</h3>
             <button type="button" class="stn-amz-link-btn" onclick="clearAllFilters()" data-lang="prod-clear">Clear</button>
-          </div>
-          
-          <!-- Department (same filters as top strip; refine here) -->
-          <div class="sidebar-section">
-            <h4 class="sidebar-title"><span data-lang="prod-amz-department">Department</span></h4>
-            <div class="category-list">
-              <label class="category-item">
-                <input type="checkbox" value="all" onchange="applyFilters()" checked id="cat-all">
-                <span class="checkmark"></span>
-                <span><span data-lang="prod-cat-all">All Products</span></span>
-                <span class="count">248</span>
-              </label>
-              <label class="category-item">
-                <input type="checkbox" value="furniture" onchange="applyFilters()" id="cat-furniture">
-                <span class="checkmark"></span>
-                <span><span aria-hidden="true">🛋️ </span><span data-lang="prod-cat-furniture">Furniture</span></span>
-                <span class="count">67</span>
-              </label>
-              <label class="category-item">
-                <input type="checkbox" value="lighting" onchange="applyFilters()" id="cat-lighting">
-                <span class="checkmark"></span>
-                <span><span aria-hidden="true">💡 </span><span data-lang="prod-cat-lighting">Lighting</span></span>
-                <span class="count">43</span>
-              </label>
-              <label class="category-item">
-                <input type="checkbox" value="decor" onchange="applyFilters()" id="cat-decor">
-                <span class="checkmark"></span>
-                <span><span aria-hidden="true">🎨 </span><span data-lang="prod-cat-decor">Decor</span></span>
-                <span class="count">52</span>
-              </label>
-              <label class="category-item">
-                <input type="checkbox" value="ceramics" onchange="applyFilters()" id="cat-ceramics">
-                <span class="checkmark"></span>
-                <span><span aria-hidden="true">🏺 </span><span data-lang="prod-cat-ceramics">Ceramics</span></span>
-                <span class="count">38</span>
-              </label>
-              <label class="category-item">
-                <input type="checkbox" value="bedroom" onchange="applyFilters()" id="cat-bedroom">
-                <span class="checkmark"></span>
-                <span><span aria-hidden="true">🛏️ </span><span data-lang="prod-cat-bedroom">Bedroom</span></span>
-                <span class="count">28</span>
-              </label>
-              <label class="category-item">
-                <input type="checkbox" value="outdoor" onchange="applyFilters()" id="cat-outdoor">
-                <span class="checkmark"></span>
-                <span><span aria-hidden="true">🌿 </span><span data-lang="prod-cat-outdoor">Outdoor</span></span>
-                <span class="count">20</span>
-              </label>
-              <label class="category-item">
-                <input type="checkbox" value="fragrance" onchange="applyFilters()" id="cat-fragrance">
-                <span class="checkmark"></span>
-                <span><span aria-hidden="true">🧴 </span><span data-lang="prod-cat-fragrance">Fragrance</span></span>
-                <span class="count">12</span>
-              </label>
-            </div>
           </div>
           
           <!-- Price Range -->
@@ -2496,6 +2451,51 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 <div class="page" id="page-driver"></div>
 
 <!-- ════════════════════════════════ -->
+<!-- PAGE: SUPPORT (Customer Service chat with Everest staff) -->
+<!-- ════════════════════════════════ -->
+<div class="page" id="page-support">
+  <div class="stn-support-wrap">
+    <header class="stn-support-hero">
+      <p class="stn-support-eyebrow" data-lang="support-eyebrow">Customer Service</p>
+      <h1 class="stn-support-title" data-lang="support-title">Chat with Everest Staff</h1>
+      <p class="stn-support-sub" data-lang="support-sub">Tell us what's going on — order issue, delivery question, refund, or anything else. A real person from our team will reply.</p>
+    </header>
+
+    <section class="stn-support-card" aria-label="Customer support conversation">
+      <div class="stn-support-meta">
+        <div class="stn-support-staff">
+          <span class="stn-support-staff-avatar" aria-hidden="true">●</span>
+          <div>
+            <div class="stn-support-staff-name">Everest Staff</div>
+            <div class="stn-support-staff-status" id="stn-support-status">Usually replies within a few hours · Mon–Sat</div>
+          </div>
+        </div>
+        <button type="button" class="stn-support-clear" id="stn-support-clear-btn" onclick="stnSupportClear()" data-lang="support-clear">Clear chat</button>
+      </div>
+
+      <div class="stn-support-body" id="stn-support-body" role="log" aria-live="polite" aria-relevant="additions"></div>
+
+      <form class="stn-support-form" id="stn-support-form" onsubmit="event.preventDefault(); stnSupportSendFromInput();">
+        <textarea
+          id="stn-support-input"
+          class="stn-support-input"
+          rows="2"
+          maxlength="1500"
+          placeholder="Type your message…"
+          data-lang-placeholder="support-placeholder"
+          aria-label="Your message"
+        ></textarea>
+        <button type="submit" class="stn-support-send" id="stn-support-send-btn" data-lang="support-send">Send</button>
+      </form>
+
+      <div class="stn-support-hint" id="stn-support-guest-hint" data-lang="support-guest-hint" hidden>
+        Sign in so our staff can link your messages to your orders. You can still send a message as a guest.
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ -->
 <!-- PAGE: ABOUT                      -->
 <!-- ════════════════════════════════ -->
 <div class="page" id="page-about">
@@ -2639,13 +2639,7 @@ function homeSearchTag(tag) {
   }, 200);
 }
 function filterAndGo(cat) {
-  showPage('products');
-  setTimeout(() => {
-    document.querySelectorAll('#catalog-root .filter-btn').forEach(b => b.classList.remove('active'));
-    const btn = document.querySelector('#catalog-root .filter-btn[onclick*="' + cat + '"]');
-    if (btn) { btn.classList.add('active'); filterProducts(cat, btn); }
-    else filterProducts(cat, null);
-  }, 160);
+  homeSearchTag(cat || '');
 }
 </script>
 <script>
