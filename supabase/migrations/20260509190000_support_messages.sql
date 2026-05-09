@@ -10,11 +10,18 @@ create table if not exists public.support_messages (
   client_role text,
   is_guest boolean not null default false,
   from_side text not null check (from_side in ('user', 'staff')),
-  body text not null,
+  body text not null default '',
+  image_url text,
   staff_name text,
   local_id text,
   created_at timestamptz not null default now()
 );
+
+-- Allow message-only-with-image rows: relax the not null on body via default,
+-- but keep at least one of body/image_url filled.
+alter table public.support_messages
+  add constraint support_messages_has_content
+  check (length(coalesce(body, '')) > 0 or length(coalesce(image_url, '')) > 0);
 
 create index if not exists idx_support_messages_thread_created
   on public.support_messages (thread_id, created_at asc);

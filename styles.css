@@ -3906,3 +3906,95 @@ body.stn-admin-mode { padding-bottom: 0 !important; }
 /* Make sure the admin landing fills the viewport even with consumer chrome hidden */
 body.stn-admin-mode .page#page-admin { min-height: calc(100vh - 80px); }
 body.stn-admin-mode .stn-amazon-nav__primary { padding-top: 0; padding-bottom: 0; }
+
+/* Support chat — image attachments + paperclip button */
+.stn-support-attach-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #f3efff;
+  color: #6b3fd4;
+  cursor: pointer;
+  font-size: 1.1rem;
+  border: 1px solid rgba(124, 58, 237, 0.18);
+  flex-shrink: 0;
+  transition: background 0.15s, transform 0.1s;
+}
+.stn-support-attach-btn:hover { background: #e6dcff; }
+.stn-support-attach-btn:active { transform: scale(0.96); }
+
+.stn-support-attach-preview {
+  padding: 0.55rem 1rem 0;
+  background: #fff;
+}
+.stn-support-attach-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: #f3efff;
+  border: 1px solid rgba(124, 58, 237, 0.22);
+  border-radius: 10px;
+  padding: 0.35rem 0.55rem 0.35rem 0.4rem;
+  max-width: 100%;
+}
+.stn-support-attach-chip img {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 7px;
+  flex-shrink: 0;
+  background: #fff;
+}
+.stn-support-attach-name {
+  font-size: 0.75rem;
+  color: #4a1fa8;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stn-support-attach-remove {
+  background: transparent;
+  border: none;
+  color: #6b3fd4;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 6px;
+}
+.stn-support-attach-remove:hover { background: rgba(124, 58, 237, 0.12); }
+
+/* Image bubbles */
+.stn-support-msg-bubble--has-img { padding: 0.35rem; }
+.stn-support-msg-bubble--has-img .stn-support-msg-text {
+  margin-top: 0.4rem;
+  padding: 0 0.45rem 0.25rem;
+}
+.stn-support-img-link { display: block; line-height: 0; }
+.stn-support-img {
+  display: block;
+  max-width: 260px;
+  max-height: 260px;
+  width: auto;
+  height: auto;
+  object-fit: cover;
+  border-radius: 10px;
+  cursor: zoom-in;
+  background: #f3efff;
+}
+.stn-support-msg--user .stn-support-msg-bubble--has-img {
+  background: rgba(124, 58, 237, 0.92);
+}
+
+/* Admin Messages tab — keep the same image styles inside the pane */
+.stn-adm-msg-attach-preview {
+  padding: 0.55rem 1rem 0;
+  background: #fff;
+  border-top: 1px solid #e5e7eb;
+}
+.stn-adm-msg-form .stn-support-attach-btn {
+  border-radius: 10px;
+}

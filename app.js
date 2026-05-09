@@ -9403,11 +9403,12 @@ function _stnSupportRemoteRowsToThreads(rows) {
       id: _stnSupportMessageIdFromRemote(row) || ('remote_' + ts + '_' + out[clientId].messages.length),
       from: side === 'staff' ? 'staff' : 'user',
       text: row.body || row.text || row.message || '',
+      imageUrl: row.image_url || row.imageUrl || '',
       ts: ts,
       staffName: row.staff_name || row.staffName || (side === 'staff' ? 'Everest Staff' : ''),
       remoteId: row.id,
     };
-    if (!msg.text) return;
+    if (!msg.text && !msg.imageUrl) return;
     out[clientId].messages.push(msg);
     out[clientId].updatedAt = Math.max(out[clientId].updatedAt || 0, ts);
   });
@@ -9505,6 +9506,7 @@ function _stnSupportRemoteBody(thread, entry) {
     is_guest: !!thread.isGuest,
     from_side: entry.from === 'staff' ? 'staff' : 'user',
     body: entry.text || '',
+    image_url: entry.imageUrl || '',
     staff_name: entry.staffName || '',
     local_id: entry.id,
     created_at: new Date(entry.ts || _stnSupportNow()).toISOString(),
@@ -9571,8 +9573,9 @@ function _stnSupportFormatTime(ts) {
 
 function stnSupportPostMessage(clientId, from, text, opts) {
   var msg = String(text == null ? '' : text).trim();
-  if (!msg) return null;
   if (msg.length > 1500) msg = msg.slice(0, 1500);
+  var imageUrl = opts && opts.imageUrl ? String(opts.imageUrl) : '';
+  if (!msg && !imageUrl) return null;
   var threads = _stnSupportLoadThreads();
   var thread;
   if (from === 'staff') {
@@ -9585,6 +9588,7 @@ function stnSupportPostMessage(clientId, from, text, opts) {
     id: 'm_' + _stnSupportNow().toString(36) + '_' + Math.random().toString(36).slice(2, 7),
     from: from === 'staff' ? 'staff' : 'user',
     text: msg,
+    imageUrl: imageUrl,
     ts: _stnSupportNow(),
     staffName: (opts && opts.staffName) || (from === 'staff' ? 'Everest Staff' : ''),
   };
@@ -9612,6 +9616,28 @@ function stnSupportMarkRead(clientId, side) {
   _stnSupportSaveThreads(threads);
 }
 
+/** Build the inner HTML for one chat bubble (text + optional image proof). */
+function _stnSupportBubbleHTML(m, defaultLabel) {
+  var label = m.from === 'staff' ? (m.staffName || 'Everest Staff') : (defaultLabel || 'You');
+  var bubbleParts = '';
+  if (m.imageUrl) {
+    var safeImg = _stnSupportEscape(m.imageUrl);
+    bubbleParts +=
+      '<a class="stn-support-img-link" href="' + safeImg + '" target="_blank" rel="noopener noreferrer">' +
+        '<img class="stn-support-img" src="' + safeImg + '" alt="Attached photo" loading="lazy" />' +
+      '</a>';
+  }
+  if (m.text) {
+    bubbleParts += '<div class="stn-support-msg-text">' + _stnSupportEscape(m.text).replace(/\n/g, '<br>') + '</div>';
+  }
+  return (
+    '<div class="stn-support-msg-bubble' + (m.imageUrl ? ' stn-support-msg-bubble--has-img' : '') + '">' +
+      bubbleParts +
+    '</div>' +
+    '<div class="stn-support-msg-meta">' + _stnSupportEscape(label) + ' · ' + _stnSupportFormatTime(m.ts) + '</div>'
+  );
+}
+
 function stnSupportRenderClientThread() {
   var body = document.getElementById('stn-support-body');
   if (!body) return;
@@ -9625,16 +9651,14 @@ function stnSupportRenderClientThread() {
       '<div class="stn-support-empty">' +
       '<div class="stn-support-empty-ico" aria-hidden="true">💬</div>' +
       '<p class="stn-support-empty-title">Send your first message</p>' +
-      '<p class="stn-support-empty-sub">Our team reads every chat. Share your order number if you have one.</p>' +
+      '<p class="stn-support-empty-sub">Our team reads every chat. Share your order number if you have one. You can also attach a photo if a product arrived damaged.</p>' +
       '</div>';
   } else {
     body.innerHTML = msgs.map(function (m) {
       var side = m.from === 'staff' ? 'staff' : 'user';
-      var label = m.from === 'staff' ? (m.staffName || 'Everest Staff') : 'You';
       return (
         '<div class="stn-support-msg stn-support-msg--' + side + '">' +
-          '<div class="stn-support-msg-bubble">' + _stnSupportEscape(m.text).replace(/\n/g, '<br>') + '</div>' +
-          '<div class="stn-support-msg-meta">' + _stnSupportEscape(label) + ' · ' + _stnSupportFormatTime(m.ts) + '</div>' +
+          _stnSupportBubbleHTML(m, 'You') +
         '</div>'
       );
     }).join('');
@@ -9647,19 +9671,106 @@ function stnSupportRenderClientThread() {
   if (thread) stnSupportMarkRead(clientId, 'client');
 }
 
-function stnSupportSendFromInput() {
+/** Bucket name for support attachments (override via window.STN_SUPPORT_BUCKET). */
+function _stnSupportBucket() {
+  return (typeof window !== 'undefined' && window.STN_SUPPORT_BUCKET) || 'support-attachments';
+}
+
+/**
+ * Compress + upload a chat attachment. Falls back to an inline data URL
+ * (≤ ~700KB) if the storage bucket is missing or anonymous insert is denied,
+ * so the proof photo still goes through.
+ */
+async function _stnSupportUploadImage(file, sender) {
+  if (!file) throw new Error('No file');
+  var type = String(file.type || '').toLowerCase();
+  if (type && type.indexOf('image/') !== 0) {
+    throw new Error('Only image files are supported');
+  }
+  if (file.size > 12 * 1024 * 1024) {
+    throw new Error('Image too large (max 12 MB)');
+  }
+  var blob;
+  try {
+    blob = await compressImageFileToJpegBlob(file, 1600, 0.82);
+  } catch (e) {
+    blob = file;
+  }
+  var bucket = _stnSupportBucket();
+  if (typeof SB !== 'undefined' && SB && typeof SB.uploadStorageObject === 'function') {
+    try {
+      var folder = sender === 'staff' ? 'staff' : 'customer';
+      var ext = (blob.type && blob.type.indexOf('png') >= 0) ? 'png' : 'jpg';
+      var path = folder + '/' + new Date().toISOString().slice(0, 10) + '/' +
+        Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+      var up = await SB.uploadStorageObject(bucket, path, blob, blob.type || 'image/jpeg');
+      if (up && up.publicUrl) return up.publicUrl;
+    } catch (e) {
+      if (typeof STNLog !== 'undefined') STNLog.warn('support.uploadImage', e && e.message);
+    }
+  }
+  if (blob.size > 700 * 1024) {
+    try {
+      blob = await compressImageFileToJpegBlob(file, 900, 0.7);
+    } catch (e) {}
+  }
+  if (blob.size > 900 * 1024) {
+    throw new Error('Photo too large for fallback storage. Create a public bucket "' + _stnSupportBucket() + '" in Supabase.');
+  }
+  return await blobToDataUrl(blob);
+}
+
+async function stnSupportSendFromInput() {
   var input = document.getElementById('stn-support-input');
+  var fileInput = document.getElementById('stn-support-file');
+  var sendBtn = document.getElementById('stn-support-send-btn');
   if (!input) return;
-  var val = input.value;
-  if (!val || !val.trim()) {
-    input.focus();
-    return;
+  var val = (input.value || '').trim();
+  var file = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+  if (!val && !file) { input.focus(); return; }
+  var imageUrl = '';
+  if (file) {
+    if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Uploading…'; }
+    try {
+      imageUrl = await _stnSupportUploadImage(file, 'user');
+    } catch (e) {
+      toast(e && e.message ? e.message : 'Could not upload image', 'error');
+      if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; }
+      return;
+    }
+    if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; }
   }
   var clientId = _stnSupportCurrentClientId();
-  stnSupportPostMessage(clientId, 'user', val);
+  stnSupportPostMessage(clientId, 'user', val, { imageUrl: imageUrl });
   input.value = '';
+  if (fileInput) fileInput.value = '';
+  stnSupportClearAttachmentPreview();
   stnSupportRenderClientThread();
   input.focus();
+}
+
+/** Show a small preview chip of the chosen attachment before sending. */
+function stnSupportOnAttachmentPick() {
+  var fileInput = document.getElementById('stn-support-file');
+  var preview = document.getElementById('stn-support-attach-preview');
+  if (!fileInput || !preview) return;
+  var f = fileInput.files && fileInput.files[0];
+  if (!f) { preview.innerHTML = ''; preview.hidden = true; return; }
+  var url = URL.createObjectURL(f);
+  preview.innerHTML =
+    '<div class="stn-support-attach-chip">' +
+      '<img src="' + url + '" alt="Preview" />' +
+      '<span class="stn-support-attach-name">' + _stnSupportEscape(f.name || 'photo') + '</span>' +
+      '<button type="button" class="stn-support-attach-remove" onclick="stnSupportClearAttachmentPreview()" aria-label="Remove attachment">✕</button>' +
+    '</div>';
+  preview.hidden = false;
+}
+
+function stnSupportClearAttachmentPreview() {
+  var fileInput = document.getElementById('stn-support-file');
+  var preview = document.getElementById('stn-support-attach-preview');
+  if (fileInput) fileInput.value = '';
+  if (preview) { preview.innerHTML = ''; preview.hidden = true; }
 }
 
 function stnSupportClear() {
@@ -9766,8 +9877,7 @@ async function renderAdminMessages(container) {
   var listHTML = list.map(function (t) {
     var isActive = active && String(active.clientId) === String(t.clientId);
     var last = t.messages && t.messages.length ? t.messages[t.messages.length - 1] : null;
-    var preview = last ? (last.from === 'staff' ? 'You: ' : '') + (last.text || '') : 'No messages yet';
-    if (preview.length > 60) preview = preview.slice(0, 58) + '…';
+    var preview = _stnSupportPreviewText(last);
     var unread = t.unreadForStaff || 0;
     var roleTag = t.isGuest ? 'Guest' : (t.role || 'customer');
     return (
@@ -9857,11 +9967,9 @@ function renderAdminMessagePane() {
   var msgs = t.messages || [];
   var msgsHTML = msgs.length ? msgs.map(function (m) {
     var side = m.from === 'staff' ? 'staff' : 'user';
-    var label = m.from === 'staff' ? (m.staffName || 'Staff') : (t.label || 'Customer');
     return (
       '<div class="stn-support-msg stn-support-msg--' + side + '">' +
-        '<div class="stn-support-msg-bubble">' + _stnSupportEscape(m.text).replace(/\n/g, '<br>') + '</div>' +
-        '<div class="stn-support-msg-meta">' + _stnSupportEscape(label) + ' · ' + _stnSupportFormatTime(m.ts) + '</div>' +
+        _stnSupportBubbleHTML(m, t.label || 'Customer') +
       '</div>'
     );
   }).join('') : '<div class="stn-support-empty"><div class="stn-support-empty-ico">💬</div><p class="stn-support-empty-title">No messages in this thread</p></div>';
@@ -9878,9 +9986,15 @@ function renderAdminMessagePane() {
       '</div>' +
     '</header>' +
     '<div class="stn-adm-msg-pane-body" id="stn-adm-msg-pane-body">' + msgsHTML + '</div>' +
+    '<div class="stn-adm-msg-attach-preview" id="stn-adm-msg-attach-preview" hidden></div>' +
     '<form class="stn-adm-msg-form" id="stn-adm-msg-form" onsubmit="event.preventDefault(); adminSendSupportReply();">' +
+      '<label class="stn-support-attach-btn" for="stn-adm-msg-file" title="Attach a photo">' +
+        '<span aria-hidden="true">📎</span>' +
+        '<span class="stn-sr-only">Attach photo</span>' +
+      '</label>' +
+      '<input type="file" id="stn-adm-msg-file" accept="image/*" style="display:none" onchange="adminSupportOnAttachmentPick()" />' +
       '<textarea id="stn-adm-msg-input" rows="2" maxlength="1500" placeholder="Reply as Everest Staff…" class="stn-support-input"></textarea>' +
-      '<button type="submit" class="stn-support-send">Send reply</button>' +
+      '<button type="submit" id="stn-adm-msg-send" class="stn-support-send">Send reply</button>' +
     '</form>';
 
   var body = document.getElementById('stn-adm-msg-pane-body');
@@ -9899,7 +10013,7 @@ function selectAdminMessageThread(clientId) {
   renderAdminMessagePane();
 }
 
-function adminSendSupportReply() {
+async function adminSendSupportReply() {
   if (!State.currentUser || State.currentUser.role !== 'admin') {
     toast('Admin sign-in required', 'error');
     return;
@@ -9907,14 +10021,31 @@ function adminSendSupportReply() {
   var clientId = window.__stnAdminActiveThread;
   if (!clientId) return;
   var input = document.getElementById('stn-adm-msg-input');
+  var fileInput = document.getElementById('stn-adm-msg-file');
+  var sendBtn = document.getElementById('stn-adm-msg-send');
   if (!input) return;
-  var val = input.value;
-  if (!val || !val.trim()) { input.focus(); return; }
+  var val = (input.value || '').trim();
+  var file = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+  if (!val && !file) { input.focus(); return; }
+  var imageUrl = '';
+  if (file) {
+    if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Uploading…'; }
+    try {
+      imageUrl = await _stnSupportUploadImage(file, 'staff');
+    } catch (e) {
+      toast(e && e.message ? e.message : 'Could not upload image', 'error');
+      if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send reply'; }
+      return;
+    }
+    if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send reply'; }
+  }
   var staffName = State.currentUser.first_name || State.currentUser.firstName || 'Everest Staff';
   window.__stnAdminSuppressUpdate = true;
-  stnSupportPostMessage(clientId, 'staff', val, { staffName: staffName });
+  stnSupportPostMessage(clientId, 'staff', val, { staffName: staffName, imageUrl: imageUrl });
   window.__stnAdminSuppressUpdate = false;
   input.value = '';
+  if (fileInput) fileInput.value = '';
+  adminSupportClearAttachmentPreview();
   // Update the conversation list timestamp/preview without nuking focus
   refreshAdminMessageRowsPreview();
   renderAdminMessagePane();
@@ -9932,12 +10063,47 @@ function refreshAdminMessageRowsPreview() {
   var row = document.querySelector('.stn-adm-msg-row[data-stn-thread="' + CSS.escape(String(clientId)) + '"]');
   if (!row) return;
   var lastMsg = t.messages && t.messages.length ? t.messages[t.messages.length - 1] : null;
-  var preview = lastMsg ? (lastMsg.from === 'staff' ? 'You: ' : '') + (lastMsg.text || '') : 'No messages yet';
-  if (preview.length > 60) preview = preview.slice(0, 58) + '…';
+  var preview = _stnSupportPreviewText(lastMsg);
   var prevEl = row.querySelector('.stn-adm-msg-row-preview');
   if (prevEl) prevEl.textContent = preview;
   var timeEl = row.querySelector('.stn-adm-msg-row-time');
   if (timeEl) timeEl.textContent = _stnSupportFormatTime(t.updatedAt);
+}
+
+/** Build a 1-line preview that gracefully handles photo-only messages. */
+function _stnSupportPreviewText(lastMsg) {
+  if (!lastMsg) return 'No messages yet';
+  var prefix = lastMsg.from === 'staff' ? 'You: ' : '';
+  var body;
+  if (lastMsg.text) body = lastMsg.text;
+  else if (lastMsg.imageUrl) body = '📷 Photo';
+  else body = '';
+  var out = prefix + body;
+  if (out.length > 60) out = out.slice(0, 58) + '…';
+  return out;
+}
+
+function adminSupportOnAttachmentPick() {
+  var fileInput = document.getElementById('stn-adm-msg-file');
+  var preview = document.getElementById('stn-adm-msg-attach-preview');
+  if (!fileInput || !preview) return;
+  var f = fileInput.files && fileInput.files[0];
+  if (!f) { preview.innerHTML = ''; preview.hidden = true; return; }
+  var url = URL.createObjectURL(f);
+  preview.innerHTML =
+    '<div class="stn-support-attach-chip">' +
+      '<img src="' + url + '" alt="Preview" />' +
+      '<span class="stn-support-attach-name">' + _stnSupportEscape(f.name || 'photo') + '</span>' +
+      '<button type="button" class="stn-support-attach-remove" onclick="adminSupportClearAttachmentPreview()" aria-label="Remove attachment">✕</button>' +
+    '</div>';
+  preview.hidden = false;
+}
+
+function adminSupportClearAttachmentPreview() {
+  var fileInput = document.getElementById('stn-adm-msg-file');
+  var preview = document.getElementById('stn-adm-msg-attach-preview');
+  if (fileInput) fileInput.value = '';
+  if (preview) { preview.innerHTML = ''; preview.hidden = true; }
 }
 
 // ── FLASH SALE TIMER ──

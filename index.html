@@ -2475,7 +2475,14 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 
       <div class="stn-support-body" id="stn-support-body" role="log" aria-live="polite" aria-relevant="additions"></div>
 
+      <div class="stn-support-attach-preview" id="stn-support-attach-preview" hidden></div>
+
       <form class="stn-support-form" id="stn-support-form" onsubmit="event.preventDefault(); stnSupportSendFromInput();">
+        <label class="stn-support-attach-btn" for="stn-support-file" title="Attach a photo (proof of damage, etc.)">
+          <span aria-hidden="true">📎</span>
+          <span class="stn-sr-only">Attach photo</span>
+        </label>
+        <input type="file" id="stn-support-file" accept="image/*" style="display:none" onchange="stnSupportOnAttachmentPick()" />
         <textarea
           id="stn-support-input"
           class="stn-support-input"
