@@ -288,6 +288,7 @@ function _sbUniqueUserInsertAttempts(body) {
     'phone',
     'wilaya',
     'delegation',
+    'date_of_birth',
     'role',
     'points',
     'verified',
@@ -485,6 +486,68 @@ const SB = {
       throw err;
     }
     return Array.isArray(data) && data[0] != null ? data[0] : data;
+  },
+
+  /**
+   * Delete every product owned by the given vendor user id (text).
+   * Returns the number of rows actually removed.
+   */
+  async deleteVendorProducts(vendorId) {
+    if (vendorId == null || vendorId === '') return 0;
+    _sbSafeTable('products');
+    const url = `${SUPABASE_URL}/rest/v1/products?vendor_id=eq.${_sbEq(vendorId)}`;
+    let res;
+    try {
+      res = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          Prefer: 'return=representation',
+        },
+      });
+    } catch (netErr) {
+      if (typeof window !== 'undefined' && window.STNLog) {
+        window.STNLog.warn('SB.deleteVendorProducts.network', String((netErr && netErr.message) || netErr));
+      }
+      return 0;
+    }
+    if (!res.ok) {
+      let msg = 'Supabase error';
+      try {
+        const errBody = await res.json();
+        if (Array.isArray(errBody) && errBody[0]) {
+          msg = errBody[0].message || errBody[0].error || msg;
+        } else if (errBody && typeof errBody === 'object') {
+          msg = errBody.message || errBody.error_description || errBody.error || msg;
+        }
+      } catch (e) {}
+      const err = new Error(msg);
+      err.status = res.status;
+      err._stnLogged = true;
+      if (typeof window !== 'undefined' && window.STNLog) {
+        window.STNLog.error('SB.deleteVendorProducts.http', err, { status: res.status, vendorId: String(vendorId) });
+      }
+      throw err;
+    }
+    const text = await res.text();
+    if (!text || !String(text).trim()) return 0;
+    let data;
+    try { data = JSON.parse(text); } catch (e) { return 0; }
+    return Array.isArray(data) ? data.length : 0;
+  },
+
+  /**
+   * Cascade-delete a user using the server function `delete_user_cascade(text)`
+   * (added by migration 20260509200000_user_deletion_cascade.sql).
+   * Wipes vendor products + support threads + orphans references, then drops
+   * the user row — all in one server-side transaction.
+   *
+   * Throws if the RPC isn't deployed (caller should fall back to deleteUser).
+   */
+  async deleteUserCascade(id) {
+    if (id == null || id === '') throw new Error('Invalid user id');
+    return this.rpc('delete_user_cascade', { uid: String(id) });
   },
 
   /** Hard-delete row in public.users (requires RLS DELETE policy for your API role). */
@@ -727,30 +790,56 @@ const SB = {
     var lim = parseInt(String(limit == null ? 2000 : limit), 10);
     if (!Number.isFinite(lim) || lim < 1) lim = 2000;
     lim = Math.min(lim, 5000);
+    var rows = [];
     try {
-      const rows = await this.req('GET', 'support_messages', null, `?order=created_at.asc&limit=${lim}`);
-      return Array.isArray(rows) ? rows : [];
+      const direct = await this.req('GET', 'support_messages', null, `?order=created_at.asc&limit=${lim}`);
+      if (Array.isArray(direct)) rows = rows.concat(direct);
     } catch (e) {
-      try {
-        const alerts = await this.req(
-          'GET',
-          'admin_alerts',
-          null,
-          `?kind=eq.support_message&order=created_at.asc&limit=${lim}`
-        );
-        if (!Array.isArray(alerts)) return [];
-        return alerts.map(function (a) {
+      // Dedicated table may not be deployed yet.
+    }
+    try {
+      const alerts = await this.req(
+        'GET',
+        'admin_alerts',
+        null,
+        `?kind=eq.support_message&order=created_at.asc&limit=${lim}`
+      );
+      if (Array.isArray(alerts)) {
+        rows = rows.concat(alerts.map(function (a) {
           var meta = a && a.meta && typeof a.meta === 'object' ? a.meta : {};
           return Object.assign({}, meta, {
             id: a.id,
             created_at: meta.created_at || a.created_at,
             _source: 'admin_alerts',
           });
-        });
+        }));
+      }
+    } catch (e2) {
+      // Older projects may not have admin_alerts either.
+    }
+    rows.sort(function (a, b) {
+      return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+    });
+    return rows;
+  },
+
+  async deleteSupportThread(threadId) {
+    var id = String(threadId == null ? '' : threadId).trim();
+    if (!id) return null;
+    try {
+      await this.req('DELETE', 'support_messages', null, `?thread_id=eq.${_sbEq(id)}`);
+    } catch (e) {
+      try {
+        if (typeof window !== 'undefined' && window.STNLog) {
+          window.STNLog.warn('SB.deleteSupportThread', e && e.message, { threadId: id });
+        }
       } catch (e2) {
-        return [];
       }
     }
+    try {
+      await this.req('DELETE', 'admin_alerts', null, `?kind=eq.support_message&meta->>thread_id=eq.${_sbEq(id)}`);
+    } catch (e3) {}
+    return null;
   },
 
   // ── ORDERS ──

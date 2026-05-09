@@ -266,6 +266,7 @@ function _sbUniqueUserInsertAttempts(body) {
     'phone',
     'wilaya',
     'delegation',
+    'date_of_birth',
     'role',
     'points',
     'verified',
@@ -597,30 +598,49 @@ const SB = {
     var lim = parseInt(String(limit == null ? 2000 : limit), 10);
     if (!Number.isFinite(lim) || lim < 1) lim = 2000;
     lim = Math.min(lim, 5000);
+    var rows = [];
     try {
-      const rows = await this.req('GET', 'support_messages', null, `?order=created_at.asc&limit=${lim}`);
-      return Array.isArray(rows) ? rows : [];
-    } catch (e) {
-      try {
-        const alerts = await this.req(
-          'GET',
-          'admin_alerts',
-          null,
-          `?kind=eq.support_message&order=created_at.asc&limit=${lim}`
-        );
-        if (!Array.isArray(alerts)) return [];
-        return alerts.map(function (a) {
+      const direct = await this.req('GET', 'support_messages', null, `?order=created_at.asc&limit=${lim}`);
+      if (Array.isArray(direct)) rows = rows.concat(direct);
+    } catch (e) {}
+    try {
+      const alerts = await this.req(
+        'GET',
+        'admin_alerts',
+        null,
+        `?kind=eq.support_message&order=created_at.asc&limit=${lim}`
+      );
+      if (Array.isArray(alerts)) {
+        rows = rows.concat(alerts.map(function (a) {
           var meta = a && a.meta && typeof a.meta === 'object' ? a.meta : {};
           return Object.assign({}, meta, {
             id: a.id,
             created_at: meta.created_at || a.created_at,
             _source: 'admin_alerts',
           });
-        });
-      } catch (e2) {
-        return [];
+        }));
+      }
+    } catch (e2) {}
+    rows.sort(function (a, b) {
+      return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+    });
+    return rows;
+  },
+
+  async deleteSupportThread(threadId) {
+    var id = String(threadId == null ? '' : threadId).trim();
+    if (!id) return null;
+    try {
+      await this.req('DELETE', 'support_messages', null, `?thread_id=eq.${_sbEq(id)}`);
+    } catch (e) {
+      if (typeof window !== 'undefined' && window.STNLog) {
+        window.STNLog.warn('SB.deleteSupportThread', e && e.message, { threadId: id });
       }
     }
+    try {
+      await this.req('DELETE', 'admin_alerts', null, `?kind=eq.support_message&meta->>thread_id=eq.${_sbEq(id)}`);
+    } catch (e2) {}
+    return null;
   },
 
   // ── ORDERS ──

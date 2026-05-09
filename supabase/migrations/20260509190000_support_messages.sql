@@ -17,11 +17,32 @@ create table if not exists public.support_messages (
   created_at timestamptz not null default now()
 );
 
--- Allow message-only-with-image rows: relax the not null on body via default,
--- but keep at least one of body/image_url filled.
+-- Safe upgrades if the first version of this migration was already applied.
+alter table public.users
+  add column if not exists date_of_birth date;
+
 alter table public.support_messages
-  add constraint support_messages_has_content
-  check (length(coalesce(body, '')) > 0 or length(coalesce(image_url, '')) > 0);
+  add column if not exists image_url text;
+
+alter table public.support_messages
+  alter column body set default '';
+
+alter table public.support_messages
+  alter column body drop not null;
+
+-- Allow message-only-with-image rows, but keep at least one content field.
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'support_messages_has_content'
+      and conrelid = 'public.support_messages'::regclass
+  ) then
+    alter table public.support_messages
+      add constraint support_messages_has_content
+      check (length(coalesce(body, '')) > 0 or length(coalesce(image_url, '')) > 0);
+  end if;
+end $$;
 
 create index if not exists idx_support_messages_thread_created
   on public.support_messages (thread_id, created_at asc);
@@ -34,7 +55,7 @@ create unique index if not exists idx_support_messages_local_id
   where local_id is not null;
 
 grant usage, select on sequence public.support_messages_id_seq to anon, authenticated;
-grant select, insert on table public.support_messages to anon, authenticated;
+grant select, insert, delete on table public.support_messages to anon, authenticated;
 
 alter table public.support_messages enable row level security;
 
@@ -47,5 +68,20 @@ drop policy if exists "support_messages_select_v1" on public.support_messages;
 create policy "support_messages_select_v1"
 on public.support_messages for select to anon, authenticated
 using (true);
+
+drop policy if exists "support_messages_delete_v1" on public.support_messages;
+create policy "support_messages_delete_v1"
+on public.support_messages for delete to anon, authenticated
+using (true);
+
+notify pgrst, 'reload schema';
+
+-- Fallback cleanup support for projects still writing support messages to admin_alerts.
+grant delete on table public.admin_alerts to anon, authenticated;
+
+drop policy if exists "admin_alerts_delete_support_v1" on public.admin_alerts;
+create policy "admin_alerts_delete_support_v1"
+on public.admin_alerts for delete to anon, authenticated
+using (kind = 'support_message');
 
 notify pgrst, 'reload schema';

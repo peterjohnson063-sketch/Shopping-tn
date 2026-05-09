@@ -1506,7 +1506,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
         <button type="button" class="stn-amazon-nav__sub-link" onclick="showPage('home')">All</button>
         <button type="button" class="stn-amazon-nav__sub-link stn-amazon-nav__sub-link--key" onclick="showPage('carpenter')" data-lang="nav-carpenter">Sur Mesure</button>
         <button type="button" class="stn-amazon-nav__sub-link stn-amazon-nav__sub-link--key" onclick="showPage('track')" data-lang="nav-track">Track</button>
-        <button type="button" class="stn-amazon-nav__sub-link" onclick="showPage('support')" data-lang="nav-support">Customer Service</button>
+        <button type="button" class="stn-amazon-nav__sub-link stn-auth-only" data-stn-auth="required" onclick="showPage('support')" data-lang="nav-support">Customer Service</button>
       </div>
     </div>
   </div>
@@ -1535,7 +1535,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     <li><button type="button" class="nav-drawer-link" data-lang="nav-home" onclick="toggleNavDrawer(false);showPage('home')">Home</button></li>
     <li><button type="button" class="nav-drawer-link nav-drawer-link--key" data-lang="nav-carpenter" onclick="toggleNavDrawer(false);showPage('carpenter')">Sur Mesure</button></li>
     <li><button type="button" class="nav-drawer-link nav-drawer-link--key" data-lang="nav-track" onclick="toggleNavDrawer(false);showPage('track')">Track</button></li>
-    <li><button type="button" class="nav-drawer-link" data-lang="nav-support" onclick="toggleNavDrawer(false);showPage('support')">Customer Service</button></li>
+    <li class="stn-auth-only" data-stn-auth="required"><button type="button" class="nav-drawer-link" data-lang="nav-support" onclick="toggleNavDrawer(false);showPage('support')">Customer Service</button></li>
     <li><button type="button" class="nav-drawer-link" data-lang="nav-loyalty" onclick="toggleNavDrawer(false);showPage('loyalty')">Rewards</button></li>
     <li><button type="button" class="nav-drawer-link" data-lang="nav-about" onclick="toggleNavDrawer(false);showPage('about')">About</button></li>
     <li><button type="button" class="nav-drawer-link" onclick="toggleNavDrawer(false);showPage('wishlist')">♡ Wishlist</button></li>
@@ -1669,6 +1669,110 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     </div>
   </section>
 
+  <!-- Amazon-style alternating rows: categories ↔ product rails -->
+  <section class="home-amazon-shop" aria-labelledby="home-cats-title">
+    <div class="home-amazon-shop__inner">
+
+      <!-- 1. Categories: top-level mix -->
+      <div class="home-amz-row">
+        <div class="home-amz-row__head">
+          <h2 id="home-cats-title" class="home-amz-row__title" data-lang="home-cats-title">Shop by category</h2>
+          <button type="button" class="home-amz-row__see" onclick="showPage('products')" data-lang="home-cats-see">See all →</button>
+        </div>
+        <div id="home-cats-rail" class="home-amz-row__rail" role="list"></div>
+      </div>
+
+      <!-- 2. Products: ⚡ Flash sales -->
+      <div class="home-amz-row">
+        <div class="home-amz-row__head">
+          <h2 class="home-amz-row__title">⚡ Flash sales</h2>
+          <button type="button" class="home-amz-row__see" onclick="showPage('products')">See all →</button>
+        </div>
+        <div id="home-flash-rail" class="home-product-rail" role="list"></div>
+      </div>
+
+      <!-- 3. Categories: Fashion & style -->
+      <div class="home-amz-row">
+        <div class="home-amz-row__head">
+          <h2 class="home-amz-row__title">Fashion & style</h2>
+          <button type="button" class="home-amz-row__see" onclick="homeSearchTag('fashion')">Explore →</button>
+        </div>
+        <div id="home-fashion-rail" class="home-amz-row__rail" role="list"></div>
+      </div>
+
+      <!-- 4. Products: Just arrived -->
+      <div class="home-amz-row">
+        <div class="home-amz-row__head">
+          <h2 class="home-amz-row__title">Just arrived</h2>
+          <button type="button" class="home-amz-row__see" onclick="showPage('products')">See all →</button>
+        </div>
+        <div id="home-justin-rail" class="home-product-rail" role="list"></div>
+      </div>
+
+      <!-- 5. Categories: Electronics & tech -->
+      <div class="home-amz-row">
+        <div class="home-amz-row__head">
+          <h2 class="home-amz-row__title">Electronics & tech</h2>
+          <button type="button" class="home-amz-row__see" onclick="homeSearchTag('electronics')">Explore →</button>
+        </div>
+        <div id="home-tech-rail" class="home-amz-row__rail" role="list"></div>
+      </div>
+
+      <!-- 6. Products: Customer favorites -->
+      <div class="home-amz-row">
+        <div class="home-amz-row__head">
+          <h2 class="home-amz-row__title">Customer favorites</h2>
+          <button type="button" class="home-amz-row__see" onclick="showPage('products')">See all →</button>
+        </div>
+        <div id="home-favorites-rail" class="home-product-rail" role="list"></div>
+      </div>
+
+      <!-- 7. Categories: Beauty & lifestyle -->
+      <div class="home-amz-row">
+        <div class="home-amz-row__head">
+          <h2 class="home-amz-row__title">Beauty & lifestyle</h2>
+          <button type="button" class="home-amz-row__see" onclick="homeSearchTag('beauty')">Explore →</button>
+        </div>
+        <div id="home-beauty-rail" class="home-amz-row__rail" role="list"></div>
+      </div>
+
+      <!-- 8. Categories: Home & furniture -->
+      <div class="home-amz-row">
+        <div class="home-amz-row__head">
+          <h2 class="home-amz-row__title">Home & furniture</h2>
+          <button type="button" class="home-amz-row__see" onclick="homeSearchTag('furniture')">Explore →</button>
+        </div>
+        <div id="home-home-rail" class="home-amz-row__rail" role="list"></div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Most sold / Best sellers -->
+  <section class="home-new-products" aria-labelledby="home-bestsellers-title">
+    <div class="home-new-products__inner">
+      <div class="home-new-products__head">
+        <h2 id="home-bestsellers-title" class="home-new-products__title" data-lang="home-bestsellers-title">Most sold</h2>
+        <button type="button" class="home-new-products__see" onclick="showPage('products')" data-lang="home-bestsellers-see">See all →</button>
+      </div>
+      <div id="home-bestsellers-grid" class="home-prod-grid home-prod-grid--tight"></div>
+    </div>
+  </section>
+
+  <!-- Special offers / Deals rail -->
+  <section class="home-trendy-bar" aria-labelledby="home-deals-title">
+    <div class="home-trendy-bar__inner">
+      <div class="home-trendy-bar__head">
+        <div>
+          <h2 id="home-deals-title" class="home-trendy-bar__title" data-lang="home-deals-title">Special offers</h2>
+          <p class="home-trendy-bar__sub" data-lang="home-deals-sub">Discounted picks — limited time.</p>
+        </div>
+        <button type="button" class="home-trendy-bar__see" onclick="showPage('products')" data-lang="home-deals-see">See all →</button>
+      </div>
+      <div id="home-deals-rail" class="home-product-rail" role="list"></div>
+    </div>
+  </section>
+
   <section class="home-new-products" aria-labelledby="home-new-products-title">
     <div class="home-new-products__inner">
       <div class="home-new-products__head">
@@ -1783,11 +1887,9 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
     </div>
   </section>
 
-  <!-- Off-screen targets for renderHome() (legacy grids; not shown on home) -->
+  <!-- Off-screen target for renderHome() (legacy featured grid; not shown on home) -->
   <div class="stn-sr-only" aria-hidden="true">
-    <div id="home-deals-rail" class="home-product-rail"></div>
     <div id="home-featured-grid"></div>
-    <div id="home-bestsellers-grid"></div>
   </div>
 
 </div>

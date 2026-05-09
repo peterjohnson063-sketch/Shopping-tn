@@ -907,6 +907,7 @@ function updateNavUser() {
     var staffMode = !!(State.currentUser && (State.currentUser.role === 'admin' || State.currentUser.role === 'hub'));
     document.body.classList.toggle('stn-staff-mode', staffMode);
     document.body.classList.toggle('stn-admin-mode', !!(State.currentUser && State.currentUser.role === 'admin'));
+    document.body.classList.toggle('stn-signed-in', !!State.currentUser);
     syncAdminDrawer();
   } catch (eClass) {}
   if (!btn) return;
@@ -3335,6 +3336,10 @@ function renderAuth() {
           <label class="form-label">Phone Number *</label>
           <input type="tel" class="form-input" id="reg-phone" placeholder="+216 XX XXX XXX"/>
         </div>
+        <div class="form-group" style="margin-bottom:1rem">
+          <label class="form-label">Birthday (optional)</label>
+          <input type="date" class="form-input" id="reg-birthday"/>
+        </div>
         <div class="form-row" style="margin-bottom:1rem">
           <div class="form-group">
             <label class="form-label">Wilaya (State) *</label>
@@ -3358,24 +3363,6 @@ function renderAuth() {
           <label class="form-label">Confirm Password *</label>
           <input type="password" class="form-input" id="reg-pass2" placeholder="Repeat password"/>
         </div>
-        <div class="form-group" style="margin-bottom:1.5rem;padding:1rem;background:#f5f2ff;border-radius:12px;border:1px solid rgba(107,63,212,0.2)">
-          <label style="display:flex;align-items:center;gap:0.8rem;cursor:pointer">
-            <input type="checkbox" id="reg-is-vendor" onchange="document.getElementById('reg-vendor-fields').style.display=this.checked?'block':'none'" style="width:18px;height:18px;accent-color:#7c3aed"/>
-            <span style="font-size:0.85rem;color:#1e0a4e;font-weight:500">🏪 I want to open a seller shop on Everest</span>
-          </label>
-          <p style="font-size:0.72rem;color:var(--text-muted);margin:0.55rem 0 0 1.95rem;line-height:1.45">Sellers can self-register with full details. Artist accounts are managed by Everest staff and issued directly.</p>
-        </div>
-        <div id="reg-vendor-fields" style="display:none;margin-bottom:1.5rem;padding:1rem;background:#f8f7ff;border-radius:12px;border:1px solid rgba(107,63,212,0.15)">
-          <div class="form-group" style="margin-bottom:0.7rem">
-            <label class="form-label">CIN number *</label>
-            <input type="text" class="form-input" id="reg-vendor-cin" placeholder="National ID number"/>
-          </div>
-          <div class="form-group">
-            <label class="form-label">CIN photo *</label>
-            <input type="file" class="form-input" id="reg-vendor-cin-photo" accept="image/*"/>
-          </div>
-          <p style="font-size:0.72rem;color:#6b21a8;line-height:1.4;margin-top:0.55rem">Your seller profile is created immediately after details are submitted.</p>
-        </div>
         <button class="btn btn-gold btn-full btn-lg" onclick="doRegister()">Create Account →</button>
       </div>
     </div>
@@ -3387,16 +3374,6 @@ function switchAuthTab(tab) {
   document.getElementById('auth-register').style.display = tab === 'register' ? 'block' : 'none';
   document.getElementById('tab-login').classList.toggle('active', tab === 'login');
   document.getElementById('tab-register').classList.toggle('active', tab === 'register');
-  setTimeout(function () {
-    var cb = document.getElementById('reg-is-vendor');
-    var fields = document.getElementById('reg-vendor-fields');
-    if (cb && fields) {
-      fields.style.display = cb.checked ? 'block' : 'none';
-      cb.onchange = function () {
-        fields.style.display = cb.checked ? 'block' : 'none';
-      };
-    }
-  }, 80);
 }
 
 function populateDelegations() {
@@ -3532,6 +3509,7 @@ async function doRegister() {
   const lname = document.getElementById('reg-lname')?.value?.trim();
   const email = document.getElementById('reg-email')?.value?.trim();
   const phone = document.getElementById('reg-phone')?.value?.trim();
+  const birthday = document.getElementById('reg-birthday')?.value || '';
   const wilaya = document.getElementById('reg-wilaya')?.value;
   const delegation = document.getElementById('reg-delegation')?.value;
   const pass = document.getElementById('reg-pass')?.value;
@@ -3576,45 +3554,22 @@ async function doRegister() {
   const users = STN.DB.get('users') || [];
   if (users.find(u => u.email === email)) { toast('⚠️ Email already registered', 'error'); return; }
 
-  const isVendor = !!(document.getElementById('reg-is-vendor') && document.getElementById('reg-is-vendor').checked);
-  const vendorCin = ((document.getElementById('reg-vendor-cin') && document.getElementById('reg-vendor-cin').value) || '').trim();
-  const vendorCinFileEl = document.getElementById('reg-vendor-cin-photo');
-  const vendorCinFile = vendorCinFileEl && vendorCinFileEl.files ? vendorCinFileEl.files[0] : null;
-  if (isVendor) {
-    if (!vendorCin) {
-      toast('Seller signup requires CIN number', 'error');
-      return;
-    }
-    if (!vendorCinFile) {
-      toast('Please upload CIN photo to complete seller signup', 'error');
-      return;
-    }
-  }
-
   try {
-    var regRole = isVendor ? 'vendor' : 'customer';
-    var vendorCinPhotoUrl = null;
-    if (isVendor && vendorCinFile) {
-      try {
-        vendorCinPhotoUrl = await adminUploadDriverKycImage(vendorCinFile, 'vendor-cin');
-      } catch (upErr) {
-        toast('Could not upload CIN photo. Please try again.', 'error');
-        return;
-      }
-    }
-
+    // Public sign-up only creates customer accounts.
+    // Vendor / driver / hub accounts are issued by Everest staff from the admin dashboard.
     var userPayload = {
       email, password: pass,
       first_name: fname, last_name: lname,
       phone, wilaya, delegation,
-      role: regRole,
+      date_of_birth: birthday || null,
+      role: 'customer',
       points: 100,
       verified: true,
-      avatar: isVendor ? '🏪' : '👤',
-      shop_name: isVendor ? 'Everest' : null,
-      specialty: isVendor ? 'furniture' : null,
-      id_card_number: isVendor ? vendorCin : null,
-      cin_document_url: isVendor ? vendorCinPhotoUrl : null
+      avatar: '👤',
+      shop_name: null,
+      specialty: null,
+      id_card_number: null,
+      cin_document_url: null
     };
 
     var remoteExisting = null;
@@ -3658,15 +3613,8 @@ async function doRegister() {
     await healCurrentUserFromSupabase();
     STN.DB.set('currentUser', State.currentUser);
     updateNavUser();
-    if (isVendor) {
-      void everestSyncVendorDefaults(State.currentUser.id);
-      toast('✦ Artist account activated. You can now upload products.', 'success');
-      if (needsVendorHoursOnboarding()) showPage('vendor-hours');
-      else showPage('vendor');
-    } else {
-      toast(`✦ Welcome to Everest, ${fname}! You earned 100 bonus points!`, 'success');
-      showPage('home');
-    }
+    toast(`✦ Welcome to Everest, ${fname}! You earned 100 bonus points!`, 'success');
+    showPage('home');
   } catch(e) {
     if (typeof STNLog !== 'undefined') STNLog.error('auth.register', e, { email });
     var em = String(e && e.message ? e.message : 'Registration failed');
@@ -3780,6 +3728,150 @@ async function deleteMyAccount() {
 function renderHome() {
   const products = State.products || [];
   renderHomeHeroMosaic(products);
+
+  var catsRail = document.getElementById('home-cats-rail');
+  if (catsRail) {
+    var mixedTopCats = [
+      { label: 'Fashion', query: 'fashion', photo: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=600&q=80' },
+      { label: 'Electronics', query: 'electronics', photo: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=80' },
+      { label: 'Beauty', query: 'beauty', photo: 'https://images.unsplash.com/photo-1522335789203-aaa3e9aa3b6b?auto=format&fit=crop&w=600&q=80' },
+      { label: 'Furniture', slug: 'furniture', photo: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=600&q=80' },
+      { label: 'Home decor', slug: 'decor', photo: 'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=600&q=80' },
+      { label: 'Kids', query: 'kids', photo: 'https://images.unsplash.com/photo-1607082349566-187342175e2f?auto=format&fit=crop&w=600&q=80' },
+      { label: 'Sports', query: 'sports', photo: 'https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=600&q=80' },
+      { label: 'Garden', query: 'garden', photo: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80' },
+      { label: 'Kitchen', query: 'kitchen', photo: 'https://images.unsplash.com/photo-1556911220-bff31c812dba?auto=format&fit=crop&w=600&q=80' },
+      { label: 'Gifts', query: 'gift', photo: 'https://images.unsplash.com/photo-1513201099705-a9746e1e201f?auto=format&fit=crop&w=600&q=80' },
+      { label: 'Custom furniture', page: 'carpenter', photo: 'https://images.unsplash.com/photo-1600489000022-c2086d79f9d4?auto=format&fit=crop&w=600&q=80' },
+    ];
+    var seen = {};
+    var cardsHTML = mixedTopCats.filter(function (item) {
+      var key = String(item.slug || item.query || item.page || item.label || '').toLowerCase();
+      if (!key || seen[key]) return false;
+      seen[key] = true;
+      return true;
+    }).map(function (item) {
+      var label = String(item.label || '').replace(/"/g, '&quot;');
+      var action = "showPage('products')";
+      if (item.slug) action = "filterAndGo('" + String(item.slug).replace(/'/g, "\\'") + "')";
+      if (item.query) action = "homeSearchTag('" + String(item.query).replace(/'/g, "\\'") + "')";
+      if (item.page) action = "showPage('" + String(item.page).replace(/'/g, "\\'") + "')";
+      return (
+        '<button type="button" class="home-amz-card" role="listitem"'
+        + ' aria-label="' + label + '"'
+        + ' onclick="' + action + '">'
+        + '<span class="home-amz-card__img" aria-hidden="true" style="background-image:url(\'' + item.photo + '\')"></span>'
+        + '<span class="home-amz-card__cap">' + label + '</span>'
+        + '</button>'
+      );
+    }).join('');
+    cardsHTML += (
+      '<button type="button" class="home-amz-card" role="listitem"'
+      + ' aria-label="See all categories"'
+      + " onclick=\"showPage('products')\">"
+      + '<span class="home-amz-card__img" aria-hidden="true" style="background-image:url(\'https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=600&q=80\')"></span>'
+      + '<span class="home-amz-card__cap">See all \u2192</span>'
+      + '</button>'
+    );
+    catsRail.innerHTML = cardsHTML;
+  }
+
+  function renderHomeAmazonRow(targetId, items) {
+    var target = document.getElementById(targetId);
+    if (!target) return;
+    target.innerHTML = items.map(function (item) {
+      var label = String(item.label || '').replace(/"/g, '&quot;');
+      var query = String(item.query || item.label || '').replace(/'/g, "\\'");
+      var photo = item.photo || 'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=600&q=80';
+      var action = item.page
+        ? "showPage('" + String(item.page).replace(/'/g, "\\'") + "')"
+        : (item.slug
+            ? "filterAndGo('" + String(item.slug).replace(/'/g, "\\'") + "')"
+            : "homeSearchTag('" + query + "')");
+      return (
+        '<button type="button" class="home-amz-card" role="listitem"'
+        + ' aria-label="' + label + '"'
+        + ' onclick="' + action + '">'
+        + '<span class="home-amz-card__img" aria-hidden="true" style="background-image:url(\'' + photo + '\')"></span>'
+        + '<span class="home-amz-card__cap">' + label + '</span>'
+        + '</button>'
+      );
+    }).join('');
+  }
+
+  renderHomeAmazonRow('home-fashion-rail', [
+    { label: "Women's clothing", query: 'women clothing', photo: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=600&q=80' },
+    { label: "Men's clothing", query: 'men clothing', photo: 'https://images.unsplash.com/photo-1516257984-b1b4d707412e?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Shoes & sneakers', query: 'shoes', photo: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Bags & handbags', query: 'handbag', photo: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Watches', query: 'watch', photo: 'https://images.unsplash.com/photo-1524592094714-0f0654e20314?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Jewelry', query: 'jewelry', photo: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Sunglasses', query: 'sunglasses', photo: 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Kids fashion', query: 'kids clothing', photo: 'https://images.unsplash.com/photo-1503944583220-79d8926ad5e2?auto=format&fit=crop&w=600&q=80' },
+  ]);
+
+  renderHomeAmazonRow('home-tech-rail', [
+    { label: 'Smartphones', query: 'smartphone', photo: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Laptops', query: 'laptop', photo: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Headphones', query: 'headphones', photo: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Smartwatches', query: 'smartwatch', photo: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Cameras', query: 'camera', photo: 'https://images.unsplash.com/photo-1502920917128-1aa500764cbd?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Gaming', query: 'gaming', photo: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Smart home', query: 'smart home', photo: 'https://images.unsplash.com/photo-1558002038-1055907df827?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Accessories', query: 'tech accessories', photo: 'https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?auto=format&fit=crop&w=600&q=80' },
+  ]);
+
+  renderHomeAmazonRow('home-beauty-rail', [
+    { label: 'Perfume', query: 'perfume', photo: 'https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Skincare', query: 'skincare', photo: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Makeup', query: 'makeup', photo: 'https://images.unsplash.com/photo-1522335789203-aaa3e9aa3b6b?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Hair care', query: 'hair care', photo: 'https://images.unsplash.com/photo-1522338242992-e1a54906a8da?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Wellness', query: 'wellness', photo: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Fitness', query: 'fitness', photo: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Books', query: 'books', photo: 'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Pets', query: 'pets', photo: 'https://images.unsplash.com/photo-1450778869180-41d0601e046e?auto=format&fit=crop&w=600&q=80' },
+  ]);
+
+  renderHomeAmazonRow('home-home-rail', [
+    { label: 'Sofas', query: 'sofa', photo: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Dining tables', query: 'dining table', photo: 'https://images.unsplash.com/photo-1577140917170-285929fb55b7?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Bedroom', slug: 'bedroom', photo: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Lighting', slug: 'lighting', photo: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Rugs & carpets', query: 'rug', photo: 'https://images.unsplash.com/photo-1600166898405-da9535204843?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Mirrors', query: 'mirror', photo: 'https://images.unsplash.com/photo-1618220179428-22790b461013?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Ceramics', slug: 'ceramics', photo: 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=600&q=80' },
+    { label: 'Custom furniture', page: 'carpenter', photo: 'https://images.unsplash.com/photo-1600489000022-c2086d79f9d4?auto=format&fit=crop&w=600&q=80' },
+  ]);
+
+  function _stnRailEmpty(msg) {
+    return '<p class="home-trendy-bar__empty">' + escHtml(String(msg || 'Coming soon.')) + '</p>';
+  }
+  var flashRail = document.getElementById('home-flash-rail');
+  if (flashRail) {
+    var flashSrc = products.filter(function (p) {
+      var op = p.oldPrice != null ? p.oldPrice : p.old_price;
+      return p && op != null && Number(op) > Number(p.price);
+    });
+    if (!flashSrc.length) flashSrc = products.slice().sort(function () { return Math.random() - 0.5; });
+    flashSrc = flashSrc.slice(0, 14);
+    flashRail.innerHTML = flashSrc.length ? flashSrc.map(homeRailProductHTML).join('') : _stnRailEmpty('Flash deals dropping soon.');
+  }
+  var justInRail = document.getElementById('home-justin-rail');
+  if (justInRail) {
+    var justInSrc = products.slice().sort(function (a, b) {
+      var da = new Date(a.createdAt || a.created_at || 0).getTime();
+      var db = new Date(b.createdAt || b.created_at || 0).getTime();
+      return db - da;
+    }).slice(0, 14);
+    justInRail.innerHTML = justInSrc.length ? justInSrc.map(homeRailProductHTML).join('') : _stnRailEmpty('New listings coming soon.');
+  }
+  var favRail = document.getElementById('home-favorites-rail');
+  if (favRail) {
+    var favSrc = products.slice()
+      .sort(function (a, b) { return (Number(b.rating) || 0) - (Number(a.rating) || 0); })
+      .slice(0, 14);
+    favRail.innerHTML = favSrc.length ? favSrc.map(homeRailProductHTML).join('') : _stnRailEmpty('Customer favorites loading.');
+  }
 
   var trendy = document.getElementById('home-trendy-rail');
   if (trendy) {
@@ -7104,48 +7196,84 @@ async function adminDeleteUserAccount(userId) {
     toast('Admin accounts cannot be deleted from the panel', 'error');
     return;
   }
-  if (
-    !confirm(
-      'Delete account permanently?\n\n' +
-        emailHint +
-        '\n\nThis removes the row from the database. Orders may still reference this user id. OK?'
-    )
-  ) {
-    return;
+  var isVendor = !!(localTarget && localTarget.role === 'vendor');
+  if (!isVendor) {
+    try {
+      if (typeof SB !== 'undefined' && SB.getUserById) {
+        var probe = await SB.getUserById(userId);
+        if (probe && probe.role === 'vendor') isVendor = true;
+      }
+    } catch (e) {}
   }
+  var warnMsg = isVendor
+    ? 'Delete VENDOR account permanently?\n\n' + emailHint +
+      '\n\nThis will ALSO remove every product this vendor listed from the website. Orders are kept (vendor link cleared). OK?'
+    : 'Delete account permanently?\n\n' + emailHint +
+      '\n\nThis removes the user from the database. Orders are kept (links cleared). OK?';
+  if (!confirm(warnMsg)) return;
   if (!confirm('Final confirmation: DELETE this user forever?')) return;
 
-  var deleteHow = '';
-  try {
-    if (typeof SB !== 'undefined' && SB.deleteUser) {
-      await SB.deleteUser(userId);
-      deleteHow = 'hard';
-    } else {
-      throw new Error('deleteUser not available');
-    }
-  } catch (eDel) {
+  // Step 1 (best-effort): wipe vendor products from Supabase + local cache so
+  // the storefront updates immediately. Failure here is non-fatal — the
+  // server-side cascade RPC will retry the same wipe in a single transaction.
+  var productsRemoved = 0;
+  if (isVendor && typeof SB !== 'undefined' && typeof SB.deleteVendorProducts === 'function') {
     try {
-      if (typeof SB !== 'undefined' && SB.updateUser) {
-        await SB.updateUser(userId, {
-          deleted_at: new Date().toISOString(),
-          banned: true,
-          ban_reason: 'Account removed by admin',
-          banned_at: new Date().toISOString(),
-        });
-        deleteHow = 'soft';
-      } else {
-        throw eDel;
+      productsRemoved = await SB.deleteVendorProducts(userId) || 0;
+    } catch (eProd) {
+      if (typeof STNLog !== 'undefined') STNLog.warn('adminDeleteUserAccount.products', String((eProd && eProd.message) || eProd), { userId });
+    }
+  }
+
+  // Step 2: try the cascade RPC (added by migration
+  // 20260509200000_user_deletion_cascade.sql). If unavailable, fall back to
+  // a plain DELETE; if that's blocked, soft-disable the row.
+  var deleteHow = '';
+  var lastErr = null;
+  if (typeof SB !== 'undefined' && typeof SB.deleteUserCascade === 'function') {
+    try {
+      var rpcRes = await SB.deleteUserCascade(userId);
+      if (rpcRes && typeof rpcRes === 'object' && Number(rpcRes.products_deleted) > productsRemoved) {
+        productsRemoved = Number(rpcRes.products_deleted) || productsRemoved;
       }
-    } catch (eSoft) {
-      var em = String((eDel && eDel.message) || eDel || '');
-      toast(
-        em.indexOf('permission') >= 0 || em.indexOf('RLS') >= 0 || em.indexOf('policy') >= 0
-          ? 'Delete blocked: add DELETE or UPDATE policy on users, or run migrations (see supabase/migrations).'
-          : '⚠️ ' + (em.length > 140 ? em.slice(0, 137) + '…' : em),
-        'error'
-      );
-      if (typeof STNLog !== 'undefined') STNLog.error('adminDeleteUserAccount', eDel, { userId });
-      return;
+      deleteHow = 'cascade';
+    } catch (eRpc) {
+      lastErr = eRpc;
+    }
+  }
+  if (!deleteHow) {
+    try {
+      if (typeof SB !== 'undefined' && SB.deleteUser) {
+        await SB.deleteUser(userId);
+        deleteHow = 'hard';
+      } else {
+        throw new Error('deleteUser not available');
+      }
+    } catch (eDel) {
+      lastErr = eDel;
+      try {
+        if (typeof SB !== 'undefined' && SB.updateUser) {
+          await SB.updateUser(userId, {
+            deleted_at: new Date().toISOString(),
+            banned: true,
+            ban_reason: 'Account removed by admin',
+            banned_at: new Date().toISOString(),
+          });
+          deleteHow = 'soft';
+        } else {
+          throw eDel;
+        }
+      } catch (eSoft) {
+        var em = String((lastErr && lastErr.message) || lastErr || '');
+        toast(
+          em.indexOf('permission') >= 0 || em.indexOf('RLS') >= 0 || em.indexOf('policy') >= 0
+            ? 'Delete blocked by Supabase policy. Run migrations/20260509200000_user_deletion_cascade.sql in the SQL editor and try again.'
+            : '⚠️ ' + (em.length > 160 ? em.slice(0, 157) + '…' : em),
+          'error'
+        );
+        if (typeof STNLog !== 'undefined') STNLog.error('adminDeleteUserAccount', lastErr, { userId });
+        return;
+      }
     }
   }
 
@@ -7155,18 +7283,37 @@ async function adminDeleteUserAccount(userId) {
   });
   STN.DB.set('users', next);
   _stnAdminRemovedUserIdRemember(userId);
+
+  // Drop the deleted vendor's products from the in-memory storefront cache so
+  // the home page reflects the change without a reload.
+  try {
+    if (Array.isArray(State.products) && State.products.length) {
+      var beforeCount = State.products.length;
+      State.products = State.products.filter(function (p) {
+        return p && String(p.vendor_id || p.vendorId || '') !== String(userId);
+      });
+      var trimmed = beforeCount - State.products.length;
+      if (trimmed > 0 && productsRemoved <= 0) productsRemoved = trimmed;
+    }
+  } catch (eCache) {}
+
   if (State.currentUser && String(State.currentUser.id) === String(userId)) {
     State.currentUser = null;
     STN.DB.set('currentUser', null);
     updateNavUser();
     showPage('home');
   }
-  toast(
-    deleteHow === 'hard'
-      ? 'Account deleted from database'
-      : 'Account disabled and hidden (soft delete — row kept if DB blocked hard delete)',
-    'success'
-  );
+
+  var summary;
+  if (deleteHow === 'cascade' || deleteHow === 'hard') {
+    summary = isVendor
+      ? 'Vendor account deleted' + (productsRemoved > 0 ? ' (' + productsRemoved + ' product' + (productsRemoved === 1 ? '' : 's') + ' removed)' : '')
+      : 'Account deleted from database';
+  } else {
+    summary = 'Account disabled (soft delete — DB blocked the hard delete; run the cascade migration to fix it)';
+  }
+  toast(summary, 'success');
+
   var activeSection =
     document.querySelector('[id^="adm-nav-"].adm-active')?.id?.replace('adm-nav-', '') || 'users';
   switchAdmin(activeSection);
@@ -9326,6 +9473,7 @@ function renderAbout() {
 const STN_SUPPORT_KEY = 'support_threads';
 const STN_SUPPORT_STORAGE_KEY = 'stn_' + STN_SUPPORT_KEY;
 const STN_SUPPORT_GUEST_KEY = 'support_guest_id';
+const STN_SUPPORT_RETENTION_MS = 3 * 24 * 60 * 60 * 1000;
 
 function _stnSupportNow() { return Date.now(); }
 
@@ -9358,12 +9506,51 @@ function _stnSupportClientLabel() {
 
 function _stnSupportLoadThreads() {
   var raw = STN.DB.get(STN_SUPPORT_KEY);
-  if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw;
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    return _stnSupportPruneThreads(raw, { persist: true, remote: false });
+  }
   return {};
 }
 
 function _stnSupportSaveThreads(threads) {
   STN.DB.set(STN_SUPPORT_KEY, threads || {});
+}
+
+function _stnSupportThreadLastTs(thread) {
+  if (!thread || typeof thread !== 'object') return 0;
+  var latest = Number(thread.updatedAt || thread.updated_at || 0) || 0;
+  var msgs = Array.isArray(thread.messages) ? thread.messages : [];
+  msgs.forEach(function (m) {
+    var ts = Number(m && (m.ts || m.createdAt || m.created_at)) || 0;
+    if (ts > latest) latest = ts;
+  });
+  return latest;
+}
+
+function _stnSupportDeleteRemoteThread(clientId) {
+  if (typeof SB === 'undefined' || !SB || typeof SB.deleteSupportThread !== 'function') return;
+  SB.deleteSupportThread(clientId).catch(function (e) {
+    if (typeof STNLog !== 'undefined') STNLog.warn('support.deleteRemoteThread', e && e.message);
+  });
+}
+
+function _stnSupportPruneThreads(threads, opts) {
+  var src = threads && typeof threads === 'object' && !Array.isArray(threads) ? threads : {};
+  var out = {};
+  var cutoff = _stnSupportNow() - STN_SUPPORT_RETENTION_MS;
+  var changed = false;
+  Object.keys(src).forEach(function (clientId) {
+    var thread = src[clientId];
+    var last = _stnSupportThreadLastTs(thread);
+    if (last && last < cutoff) {
+      changed = true;
+      if (opts && opts.remote) _stnSupportDeleteRemoteThread(clientId);
+      return;
+    }
+    out[clientId] = thread;
+  });
+  if (changed && opts && opts.persist) _stnSupportSaveThreads(out);
+  return out;
 }
 
 function _stnSupportMessageIdFromRemote(row) {
@@ -9450,6 +9637,7 @@ async function _stnSupportPullRemote() {
     var rows = await SB.getSupportMessages(5000);
     var remoteThreads = _stnSupportRemoteRowsToThreads(rows);
     var merged = _stnSupportMergeThreads(_stnSupportLoadThreads(), remoteThreads);
+    merged = _stnSupportPruneThreads(merged, { persist: false, remote: true });
     _stnSupportSaveThreads(merged);
     return merged;
   } catch (e) {
@@ -9786,6 +9974,11 @@ function stnSupportClear() {
 }
 
 async function renderSupport() {
+  if (!State.currentUser) {
+    try { toast('Please sign in to chat with Everest staff.', 'info'); } catch (e) {}
+    showPage('auth');
+    return;
+  }
   var clientId = _stnSupportCurrentClientId();
   var threads = _stnSupportLoadThreads();
   _stnSupportEnsureThread(threads, clientId);
@@ -9853,11 +10046,203 @@ function _stnAdminMessagesPickActive(list) {
   return list[0];
 }
 
+async function _stnAdminEnsureSupportContext() {
+  try {
+    if (typeof SB !== 'undefined' && SB && typeof SB.getOrders === 'function') {
+      var orders = await SB.getOrders();
+      if (Array.isArray(orders)) {
+        State.orders = orders;
+        STN.DB.set('orders', orders);
+      }
+    }
+  } catch (eOrders) {
+    if (typeof STNLog !== 'undefined') STNLog.warn('support.admin.ordersContext', eOrders && eOrders.message);
+  }
+  try {
+    if (typeof mergeLocalAndRemoteUsersForAdmin === 'function') {
+      await mergeLocalAndRemoteUsersForAdmin();
+    }
+  } catch (eUsers) {
+    if (typeof STNLog !== 'undefined') STNLog.warn('support.admin.usersContext', eUsers && eUsers.message);
+  }
+}
+
+function _stnSupportNormPhone(v) {
+  return String(v == null ? '' : v).replace(/\D/g, '');
+}
+
+function _stnSupportUserName(u) {
+  if (!u) return '';
+  return String(
+    ((u.first_name || u.firstName || '') + ' ' + (u.last_name || u.lastName || '')).trim() ||
+      u.name ||
+      u.email ||
+      ''
+  ).trim();
+}
+
+function _stnSupportOrderName(o) {
+  if (!o) return '';
+  return String(
+    o.client_name ||
+      o.customer_name ||
+      ((o.customer_first_name || o.first_name || '') + ' ' + (o.customer_last_name || o.last_name || '')).trim() ||
+      ''
+  ).trim();
+}
+
+function _stnSupportDateMs(v) {
+  var n = v ? new Date(v).getTime() : 0;
+  return Number.isFinite(n) ? n : 0;
+}
+
+function _stnSupportFindCustomerProfile(thread) {
+  var users = STN.DB.get('users') || [];
+  var id = String((thread && thread.clientId) || '');
+  var email = String((thread && thread.email) || '').toLowerCase();
+  var label = String((thread && thread.label) || '').toLowerCase();
+  var profile = users.find(function (u) {
+    return id && String(u.id) === id;
+  });
+  if (!profile && email) {
+    profile = users.find(function (u) {
+      return String(u.email || '').toLowerCase() === email;
+    });
+  }
+  if (!profile && label) {
+    profile = users.find(function (u) {
+      return _stnSupportUserName(u).toLowerCase() === label;
+    });
+  }
+  return profile || null;
+}
+
+function _stnSupportOrdersForCustomer(thread, profile) {
+  var orders = State.orders || STN.DB.get('orders') || [];
+  var id = String((profile && profile.id) || (thread && thread.clientId) || '');
+  var email = String((profile && profile.email) || (thread && thread.email) || '').toLowerCase();
+  var phone = _stnSupportNormPhone((profile && profile.phone) || '');
+  var label = String((thread && thread.label) || '').toLowerCase();
+  return orders.filter(function (o) {
+    var oid = String(o.user_id != null ? o.user_id : (o.userId != null ? o.userId : ''));
+    var oEmail = String(o.email || o.customer_email || o.client_email || '').toLowerCase();
+    var oPhone = _stnSupportNormPhone(o.phone || o.client_phone || o.customer_phone || '');
+    var oName = _stnSupportOrderName(o).toLowerCase();
+    return (
+      (id && oid && oid === id) ||
+      (email && oEmail && oEmail === email) ||
+      (phone && oPhone && oPhone === phone) ||
+      (label && oName && oName === label)
+    );
+  });
+}
+
+function _stnSupportOrderTotal(o) {
+  var n = Number(o && (o.total || o.grand_total || o.amount || o.price_total));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function _stnSupportOrderItemsLabel(o) {
+  var items = o && Array.isArray(o.items) ? o.items : [];
+  if (!items.length) return 'Items not listed';
+  return items
+    .slice(0, 3)
+    .map(function (i) { return i && (i.name || i.title || i.product_name) ? (i.name || i.title || i.product_name) : 'Item'; })
+    .join(', ') + (items.length > 3 ? ' +' + (items.length - 3) : '');
+}
+
+function _stnSupportBirthday(profile) {
+  if (!profile) return '';
+  return profile.date_of_birth || profile.birth_date || profile.birthday || profile.dob || '';
+}
+
+function _stnSupportRiskSummary(thread, profile, orders, last30) {
+  var signals = [];
+  var score = 0;
+  if (!profile) { signals.push('No registered profile matched'); score += 2; }
+  if (thread && thread.isGuest) { signals.push('Guest support thread'); score += 1; }
+  if (profile && !profile.phone) { signals.push('Missing phone on profile'); score += 1; }
+  if (profile && !profile.wilaya) { signals.push('Missing wilaya on profile'); score += 1; }
+  var canceled = orders.filter(function (o) {
+    var s = normalizeOrderStatus(o.status || '');
+    return s === 'canceled' || s === 'cancelled';
+  }).length;
+  if (canceled >= 2) { signals.push(canceled + ' canceled orders'); score += 2; }
+  if (orders.length >= 6 && canceled / Math.max(1, orders.length) >= 0.4) {
+    signals.push('High cancellation ratio');
+    score += 2;
+  }
+  if (last30.length >= 8) { signals.push('Many orders in last 30 days'); score += 1; }
+  var phones = {};
+  orders.forEach(function (o) {
+    var p = _stnSupportNormPhone(o.phone || o.client_phone || o.customer_phone || '');
+    if (p) phones[p] = true;
+  });
+  if (Object.keys(phones).length > 2) { signals.push('Multiple phone numbers across orders'); score += 2; }
+  if (!signals.length) signals.push('No obvious scam signals');
+  var level = score >= 5 ? 'High' : score >= 2 ? 'Medium' : 'Low';
+  return { level: level, score: score, signals: signals };
+}
+
+function buildAdminCustomerIntelHTML(thread) {
+  var profile = _stnSupportFindCustomerProfile(thread);
+  var orders = _stnSupportOrdersForCustomer(thread, profile).sort(function (a, b) {
+    return _stnSupportDateMs(b.created_at || b.createdAt || b.date) - _stnSupportDateMs(a.created_at || a.createdAt || a.date);
+  });
+  var cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  var last30 = orders.filter(function (o) {
+    return _stnSupportDateMs(o.created_at || o.createdAt || o.date) >= cutoff;
+  });
+  var risk = _stnSupportRiskSummary(thread, profile, orders, last30);
+  var spent30 = last30.reduce(function (sum, o) { return sum + _stnSupportOrderTotal(o); }, 0);
+  var birthday = _stnSupportBirthday(profile);
+  var name = _stnSupportUserName(profile) || (thread && thread.label) || 'Customer';
+  var email = (profile && profile.email) || (thread && thread.email) || 'Not provided';
+  var phone = (profile && profile.phone) || 'Not provided';
+  var location = [profile && profile.wilaya, profile && profile.delegation].filter(Boolean).join(' / ') || 'Not provided';
+  var joined = (profile && (profile.created_at || profile.createdAt)) ? new Date(profile.created_at || profile.createdAt).toLocaleDateString() : 'Unknown';
+  var riskClass = risk.level === 'High' ? 'stn-risk-high' : risk.level === 'Medium' ? 'stn-risk-med' : 'stn-risk-low';
+  var recentRows = last30.slice(0, 4).map(function (o) {
+    var ref = o.tracking_number || o.id || '-';
+    var st = normalizeOrderStatus(o.status || 'pending');
+    var when = o.created_at ? new Date(o.created_at).toLocaleDateString() : '-';
+    return '<li><strong>' + _stnSupportEscape(ref) + '</strong> · ' + _stnSupportEscape(st) + ' · ' +
+      _stnSupportEscape(String(_stnSupportOrderTotal(o).toLocaleString())) + ' TND<br><span>' +
+      _stnSupportEscape(when + ' · ' + _stnSupportOrderItemsLabel(o)) + '</span></li>';
+  }).join('');
+  if (!recentRows) recentRows = '<li><span>No matched orders in the last 30 days.</span></li>';
+
+  return (
+    '<section class="stn-adm-customer-intel">' +
+      '<div class="stn-adm-customer-card">' +
+        '<div class="stn-adm-customer-card-head"><span>Customer profile</span><strong>' + _stnSupportEscape(name) + '</strong></div>' +
+        '<div class="stn-adm-customer-grid">' +
+          '<div><span>Email</span><strong>' + _stnSupportEscape(email) + '</strong></div>' +
+          '<div><span>Phone</span><strong>' + _stnSupportEscape(phone) + '</strong></div>' +
+          '<div><span>Birthday</span><strong>' + _stnSupportEscape(birthday || 'Not provided') + '</strong></div>' +
+          '<div><span>Location</span><strong>' + _stnSupportEscape(location) + '</strong></div>' +
+          '<div><span>Joined</span><strong>' + _stnSupportEscape(joined) + '</strong></div>' +
+          '<div><span>Customer ID</span><strong>' + _stnSupportEscape(String((profile && profile.id) || (thread && thread.clientId) || '-')) + '</strong></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="stn-adm-customer-card">' +
+        '<div class="stn-adm-customer-card-head"><span>Last 30 days</span><strong>' + last30.length + ' orders · ' + spent30.toLocaleString() + ' TND</strong></div>' +
+        '<ul class="stn-adm-customer-orders">' + recentRows + '</ul>' +
+      '</div>' +
+      '<div class="stn-adm-customer-card">' +
+        '<div class="stn-adm-customer-card-head"><span>Scam risk</span><strong class="' + riskClass + '">' + risk.level + '</strong></div>' +
+        '<ul class="stn-adm-risk-signals">' + risk.signals.map(function (s) { return '<li>' + _stnSupportEscape(s) + '</li>'; }).join('') + '</ul>' +
+      '</div>' +
+    '</section>'
+  );
+}
+
 async function renderAdminMessages(container) {
   if (!container) container = document.getElementById('admin-content');
   if (!container) return;
   container.innerHTML =
     '<div style="padding:2.75rem 1.5rem;text-align:center;color:#7b72a8;font-size:0.9rem">Loading customer messages…</div>';
+  await _stnAdminEnsureSupportContext();
   await _stnSupportPullRemote();
   startSupportPolling('admin');
   var list = _stnAdminSortedThreads();
@@ -9985,6 +10370,7 @@ function renderAdminMessagePane() {
         '</div>' +
       '</div>' +
     '</header>' +
+    buildAdminCustomerIntelHTML(t) +
     '<div class="stn-adm-msg-pane-body" id="stn-adm-msg-pane-body">' + msgsHTML + '</div>' +
     '<div class="stn-adm-msg-attach-preview" id="stn-adm-msg-attach-preview" hidden></div>' +
     '<form class="stn-adm-msg-form" id="stn-adm-msg-form" onsubmit="event.preventDefault(); adminSendSupportReply();">' +
