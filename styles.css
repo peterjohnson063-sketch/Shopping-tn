@@ -3878,3 +3878,31 @@ body.stn-admin-mode #newsletter-popup {
   display: none !important;
 }
 body.stn-admin-mode { padding-bottom: 0 !important; }
+
+/* Admin-mode drawer accents */
+.nav-drawer-admin-banner {
+  background: linear-gradient(135deg, #7c3aed, #4a1fa8);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.55rem 0.85rem;
+  border-radius: 10px;
+  text-align: center;
+  margin-bottom: 0.4rem;
+}
+.nav-drawer-badge {
+  display: inline-block;
+  margin-left: 0.4rem;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 800;
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+}
+
+/* Make sure the admin landing fills the viewport even with consumer chrome hidden */
+body.stn-admin-mode .page#page-admin { min-height: calc(100vh - 80px); }
+body.stn-admin-mode .stn-amazon-nav__primary { padding-top: 0; padding-bottom: 0; }

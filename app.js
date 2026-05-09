@@ -312,15 +312,28 @@ async function init() {
     }
   }, 5000);
 
-  // Activate home page directly (avoids scroll-to-top on init)
-  document.getElementById('page-home')?.classList.add('active');
-  document.getElementById('navbtn-home')?.classList.add('active');
-  State.currentPage = 'home';
+  // For admins, skip the storefront entirely and land on the dashboard.
+  var bootedAsStaff = false;
+  try {
+    if (State.currentUser && State.currentUser.role === 'admin') {
+      bootedAsStaff = true;
+      showPage('admin');
+    }
+  } catch (eAdminBoot) {}
+
+  if (!bootedAsStaff) {
+    // Activate home page directly (avoids scroll-to-top on init)
+    document.getElementById('page-home')?.classList.add('active');
+    document.getElementById('navbtn-home')?.classList.add('active');
+    State.currentPage = 'home';
+  }
 
   await initializeProducts();
   await initializeReviews();
   applyReviewAggregatesToProducts();
-  renderHome();
+  if (!bootedAsStaff) {
+    renderHome();
+  }
   setTimeout(initReveal, 80);
   startPreorderReadyNotifier();
   startEverestLogisticsClockTick();
@@ -839,12 +852,62 @@ function navLabelForHeader(full, short) {
   return mobile ? short : full;
 }
 
+/**
+ * Replace the side drawer's contents with admin-only navigation when an
+ * admin is signed in, and restore the consumer menu otherwise.
+ */
+function syncAdminDrawer() {
+  var list = document.querySelector('#nav-drawer .nav-drawer-list');
+  if (!list) return;
+  var isAdmin = !!(State.currentUser && State.currentUser.role === 'admin');
+  if (isAdmin) {
+    if (list.getAttribute('data-stn-mode') === 'admin') return;
+    list.setAttribute('data-stn-mode', 'admin');
+    if (!list.getAttribute('data-stn-original')) {
+      list.setAttribute('data-stn-original', list.innerHTML);
+    }
+    var unread = (typeof _stnAdminUnreadSupportCount === 'function') ? _stnAdminUnreadSupportCount() : 0;
+    list.innerHTML =
+      '<li><div class="nav-drawer-admin-banner">Admin mode</div></li>' +
+      '<li><button type="button" class="nav-drawer-link nav-drawer-link--key" onclick="toggleNavDrawer(false);showPage(\'admin\')">Dashboard</button></li>' +
+      '<li><button type="button" class="nav-drawer-link nav-drawer-link--key" onclick="toggleNavDrawer(false);openAdminMessages()">Messages' + (unread > 0 ? ' <span class=\"nav-drawer-badge\">' + unread + '</span>' : '') + '</button></li>' +
+      '<li><button type="button" class="nav-drawer-link" onclick="toggleNavDrawer(false);showPage(\'hub\')">Sahel Hub</button></li>' +
+      '<li><button type="button" class="nav-drawer-link" onclick="toggleNavDrawer(false);openAdminSection(\'orders\')">Orders</button></li>' +
+      '<li><button type="button" class="nav-drawer-link" onclick="toggleNavDrawer(false);openAdminSection(\'users\')">Customers</button></li>' +
+      '<li><button type="button" class="nav-drawer-link" onclick="toggleNavDrawer(false);openAdminSection(\'drivers\')">Drivers</button></li>' +
+      '<li><button type="button" class="nav-drawer-link" onclick="toggleNavDrawer(false);openAdminSection(\'vendors\')">Vendors</button></li>' +
+      '<li><button type="button" class="nav-drawer-link" style="color:#b91c1c" onclick="toggleNavDrawer(false);if(typeof logout===\'function\')logout()">Sign out</button></li>';
+  } else {
+    if (list.getAttribute('data-stn-mode') === 'consumer') return;
+    var saved = list.getAttribute('data-stn-original');
+    if (saved) list.innerHTML = saved;
+    list.setAttribute('data-stn-mode', 'consumer');
+  }
+}
+
+/** Open the admin dashboard pre-selected to a given section. */
+function openAdminSection(section) {
+  if (!State.currentUser || State.currentUser.role !== 'admin') return;
+  showPage('admin');
+  setTimeout(function () {
+    if (typeof switchAdmin === 'function') switchAdmin(section);
+  }, 30);
+}
+
+/** Shortcut to jump straight to the admin Messages tab. */
+function openAdminMessages() {
+  if (!State.currentUser || State.currentUser.role !== 'admin') return;
+  window.__stnAdminSwitchToMessages = true;
+  showPage('admin');
+}
+
 function updateNavUser() {
   var btn = document.getElementById('nav-user-area');
   try {
     var staffMode = !!(State.currentUser && (State.currentUser.role === 'admin' || State.currentUser.role === 'hub'));
     document.body.classList.toggle('stn-staff-mode', staffMode);
     document.body.classList.toggle('stn-admin-mode', !!(State.currentUser && State.currentUser.role === 'admin'));
+    syncAdminDrawer();
   } catch (eClass) {}
   if (!btn) return;
   if (State.currentUser) {
@@ -930,12 +993,30 @@ function syncAboutNavLink() {
 }
 
 // ── PAGE NAVIGATION ──
+// Pages an admin is allowed to navigate to. Anything else is redirected
+// to the admin dashboard so the storefront/customer surfaces stay hidden.
+const STN_ADMIN_ALLOWED_PAGES = new Set([
+  'admin', 'hub', 'vendor-dashboard', 'driver', 'auth', 'vendor-hours'
+]);
+
 function showPage(id) {
   if (typeof closeSMConfiguratorSheet === 'function') {
     try {
       closeSMConfiguratorSheet();
     } catch (e) {}
   }
+
+  // Force admins into the admin shell — never the consumer storefront.
+  try {
+    if (State.currentUser && State.currentUser.role === 'admin' && !STN_ADMIN_ALLOWED_PAGES.has(id)) {
+      if (id === 'support') {
+        id = 'admin';
+        window.__stnAdminSwitchToMessages = true;
+      } else {
+        id = 'admin';
+      }
+    }
+  } catch (eGuard) {}
 
   if (typeof toggleNavDrawer === 'function') toggleNavDrawer(false);
 
@@ -5126,7 +5207,12 @@ function renderAdmin() {
   const page = document.getElementById('page-admin');
   if (!page) return;
   page.innerHTML = buildAdminHTML();
-  switchAdmin('overview');
+  var initial = 'overview';
+  if (window.__stnAdminSwitchToMessages) {
+    initial = 'messages';
+    window.__stnAdminSwitchToMessages = false;
+  }
+  switchAdmin(initial);
 }
 
 function buildAdminHTML() {
@@ -9524,7 +9610,7 @@ function renderAdminMessages(container) {
     var roleTag = t.isGuest ? 'Guest' : (t.role || 'customer');
     return (
       '<button type="button" class="stn-adm-msg-row' + (isActive ? ' stn-adm-msg-row--active' : '') + '"' +
-        ' onclick="selectAdminMessageThread(\'' + _stnSupportEscape(String(t.clientId)).replace(/\\/g, '\\\\') + '\')">' +
+        ' data-stn-thread="' + _stnSupportEscape(String(t.clientId)) + '">' +
         '<div class="stn-adm-msg-row-top">' +
           '<span class="stn-adm-msg-row-name">' + _stnSupportEscape(t.label || 'Customer') + '</span>' +
           '<span class="stn-adm-msg-row-time">' + _stnSupportEscape(_stnSupportFormatTime(t.updatedAt)) + '</span>' +
@@ -9545,16 +9631,30 @@ function renderAdminMessages(container) {
           '<h2>Conversations</h2>' +
           '<span>' + list.length + ' total</span>' +
         '</div>' +
-        '<div class="stn-adm-msg-list-body">' + listHTML + '</div>' +
+        '<div class="stn-adm-msg-list-body" id="stn-adm-msg-list-body">' + listHTML + '</div>' +
       '</aside>' +
       '<section class="stn-adm-msg-pane" id="stn-adm-msg-pane"></section>' +
     '</div>';
+
+  // Delegated click for thread selection — avoids fragile inline onclick
+  // string-escaping that broke when client ids contained quotes.
+  var listBody = document.getElementById('stn-adm-msg-list-body');
+  if (listBody) {
+    listBody.addEventListener('click', function (e) {
+      var row = e.target.closest('[data-stn-thread]');
+      if (!row) return;
+      e.preventDefault();
+      var cid = row.getAttribute('data-stn-thread');
+      if (cid) selectAdminMessageThread(cid);
+    });
+  }
 
   renderAdminMessagePane();
 
   if (!window.__stnAdminMessagesListenerBound) {
     window.__stnAdminMessagesListenerBound = true;
     window.addEventListener('stn:support:update', function () {
+      if (window.__stnAdminSuppressUpdate) return;
       var navMsg = document.getElementById('adm-nav-messages');
       if (!navMsg) return;
       if (navMsg.classList.contains('adm-active')) {
@@ -9626,11 +9726,15 @@ function renderAdminMessagePane() {
 }
 
 function selectAdminMessageThread(clientId) {
-  window.__stnAdminActiveThread = clientId;
+  if (clientId == null) return;
+  window.__stnAdminActiveThread = String(clientId);
   document.querySelectorAll('.stn-adm-msg-row').forEach(function (el) {
     el.classList.remove('stn-adm-msg-row--active');
+    if (el.getAttribute('data-stn-thread') === String(clientId)) {
+      el.classList.add('stn-adm-msg-row--active');
+    }
   });
-  renderAdminMessages();
+  renderAdminMessagePane();
 }
 
 function adminSendSupportReply() {
@@ -9645,10 +9749,33 @@ function adminSendSupportReply() {
   var val = input.value;
   if (!val || !val.trim()) { input.focus(); return; }
   var staffName = State.currentUser.first_name || State.currentUser.firstName || 'Everest Staff';
+  window.__stnAdminSuppressUpdate = true;
   stnSupportPostMessage(clientId, 'staff', val, { staffName: staffName });
+  window.__stnAdminSuppressUpdate = false;
   input.value = '';
+  // Update the conversation list timestamp/preview without nuking focus
+  refreshAdminMessageRowsPreview();
   renderAdminMessagePane();
-  input.focus();
+  var freshInput = document.getElementById('stn-adm-msg-input');
+  if (freshInput) freshInput.focus();
+}
+
+/** Lightweight refresh: update only the row preview/time of active thread. */
+function refreshAdminMessageRowsPreview() {
+  var clientId = window.__stnAdminActiveThread;
+  if (!clientId) return;
+  var threads = _stnSupportLoadThreads();
+  var t = threads[clientId];
+  if (!t) return;
+  var row = document.querySelector('.stn-adm-msg-row[data-stn-thread="' + CSS.escape(String(clientId)) + '"]');
+  if (!row) return;
+  var lastMsg = t.messages && t.messages.length ? t.messages[t.messages.length - 1] : null;
+  var preview = lastMsg ? (lastMsg.from === 'staff' ? 'You: ' : '') + (lastMsg.text || '') : 'No messages yet';
+  if (preview.length > 60) preview = preview.slice(0, 58) + '…';
+  var prevEl = row.querySelector('.stn-adm-msg-row-preview');
+  if (prevEl) prevEl.textContent = preview;
+  var timeEl = row.querySelector('.stn-adm-msg-row-time');
+  if (timeEl) timeEl.textContent = _stnSupportFormatTime(t.updatedAt);
 }
 
 // ── FLASH SALE TIMER ──
