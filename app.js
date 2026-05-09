@@ -9324,6 +9324,7 @@ function renderAbout() {
 // list & replies via the "Messages" tab.
 // ════════════════════════════════════════════════════════════════
 const STN_SUPPORT_KEY = 'support_threads';
+const STN_SUPPORT_STORAGE_KEY = 'stn_' + STN_SUPPORT_KEY;
 const STN_SUPPORT_GUEST_KEY = 'support_guest_id';
 
 function _stnSupportNow() { return Date.now(); }
@@ -9363,6 +9364,159 @@ function _stnSupportLoadThreads() {
 
 function _stnSupportSaveThreads(threads) {
   STN.DB.set(STN_SUPPORT_KEY, threads || {});
+}
+
+function _stnSupportMessageIdFromRemote(row) {
+  return String((row && (row.local_id || row.localId || row.message_id || row.id)) || '');
+}
+
+function _stnSupportRemoteThreadId(row) {
+  return String((row && (row.thread_id || row.threadId || row.client_id || row.clientId)) || '');
+}
+
+function _stnSupportRemoteRowsToThreads(rows) {
+  var out = {};
+  if (!Array.isArray(rows)) return out;
+  rows.forEach(function (row) {
+    if (!row || typeof row !== 'object') return;
+    var clientId = _stnSupportRemoteThreadId(row);
+    if (!clientId) return;
+    var tsRaw = row.created_at || row.createdAt || row.ts || row.timestamp;
+    var ts = tsRaw ? new Date(tsRaw).getTime() : _stnSupportNow();
+    if (!Number.isFinite(ts)) ts = _stnSupportNow();
+    if (!out[clientId]) {
+      out[clientId] = {
+        clientId: clientId,
+        label: row.client_label || row.clientLabel || row.label || 'Customer',
+        email: row.client_email || row.clientEmail || '',
+        role: row.client_role || row.clientRole || 'customer',
+        isGuest: !!(row.is_guest || row.isGuest),
+        createdAt: ts,
+        updatedAt: ts,
+        unreadForStaff: 0,
+        unreadForClient: 0,
+        messages: [],
+      };
+    }
+    var side = row.from_side || row.fromSide || row.from || 'user';
+    var msg = {
+      id: _stnSupportMessageIdFromRemote(row) || ('remote_' + ts + '_' + out[clientId].messages.length),
+      from: side === 'staff' ? 'staff' : 'user',
+      text: row.body || row.text || row.message || '',
+      ts: ts,
+      staffName: row.staff_name || row.staffName || (side === 'staff' ? 'Everest Staff' : ''),
+      remoteId: row.id,
+    };
+    if (!msg.text) return;
+    out[clientId].messages.push(msg);
+    out[clientId].updatedAt = Math.max(out[clientId].updatedAt || 0, ts);
+  });
+  Object.keys(out).forEach(function (clientId) {
+    out[clientId].messages.sort(function (a, b) { return (a.ts || 0) - (b.ts || 0); });
+  });
+  return out;
+}
+
+function _stnSupportMergeThreads(localThreads, remoteThreads) {
+  var merged = Object.assign({}, localThreads || {});
+  Object.keys(remoteThreads || {}).forEach(function (clientId) {
+    var remote = remoteThreads[clientId];
+    var local = merged[clientId];
+    if (!local) {
+      merged[clientId] = remote;
+      return;
+    }
+    local.label = local.label || remote.label;
+    local.email = local.email || remote.email;
+    local.role = local.role || remote.role;
+    local.isGuest = !!(local.isGuest && remote.isGuest);
+    var seen = {};
+    (local.messages || []).forEach(function (m) { if (m && m.id) seen[String(m.id)] = true; });
+    remote.messages.forEach(function (m) {
+      if (!m || !m.id || seen[String(m.id)]) return;
+      local.messages.push(m);
+      seen[String(m.id)] = true;
+    });
+    local.messages.sort(function (a, b) { return (a.ts || 0) - (b.ts || 0); });
+    local.updatedAt = local.messages.length ? local.messages[local.messages.length - 1].ts : (local.updatedAt || remote.updatedAt);
+  });
+  return merged;
+}
+
+async function _stnSupportPullRemote() {
+  if (typeof SB === 'undefined' || !SB || !SB.getSupportMessages) return _stnSupportLoadThreads();
+  try {
+    var rows = await SB.getSupportMessages(5000);
+    var remoteThreads = _stnSupportRemoteRowsToThreads(rows);
+    var merged = _stnSupportMergeThreads(_stnSupportLoadThreads(), remoteThreads);
+    _stnSupportSaveThreads(merged);
+    return merged;
+  } catch (e) {
+    if (typeof STNLog !== 'undefined') STNLog.warn('support.pullRemote', e && e.message);
+    return _stnSupportLoadThreads();
+  }
+}
+
+/**
+ * Lightweight polling loop. Refreshes the relevant chat surface every 4s
+ * while the user is on it (admin Messages tab or customer support page).
+ * Avoids needing a websocket/Realtime subscription for the MVP.
+ */
+function startSupportPolling(role) {
+  if (window.__stnSupportPollTimer) {
+    clearInterval(window.__stnSupportPollTimer);
+    window.__stnSupportPollTimer = null;
+  }
+  window.__stnSupportPollRole = role;
+  window.__stnSupportPollTimer = setInterval(async function () {
+    try {
+      if (document.hidden) return;
+      var stillOnChat =
+        (role === 'client' && State.currentPage === 'support') ||
+        (role === 'admin' && document.getElementById('adm-nav-messages') &&
+          document.getElementById('adm-nav-messages').classList.contains('adm-active'));
+      if (!stillOnChat) {
+        clearInterval(window.__stnSupportPollTimer);
+        window.__stnSupportPollTimer = null;
+        return;
+      }
+      var before = JSON.stringify(_stnSupportLoadThreads());
+      await _stnSupportPullRemote();
+      var after = JSON.stringify(_stnSupportLoadThreads());
+      if (before === after) return;
+      if (role === 'client') {
+        stnSupportRenderClientThread();
+      } else {
+        if (typeof renderAdminMessages === 'function') renderAdminMessages();
+      }
+    } catch (e) {
+      if (typeof STNLog !== 'undefined') STNLog.warn('support.poll', e && e.message);
+    }
+  }, 4000);
+}
+
+function _stnSupportRemoteBody(thread, entry) {
+  return {
+    thread_id: String(thread.clientId),
+    client_id: String(thread.clientId),
+    client_label: thread.label || 'Customer',
+    client_email: thread.email || '',
+    client_role: thread.role || 'customer',
+    is_guest: !!thread.isGuest,
+    from_side: entry.from === 'staff' ? 'staff' : 'user',
+    body: entry.text || '',
+    staff_name: entry.staffName || '',
+    local_id: entry.id,
+    created_at: new Date(entry.ts || _stnSupportNow()).toISOString(),
+  };
+}
+
+function _stnSupportPushRemote(thread, entry) {
+  if (typeof SB === 'undefined' || !SB || !SB.createSupportMessage) return;
+  var body = _stnSupportRemoteBody(thread, entry);
+  SB.createSupportMessage(body).catch(function (e) {
+    if (typeof STNLog !== 'undefined') STNLog.warn('support.pushRemote', e && e.message);
+  });
 }
 
 function _stnSupportEnsureThread(threads, clientId) {
@@ -9442,6 +9596,7 @@ function stnSupportPostMessage(clientId, from, text, opts) {
     thread.unreadForClient = (thread.unreadForClient || 0) + 1;
   }
   _stnSupportSaveThreads(threads);
+  _stnSupportPushRemote(thread, entry);
   try {
     window.dispatchEvent(new CustomEvent('stn:support:update', { detail: { clientId: clientId, from: entry.from } }));
   } catch (e) {}
@@ -9519,12 +9674,15 @@ function stnSupportClear() {
   stnSupportRenderClientThread();
 }
 
-function renderSupport() {
+async function renderSupport() {
   var clientId = _stnSupportCurrentClientId();
   var threads = _stnSupportLoadThreads();
   _stnSupportEnsureThread(threads, clientId);
   _stnSupportSaveThreads(threads);
   stnSupportRenderClientThread();
+  await _stnSupportPullRemote();
+  stnSupportRenderClientThread();
+  startSupportPolling('client');
   if (!window.__stnSupportListenerBound) {
     window.__stnSupportListenerBound = true;
     window.addEventListener('stn:support:update', function (ev) {
@@ -9534,7 +9692,7 @@ function renderSupport() {
       stnSupportRenderClientThread();
     });
     window.addEventListener('storage', function (ev) {
-      if (!ev || ev.key !== STN_SUPPORT_KEY) return;
+      if (!ev || (ev.key !== STN_SUPPORT_STORAGE_KEY && ev.key !== STN_SUPPORT_KEY)) return;
       if (State.currentPage === 'support') stnSupportRenderClientThread();
     });
   }
@@ -9584,9 +9742,13 @@ function _stnAdminMessagesPickActive(list) {
   return list[0];
 }
 
-function renderAdminMessages(container) {
+async function renderAdminMessages(container) {
   if (!container) container = document.getElementById('admin-content');
   if (!container) return;
+  container.innerHTML =
+    '<div style="padding:2.75rem 1.5rem;text-align:center;color:#7b72a8;font-size:0.9rem">Loading customer messages…</div>';
+  await _stnSupportPullRemote();
+  startSupportPolling('admin');
   var list = _stnAdminSortedThreads();
   var active = _stnAdminMessagesPickActive(list);
   window.__stnAdminActiveThread = active ? active.clientId : null;
@@ -9665,7 +9827,7 @@ function renderAdminMessages(container) {
       }
     });
     window.addEventListener('storage', function (ev) {
-      if (!ev || ev.key !== STN_SUPPORT_KEY) return;
+      if (!ev || (ev.key !== STN_SUPPORT_STORAGE_KEY && ev.key !== STN_SUPPORT_KEY)) return;
       var navMsg = document.getElementById('adm-nav-messages');
       if (navMsg && navMsg.classList.contains('adm-active')) renderAdminMessages();
     });

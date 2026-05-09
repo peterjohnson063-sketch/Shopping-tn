@@ -700,6 +700,59 @@ const SB = {
     return data && data[0] ? data[0] : null;
   },
 
+  // ── SUPPORT / CUSTOMER SERVICE ──
+  async createSupportMessage(row) {
+    var body = Object.assign({}, row || {});
+    try {
+      const data = await this.req('POST', 'support_messages', body);
+      return data && data[0] ? data[0] : null;
+    } catch (e) {
+      // Fallback for projects that have the older Yasmine migration but not
+      // the dedicated support_messages table yet.
+      const alert = await this.createAdminAlert({
+        kind: 'support_message',
+        message: body.body || body.text || 'Customer service message',
+        meta: body,
+      });
+      if (!alert) return null;
+      return Object.assign({}, body, {
+        id: alert.id,
+        created_at: alert.created_at,
+        _source: 'admin_alerts',
+      });
+    }
+  },
+
+  async getSupportMessages(limit) {
+    var lim = parseInt(String(limit == null ? 2000 : limit), 10);
+    if (!Number.isFinite(lim) || lim < 1) lim = 2000;
+    lim = Math.min(lim, 5000);
+    try {
+      const rows = await this.req('GET', 'support_messages', null, `?order=created_at.asc&limit=${lim}`);
+      return Array.isArray(rows) ? rows : [];
+    } catch (e) {
+      try {
+        const alerts = await this.req(
+          'GET',
+          'admin_alerts',
+          null,
+          `?kind=eq.support_message&order=created_at.asc&limit=${lim}`
+        );
+        if (!Array.isArray(alerts)) return [];
+        return alerts.map(function (a) {
+          var meta = a && a.meta && typeof a.meta === 'object' ? a.meta : {};
+          return Object.assign({}, meta, {
+            id: a.id,
+            created_at: meta.created_at || a.created_at,
+            _source: 'admin_alerts',
+          });
+        });
+      } catch (e2) {
+        return [];
+      }
+    }
+  },
+
   // ── ORDERS ──
   async getOrders() {
     return this.req('GET', 'orders', null, '?order=created_at.desc&limit=2000');
