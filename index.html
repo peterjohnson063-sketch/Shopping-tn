@@ -807,17 +807,17 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   --dp-red-dim: rgba(220, 38, 38, 0.1);
   --dp-brand: #7c3aed;
   --dp-brand-dim: rgba(124, 58, 237, 0.1);
-  min-height: calc(100vh - 112px);
+  min-height: calc(100vh - var(--stn-main-nav-h, 112px));
   background: var(--dp-bg);
   color: var(--dp-text);
   font-family: Outfit, system-ui, sans-serif;
 }
 .dash-pro-topbar {
   position: sticky;
-  top: 112px;
+  top: var(--stn-main-nav-h, 112px);
   z-index: 50;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.75rem 1.25rem;
   padding: 0.65rem max(4%, 20px);
@@ -841,9 +841,12 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   color: var(--dp-brand);
   font-size: 0.55rem;
 }
+body.everest-logistics-cutoff-bar-visible .dash-pro-topbar {
+  top: calc(var(--stn-main-nav-h, 112px) + var(--stn-logistics-bar-h, 3.5rem));
+}
 .dash-pro-tabs {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.15rem;
   flex: 1;
   min-width: 0;
@@ -1146,7 +1149,7 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
   padding: 1.25rem max(4%, 16px) 3rem;
   background: var(--dp-bg);
   color: var(--dp-text);
-  min-height: calc(100vh - 112px);
+  min-height: calc(100vh - var(--stn-main-nav-h, 112px));
   font-family: Outfit, system-ui, sans-serif;
 }
 .dash-pro-root .dash-pro-hero {
@@ -2512,6 +2515,11 @@ footer { background: #1e0a4e; color: white; padding: 4rem 5% 2rem; position: rel
 <!-- PAGE: ADMIN                      -->
 <!-- ════════════════════════════════ -->
 <div class="page" id="page-admin"></div>
+
+<!-- ════════════════════════════════ -->
+<!-- PAGE: MODERATOR (customer care — orders + client messages) -->
+<!-- ════════════════════════════════ -->
+<div class="page" id="page-moderator"></div>
 
 <!-- ════════════════════════════════ -->
 <!-- PAGE: SAHEL HUB (QC / ready for pickup) -->

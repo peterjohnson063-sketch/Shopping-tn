@@ -312,12 +312,15 @@ async function init() {
     }
   }, 5000);
 
-  // For admins, skip the storefront entirely and land on the dashboard.
+  // For admins/moderators, skip the storefront entirely and land on the right dashboard.
   var bootedAsStaff = false;
   try {
     if (State.currentUser && State.currentUser.role === 'admin') {
       bootedAsStaff = true;
       showPage('admin');
+    } else if (State.currentUser && State.currentUser.role === 'moderator') {
+      bootedAsStaff = true;
+      showPage('moderator');
     }
   } catch (eAdminBoot) {}
 
@@ -853,29 +856,40 @@ function navLabelForHeader(full, short) {
 }
 
 /**
- * Replace the side drawer's contents with admin-only navigation when an
- * admin is signed in, and restore the consumer menu otherwise.
+ * Replace the side drawer with admin / moderator navigation when signed in as staff,
+ * and restore the consumer menu otherwise.
  */
-function syncAdminDrawer() {
+function syncStaffDrawer() {
   var list = document.querySelector('#nav-drawer .nav-drawer-list');
   if (!list) return;
-  var isAdmin = !!(State.currentUser && State.currentUser.role === 'admin');
-  if (isAdmin) {
+  var role = State.currentUser && State.currentUser.role;
+  if (role === 'admin') {
     if (list.getAttribute('data-stn-mode') === 'admin') return;
     list.setAttribute('data-stn-mode', 'admin');
     if (!list.getAttribute('data-stn-original')) {
       list.setAttribute('data-stn-original', list.innerHTML);
     }
-    var unread = (typeof _stnAdminUnreadSupportCount === 'function') ? _stnAdminUnreadSupportCount() : 0;
     list.innerHTML =
       '<li><div class="nav-drawer-admin-banner">Admin mode</div></li>' +
       '<li><button type="button" class="nav-drawer-link nav-drawer-link--key" onclick="toggleNavDrawer(false);showPage(\'admin\')">Dashboard</button></li>' +
-      '<li><button type="button" class="nav-drawer-link nav-drawer-link--key" onclick="toggleNavDrawer(false);openAdminMessages()">Messages' + (unread > 0 ? ' <span class=\"nav-drawer-badge\">' + unread + '</span>' : '') + '</button></li>' +
       '<li><button type="button" class="nav-drawer-link" onclick="toggleNavDrawer(false);showPage(\'hub\')">Sahel Hub</button></li>' +
       '<li><button type="button" class="nav-drawer-link" onclick="toggleNavDrawer(false);openAdminSection(\'orders\')">Orders</button></li>' +
       '<li><button type="button" class="nav-drawer-link" onclick="toggleNavDrawer(false);openAdminSection(\'users\')">Customers</button></li>' +
       '<li><button type="button" class="nav-drawer-link" onclick="toggleNavDrawer(false);openAdminSection(\'drivers\')">Drivers</button></li>' +
       '<li><button type="button" class="nav-drawer-link" onclick="toggleNavDrawer(false);openAdminSection(\'vendors\')">Vendors</button></li>' +
+      '<li><button type="button" class="nav-drawer-link" style="color:#b91c1c" onclick="toggleNavDrawer(false);if(typeof logout===\'function\')logout()">Sign out</button></li>';
+  } else if (role === 'moderator') {
+    if (list.getAttribute('data-stn-mode') === 'moderator') return;
+    list.setAttribute('data-stn-mode', 'moderator');
+    if (!list.getAttribute('data-stn-original')) {
+      list.setAttribute('data-stn-original', list.innerHTML);
+    }
+    var unreadMod = (typeof _stnAdminUnreadSupportCount === 'function') ? _stnAdminUnreadSupportCount() : 0;
+    list.innerHTML =
+      '<li><div class="nav-drawer-admin-banner">Moderator</div></li>' +
+      '<li><button type="button" class="nav-drawer-link nav-drawer-link--key" onclick="toggleNavDrawer(false);showPage(\'moderator\')">Dashboard</button></li>' +
+      '<li><button type="button" class="nav-drawer-link nav-drawer-link--key" onclick="toggleNavDrawer(false);openModeratorMessages()">Messages' + (unreadMod > 0 ? ' <span class=\"nav-drawer-badge\">' + unreadMod + '</span>' : '') + '</button></li>' +
+      '<li><button type="button" class="nav-drawer-link" onclick="toggleNavDrawer(false);openModeratorSection(\'orders\')">Orders</button></li>' +
       '<li><button type="button" class="nav-drawer-link" style="color:#b91c1c" onclick="toggleNavDrawer(false);if(typeof logout===\'function\')logout()">Sign out</button></li>';
   } else {
     if (list.getAttribute('data-stn-mode') === 'consumer') return;
@@ -883,6 +897,10 @@ function syncAdminDrawer() {
     if (saved) list.innerHTML = saved;
     list.setAttribute('data-stn-mode', 'consumer');
   }
+}
+
+function syncAdminDrawer() {
+  syncStaffDrawer();
 }
 
 /** Open the admin dashboard pre-selected to a given section. */
@@ -894,19 +912,28 @@ function openAdminSection(section) {
   }, 30);
 }
 
-/** Shortcut to jump straight to the admin Messages tab. */
-function openAdminMessages() {
-  if (!State.currentUser || State.currentUser.role !== 'admin') return;
-  window.__stnAdminSwitchToMessages = true;
-  showPage('admin');
+/** Moderator: open dashboard on Messages tab (human client chat — Yasmine stays AI-only elsewhere). */
+function openModeratorMessages() {
+  if (!State.currentUser || State.currentUser.role !== 'moderator') return;
+  window.__stnModSwitchToMessages = true;
+  showPage('moderator');
+}
+
+function openModeratorSection(section) {
+  if (!State.currentUser || State.currentUser.role !== 'moderator') return;
+  showPage('moderator');
+  setTimeout(function () {
+    if (typeof switchModerator === 'function') switchModerator(section);
+  }, 30);
 }
 
 function updateNavUser() {
   var btn = document.getElementById('nav-user-area');
   try {
-    var staffMode = !!(State.currentUser && (State.currentUser.role === 'admin' || State.currentUser.role === 'hub'));
+    var staffMode = !!(State.currentUser && (State.currentUser.role === 'admin' || State.currentUser.role === 'moderator' || State.currentUser.role === 'hub'));
     document.body.classList.toggle('stn-staff-mode', staffMode);
     document.body.classList.toggle('stn-admin-mode', !!(State.currentUser && State.currentUser.role === 'admin'));
+    document.body.classList.toggle('stn-moderator-mode', !!(State.currentUser && State.currentUser.role === 'moderator'));
     document.body.classList.toggle('stn-signed-in', !!State.currentUser);
     syncAdminDrawer();
   } catch (eClass) {}
@@ -922,6 +949,11 @@ function updateNavUser() {
       el.style.color = 'white';
       el.textContent = navLabelForHeader('Admin Dashboard', 'Admin');
       el.onclick = function(){ showPage('admin'); };
+    } else if (role === 'moderator') {
+      el.style.background = 'linear-gradient(135deg,#4f46e5,#4338ca)';
+      el.style.color = 'white';
+      el.textContent = navLabelForHeader('Care dashboard', 'Care');
+      el.onclick = function(){ showPage('moderator'); };
     } else if (role === 'hub') {
       el.style.background = 'linear-gradient(135deg,#0d9488,#0f766e)';
       el.style.color = 'white';
@@ -1000,6 +1032,8 @@ const STN_ADMIN_ALLOWED_PAGES = new Set([
   'admin', 'hub', 'vendor-dashboard', 'driver', 'auth', 'vendor-hours'
 ]);
 
+const STN_MODERATOR_ALLOWED_PAGES = new Set(['moderator', 'auth']);
+
 function showPage(id) {
   if (typeof closeSMConfiguratorSheet === 'function') {
     try {
@@ -1010,11 +1044,14 @@ function showPage(id) {
   // Force admins into the admin shell — never the consumer storefront.
   try {
     if (State.currentUser && State.currentUser.role === 'admin' && !STN_ADMIN_ALLOWED_PAGES.has(id)) {
+      id = 'admin';
+    }
+    if (State.currentUser && State.currentUser.role === 'moderator' && !STN_MODERATOR_ALLOWED_PAGES.has(id)) {
       if (id === 'support') {
-        id = 'admin';
-        window.__stnAdminSwitchToMessages = true;
+        id = 'moderator';
+        window.__stnModSwitchToMessages = true;
       } else {
-        id = 'admin';
+        id = 'moderator';
       }
     }
   } catch (eGuard) {}
@@ -1055,6 +1092,7 @@ function showPage(id) {
     auth: renderAuth,
     account: renderAccount,
     admin: renderAdmin,
+    moderator: renderModerator,
     hub: renderHub,
     vendor: renderVendor,
     'vendor-dashboard': renderVendorDashboard,
@@ -1128,6 +1166,7 @@ function mobileNavAccount() {
   }
   var role = State.currentUser.role;
   if (role === 'admin') showPage('admin');
+  else if (role === 'moderator') showPage('moderator');
   else if (role === 'hub') showPage('hub');
   else if (role === 'vendor') showVendorHubOrOnboarding();
   else if (role === 'driver') showPage('driver');
@@ -1139,7 +1178,7 @@ function syncBottomNavActive(pageId, bottomNavTabOverride) {
   if (!nav) return;
   nav.querySelectorAll('.bottom-nav__btn').forEach(function (b) { b.classList.remove('active'); });
   var map = { home: 'bottomnav-home', products: 'bottomnav-products', track: 'bottomnav-track' };
-  var accountPages = { account: 1, auth: 1, vendor: 1, 'vendor-hours': 1, admin: 1, hub: 1, 'vendor-dashboard': 1, driver: 1 };
+  var accountPages = { account: 1, auth: 1, vendor: 1, 'vendor-hours': 1, admin: 1, moderator: 1, hub: 1, 'vendor-dashboard': 1, driver: 1 };
   if (accountPages[pageId]) {
     var acc = document.getElementById('bottomnav-account');
     if (acc) acc.classList.add('active');
@@ -1168,12 +1207,10 @@ function isDriverVerified(u) {
   return truthy(u.verified) || truthy(u.is_verified);
 }
 
-/** Banned, soft-deleted, or active timeout — blocks login and driver app. */
+/** Soft-deleted profiles — blocks login and driver app (ban/timeout flows removed). */
 function isUserSuspended(u) {
   if (!u) return false;
   if (u.deleted_at != null && String(u.deleted_at).trim() !== '') return true;
-  if (u.banned === true || u.banned === 1 || u.banned === '1' || String(u.banned).toLowerCase() === 'true') return true;
-  if (u.timeout_until && new Date(u.timeout_until) > new Date()) return true;
   return false;
 }
 
@@ -1474,38 +1511,11 @@ function renderDriver() {
     if (!head || !list) return;
 
     if (isUserSuspended(State.currentUser)) {
-      var cu = State.currentUser;
-      var bannedNow =
-        cu.banned === true ||
-        cu.banned === 1 ||
-        cu.banned === '1' ||
-        String(cu.banned || '').toLowerCase() === 'true';
-      var br = (cu.ban_reason != null && String(cu.ban_reason).trim() !== '' ? String(cu.ban_reason).trim() : '');
-      var reasonBlock =
-        bannedNow && br
-          ? '<div style="margin-top:1rem;padding:0.85rem 1rem;background:white;border:1px solid #fecaca;border-radius:12px">' +
-            '<p style="margin:0 0 0.35rem;font-size:0.72rem;font-weight:700;color:#991b1b;text-transform:uppercase;letter-spacing:0.06em">Message from admin</p>' +
-            '<p style="margin:0;font-size:0.9rem;color:#450a0a;line-height:1.5;white-space:pre-wrap;word-break:break-word">' +
-            _detailEscapeHtml(br) +
-            '</p></div>'
-          : '';
-      var timeoutNote = '';
-      if (cu.timeout_until && new Date(cu.timeout_until) > new Date()) {
-        try {
-          timeoutNote =
-            '<p style="margin:0.75rem 0 0;font-size:0.82rem;color:#7f1d1d">Temporary restriction until <strong>' +
-            _detailEscapeHtml(new Date(cu.timeout_until).toLocaleString()) +
-            '</strong>.</p>';
-        } catch (e) {}
-      }
       head.innerHTML =
         '<div style="background:linear-gradient(135deg,#fef2f2,#ffe4e6);border:1px solid #fecaca;border-radius:16px;padding:1.25rem 1.35rem;margin-bottom:1.25rem">' +
         '<h1 style="font-family:var(--font-display,Georgia,serif);font-size:1.45rem;color:#991b1b;margin:0 0 0.5rem">⛔ Account not active</h1>' +
-        '<p style="margin:0;font-size:0.88rem;color:#7f1d1d;line-height:1.55">Your delivery partner access is suspended or was not approved after admin review. You cannot accept deliveries.' +
-        (bannedNow ? ' If a reason is shown below, it was added by the admin team.' : '') +
+        '<p style="margin:0;font-size:0.88rem;color:#7f1d1d;line-height:1.55">This account was closed or removed. You cannot use the delivery app. Contact Everest support if this is wrong.' +
         '</p>' +
-        timeoutNote +
-        reasonBlock +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:0.65rem;align-items:center;margin-bottom:1rem">' +
         '<button type="button" class="btn btn-danger btn-sm" onclick="logout()" style="font-weight:700">Log out</button>' +
@@ -3473,13 +3483,7 @@ async function doLogin() {
   const local = (STN.DB.get('users') || []).find(u => u.email === email && u.password === pass);
   if (local) {
     if (isUserSuspended(local)) {
-      var whyL = (local.ban_reason || '').toString().trim();
-      toast(
-        whyL
-          ? 'Account not active. Admin note: ' + (whyL.length > 160 ? whyL.slice(0, 157) + '…' : whyL)
-          : 'This account is suspended or no longer active.',
-        'error'
-      );
+      toast('This account is no longer active.', 'error');
       return;
     }
     const sessionUser = STN.userForSession(local);
@@ -3491,6 +3495,7 @@ async function doLogin() {
     everestFCMRefreshUserToken();
     toast(`✦ Welcome back, ${State.currentUser.firstName || local.firstName}!`, 'success');
     if (State.currentUser.role === 'admin') showPage('admin');
+    else if (State.currentUser.role === 'moderator') showPage('moderator');
     else if (State.currentUser.role === 'hub') showPage('hub');
     else if (State.currentUser.role === 'vendor') showVendorHubOrOnboarding();
     else if (State.currentUser.role === 'driver') showPage('driver');
@@ -3503,13 +3508,7 @@ async function doLogin() {
     const user = await SB.getUser(email);
     if (!user || user.password !== pass) { toast('⚠️ Invalid email or password', 'error'); return; }
     if (isUserSuspended(user)) {
-      var whyS = (user.ban_reason || '').toString().trim();
-      toast(
-        whyS
-          ? 'Account not active. Admin note: ' + (whyS.length > 160 ? whyS.slice(0, 157) + '…' : whyS)
-          : 'This account is suspended or no longer active.',
-        'error'
-      );
+      toast('This account is no longer active.', 'error');
       return;
     }
     State.currentUser = STN.userForSession({ ...user, firstName: user.first_name, lastName: user.last_name });
@@ -3520,6 +3519,7 @@ async function doLogin() {
     everestFCMRefreshUserToken();
     toast(`✦ Welcome back, ${user.first_name}!`, 'success');
     if (user.role === 'admin') showPage('admin');
+    else if (user.role === 'moderator') showPage('moderator');
     else if (user.role === 'hub') showPage('hub');
     else if (user.role === 'vendor') showVendorHubOrOnboarding();
     else if (user.role === 'driver') showPage('driver');
@@ -3667,8 +3667,8 @@ async function deleteMyAccount() {
     return;
   }
   var role = State.currentUser.role;
-  if (role === 'admin') {
-    toast('Admin accounts cannot be deleted from here. Contact another admin or support.', 'error');
+  if (role === 'admin' || role === 'moderator') {
+    toast('Staff accounts cannot be deleted from here. Contact another admin or support.', 'error');
     return;
   }
   var uid = State.currentUser.id;
@@ -5336,20 +5336,12 @@ function renderAdmin() {
   const page = document.getElementById('page-admin');
   if (!page) return;
   page.innerHTML = buildAdminHTML();
-  var initial = 'overview';
-  if (window.__stnAdminSwitchToMessages) {
-    initial = 'messages';
-    window.__stnAdminSwitchToMessages = false;
-  }
-  switchAdmin(initial);
+  switchAdmin('overview');
 }
 
 function buildAdminHTML() {
-  var unread = _stnAdminUnreadSupportCount();
-  var msgLabel = 'Messages' + (unread > 0 ? ' · ' + unread : '');
   var tabs = [
     { id: 'overview', label: 'Overview' },
-    { id: 'messages', label: msgLabel },
     { id: 'orders', label: 'Orders' },
     { id: 'hub', label: 'Sahel Hub' },
     { id: 'logistics', label: 'Logistics' },
@@ -5383,96 +5375,58 @@ function buildAdminHTML() {
   );
 }
 
-async function switchAdmin(section) {
-  document.querySelectorAll('.dash-pro-tab').forEach(function (el) {
-    el.classList.remove('dash-pro-tab--active');
-    el.classList.remove('adm-active');
-  });
-  var active = document.getElementById('adm-nav-' + section);
-  if (active) {
-    active.classList.add('dash-pro-tab--active');
-    active.classList.add('adm-active');
-  }
+function refreshStaffOrdersPanel() {
+  try {
+    if (State.currentPage === 'moderator') {
+      if (typeof switchModerator === 'function') switchModerator('orders');
+    } else if (typeof switchAdmin === 'function') {
+      switchAdmin('orders');
+    }
+  } catch (eRefOrd) {}
+}
+window.refreshStaffOrdersPanel = refreshStaffOrdersPanel;
 
-  const content = document.getElementById('admin-content');
+function refreshActiveStaffDashboard() {
+  try {
+    var modTab = document.querySelector('#page-moderator .dash-pro-tab.adm-active');
+    if (modTab && modTab.id && modTab.id.indexOf('mod-nav-') === 0) {
+      if (typeof switchModerator === 'function') switchModerator(modTab.id.replace('mod-nav-', ''));
+      return;
+    }
+    var admTab = document.querySelector('#page-admin .dash-pro-tab.adm-active');
+    if (admTab && admTab.id && admTab.id.indexOf('adm-nav-') === 0) {
+      if (typeof switchAdmin === 'function') switchAdmin(admTab.id.replace('adm-nav-', ''));
+    }
+  } catch (eRefDash) {}
+}
+
+/** Shared orders pipeline UI for admin + moderator dashboards. */
+async function staffRenderOrdersPipelineInto(content, orders) {
   if (!content) return;
-
-  if (section === 'hub') {
-    content.innerHTML = '<div id="hub-panel-root" style="padding:1.5rem"></div>';
-    renderHubPanelInto('hub-panel-root');
-    return;
-  }
-
-  if (section === 'messages') {
-    renderAdminMessages(content);
-    return;
-  }
-
-  var users = STN.DB.get('users') || [];
-  var orders = STN.DB.get('orders') || [];
-
-  if (section === 'overview') {
-    content.innerHTML =
-      '<div style="padding:2.75rem 1.5rem;text-align:center;color:#7b72a8;font-size:0.9rem">Loading orders and users from the database…</div>';
-    try {
-      if (typeof SB !== 'undefined' && SB.getOrders) {
-        var ro = await SB.getOrders();
-        if (Array.isArray(ro)) orders = ro;
-      }
-    } catch (e) {
-      if (typeof STNLog !== 'undefined') STNLog.warn('admin.overview.getOrders', e && e.message);
-    }
-    try {
-      STN.DB.set('orders', orders);
-      State.orders = orders;
-    } catch (ePersist) {}
-    try {
-      users = await mergeLocalAndRemoteUsersForAdmin();
-    } catch (e2) {
-      if (typeof STNLog !== 'undefined') STNLog.warn('admin.overview.mergeUsers', e2 && e2.message);
-    }
-    var navOv = document.getElementById('adm-nav-overview');
-    if (!navOv || !navOv.classList.contains('adm-active')) return;
-    content.innerHTML = buildAdminOverviewHTML(orders, users, State.products || []);
-    return;
-  }
-
+  var users = [];
   try {
-    if (typeof SB !== 'undefined' && SB.getOrders) {
-      var rx = await SB.getOrders();
-      if (Array.isArray(rx)) orders = rx;
-    }
-  } catch (e) {
-    if (typeof STNLog !== 'undefined') STNLog.warn('admin.tab.getOrders', e && e.message);
+    users = await mergeLocalAndRemoteUsersForAdmin();
+  } catch (mu) {
+    users = STN.DB.get('users') || [];
+    if (typeof STNLog !== 'undefined') STNLog.warn('staff.orders.mergeUsers', mu && mu.message);
   }
-  try {
-    STN.DB.set('orders', orders);
-    State.orders = orders;
-  } catch (ePersist2) {}
-
-  if (section === 'orders') {
-    try {
-      users = await mergeLocalAndRemoteUsersForAdmin();
-    } catch (mu) {
-      if (typeof STNLog !== 'undefined') STNLog.warn('admin.orders.mergeUsers', mu && mu.message);
-    }
-    if (typeof window.__admOrdersFilter === 'undefined') window.__admOrdersFilter = 'today';
-    var admOrdScope = window.__admOrdersFilter === 'all' ? 'all' : 'today';
-    var ordersDisplay =
-      admOrdScope === 'today' ? dashOrdersForTunisiaDay(orders, _dashTunisiaDateKey(new Date())) : orders;
-    var revenueDisp = dashSumRevenue(ordersDisplay);
-    var driverUsers = users.filter(function (u) {
-      return u.role === 'driver' && isDriverVerified(u);
-    });
-    var btnTodayStyle =
-      admOrdScope === 'today'
-        ? 'background:#0f172a;color:#fff;border:1px solid #0f172a;'
-        : 'background:#fff;color:#374151;border:1px solid #e5e7eb;';
-    var btnAllStyle =
-      admOrdScope === 'all'
-        ? 'background:#0f172a;color:#fff;border:1px solid #0f172a;'
-        : 'background:#fff;color:#374151;border:1px solid #e5e7eb;';
-    content.innerHTML = `
+  if (typeof window.__admOrdersFilter === 'undefined') window.__admOrdersFilter = 'today';
+  var admOrdScope = window.__admOrdersFilter === 'all' ? 'all' : 'today';
+  var ordersDisplay =
+    admOrdScope === 'today' ? dashOrdersForTunisiaDay(orders, _dashTunisiaDateKey(new Date())) : orders;
+  var revenueDisp = dashSumRevenue(ordersDisplay);
+  var driverUsers = users.filter(function (u) {
+    return u.role === 'driver' && isDriverVerified(u);
+  });
+  var btnTodayStyle =
+    admOrdScope === 'today'
+      ? 'background:#0f172a;color:#fff;border:1px solid #0f172a;'
+      : 'background:#fff;color:#374151;border:1px solid #e5e7eb;';
+  var btnAllStyle =
+    admOrdScope === 'all'
+      ? 'background:#0f172a;color:#fff;border:1px solid #0f172a;'
+      : 'background:#fff;color:#374151;border:1px solid #e5e7eb;';
+  content.innerHTML = `
       <div>
         <div style="margin-bottom:1.25rem;display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:1rem">
           <div>
@@ -5481,8 +5435,8 @@ async function switchAdmin(section) {
             <p style="font-size:0.72rem;color:#94a3b8;margin:0.4rem 0 0;max-width:40rem">Staff see partner shop names for routing. Customers only see Everest — never individual seller identities on the storefront.</p>
           </div>
           <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-            <button type="button" onclick="window.__admOrdersFilter='today';switchAdmin('orders')" style="${btnTodayStyle}padding:0.5rem 1rem;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer">Today · TN</button>
-            <button type="button" onclick="window.__admOrdersFilter='all';switchAdmin('orders')" style="${btnAllStyle}padding:0.5rem 1rem;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer">All time</button>
+            <button type="button" onclick="window.__admOrdersFilter='today';refreshStaffOrdersPanel()" style="${btnTodayStyle}padding:0.5rem 1rem;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer">Today · TN</button>
+            <button type="button" onclick="window.__admOrdersFilter='all';refreshStaffOrdersPanel()" style="${btnAllStyle}padding:0.5rem 1rem;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer">All time</button>
           </div>
         </div>
         <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
@@ -5544,7 +5498,76 @@ async function switchAdmin(section) {
           </div>
         </div>
       </div>`;
+}
 
+async function switchAdmin(section) {
+  var adminShell = document.getElementById('page-admin');
+  if (adminShell) {
+    adminShell.querySelectorAll('.dash-pro-tab').forEach(function (el) {
+      el.classList.remove('dash-pro-tab--active');
+      el.classList.remove('adm-active');
+    });
+  }
+  var active = document.getElementById('adm-nav-' + section);
+  if (active) {
+    active.classList.add('dash-pro-tab--active');
+    active.classList.add('adm-active');
+  }
+
+  const content = document.getElementById('admin-content');
+  if (!content) return;
+
+  if (section === 'hub') {
+    content.innerHTML = '<div id="hub-panel-root" style="padding:1.5rem"></div>';
+    renderHubPanelInto('hub-panel-root');
+    return;
+  }
+
+  var users = STN.DB.get('users') || [];
+  var orders = STN.DB.get('orders') || [];
+
+  if (section === 'overview') {
+    content.innerHTML =
+      '<div style="padding:2.75rem 1.5rem;text-align:center;color:#7b72a8;font-size:0.9rem">Loading orders and users from the database…</div>';
+    try {
+      if (typeof SB !== 'undefined' && SB.getOrders) {
+        var ro = await SB.getOrders();
+        if (Array.isArray(ro)) orders = ro;
+      }
+    } catch (e) {
+      if (typeof STNLog !== 'undefined') STNLog.warn('admin.overview.getOrders', e && e.message);
+    }
+    try {
+      STN.DB.set('orders', orders);
+      State.orders = orders;
+    } catch (ePersist) {}
+    try {
+      users = await mergeLocalAndRemoteUsersForAdmin();
+    } catch (e2) {
+      if (typeof STNLog !== 'undefined') STNLog.warn('admin.overview.mergeUsers', e2 && e2.message);
+    }
+    var navOv = document.getElementById('adm-nav-overview');
+    if (!navOv || !navOv.classList.contains('adm-active')) return;
+    content.innerHTML = buildAdminOverviewHTML(orders, users, State.products || []);
+    return;
+  }
+
+  try {
+    if (typeof SB !== 'undefined' && SB.getOrders) {
+      var rx = await SB.getOrders();
+      if (Array.isArray(rx)) orders = rx;
+    }
+  } catch (e) {
+    if (typeof STNLog !== 'undefined') STNLog.warn('admin.tab.getOrders', e && e.message);
+  }
+  try {
+    STN.DB.set('orders', orders);
+    State.orders = orders;
+  } catch (ePersist2) {}
+
+  if (section === 'orders') {
+    await staffRenderOrdersPipelineInto(content, orders);
+    return;
   } else if (section === 'products') {
     content.innerHTML = `
       <div>
@@ -5590,16 +5613,12 @@ async function switchAdmin(section) {
       var userRows = users.length === 0
       ? '<tr><td colspan="7" style="text-align:center;padding:3rem;color:#9ca3af">No users yet</td></tr>'
       : users.map(function(u) {
-          var isBanned = u.banned;
-          var isTimedOut = u.timeout_until && new Date(u.timeout_until) > new Date();
-          var timeoutLeft = isTimedOut ? Math.ceil((new Date(u.timeout_until)-new Date())/3600000)+'h left' : '';
-          var statusBadge = isBanned
-            ? '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#fee2e2;color:#dc2626">&#128683; Banned</span>'
-            : isTimedOut
-            ? '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#fef3c7;color:#d97706">&#9203; '+timeoutLeft+'</span>'
+          var isRemoved = u.deleted_at != null && String(u.deleted_at).trim() !== '';
+          var statusBadge = isRemoved
+            ? '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#f3f4f6;color:#64748b">Removed</span>'
             : '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#dcfce7;color:#166534">&#10003; Active</span>';
-          var roleColor = u.role==='admin'?'#92400e':u.role==='vendor'?'#6d28d9':u.role==='driver'?'#0369a1':'#374151';
-          var roleBg = u.role==='admin'?'#fef3c7':u.role==='vendor'?'#ede9fe':u.role==='driver'?'#e0f2fe':'#f3f4f6';
+          var roleColor = u.role==='admin'?'#92400e':u.role==='moderator'?'#4338ca':u.role==='vendor'?'#6d28d9':u.role==='driver'?'#0369a1':'#374151';
+          var roleBg = u.role==='admin'?'#fef3c7':u.role==='moderator'?'#e0e7ff':u.role==='vendor'?'#ede9fe':u.role==='driver'?'#e0f2fe':'#f3f4f6';
           var cinL = u.cin_document_url || '';
           var licL = u.license_document_url || '';
           var docLinks =
@@ -5628,15 +5647,21 @@ async function switchAdmin(section) {
               : u.role === 'driver' && isDriverVerified(u)
               ? '<span style="font-size:0.65rem;color:#059669;font-weight:600;display:inline-block;margin-bottom:0.35rem">Verified</span><br/>'
               : '';
-          var actions = u.role === 'admin' ? '<span style="color:#9ca3af;font-size:0.72rem">Admin</span>' : (
-            docLinks + driverVerifyBtn +
-            (isBanned
-              ? '<button data-action="unban" data-id="'+u.id+'" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;font-weight:600">Unban</button>'
-              : '<button data-action="timeout" data-id="'+u.id+'" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;font-weight:600;margin-right:0.3rem">&#9203; Timeout</button><button data-action="ban" data-id="'+u.id+'" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;font-weight:600">&#128683; Ban</button>') +
-            '<div style="margin-top:0.5rem"><button type="button" data-action="delete-account" data-id="'+u.id+'" style="background:#0f172a;color:#fff;border:none;padding:0.3rem 0.65rem;border-radius:6px;font-size:0.66rem;cursor:pointer;font-weight:700">Delete account</button></div>'
-          );
-          return '<tr style="border-top:1px solid #f3f4f6'+(isBanned?';background:#fff5f5':'')+'">' +
-            '<td style="padding:0.75rem 1rem"><div style="display:flex;align-items:center;gap:0.75rem"><div style="width:32px;height:32px;border-radius:50%;background:'+(isBanned?'#ef4444':'linear-gradient(135deg,#7c3aed,#9b72f0)')+';display:flex;align-items:center;justify-content:center;color:white;font-size:0.8rem;font-weight:700">'+((u.first_name||u.firstName||'?')[0].toUpperCase())+'</div><div><div style="font-size:0.82rem;font-weight:600;color:'+(isBanned?'#ef4444':'#111827')+'">'+(u.first_name||u.firstName||'')+' '+(u.last_name||u.lastName||'')+(isBanned?' &#128683;':'')+'</div>'+(isTimedOut?'<div style="font-size:0.68rem;color:#f59e0b">&#9203; '+timeoutLeft+'</div>':'')+'</div></div></td>' +
+          var actions =
+            u.role === 'admin'
+              ? '<span style="color:#9ca3af;font-size:0.72rem">Admin</span>'
+              : u.role === 'moderator'
+              ? '<span style="color:#9ca3af;font-size:0.72rem;display:block;margin-bottom:0.35rem">Moderator</span>' +
+                '<div><button type="button" data-action="delete-account" data-id="' +
+                u.id +
+                '" style="background:#0f172a;color:#fff;border:none;padding:0.3rem 0.65rem;border-radius:6px;font-size:0.66rem;cursor:pointer;font-weight:700">Remove moderator</button></div>'
+              : docLinks +
+                driverVerifyBtn +
+                '<div style="margin-top:0.5rem"><button type="button" data-action="delete-account" data-id="' +
+                u.id +
+                '" style="background:#0f172a;color:#fff;border:none;padding:0.3rem 0.65rem;border-radius:6px;font-size:0.66rem;cursor:pointer;font-weight:700">Delete account</button></div>';
+          return '<tr style="border-top:1px solid #f3f4f6'+(isRemoved?';background:#f9fafb':'')+'">' +
+            '<td style="padding:0.75rem 1rem"><div style="display:flex;align-items:center;gap:0.75rem"><div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#9b72f0);display:flex;align-items:center;justify-content:center;color:white;font-size:0.8rem;font-weight:700">'+((u.first_name||u.firstName||'?')[0].toUpperCase())+'</div><div><div style="font-size:0.82rem;font-weight:600;color:#111827">'+(u.first_name||u.firstName||'')+' '+(u.last_name||u.lastName||'')+'</div></div></div></td>' +
             '<td style="padding:0.75rem 1rem;font-size:0.78rem;color:#6b7280">'+u.email+'</td>' +
             '<td style="padding:0.75rem 1rem;font-size:0.78rem;color:#374151">'+(u.wilaya||'-')+'</td>' +
             '<td style="padding:0.75rem 1rem"><span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:'+roleBg+';color:'+roleColor+';text-transform:capitalize">'+(u.role||'customer')+'</span></td>' +
@@ -5648,11 +5673,7 @@ async function switchAdmin(section) {
       pane.innerHTML =
         '<div><div style="margin-bottom:1.5rem"><h1 style="font-size:1.5rem;font-weight:700;color:#111827">Customers</h1><p style="color:#6b7280;font-size:0.875rem">' +
         users.length +
-        ' users (incl. drivers) &middot; ' +
-        users.filter(function (u) {
-          return u.banned;
-        }).length +
-        ' banned · Add drivers under <strong>Drivers</strong>. Use <strong>Verify driver</strong> to approve, or <strong>Ban</strong> to block.</p></div><div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f9fafb"><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Customer</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Email</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Wilaya</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Role</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Points</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Status</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Actions</th></tr></thead><tbody>' +
+        ' users (incl. drivers). Add drivers under <strong>Drivers</strong>; use <strong>Verify driver</strong> to approve.</p></div><div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f9fafb"><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Customer</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Email</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Wilaya</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Role</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Points</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Status</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Actions</th></tr></thead><tbody>' +
         userRows +
         '</tbody></table></div></div></div>';
       var tbl = pane.querySelector('table');
@@ -5661,10 +5682,7 @@ async function switchAdmin(section) {
           var btn = e.target.closest('[data-action]');
           if (!btn) return;
           var id = btn.dataset.id;
-          if (btn.dataset.action === 'ban') banUser(id);
-          else if (btn.dataset.action === 'timeout') timeoutUser(id);
-          else if (btn.dataset.action === 'unban') unbanUser(id);
-          else if (btn.dataset.action === 'delete-account') adminDeleteUserAccount(id);
+          if (btn.dataset.action === 'delete-account') adminDeleteUserAccount(id);
         });
     });
   } else if (section === 'drivers') {
@@ -5678,7 +5696,7 @@ async function switchAdmin(section) {
         return u.role === 'driver';
       });
       var pendingCount = drivers.filter(function (u) {
-        return !isDriverVerified(u) && !u.banned;
+        return !isDriverVerified(u);
       }).length;
       var wilOpts =
         '<option value="">Select wilaya…</option>' +
@@ -5697,7 +5715,7 @@ async function switchAdmin(section) {
         '<div style="background:linear-gradient(135deg,#f0f9ff,#ecfeff);border:1px solid #bae6fd;border-radius:16px;padding:1.35rem 1.5rem;margin-bottom:1.5rem;box-shadow:0 4px 18px rgba(14,165,233,0.08)">' +
         '<h2 style="margin:0 0 0.35rem;font-size:1.08rem;font-weight:800;color:#0c4a6e;letter-spacing:-0.02em">Add delivery driver</h2>' +
         '<p style="margin:0 0 0.75rem;font-size:0.8rem;color:#0369a1;line-height:1.5;max-width:52rem">Register a driver so they appear in assignment. They <strong>sign in</strong> with the email and password you set. Public signup does not create driver accounts.</p>' +
-        '<p style="margin:0 0 0.65rem;font-size:0.72rem;color:#0c4a6e;line-height:1.45;max-width:52rem;border-left:3px solid #38bdf8;padding-left:0.65rem;background:rgba(255,255,255,0.55);border-radius:0 8px 8px 0;padding-top:0.45rem;padding-bottom:0.45rem">Drivers are added <strong>only by staff</strong> here — not from public signup. Upload ID photos, then use <strong>Approve</strong> or <strong>Reject (ban)</strong> on each card.</p>' +
+        '<p style="margin:0 0 0.65rem;font-size:0.72rem;color:#0c4a6e;line-height:1.45;max-width:52rem;border-left:3px solid #38bdf8;padding-left:0.65rem;background:rgba(255,255,255,0.55);border-radius:0 8px 8px 0;padding-top:0.45rem;padding-bottom:0.45rem">Drivers are added <strong>only by staff</strong> here — not from public signup. Upload ID photos, then <strong>Approve</strong> or <strong>Reject</strong> (removes approval until you approve again).</p>' +
         '<div style="margin:0 0 1rem;max-width:36rem">' +
         '<label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Driver operations secret</label>' +
         '<input id="adm-drv-ops-secret" type="password" autocomplete="off" style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #7dd3fc;font-size:0.82rem;background:white" placeholder="Supabase: stn_driver_invite_settings.invite_ops_secret"/>' +
@@ -5747,7 +5765,6 @@ async function switchAdmin(section) {
                 var fn = d.first_name || d.firstName || '';
                 var ln = d.last_name || d.lastName || '';
                 var verified = isDriverVerified(d);
-                var isBanned = !!d.banned;
                 var cinU = (d.cin_document_url || '').toString().trim();
                 var licU = (d.license_document_url || '').toString().trim();
                 var photoU = (d.driver_photo_url || '').toString().trim();
@@ -5757,41 +5774,24 @@ async function switchAdmin(section) {
                 var vcolor = d.vehicle_color || d.vehicleColor || '';
                 var idAttr = _cardEscapeAttr(String(d.id));
                 var actions = '';
-                if (!isBanned) {
-                  if (!verified) {
-                    actions +=
-                      '<button type="button" data-stn-verify-driver="' +
-                      idAttr +
-                      '" style="background:linear-gradient(135deg,#059669,#10b981);color:white;border:none;padding:0.55rem 1.25rem;border-radius:10px;font-size:0.82rem;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(5,150,105,0.35)">✓ Approve driver</button>';
-                  }
+                if (!verified) {
                   actions +=
-                    '<button type="button" data-adm-drv-ban="' +
+                    '<button type="button" data-stn-verify-driver="' +
                     idAttr +
-                    '" style="background:#fff1f2;color:#b91c1c;border:1px solid #fecaca;padding:0.55rem 1.1rem;border-radius:10px;font-size:0.82rem;font-weight:600;cursor:pointer">Reject (ban)</button>' +
-                    '<button type="button" data-adm-drv-timeout="' +
-                    idAttr +
-                    '" style="background:#fffbeb;color:#b45309;border:1px solid #fde68a;padding:0.55rem 1.1rem;border-radius:10px;font-size:0.82rem;font-weight:600;cursor:pointer">Timeout</button>';
-                } else {
-                  actions +=
-                    '<button type="button" data-adm-drv-unban="' +
-                    idAttr +
-                    '" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.55rem 1.1rem;border-radius:10px;font-size:0.82rem;font-weight:600;cursor:pointer">Unban</button>';
+                    '" style="background:linear-gradient(135deg,#059669,#10b981);color:white;border:none;padding:0.55rem 1.25rem;border-radius:10px;font-size:0.82rem;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(5,150,105,0.35)">✓ Approve driver</button>';
                 }
+                actions +=
+                  '<button type="button" data-adm-drv-reject="' +
+                  idAttr +
+                  '" style="background:#fff1f2;color:#b91c1c;border:1px solid #fecaca;padding:0.55rem 1.1rem;border-radius:10px;font-size:0.82rem;font-weight:600;cursor:pointer">Reject</button>';
                 actions +=
                   '<button type="button" data-adm-drv-delete="' +
                   idAttr +
                   '" style="background:#0f172a;color:#fff;border:none;padding:0.55rem 1.1rem;border-radius:10px;font-size:0.82rem;font-weight:700;cursor:pointer">Delete account</button>';
-                var statusPill = isBanned
-                  ? '<span style="display:inline-block;background:#fee2e2;color:#991b1b;padding:0.4rem 0.85rem;border-radius:999px;font-size:0.75rem;font-weight:700">Banned</span>'
-                  : verified
+                var statusPill = verified
                   ? '<span style="display:inline-block;background:#dcfce7;color:#166534;padding:0.4rem 0.85rem;border-radius:999px;font-size:0.75rem;font-weight:700">✓ Approved</span>'
                   : '<span style="display:inline-block;background:#fef3c7;color:#b45309;padding:0.4rem 0.85rem;border-radius:999px;font-size:0.75rem;font-weight:700">⏳ Pending your review</span>';
-                var banNote =
-                  isBanned && (d.ban_reason || '').toString().trim()
-                    ? '<p style="margin:0.65rem 0 0;font-size:0.8rem;color:#7f1d1d;line-height:1.45;max-width:42rem"><strong>Rejection note (driver sees this):</strong> ' +
-                      _detailEscapeHtml(String(d.ban_reason).trim()) +
-                      '</p>'
-                    : '';
+                var banNote = '';
                 return (
                   '<div class="adm-driver-card" style="background:white;border:1px solid #e5e7eb;border-radius:18px;padding:1.5rem 1.5rem 1.35rem;box-shadow:0 4px 20px rgba(15,23,42,0.06)">' +
                   '<div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid #f1f5f9">' +
@@ -5845,7 +5845,7 @@ async function switchAdmin(section) {
         drivers.length +
         '</strong> driver(s) · <strong>' +
         pendingCount +
-        '</strong> waiting for approval. Register new drivers with the form above; review documents when present, then <strong>Approve</strong> or <strong>Reject (ban)</strong>.</p></div>' +
+        '</strong> waiting for approval. Register new drivers with the form above; review documents when present, then <strong>Approve</strong> or <strong>Reject</strong>.</p></div>' +
         '<div style="display:flex;flex-direction:column;gap:1.35rem">' +
         addDriverCard +
         cards +
@@ -5863,19 +5863,9 @@ async function switchAdmin(section) {
         }
       } catch (eSec) {}
       pane.onclick = function (e) {
-        var bBan = e.target.closest('[data-adm-drv-ban]');
-        if (bBan) {
-          banUser(bBan.getAttribute('data-adm-drv-ban'));
-          return;
-        }
-        var bUn = e.target.closest('[data-adm-drv-unban]');
-        if (bUn) {
-          unbanUser(bUn.getAttribute('data-adm-drv-unban'));
-          return;
-        }
-        var bTo = e.target.closest('[data-adm-drv-timeout]');
-        if (bTo) {
-          timeoutUser(bTo.getAttribute('data-adm-drv-timeout'));
+        var bRej = e.target.closest('[data-adm-drv-reject]');
+        if (bRej) {
+          rejectDriverApplication(bRej.getAttribute('data-adm-drv-reject'));
           return;
         }
         var bDel = e.target.closest('[data-adm-drv-delete]');
@@ -5967,41 +5957,25 @@ async function switchAdmin(section) {
       });
       if (vendors.length === 0) {
         pane.innerHTML =
-          '<div><div style="margin-bottom:1.5rem"><h1 style="font-size:1.5rem;font-weight:700;color:#111827">Vendors</h1><p style="color:#6b7280;font-size:0.875rem">0 vendors · <strong>Approve</strong> pending shops, or <strong>Ban</strong> to reject.</p></div><div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f9fafb"><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Vendor</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Email</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Shop</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Wilaya</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Products</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Hours &amp; service</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Status</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Actions</th></tr></thead><tbody><tr><td colspan="8" style="text-align:center;padding:3rem;color:#9ca3af">No vendors yet</td></tr></tbody></table></div></div></div>';
+          '<div><div style="margin-bottom:1.5rem"><h1 style="font-size:1.5rem;font-weight:700;color:#111827">Vendors</h1><p style="color:#6b7280;font-size:0.875rem">0 vendors · <strong>Approve</strong> pending shops, or <strong>Delete</strong> to remove.</p></div><div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f9fafb"><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Vendor</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Email</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Shop</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Wilaya</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Products</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Hours &amp; service</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Status</th><th style="text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:600;color:#6b7280;text-transform:uppercase">Actions</th></tr></thead><tbody><tr><td colspan="8" style="text-align:center;padding:3rem;color:#9ca3af">No vendors yet</td></tr></tbody></table></div></div></div>';
         mountAdminVendorCreateForm();
         return;
       }
       Promise.all(
         vendors.map(function (v) {
           return (async function () {
-            var isBanned = v.banned;
-            var isTimedOut = v.timeout_until && new Date(v.timeout_until) > new Date();
-            var timeoutLeft = isTimedOut ? Math.ceil((new Date(v.timeout_until) - new Date()) / 3600000) + 'h left' : '';
             var vProds = State.products.filter(function (p) {
               return p.vendorId === v.id || p.brand === (v.shop_name || v.shopName);
             }).length;
-            var sb = isBanned
-              ? '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#fee2e2;color:#dc2626">Banned</span>'
-              : isTimedOut
-              ? '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#fef3c7;color:#d97706">Timeout ' + timeoutLeft + '</span>'
-              : v.verified
+            var sb = v.verified
               ? '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#dcfce7;color:#166534">Approved</span>'
               : '<span style="padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;font-weight:600;background:#fef9c3;color:#92400e">Pending</span>';
             var act = '';
-            if (!v.verified && !isBanned)
+            if (!v.verified)
               act +=
                 '<button data-action="approve" data-id="' +
                 v.id +
                 '" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;margin-right:0.3rem">Approve</button>';
-            act += isBanned
-              ? '<button data-action="unban" data-id="' +
-                v.id +
-                '" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer">Unban</button>'
-              : '<button data-action="timeout" data-id="' +
-                v.id +
-                '" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;margin-right:0.3rem">Timeout</button><button data-action="ban" data-id="' +
-                v.id +
-                '" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;padding:0.25rem 0.6rem;border-radius:6px;font-size:0.7rem;cursor:pointer;margin-right:0.3rem">Ban</button>';
             act +=
               '<button data-action="delete-account" data-id="' +
               v.id +
@@ -6026,16 +6000,11 @@ async function switchAdmin(section) {
               }
             } catch (eh) {}
             return (
-              '<tr style="border-top:1px solid #f3f4f6' +
-              (isBanned ? ';background:#fff5f5' : '') +
-              '">' +
-              '<td style="padding:0.75rem 1rem;font-size:0.82rem;font-weight:600;color:' +
-              (isBanned ? '#ef4444' : '#111827') +
-              '">' +
+              '<tr style="border-top:1px solid #f3f4f6">' +
+              '<td style="padding:0.75rem 1rem;font-size:0.82rem;font-weight:600;color:#111827">' +
               (v.first_name || v.firstName || '') +
               ' ' +
               (v.last_name || v.lastName || '') +
-              (isTimedOut ? ' <small style="color:#f59e0b">' + timeoutLeft + '</small>' : '') +
               '</td>' +
               '<td style="padding:0.75rem 1rem;font-size:0.78rem;color:#6b7280">' +
               escHtml(v.email || '') +
@@ -6082,13 +6051,98 @@ async function switchAdmin(section) {
             var id = b.dataset.id,
               action = b.dataset.action;
             if (action === 'approve') verifyVendor(id);
-            else if (action === 'ban') banUser(id);
-            else if (action === 'timeout') timeoutUser(id);
-            else if (action === 'unban') unbanUser(id);
             else if (action === 'delete-account') adminDeleteUserAccount(id);
           });
       });
     });
+  }
+}
+
+function buildModeratorHTML() {
+  var unread = _stnAdminUnreadSupportCount();
+  var msgLabel = 'Messages' + (unread > 0 ? ' · ' + unread : '');
+  var tabs = [
+    { id: 'orders', label: 'Orders' },
+    { id: 'messages', label: msgLabel },
+  ];
+  var tabsHTML = tabs
+    .map(function (t) {
+      return (
+        '<button type="button" class="dash-pro-tab" id="mod-nav-' +
+        t.id +
+        '" onclick="switchModerator(\'' +
+        t.id +
+        '\')">' +
+        t.label +
+        '</button>'
+      );
+    })
+    .join('');
+  return (
+    '<div class="dash-pro">' +
+    '<div class="dash-pro-topbar">' +
+    '<div class="dash-pro-brand"><span class="dash-pro-brand-mark">●</span> Customer care</div>' +
+    '<div class="dash-pro-tabs">' +
+    tabsHTML +
+    '</div></div>' +
+    '<div class="dash-pro-body" id="moderator-content"></div>' +
+    '</div>'
+  );
+}
+
+function renderModerator() {
+  if (!State.currentUser || State.currentUser.role !== 'moderator') {
+    toast('Moderator access required', 'error');
+    showPage('auth');
+    return;
+  }
+  var page = document.getElementById('page-moderator');
+  if (!page) return;
+  page.innerHTML = buildModeratorHTML();
+  var initial = 'orders';
+  if (window.__stnModSwitchToMessages) {
+    initial = 'messages';
+    window.__stnModSwitchToMessages = false;
+  }
+  switchModerator(initial);
+}
+
+async function switchModerator(section) {
+  var modShell = document.getElementById('page-moderator');
+  if (modShell) {
+    modShell.querySelectorAll('.dash-pro-tab').forEach(function (el) {
+      el.classList.remove('dash-pro-tab--active');
+      el.classList.remove('adm-active');
+    });
+  }
+  var active = document.getElementById('mod-nav-' + section);
+  if (active) {
+    active.classList.add('dash-pro-tab--active');
+    active.classList.add('adm-active');
+  }
+  var content = document.getElementById('moderator-content');
+  if (!content) return;
+
+  if (section === 'messages') {
+    renderAdminMessages(content);
+    return;
+  }
+
+  if (section === 'orders') {
+    var orders = STN.DB.get('orders') || [];
+    try {
+      if (typeof SB !== 'undefined' && SB.getOrders) {
+        var rx = await SB.getOrders();
+        if (Array.isArray(rx)) orders = rx;
+      }
+    } catch (e) {
+      if (typeof STNLog !== 'undefined') STNLog.warn('moderator.orders.getOrders', e && e.message);
+    }
+    try {
+      STN.DB.set('orders', orders);
+      State.orders = orders;
+    } catch (e2) {}
+    await staffRenderOrdersPipelineInto(content, orders);
   }
 }
 
@@ -6104,7 +6158,7 @@ function advanceOrder(orderId) {
   try {
     if (typeof SB !== 'undefined' && SB.updateOrderStatus) SB.updateOrderStatus(orderId, order.status).catch(function(){});
   } catch (e) {}
-  switchAdmin('orders');
+  refreshStaffOrdersPanel();
 }
 
 async function assignOrderDriver(orderRef, driverUserId) {
@@ -6149,7 +6203,7 @@ async function assignOrderDriver(orderRef, driverUserId) {
     if (typeof STNLog !== 'undefined') STNLog.warn('assignOrderDriver', e && e.message);
   }
   toast('Driver assigned to order', 'success');
-  switchAdmin('orders');
+  refreshStaffOrdersPanel();
 }
 
 function _orderVendorCoord(order) {
@@ -6377,12 +6431,7 @@ async function verifyDriverAccount(userId) {
       updateNavUser();
     }
     toast('Driver approved — they can accept deliveries.', 'success');
-    var navActive = document.querySelector('[id^="adm-nav-"].adm-active');
-    var sec =
-      navActive && navActive.id && navActive.id.indexOf('adm-nav-') === 0
-        ? navActive.id.replace('adm-nav-', '')
-        : 'users';
-    switchAdmin(sec === 'drivers' ? 'drivers' : 'users');
+    refreshActiveStaffDashboard();
   } catch (ex) {
     var em = ex && ex.message ? String(ex.message) : String(ex);
     toast('Approve failed: ' + (em.length > 140 ? em.slice(0, 137) + '…' : em), 'error');
@@ -6669,122 +6718,40 @@ async function hubPassQualityCheck(orderId) {
 }
 window.hubPassQualityCheck = hubPassQualityCheck;
 
-/**
- * Ban a user (admin). Optional `reason` skips the prompt; otherwise admin enters text shown to the user.
- * @param {string|number} userId
- * @param {string} [reason] pre-filled rejection note
- */
-async function banUser(userId, reason) {
-  if (!confirm('Are you sure you want to BAN this user? They will see your reason on their account.')) return;
-  var note =
-    reason != null && String(reason).trim() !== ''
-      ? String(reason).trim()
-      : null;
-  if (note == null) {
-    var entered = window.prompt(
-      'Reason for rejection (the user will see this). Leave blank for a generic message:',
-      ''
-    );
-    if (entered === null) return;
-    entered = String(entered).trim();
-    note = entered || 'Your application did not meet our requirements at this time. Contact support if you have questions.';
-  }
-  var now = new Date().toISOString();
+/** Revoke driver verification (no ban — they can sign in but cannot take deliveries until approved again). */
+async function rejectDriverApplication(userId) {
+  if (!confirm('Reject this driver? They will be marked unverified and cannot take deliveries until approved again.')) return;
   try {
     if (typeof SB !== 'undefined' && SB.updateUser) {
       await SB.updateUser(userId, {
-        banned: true,
-        ban_reason: note,
-        banned_at: now,
-      });
-    }
-  } catch (e) {
-    var em = String((e && e.message) || e || '');
-    toast(
-      em
-        ? 'Ban failed on server (run SQL migration for banned columns + UPDATE policy): ' +
-            (em.length > 120 ? em.slice(0, 117) + '…' : em)
-        : 'Ban failed on server — check Supabase RLS UPDATE on users',
-      'error'
-    );
-    if (typeof STNLog !== 'undefined') STNLog.error('banUser', e, { userId });
-    return;
-  }
-  const users = STN.DB.get('users') || [];
-  const idx = users.findIndex(u => String(u.id) === String(userId));
-  if (idx !== -1) {
-    users[idx].banned = true;
-    users[idx].ban_reason = note;
-    users[idx].banned_at = now;
-    STN.DB.set('users', users);
-  }
-  if (State.currentUser && String(State.currentUser.id) === String(userId)) {
-    State.currentUser = null;
-    STN.DB.set('currentUser', null);
-    updateNavUser();
-    showPage('home');
-  }
-  toast('User banned — saved to database', 'success');
-  const activeSection = document.querySelector('[id^="adm-nav-"].adm-active')?.id?.replace('adm-nav-', '') || 'users';
-  switchAdmin(activeSection);
-}
-
-async function timeoutUser(userId) {
-  const hours = prompt('Timeout duration in hours? (e.g. 24, 48, 72)', '24');
-  if (!hours) return;
-  const h = parseInt(hours);
-  if (isNaN(h) || h <= 0) { toast('Invalid duration', 'error'); return; }
-  const until = new Date(Date.now() + h * 3600000).toISOString();
-  try {
-    if (typeof SB !== 'undefined' && SB.updateUser) {
-      await SB.updateUser(userId, { timeout_until: until, timeout_hours: h });
-    }
-  } catch (e) {
-    toast('Timeout failed on server — check RLS UPDATE on users', 'error');
-    if (typeof STNLog !== 'undefined') STNLog.error('timeoutUser', e, { userId });
-    return;
-  }
-  const users = STN.DB.get('users') || [];
-  const idx = users.findIndex(u => String(u.id) === String(userId));
-  if (idx !== -1) {
-    users[idx].timeout_until = until;
-    users[idx].timeout_hours = h;
-    STN.DB.set('users', users);
-  }
-  toast('User timed out for ' + h + ' hours (saved to database)', 'success');
-  const activeSection = document.querySelector('[id^="adm-nav-"].adm-active')?.id?.replace('adm-nav-', '') || 'users';
-  switchAdmin(activeSection);
-}
-
-async function unbanUser(userId) {
-  try {
-    if (typeof SB !== 'undefined' && SB.updateUser) {
-      await SB.updateUser(userId, {
+        verified: false,
+        is_verified: false,
         banned: false,
         ban_reason: null,
         banned_at: null,
         timeout_until: null,
         timeout_hours: null,
-        deleted_at: null,
       });
     }
   } catch (e) {
-    toast('Unban failed on server — check RLS UPDATE on users', 'error');
-    if (typeof STNLog !== 'undefined') STNLog.error('unbanUser', e, { userId });
+    toast('Could not update driver — check connection or Supabase policy', 'error');
+    if (typeof STNLog !== 'undefined') STNLog.error('rejectDriverApplication', e, { userId });
     return;
   }
-  const users = STN.DB.get('users') || [];
-  const idx = users.findIndex(u => String(u.id) === String(userId));
+  var users = STN.DB.get('users') || [];
+  var idx = users.findIndex(function (u) {
+    return String(u.id) === String(userId);
+  });
   if (idx !== -1) {
+    users[idx].verified = false;
+    users[idx].is_verified = false;
     users[idx].banned = false;
-    users[idx].timeout_until = null;
-    users[idx].deleted_at = null;
     STN.DB.set('users', users);
   }
-  toast('User restored — saved to database', 'success');
-  const activeSection = document.querySelector('[id^="adm-nav-"].adm-active')?.id?.replace('adm-nav-', '') || 'users';
-  switchAdmin(activeSection);
+  toast('Driver approval revoked', 'success');
+  refreshActiveStaffDashboard();
 }
+window.rejectDriverApplication = rejectDriverApplication;
 
 /** Local preview for admin driver KYC file inputs (Drivers tab). */
 function adminDriverKycPreview(input, previewId) {
@@ -7356,9 +7323,7 @@ async function adminDeleteUserAccount(userId) {
   }
   toast(summary, 'success');
 
-  var activeSection =
-    document.querySelector('[id^="adm-nav-"].adm-active')?.id?.replace('adm-nav-', '') || 'users';
-  switchAdmin(activeSection);
+  refreshActiveStaffDashboard();
 }
 
 // ── VENDOR SERVICE: weekly hours (Mon–Sun, default Mon–Fri 08:00–16:00) + In/Out of service ──
@@ -9702,10 +9667,13 @@ function startSupportPolling(role) {
   window.__stnSupportPollTimer = setInterval(async function () {
     try {
       if (document.hidden) return;
+      var modMsgNav = document.getElementById('mod-nav-messages');
       var stillOnChat =
         (role === 'client' && State.currentPage === 'support') ||
-        (role === 'admin' && document.getElementById('adm-nav-messages') &&
-          document.getElementById('adm-nav-messages').classList.contains('adm-active'));
+        (role === 'staff' &&
+          State.currentPage === 'moderator' &&
+          modMsgNav &&
+          modMsgNav.classList.contains('adm-active'));
       if (!stillOnChat) {
         clearInterval(window.__stnSupportPollTimer);
         window.__stnSupportPollTimer = null;
@@ -10273,13 +10241,15 @@ function buildAdminCustomerIntelHTML(thread) {
 }
 
 async function renderAdminMessages(container) {
-  if (!container) container = document.getElementById('admin-content');
+  if (!container) {
+    container = document.getElementById('moderator-content') || document.getElementById('admin-content');
+  }
   if (!container) return;
   container.innerHTML =
     '<div style="padding:2.75rem 1.5rem;text-align:center;color:#7b72a8;font-size:0.9rem">Loading customer messages…</div>';
   await _stnAdminEnsureSupportContext();
   await _stnSupportPullRemote();
-  startSupportPolling('admin');
+  startSupportPolling('staff');
   var list = _stnAdminSortedThreads();
   var active = _stnAdminMessagesPickActive(list);
   window.__stnAdminActiveThread = active ? active.clientId : null;
@@ -10347,7 +10317,7 @@ async function renderAdminMessages(container) {
     window.__stnAdminMessagesListenerBound = true;
     window.addEventListener('stn:support:update', function () {
       if (window.__stnAdminSuppressUpdate) return;
-      var navMsg = document.getElementById('adm-nav-messages');
+      var navMsg = document.getElementById('mod-nav-messages');
       if (!navMsg) return;
       if (navMsg.classList.contains('adm-active')) {
         renderAdminMessages();
@@ -10358,7 +10328,7 @@ async function renderAdminMessages(container) {
     });
     window.addEventListener('storage', function (ev) {
       if (!ev || (ev.key !== STN_SUPPORT_STORAGE_KEY && ev.key !== STN_SUPPORT_KEY)) return;
-      var navMsg = document.getElementById('adm-nav-messages');
+      var navMsg = document.getElementById('mod-nav-messages');
       if (navMsg && navMsg.classList.contains('adm-active')) renderAdminMessages();
     });
   }
@@ -10377,10 +10347,10 @@ function renderAdminMessagePane() {
   if (t.unreadForStaff) {
     t.unreadForStaff = 0;
     _stnSupportSaveThreads(threads);
-    var navMsg = document.getElementById('adm-nav-messages');
-    if (navMsg) {
-      var unread = _stnAdminUnreadSupportCount();
-      navMsg.textContent = 'Messages' + (unread > 0 ? ' · ' + unread : '');
+    var navMsgUp = document.getElementById('mod-nav-messages');
+    if (navMsgUp) {
+      var unread2 = _stnAdminUnreadSupportCount();
+      navMsgUp.textContent = 'Messages' + (unread2 > 0 ? ' · ' + unread2 : '');
     }
   }
 
@@ -10435,8 +10405,8 @@ function selectAdminMessageThread(clientId) {
 }
 
 async function adminSendSupportReply() {
-  if (!State.currentUser || State.currentUser.role !== 'admin') {
-    toast('Admin sign-in required', 'error');
+  if (!State.currentUser || State.currentUser.role !== 'moderator') {
+    toast('Moderator sign-in required', 'error');
     return;
   }
   var clientId = window.__stnAdminActiveThread;
