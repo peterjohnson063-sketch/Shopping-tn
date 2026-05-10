@@ -3339,14 +3339,14 @@ function renderAuth() {
         <div class="form-row" style="margin-bottom:1rem">
           <div class="form-group">
             <label class="form-label">Wilaya (State) *</label>
-            <select class="form-select" id="reg-wilaya" onchange="populateDelegations()">
+            <select class="form-select stn-notranslate" id="reg-wilaya" translate="no" data-no-translate="1" autocomplete="address-level1">
               <option value="">Select Wilaya…</option>
-              ${Object.keys(STN.WILAYAS).map(w => `<option value="${w}">${w}</option>`).join('')}
+              ${Object.keys(STN.WILAYAS).map(w => `<option value="${String(w).replace(/"/g, '&quot;')}">${String(w).replace(/</g, '')}</option>`).join('')}
             </select>
           </div>
           <div class="form-group">
             <label class="form-label">Delegation *</label>
-            <select class="form-select" id="reg-delegation">
+            <select class="form-select stn-notranslate" id="reg-delegation" translate="no" data-no-translate="1" autocomplete="address-level2">
               <option value="">Select Wilaya first…</option>
             </select>
           </div>
@@ -3363,6 +3363,7 @@ function renderAuth() {
       </div>
     </div>
   </div>`;
+  initRegistrationWilayaDelegationPickers();
 }
 
 function switchAuthTab(tab) {
@@ -3370,14 +3371,43 @@ function switchAuthTab(tab) {
   document.getElementById('auth-register').style.display = tab === 'register' ? 'block' : 'none';
   document.getElementById('tab-login').classList.toggle('active', tab === 'login');
   document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+  if (tab === 'register') {
+    setTimeout(function () {
+      if (typeof populateDelegations === 'function') populateDelegations();
+    }, 0);
+  }
 }
 
 function populateDelegations() {
   const wilaya = document.getElementById('reg-wilaya')?.value;
   const delSel = document.getElementById('reg-delegation');
-  if (!wilaya || !delSel) return;
-  const delegations = STN.WILAYAS[wilaya] || [];
-  delSel.innerHTML = `<option value="">Select Delegation…</option>` + delegations.map(d => `<option value="${d}">${d}</option>`).join('');
+  if (!delSel) return;
+  if (!wilaya) {
+    delSel.innerHTML = '<option value="">Select Wilaya first…</option>';
+    return;
+  }
+  const delegations = (STN.WILAYAS && STN.WILAYAS[wilaya]) || [];
+  const esc = function (s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '');
+  };
+  delSel.innerHTML =
+    '<option value="">Select Delegation…</option>' +
+    delegations.map(function (d) {
+      return '<option value="' + esc(d) + '">' + esc(d) + '</option>';
+    }).join('');
+}
+
+/** Wire wilaya→delegation after render; keep option labels out of machine-translate (yasmine.js). */
+function initRegistrationWilayaDelegationPickers() {
+  var w = document.getElementById('reg-wilaya');
+  var d = document.getElementById('reg-delegation');
+  if (!w || !d) return;
+  w.setAttribute('translate', 'no');
+  w.setAttribute('data-no-translate', '1');
+  d.setAttribute('translate', 'no');
+  d.setAttribute('data-no-translate', '1');
+  w.onchange = populateDelegations;
+  if (w.value) populateDelegations();
 }
 
 /**
@@ -5677,10 +5707,10 @@ async function switchAdmin(section) {
         '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Last name *</label><input id="adm-drv-nlname" type="text" class="form-input" style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #e2e8f0;font-size:0.82rem" placeholder="Trabelsi"/></div>' +
         '<div style="grid-column:span 2;min-width:0"><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Email (login) *</label><input id="adm-drv-nemail" type="email" style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #e2e8f0;font-size:0.82rem" placeholder="driver@example.com"/></div>' +
         '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Phone *</label><input id="adm-drv-nphone" type="tel" style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #e2e8f0;font-size:0.82rem" placeholder="+216 …"/></div>' +
-        '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Wilaya *</label><select id="adm-drv-nwilaya" onchange="adminDriverPopulateDelegations()" style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #e2e8f0;font-size:0.82rem;background:white">' +
+        '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Wilaya *</label><select id="adm-drv-nwilaya" class="stn-notranslate" translate="no" data-no-translate="1" onchange="adminDriverPopulateDelegations()" style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #e2e8f0;font-size:0.82rem;background:white">' +
         wilOpts +
         '</select></div>' +
-        '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Delegation *</label><select id="adm-drv-ndelegation" style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #e2e8f0;font-size:0.82rem;background:white"><option value="">Select wilaya first…</option></select></div>' +
+        '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Delegation *</label><select id="adm-drv-ndelegation" class="stn-notranslate" translate="no" data-no-translate="1" style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #e2e8f0;font-size:0.82rem;background:white"><option value="">Select wilaya first…</option></select></div>' +
         '<div style="grid-column:span 2;min-width:0"><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Password (min 8) *</label><input id="adm-drv-npass" type="password" style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #e2e8f0;font-size:0.82rem" placeholder="Temporary password — share securely"/></div>' +
         '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">CIN number *</label><input id="adm-drv-ncin" type="text" required style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #e2e8f0;font-size:0.82rem" placeholder="National ID number"/></div>' +
         '<div><label style="font-size:0.65rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Vehicle plate *</label><input id="adm-drv-nplate" type="text" required style="margin-top:0.35rem;width:100%;box-sizing:border-box;padding:0.55rem 0.65rem;border-radius:8px;border:1px solid #e2e8f0;font-size:0.82rem" placeholder="Registration plate"/></div>' +
