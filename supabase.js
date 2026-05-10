@@ -266,7 +266,6 @@ function _sbUniqueUserInsertAttempts(body) {
     'phone',
     'wilaya',
     'delegation',
-    'date_of_birth',
     'role',
     'points',
     'verified',
@@ -347,6 +346,62 @@ const SB = {
     }
   },
 
+  /**
+   * PostgREST RPC: POST /rest/v1/rpc/{fn}
+   * Args keys must match SQL parameter names (e.g. uid).
+   */
+  async rpc(fnName, args) {
+    if (!fnName || typeof fnName !== 'string' || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(fnName)) {
+      throw new Error('Invalid RPC function name');
+    }
+    const url = `${SUPABASE_URL}/rest/v1/rpc/${encodeURIComponent(fnName)}`;
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(args && typeof args === 'object' ? args : {}),
+      });
+      const text = await res.text();
+      if (!res.ok) {
+        let msg = 'Supabase RPC error';
+        let detail = '';
+        try {
+          const errBody = text ? JSON.parse(text) : null;
+          if (Array.isArray(errBody) && errBody[0]) {
+            msg = errBody[0].message || errBody[0].error || msg;
+            detail = errBody[0].details || errBody[0].hint || '';
+          } else if (errBody && typeof errBody === 'object') {
+            msg = errBody.message || errBody.error_description || errBody.error || msg;
+            detail = errBody.details || errBody.hint || '';
+            if (detail && String(msg).indexOf(String(detail).slice(0, 24)) < 0) {
+              msg = msg + ' — ' + detail;
+            }
+          }
+        } catch (e) {}
+        const err = new Error(msg);
+        err.status = res.status;
+        err._stnLogged = true;
+        if (typeof window !== 'undefined' && window.STNLog) {
+          window.STNLog.error('SB.rpc.http', err, { fnName, status: res.status });
+        }
+        throw err;
+      }
+      if (!text) return null;
+      const data = JSON.parse(text);
+      if (Array.isArray(data) && data.length === 1) return data[0];
+      return data;
+    } catch (e) {
+      if (typeof window !== 'undefined' && window.STNLog && !e._stnLogged) {
+        window.STNLog.error('SB.rpc', e, { fnName });
+      }
+      throw e;
+    }
+  },
+
   // ── USERS ──
   async getUser(email) {
     const data = await this.req('GET', 'users', null, `?email=eq.${encodeURIComponent(email)}&limit=1`);
@@ -404,6 +459,68 @@ const SB = {
     }
     return Array.isArray(data) && data[0] != null ? data[0] : data;
   },
+
+  /**
+   * Delete every product owned by the given vendor user id (text).
+   * Returns the number of rows actually removed.
+   */
+  async deleteVendorProducts(vendorId) {
+    if (vendorId == null || vendorId === '') return 0;
+    _sbSafeTable('products');
+    const url = `${SUPABASE_URL}/rest/v1/products?vendor_id=eq.${_sbEq(vendorId)}`;
+    let res;
+    try {
+      res = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          Prefer: 'return=representation',
+        },
+      });
+    } catch (netErr) {
+      if (typeof window !== 'undefined' && window.STNLog) {
+        window.STNLog.warn('SB.deleteVendorProducts.network', String((netErr && netErr.message) || netErr));
+      }
+      return 0;
+    }
+    if (!res.ok) {
+      let msg = 'Supabase error';
+      try {
+        const errBody = await res.json();
+        if (Array.isArray(errBody) && errBody[0]) {
+          msg = errBody[0].message || errBody[0].error || msg;
+        } else if (errBody && typeof errBody === 'object') {
+          msg = errBody.message || errBody.error_description || errBody.error || msg;
+        }
+      } catch (e) {}
+      const err = new Error(msg);
+      err.status = res.status;
+      err._stnLogged = true;
+      if (typeof window !== 'undefined' && window.STNLog) {
+        window.STNLog.error('SB.deleteVendorProducts.http', err, { status: res.status, vendorId: String(vendorId) });
+      }
+      throw err;
+    }
+    const text = await res.text();
+    if (!text || !String(text).trim()) return 0;
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      return 0;
+    }
+    return Array.isArray(data) ? data.length : 0;
+  },
+
+  /**
+   * Cascade-delete via server function delete_user_cascade (see Supabase migrations).
+   */
+  async deleteUserCascade(id) {
+    if (id == null || id === '') throw new Error('Invalid user id');
+    return this.rpc('delete_user_cascade', { uid: String(id) });
+  },
+
   async deleteUser(id) {
     if (id == null || id === '') throw new Error('Invalid user id');
     _sbSafeTable('users');

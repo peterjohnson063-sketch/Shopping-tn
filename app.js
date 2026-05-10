@@ -3336,10 +3336,6 @@ function renderAuth() {
           <label class="form-label">Phone Number *</label>
           <input type="tel" class="form-input" id="reg-phone" placeholder="+216 XX XXX XXX"/>
         </div>
-        <div class="form-group" style="margin-bottom:1rem">
-          <label class="form-label">Birthday (optional)</label>
-          <input type="date" class="form-input" id="reg-birthday"/>
-        </div>
         <div class="form-row" style="margin-bottom:1rem">
           <div class="form-group">
             <label class="form-label">Wilaya (State) *</label>
@@ -3509,7 +3505,6 @@ async function doRegister() {
   const lname = document.getElementById('reg-lname')?.value?.trim();
   const email = document.getElementById('reg-email')?.value?.trim();
   const phone = document.getElementById('reg-phone')?.value?.trim();
-  const birthday = document.getElementById('reg-birthday')?.value || '';
   const wilaya = document.getElementById('reg-wilaya')?.value;
   const delegation = document.getElementById('reg-delegation')?.value;
   const pass = document.getElementById('reg-pass')?.value;
@@ -3561,7 +3556,6 @@ async function doRegister() {
       email, password: pass,
       first_name: fname, last_name: lname,
       phone, wilaya, delegation,
-      date_of_birth: birthday || null,
       role: 'customer',
       points: 100,
       verified: true,
@@ -3687,37 +3681,50 @@ async function deleteMyAccount() {
 
   var deleteHow = '';
   try {
-    await SB.deleteUser(uid);
-    deleteHow = 'hard';
-  } catch (eDel) {
-    try {
-      if (typeof SB.updateUser === 'function') {
-        await SB.updateUser(uid, {
-          deleted_at: new Date().toISOString(),
-          banned: true,
-          ban_reason: 'Account deleted by user',
-          banned_at: new Date().toISOString(),
-        });
-        deleteHow = 'soft';
-      } else {
-        throw eDel;
-      }
-    } catch (eSoft) {
-      var em = String((eDel && eDel.message) || eDel || '');
-      toast(
-        em.indexOf('permission') >= 0 || em.indexOf('RLS') >= 0 || em.indexOf('policy') >= 0
-          ? 'Could not delete: server blocked the request. Try again or contact support.'
-          : 'Could not delete: ' + (em.length > 120 ? em.slice(0, 117) + '…' : em),
-        'error'
-      );
-      if (typeof STNLog !== 'undefined') STNLog.error('deleteMyAccount', eDel, { uid });
-      return;
+    if (typeof SB.deleteUserCascade === 'function') {
+      await SB.deleteUserCascade(uid);
+      deleteHow = 'cascade';
     }
+  } catch (eRpc) {}
+  if (!deleteHow) {
+    try {
+      await SB.deleteUser(uid);
+      deleteHow = 'hard';
+    } catch (eDel) {
+      try {
+        if (typeof SB.updateUser === 'function') {
+          await SB.updateUser(uid, {
+            deleted_at: new Date().toISOString(),
+            banned: true,
+            ban_reason: 'Account deleted by user',
+            banned_at: new Date().toISOString(),
+          });
+          deleteHow = 'soft';
+        } else {
+          throw eDel;
+        }
+      } catch (eSoft) {
+        var em = String((eDel && eDel.message) || eDel || '');
+        toast(
+          em.indexOf('permission') >= 0 || em.indexOf('RLS') >= 0 || em.indexOf('policy') >= 0
+            ? 'Could not delete: server blocked the request. Try again or contact support.'
+            : 'Could not delete: ' + (em.length > 120 ? em.slice(0, 117) + '…' : em),
+          'error'
+        );
+        if (typeof STNLog !== 'undefined') STNLog.error('deleteMyAccount', eDel, { uid });
+        return;
+      }
+    }
+  }
+  if (deleteHow === 'hard' && typeof SB.rpc === 'function') {
+    try {
+      await SB.rpc('delete_auth_if_no_public_profile', { uid: String(uid) });
+    } catch (eAuth) {}
   }
 
   clearLocalSessionAndUserRow();
   toast(
-    deleteHow === 'hard'
+    deleteHow === 'hard' || deleteHow === 'cascade'
       ? 'Your account was deleted.'
       : 'Your account was closed (profile hidden on the server).',
     'success'
@@ -7225,9 +7232,8 @@ async function adminDeleteUserAccount(userId) {
     }
   }
 
-  // Step 2: try the cascade RPC (added by migration
-  // 20260509200000_user_deletion_cascade.sql). If unavailable, fall back to
-  // a plain DELETE; if that's blocked, soft-disable the row.
+  // Step 2: try the cascade RPC (migrations 20260509200000 + 20260510140000). If
+  // unavailable, fall back to REST DELETE; if that's blocked, soft-disable the row.
   var deleteHow = '';
   var lastErr = null;
   if (typeof SB !== 'undefined' && typeof SB.deleteUserCascade === 'function') {
@@ -7267,7 +7273,7 @@ async function adminDeleteUserAccount(userId) {
         var em = String((lastErr && lastErr.message) || lastErr || '');
         toast(
           em.indexOf('permission') >= 0 || em.indexOf('RLS') >= 0 || em.indexOf('policy') >= 0
-            ? 'Delete blocked by Supabase policy. Run migrations/20260509200000_user_deletion_cascade.sql in the SQL editor and try again.'
+            ? 'Delete blocked by Supabase policy. Run supabase/migrations user deletion SQL (cascade + auth) in the SQL editor and try again.'
             : '⚠️ ' + (em.length > 160 ? em.slice(0, 157) + '…' : em),
           'error'
         );
@@ -7275,6 +7281,12 @@ async function adminDeleteUserAccount(userId) {
         return;
       }
     }
+  }
+
+  if (deleteHow === 'hard' && typeof SB !== 'undefined' && typeof SB.rpc === 'function') {
+    try {
+      await SB.rpc('delete_auth_if_no_public_profile', { uid: String(userId) });
+    } catch (eAuth) {}
   }
 
   var users = STN.DB.get('users') || [];
@@ -10151,11 +10163,6 @@ function _stnSupportOrderItemsLabel(o) {
     .join(', ') + (items.length > 3 ? ' +' + (items.length - 3) : '');
 }
 
-function _stnSupportBirthday(profile) {
-  if (!profile) return '';
-  return profile.date_of_birth || profile.birth_date || profile.birthday || profile.dob || '';
-}
-
 function _stnSupportRiskSummary(thread, profile, orders, last30) {
   var signals = [];
   var score = 0;
@@ -10195,7 +10202,6 @@ function buildAdminCustomerIntelHTML(thread) {
   });
   var risk = _stnSupportRiskSummary(thread, profile, orders, last30);
   var spent30 = last30.reduce(function (sum, o) { return sum + _stnSupportOrderTotal(o); }, 0);
-  var birthday = _stnSupportBirthday(profile);
   var name = _stnSupportUserName(profile) || (thread && thread.label) || 'Customer';
   var email = (profile && profile.email) || (thread && thread.email) || 'Not provided';
   var phone = (profile && profile.phone) || 'Not provided';
@@ -10219,7 +10225,6 @@ function buildAdminCustomerIntelHTML(thread) {
         '<div class="stn-adm-customer-grid">' +
           '<div><span>Email</span><strong>' + _stnSupportEscape(email) + '</strong></div>' +
           '<div><span>Phone</span><strong>' + _stnSupportEscape(phone) + '</strong></div>' +
-          '<div><span>Birthday</span><strong>' + _stnSupportEscape(birthday || 'Not provided') + '</strong></div>' +
           '<div><span>Location</span><strong>' + _stnSupportEscape(location) + '</strong></div>' +
           '<div><span>Joined</span><strong>' + _stnSupportEscape(joined) + '</strong></div>' +
           '<div><span>Customer ID</span><strong>' + _stnSupportEscape(String((profile && profile.id) || (thread && thread.clientId) || '-')) + '</strong></div>' +

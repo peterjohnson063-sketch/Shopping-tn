@@ -113,8 +113,6 @@ begin
     delete from public.products
      where vendor_id::text = v_uid_text;
     get diagnostics v_products_deleted = row_count;
-  exception when undefined_table then
-    v_products_deleted := 0;
   exception when others then
     v_products_deleted := 0;
   end;
@@ -125,8 +123,6 @@ begin
      where client_id = v_uid_text
         or staff_id  = v_uid_text;
     get diagnostics v_support_deleted = row_count;
-  exception when undefined_table then
-    v_support_deleted := 0;
   exception when others then
     v_support_deleted := 0;
   end;
@@ -137,8 +133,6 @@ begin
      where user_id::text = v_uid_text
         or payload->>'client_id' = v_uid_text;
     get diagnostics v_alerts_deleted = row_count;
-  exception when undefined_table then
-    v_alerts_deleted := 0;
   exception when others then
     v_alerts_deleted := 0;
   end;
@@ -148,34 +142,29 @@ begin
     update public.orders
        set vendor_id = null
      where vendor_id::text = v_uid_text;
-  exception when undefined_table then
-    null;
-  exception when undefined_column then
-    null;
   exception when others then
-    null;
+    execute 'SELECT 1';
+  end;
+  begin
+    update public.orders
+       set user_id = null
+     where user_id::text = v_uid_text;
+  exception when others then
+    execute 'SELECT 1';
   end;
   begin
     update public.orders
        set customer_id = null
      where customer_id::text = v_uid_text;
-  exception when undefined_table then
-    null;
-  exception when undefined_column then
-    null;
   exception when others then
-    null;
+    execute 'SELECT 1';
   end;
   begin
     update public.orders
        set driver_id = null
      where driver_id::text = v_uid_text;
-  exception when undefined_table then
-    null;
-  exception when undefined_column then
-    null;
   exception when others then
-    null;
+    execute 'SELECT 1';
   end;
 
   -- Orphan reviews authored by the user (keep the review row)
@@ -183,12 +172,8 @@ begin
     update public.product_reviews
        set user_id = null
      where user_id::text = v_uid_text;
-  exception when undefined_table then
-    null;
-  exception when undefined_column then
-    null;
   exception when others then
-    null;
+    execute 'SELECT 1';
   end;
 
   -- Finally remove the user row

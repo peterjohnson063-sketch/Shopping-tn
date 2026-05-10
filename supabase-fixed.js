@@ -288,7 +288,6 @@ function _sbUniqueUserInsertAttempts(body) {
     'phone',
     'wilaya',
     'delegation',
-    'date_of_birth',
     'role',
     'points',
     'verified',
@@ -538,10 +537,10 @@ const SB = {
   },
 
   /**
-   * Cascade-delete a user using the server function `delete_user_cascade(text)`
-   * (added by migration 20260509200000_user_deletion_cascade.sql).
-   * Wipes vendor products + support threads + orphans references, then drops
-   * the user row — all in one server-side transaction.
+   * Cascade-delete a user using `delete_user_cascade(text)` (see migrations
+   * 20260509200000_user_deletion_cascade.sql and 20260510140000_user_delete_also_auth_users.sql).
+   * Wipes vendor products + support threads + orphans references, drops the
+   * public.users row, then removes auth.users when the id is a UUID.
    *
    * Throws if the RPC isn't deployed (caller should fall back to deleteUser).
    */
